@@ -1,0 +1,41 @@
+#!/bin/bash
+alias ls='ls $LS_OPTIONS'
+alias ll='ls $LS_OPTIONS -lah'
+alias l='ls $LS_OPTIONS -lA --group-directories-first'
+alias grep='grep --color=auto'
+alias egrep='egrep --color=auto'
+alias fgrep='fgrep --color=auto'
+[[ $(which colordiff) ]] && alias diff='colordiff'
+alias minicom='minicom -c on'
+
+# Some alias to avoid making mistakes
+alias rm='rm --preserve-root'
+alias chown='chown --preserve-root'
+alias chmod='chmod --preserve-root'
+alias chgrp='chgrp --preserve-root'
+alias mkdir='mkdir -pv'
+
+#Shortcuts
+alias bc='bc -l'
+alias sha1='openssl sha1'
+alias h='history'
+alias j='jobs -l'
+alias ports='netstat -tulanp'
+alias wget='wget -c'
+alias mc='TERM=xterm-256color . /usr/lib/mc/mc-wrapper.sh --nomouse'
+alias vi='vi -p'
+alias vim='vim -p'
+alias myip='curl -o - https://api.ipify.org/'
+alias aptitude='apt-get'
+
+# Sudo last command (when forgot to sudo it...)
+alias sudo-it='sudo $(history -p \!\!)'
+
+# Pigmentize output
+alias ccat='pygmentize -O bg=dark,style=colorful'
+
+# gksudo gone in Ubuntu 18.04 ; create an alias
+alias gksudo='sudo -H'
+
+# add packer aliases
+source /opt/packers/.aliases

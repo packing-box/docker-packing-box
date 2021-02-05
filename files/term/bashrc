@@ -1,0 +1,305 @@
+#!/bin/bash
+# If not running interactively, don't do anything
+[ -z "$PS1" ] && return
+
+# set variable identifying the chroot you work in (used in the prompt below)
+if [ -z "${debian_chroot:-}" ] && [ -r /etc/debian_chroot ]; then
+    debian_chroot=$(cat /etc/debian_chroot)
+fi
+
+# enable bash completion in interactive shells
+if ! shopt -oq posix; then
+  if [ -f /usr/share/bash-completion/bash_completion ]; then
+    . /usr/share/bash-completion/bash_completion
+  elif [ -f /etc/bash_completion ]; then
+    . /etc/bash_completion
+  fi
+fi
+
+# if the command-not-found package is installed, use it
+if [ -x /usr/lib/command-not-found -o -x /usr/share/command-not-found/command-not-found ]; then
+    function command_not_found_handle {
+            # check because c-n-f could've been removed in the meantime
+                if [ -x /usr/lib/command-not-found ]; then
+           /usr/lib/command-not-found -- "$1"
+                   return $?
+                elif [ -x /usr/share/command-not-found/command-not-found ]; then
+           /usr/share/command-not-found/command-not-found -- "$1"
+                   return $?
+        else
+           printf "%s: command not found\n" "$1" >&2
+           return 127
+        fi
+    }
+fi
+
+# source colors definition and other useful additions
+for f in .bash_colors .bash_gitprompt .bash_aliases; do
+  ok=0
+  for p in /etc/bash ~/ ./; do
+    if [ $ok -eq 0 ] && [ -f $p$f ];  then
+      source "$p$f"
+      ok=1
+    fi
+  done
+done
+
+# User Variables
+CMD_SUCC_SYMBOL="✔" #✓✔
+CMD_FAIL_SYMBOL="✘" #✗✘
+HOST_COLOR=$BGRE
+PATH_COLOR=$BWHI
+SEP_COLOR=$BWHI
+# Username color and prompt symbol depend on root privilege
+if [ "$(id -u)" -eq 0 ]; then
+    # Root prompt is red.
+    USER_COLOR=$BRED
+    LINE_COLOR=$BRED
+    LINE_COLOR2=$RED
+    PROMPT_SYMBOL='#'
+else
+    # Normal prompt is blue.
+    USER_COLOR=$BCYA
+    LINE_COLOR=$BCYA
+    LINE_COLOR2=$CYA
+    PROMPT_SYMBOL='$'
+fi
+LINE="──"
+
+# Save the last command return code
+function ret_sav() {
+    lastcmd_return_value=$?;
+}
+export PROMPT_COMMAND="ret_sav;"
+
+# Prints user-friendly exit status
+format_exit_status() {
+  local RETVAL="$1"
+  local SIGNAL
+  case $RETVAL in
+  2)
+    echo 2 misuse of shell builtins
+    ;;
+  126)
+    echo 126 invoked command cannot execute
+    ;;
+  127)
+    echo 127 command not found
+    ;;
+  128)
+    echo 128 invalid argument to exit
+    ;;
+  *)
+    if [ "${RETVAL}" -eq 127 ] 2>/dev/null; then
+      echo "Command not found"
+    fi
+    if [ "${RETVAL}" -gt 128 ] 2>/dev/null; then
+      SIGNAL=$(( ${RETVAL} - 128 ))
+      kill -l "${SIGNAL}" 2>/dev/null || echo "${RETVAL}"
+    else
+      echo "${RETVAL}"
+    fi
+    ;;
+  esac
+}
+
+bashrc-reload() {
+  builtin exec bash
+}
+
+
+# If return codes !=0, print it
+function last_cmd_errcode() {
+    if [[ ! $lastcmd_return_value == 0 ]]
+    then
+        echo -e -n "${RED}${CMD_FAIL_SYMBOL} $(format_exit_status ${lastcmd_return_value})${RST}"
+#    else
+#        echo -e -n "${GRE}${CMD_SUCC_SYMBOL}${RST}"
+    fi
+}
+
+# Append item to prompt if it's not empty
+function promptpart() {
+  local RET="$($1)"
+  if [[ ${RET} ]]; then
+    echo -ne "${LINE_COLOR}${LINE}[${RET}${LINE_COLOR}]"
+  fi
+}
+
+LOCALIP=$(ip addr show | grep -Eo '[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}' | grep -v 127.0.0.1 | head -n 1)
+
+# Prints power status and battery level
+function batterystatus(){
+  BATREAD=(AC_$(cat /sys/class/power_supply/AC/online  /sys/class/power_supply/BAT0/status /sys/class/power_supply/BAT0/capacity 2>/dev/null))
+  ACSTATUS="${BATREAD[0]}"
+  BATSTATUS="${BATREAD[1]}"
+  BATLEVEL=${BATREAD[2]}
+  if [[ ${BATLEVEL} ]]; then
+    case $BATLEVEL in
+    [0-5])
+      BATCOLOR=${LRED}
+      ;;
+    [6-9]|1[0-5])
+      BATCOLOR=${BRED}
+      ;;
+    1[6-9]|2[0-9]|30)
+      BATCOLOR=${BYEL}
+      ;;
+    *)
+      BATCOLOR=${BGRE}
+      ;;
+    esac
+    BATLEVEL+="%"
+  fi
+  BATCOLOR=${BATCOLOR:=${BWHI}}
+  ACSTATUS="${ACSTATUS/AC_1/🔌 }"
+  ACSTATUS="${ACSTATUS/AC_0/🔋 }"
+  ACSTATUS="${ACSTATUS/AC_/}"
+  BATSTATUS="${BATSTATUS/Charging/↑ }"
+  BATSTATUS="${BATSTATUS/Full/-}"
+  BATSTATUS="${BATSTATUS/Discharging/↓ }"
+  BAT="${ACSTATUS}${BATSTATUS}${BATLEVEL}"
+  [[ $BAT ]] && echo -ne "${BATCOLOR}${BAT}${RST}" && RSPACE=$(( $RSPACE + 4))
+  [[ ${ACSTATUS} ]] && RSPACE=$(( $RSPACE + 2))
+  [[ ${BATLEVEL} ]] && RSPACE=$(( $RSPACE + 5))
+}
+
+# When we are in GNU screen, insert '(screen)'.
+if [[ $TERM == "screen" ]]; then
+   PROMPT+="$BYEL(scn)$RST"
+fi
+
+# Define SSH variable for prompt usage if SSH client is detected
+if [ -n "$SSH_CLIENT" ]; then SSH="${BYEL}SSH${SEP_COLOR}://"; else SSH=""; fi
+# SSH Client IP is ${$SSH_CLIENT%% *}
+
+# CPU loadavg variable
+LOADAVG='$(sed "s/ .*//" /proc/loadavg)' # ⛭ ⛯ ⚙
+
+function getpid() {
+  PID="$(grep -i pid /proc/self/status)"
+  PID="${PID/NSpid: /}"
+  echo $PID
+}
+
+function setprompt(){
+# Prompt definition
+# $(cmd) 1
+# PROMPTPART 1
+# GITSTATUS: 2/4
+# LASTCMDERR: 1
+# RALIGN: 6
+# LOADAVG: 1
+# BATSTAT: 2
+# TOTAL= 21
+RSPACE=2
+PT_BH="${LINE_COLOR}${LINE}["
+PT_BT="${LINE_COLOR}]"
+PT_TAILL="${LINE}${LINE}${LINE}${LINE_COLOR2}${LINE}${RST}    \n\[${USER_COLOR}\]${PROMPT_SYMBOL}\[${RST}\] "
+PT_TAILR="${LINE}${LINE_COLOR2}${LINE}${RST}\r"  && RSPACE=$(( $RSPACE + 4 ))
+PT_PUH="${PT_BH}${SSH}${BWHI}${debian_chroot:+($debian_chroot)}${USER_COLOR}\u${SEP_COLOR}@${HOST_COLOR}\h${PT_BT}"
+PT_PATH="${PT_BH}$PATH_COLOR\w${PT_BT}"
+PT_GIT='$(promptpart gitstatus)'
+PT_ERR='$(promptpart last_cmd_errcode)'
+PT_IP="${PT_BH}${BWHI}${LOCALIP}${PT_BT}"        && RSPACE=$(( $RSPACE + 4 + ${#LOCALIP} ))
+PT_TIME="${PT_BH}${BWHI}\t${PT_BT}"              && RSPACE=$(( $RSPACE + 4 + 8 ))
+PT_LOAD="${PT_BH}${BWHI}${LOADAVG}${PT_BT}"      && RSPACE=$(( $RSPACE + 4 + 4 ))
+#PT_BATT='$(promptpart batterystatus)' && batterystatus &>/dev/null
+RALIGN='$(printf "%0.s " $(seq 1 $(expr ${COLUMNS} - ${RSPACE} 2>/dev/null)))'
+PT_HEADL="${LINE_COLOR}┌"
+PT_HEADR="\n$RALIGN ${LINE_COLOR2}${LINE}"       && RSPACE=$(( $RSPACE + 2 ))
+
+PROMPT="${PT_HEADL}${PT_PUH}${PT_PATH}${PT_GIT}${PT_ERR}${PT_TAILL}"
+PROMPT="${PT_HEADR}${PT_IP}${PT_TIME}${PT_LOAD}${PT_BATT}${PT_TAILR}${PROMPT}"
+
+PS1=$PROMPT
+}
+setprompt
+PROMPT_COMMAND+=setprompt
+
+# Shell optional behaviors
+shopt -s checkhash      # Check that a command found in the hash table exists before trying to execute it. If a hashed command no longer exists, a normal path search is performed.
+shopt -s checkwinsize   # Check window size after each command and update $LINES & $COLUMNS.
+shopt -s cmdhist        # Combine multiline commands in history
+shopt -s cdspell        # Light spelling error auto-correction in cd commands
+shopt -s dirspell       # Light spelling error auto-correction directory names if supplied one not found as is
+shopt -s extglob        # Enable Bash extended globbing matches
+shopt -s globstar       # Enable recursive globbing with **.
+shopt -s histappend     # merge session histories
+shopt -s histreedit     # Allow re-editing a failed history substitution.
+shopt -s lithist        # Save multi-line commands with embedded newlines rather than semicolon where possible
+
+#set -o vi               # use a vi-style line editing interface (ESC, v)
+set -o emacs            # use a emacs-style line editing interface
+set -o notify           # Notify of job termination immediately.
+set -o monitor          # Enable job control
+#set -o ignoreeof        # Ctrl+D doesn't work to exit the shell
+export IGNOREEOF=1      # Ctrl+D must be pressed twice to exit the shell
+
+# save all the histories
+export HISTFILESIZE=1000000
+export HISTSIZE=1000000
+export PROMPT_COMMAND+=";history -a;history -n;" # Flush history to file after each cmd
+export HISTCONTROL=ignoreboth      # don't put duplicate lines or empty spaces in the history
+export LANG=en_US.UTF-8
+#export LC_ALL=en_US.UTF-8      # If set, overrides
+export LC_MESSAGES=C
+export TIME_STYLE=long-iso
+export EDITOR=vim
+export VISUAL=vim
+export HOSTNAME="packing-box"
+export SHELL="/bin/bash"
+
+# colorful man pages
+export LESS_TERMCAP_mb=$'\E[05;32m'           # Mode Blinking
+export LESS_TERMCAP_md=$'\E[01;32m'           # Mode Bright
+export LESS_TERMCAP_me=$'\E[0m'               # Mode reset
+export LESS_TERMCAP_so=$'\E[01;42;30m'        # Infobox begin
+export LESS_TERMCAP_se=$'\E[0m'               # Infobox end
+export LESS_TERMCAP_us=$'\E[04;96m'           # Underline begin
+export LESS_TERMCAP_ue=$'\E[0m'               # Underline end
+export LESS_TERMCAP_zz=$'\E[0m'               # Underline end
+
+## Colorize misc commands output for ease of use (good for log files)##
+export LS_OPTIONS='--color=auto --time-style long-iso'
+eval "`dircolors`"
+
+# Remove games from PATH
+PATH=${PATH/":/usr/games"/""}
+PATH=${PATH/":/usr/local/games"/""}
+# Add packers' bin folder to PATH
+PATH=$PATH:/opt/packers/.bin
+
+eval 
+    function fuck () {
+        TF_PREVIOUS=$(fc -ln -1);
+        TF_PYTHONIOENCODING=$PYTHONIOENCODING;
+        export TF_ALIAS=fuck;
+        export TF_SHELL_ALIASES=$(alias);
+        export PYTHONIOENCODING=utf-8;
+        TF_CMD=$(
+            thefuck $TF_PREVIOUS THEFUCK_ARGUMENT_PLACEHOLDER $@
+        ) && eval $TF_CMD;
+        export PYTHONIOENCODING=$TF_PYTHONIOENCODING;
+        history -s $TF_CMD;
+    }
+
+# Proxy environment variables
+export HTTP_PROXY=$http_proxy
+export HTTPS_PROXY=$https_proxy
+
+# Custom system update function
+system-update() {
+  sudo apt-get update
+  sudo apt-get upgrade -y
+  sudo apt-get autoremove -y
+  sudo apt-get autoclean
+}
+
+# pip-update
+pip-upgrade() {
+  sudo pip3 freeze - local \
+    | grep -v "^\-e" \
+    | cut -d = -f 1 \
+    | xargs -n1 sudo pip3 install -U
+}
