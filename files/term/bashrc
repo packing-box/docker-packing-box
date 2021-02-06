@@ -268,7 +268,7 @@ eval "`dircolors`"
 PATH=${PATH/":/usr/games"/""}
 PATH=${PATH/":/usr/local/games"/""}
 # Add packers' bin folder to PATH
-PATH=$PATH:/opt/packers/.bin
+PATH=$PATH:/opt/packers/.bin:/opt/tools
 
 eval 
     function fuck () {

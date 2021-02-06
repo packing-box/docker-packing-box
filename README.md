@@ -55,5 +55,5 @@ $ docker run -it -h packing-box -v `pwd`:/mnt/share dhondta/packing-box
 - Install [NetShrink](https://www.pelock.com/products/netshrink) ([PELock](https://www.pelock.com/) suite)
 - Install [PELock](https://www.pelock.com/products/pelock) ([PELock](https://www.pelock.com/) suite)
 - Install [PE Packer](https://github.com/czs108/PE-Packer)
-- Make Python tool that allows to generate a dataset (Linux: from `/bin`, `/usr/bin`, ... ; Windows: from `~/.wine/c_drive/Windows/system32`, ...)
+- Make Python tool that allows to train ML models and compare their performance
 

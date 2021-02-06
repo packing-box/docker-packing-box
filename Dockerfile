@@ -3,7 +3,7 @@ MAINTAINER Alexandre DHondt <alexandre.dhondt@gmail.com>
 ENV DEBIAN_FRONTEND noninteractive
 ENV TERM xterm-256color
 # copy customized files
-RUN mkdir -p /opt/packers/.bin
+RUN mkdir -p /opt/tools /opt/packers/.bin
 RUN touch /opt/packers/.aliases
 ADD files/term/bash_aliases /root/.bash_aliases
 ADD files/term/bash_colors /root/.bash_colors
@@ -101,5 +101,7 @@ RUN (wget -O /tmp/netcrypt.zip https://github.com/friedkiwi/netcrypt/releases/do
 # ----------------------------------------------------------------------------------------------------------------------
 FROM packers AS tools
 # install & upgrade Python packages
-RUN pip3 install tinyscript
+ADD files/tools/requirements.txt /tmp/requirements.txt
+ADD files/tools/dataset-maker.py /opt/tools/dataset-maker
+RUN pip3 install -r /tmp/requirements.txt
 RUN pip3 freeze - local | grep -v "^\-e" | cut -d = -f 1 | xargs -n1 pip3 install -U
