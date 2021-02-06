@@ -18,7 +18,11 @@ RUN apt update \
  && apt autoclean
 # install common dependencies, libraries and tools
 RUN apt -y install apt-transport-https apt-utils bash-completion build-essential curl software-properties-common \
- && apt -y install libcairo2-dev libffi-dev libgif-dev libgirepository1.0-dev libglib2.0-dev libjpeg-dev \
+ && apt -y install libavcodec-dev libavformat-dev libavresample-dev libavutil-dev libbsd-dev libc6-dev-i386 \
+                   libcairo2-dev libdbus-1-dev libegl1-mesa-dev libelf-dev libffi-dev libfontconfig1-dev \
+                   libfreetype6-dev libfuse-dev libgif-dev libgirepository1.0-dev libgl1-mesa-dev libglib2.0-dev \
+                   libglu1-mesa-dev libjpeg-dev libpulse-dev libssl-dev libtiff5-dev libudev-dev libxcursor-dev \
+                   libxkbfile-dev libxml2-dev libxrandr-dev \
  && apt -y install colordiff colortail dosbox git less ltrace strace sudo tmate tmux unzip vim wget yarnpkg xterm zstd \
  && apt -y install iproute2 nodejs npm python3-setuptools python3-pip unzip x11-apps xvfb wget
 # install wine (for running Windows software on Linux)
@@ -33,12 +37,10 @@ RUN apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys 3FA7E03280
  && apt-add-repository 'deb https://download.mono-project.com/repo/ubuntu stable-focal main' \
  && apt update \
  && apt -y install mono-complete
+# ----------------------------------------------------------------------------------------------------------------------
+FROM base AS experimental
 # install darling (for running MacOS software on Linux)
-RUN apt install cmake clang bison flex libfuse-dev libudev-dev pkg-config libc6-dev-i386 \
-    linux-headers-generic gcc-multilib libcairo2-dev libgl1-mesa-dev libglu1-mesa-dev libtiff5-dev \
-    libfreetype6-dev git libelf-dev libxml2-dev libegl1-mesa-dev libfontconfig1-dev libbsd-dev \
-    libxrandr-dev libxcursor-dev libgif-dev libavutil-dev libpulse-dev libavformat-dev libavcodec-dev \
-    libavresample-dev libdbus-1-dev libxkbfile-dev libssl-dev \
+RUN apt -y install cmake clang bison flex pkg-config linux-headers-generic gcc-multilib \
  && cd /tmp/ && git clone --recursive https://github.com/darlinghq/darling.git && cd darling \
  && mkdir build && cd build && cmake .. && make && make install \
  && make lkm && make lkm_install
