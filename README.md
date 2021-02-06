@@ -55,5 +55,6 @@ $ docker run -it -h packing-box -v `pwd`:/mnt/share dhondta/packing-box
 - Install [NetShrink](https://www.pelock.com/products/netshrink) ([PELock](https://www.pelock.com/) suite)
 - Install [PELock](https://www.pelock.com/products/pelock) ([PELock](https://www.pelock.com/) suite)
 - Install [PE Packer](https://github.com/czs108/PE-Packer)
-- Make Python tool that allows to train ML models and compare their performance
+- Make Python tool that allows to train ML models (e.g. RF or MLP) and compare their performance
+- Use [Xvfb](https://superuser.com/questions/902175/run-wine-totally-headless) to run GUI apps through wine in headless mode
 
