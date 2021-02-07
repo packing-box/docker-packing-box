@@ -39,3 +39,4 @@ alias gksudo='sudo -H'
 
 # add packer aliases
 source /opt/packers/.aliases
+alias help='/root/help | lolcat'
