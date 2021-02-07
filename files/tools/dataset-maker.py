@@ -20,9 +20,10 @@ __examples__  = [
 
 
 CATEGORIES = {
-    'all': ["elf", "mac", "msdos", "pe"],
-    'elf': ["elf32", "elf64"],
-    'pe':  ["pe32", "pe64"],
+    'all':   ["elf", "macho", "msdos", "pe"],
+    'elf':   ["elf32", "elf64"],
+    'macho': ["macho32", "macho64", "macho-u"],
+    'pe':    ["pe32", "pe64"],
 }
 PACKERS = {
     'Amber':         ["pe"],
@@ -34,6 +35,9 @@ PACKERS = {
 }
 PACKING_BOX_SOURCES = ["/bin", "/usr/bin", "~/.wine/drive_c", "~/.wine32/drive_c"]
 SIGNATURES = {
+    '^Mach-O 32-bit ':           "macho32",
+    '^Mach-O 64-bit ':           "macho64",
+    '^Mach-O universal binary ': "macho-u",
     '^MS-DOS executable ':       "msdos",
     '^PE32 executable ':         "pe32",
     '^PE32\+ executable ':       "pe64",
