@@ -1,0 +1,46 @@
+#!/usr/bin/python3
+# -*- coding: UTF-8 -*-
+import mdv
+from tinyscript import *
+
+from packers import *
+
+
+__script__      = "packing-box"
+__author__      = "Alexandre D'Hondt"
+__email__       = "alexandre.dhondt@gmail.com"
+__copyright__   = ("A. D'Hondt", 2021)
+__license__     = "gpl-3.0"
+__description__ = "This help message"
+
+
+BANNER_FONT       = "starwars"
+BANNER_STYLE      = {'fgcolor': "lolcat"}
+MARKDOWN_TEMPLATE = """
+This Docker image is a ready-to-use platform for making datasets of packed and not packed executables, especially for training machine learning models.
+"""
+
+
+if __name__ == '__main__':
+    initialize()
+    md = MARKDOWN_TEMPLATE
+    tools_section = "## Tools\n\n**Name** | **Description**\n---|---\n"
+    for tool in ts.Path(__file__).dirname.listdir(lambda f: f.is_file()):
+        try:
+            for line in tool.read_text().splitlines():
+                if "__description__" in line:
+                    tools_section += "|".join([tool.stem, line.split("=", 1)[1].strip(" \"")]) + "\n"
+                    break
+        except UnicodeDecodeError:
+            continue
+    md += tools_section + "\n\n"
+    packers_section = "## Packers\n\n**Name** | **URL** | **Targets** | **Status**\n---|---|:---:|:---:\n"
+    cmds = subprocess.check_output("compgen -c", shell=True, executable="/bin/bash").splitlines()
+    for name, obj in sorted(globals().items(), key=lambda x: x[0]):
+        if getattr(obj, "__base__", None) and obj.__base__.__name__ == "Packer":
+            row = [name, obj.source, ",".join(obj.categories)]
+            row.append([colored("✗", "red"), colored("✓", "green")][b(name.lower()) in cmds])
+            packers_section += "|".join(row) + "\n"
+    md += packers_section
+    print(mdv.main(md))
+

@@ -1,0 +1,96 @@
+Amber:
+  categories:
+    - PE
+  install:
+    wget:  https://github.com/EgeBalci/amber/releases/download/v3.0/amber_linux_amd64_3.0.zip
+    unzip: /opt/packers/
+    ln:    amber
+  source: https://github.com/EgeBalci/amber
+
+APack:
+  categories:
+    - PE
+  install:
+    wget:  https://www.ibsensoftware.com/files/apack-1.00.zip
+    unzip: /opt/packers/
+    sh:    wine /opt/packers/apack/apackw.exe
+  source: https://www.ibsensoftware.com/download.html
+
+Ezuri:
+  categories:
+    - ELF
+  install:
+    copy: ezuri
+  source: https://github.com/guitmz/ezuri
+
+Kkrunchy:
+  categories:
+    - PE
+  install:
+    wget:  http://www.farbrausch.de/~fg/kkrunchy/kkrunchy_023a2.zip
+    unzip: /opt/packers/
+    sh:    wine /opt/packers/kkrunchy_k7.exe
+  source: http://www.farbrausch.de/~fg/kkrunchy
+
+M0dern_p4cker:
+  categories:
+    - ELF
+  install:
+    apt:   libcapstone-dev
+    wget:  https://github.com/n4sm/m0dern_p4cker/archive/master.zip
+    unzip: /tmp/m0dern_p4cker
+    cd:    packer@git
+    make:  main
+    move:  m0dern_p4cker
+    rm:    /tmp/m0dern_p4cker-master
+  source: https://github.com/n4sm/m0dern_p4cker
+
+MEW:
+  categories:
+    - PE
+  install:
+    unzip: /opt/packers/mew
+    sh:    wine /opt/packers/mew/mew11.exe
+  source: https://in4k.github.io/wiki/exe-packers-tweakers-and-linkers
+
+MPRESS:
+  categories:
+    - PE32
+    - .NET
+  install:
+    unzip: /opt/packers/mpress
+    sh:    wine /opt/packers/mpress/mpress.exe
+  source: https://www.softpedia.com/get/Programming/Packers-Crypters-Protectors/MPRESS.shtml
+
+NetCrypt:
+  categories:
+    - .NET
+  install:
+    wget:  https://github.com/friedkiwi/netcrypt/releases/download/v1.1/netcrypt.zip
+    unzip: /opt/packers/netcrypt
+    sh:    wine /opt/packers/netcrypt/SimplePacker.exe
+  source: https://github.com/friedkiwi/netcrypt
+
+PEtite:
+  categories:
+    - PE
+  install:
+    wget:  https://www.un4seen.com/files/petite24.zip
+    unzip: /opt/packers/petite
+    sh:    wine /opt/packers/petite/petite.exe
+  source: https://www.un4seen.com/petite
+
+Telock:
+  categories:
+    - PE
+  install:
+    unzip: /opt/packers/telock
+    sh:    wine /opt/packers/telock/telock.exe
+  source: https://www.softpedia.com/get/Programming/Packers-Crypters-Protectors/Telock.shtml
+
+UPX:
+  categories:
+    - All
+  install:
+    apt: upx
+  source: https://upx.github.io

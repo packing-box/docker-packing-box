@@ -1,0 +1,72 @@
+#!/usr/bin/python3
+# -*- coding: UTF-8 -*-
+import json
+from tinyscript import *
+
+from packers import *
+
+
+__author__      = "Alexandre D'Hondt"
+__email__       = "alexandre.dhondt@gmail.com"
+__version__     = "1.0.0"
+__copyright__   = ("A. D'Hondt", 2021)
+__license__     = "gpl-3.0"
+__doc__         = """
+This tool aims to make a dataset from executables contained in the packing-box Docker image or from a user-defined
+ source of executable files, packed or not with the selected packers installed in the image.
+"""
+__examples__    = ["-c dotnet -n 1000", "-c pe,dotnet -n 2000"]
+__description__ = "A tool for making datasets of packed and not packed executables for use with machine learning."
+
+
+PACKING_BOX_SOURCES = ["/bin", "/usr/bin", "~/.wine/drive_c", "~/.wine32/drive_c"]
+
+
+if __name__ == '__main__':
+    parser.add_argument("-c", "--categories", type=ts.values_list, default="all",
+                        help="list of categories to be considered")
+    parser.add_argument("-s", "--destination-dir", default="dataset", type=ts.folder_does_not_exist,
+                        help="executables destination directory for the dataset")
+    parser.add_argument("-n", "--number-executables", dest="n", type=ts.pos_int, default=100,
+                        help="number of executables for the output dataset")
+    parser.add_argument("-s", "--source-dir", default=PACKING_BOX_SOURCES, nargs="*",
+                        type=lambda p: ts.Path(p, create=True),
+                        help="executables source directory to be included")
+    initialize()
+    args.categories = Packer.expand(*categories)
+    packers = []
+    for k, i in list(globals().items()):
+        if k in PACKERS.keys() or ts.is_class(i) and i.__base__ is Packer:
+            packer = i()
+            if packer.enabled:
+                packers.append(packer)
+    logging.setLoggers(*[p.name for p in packers])
+    if len(packers) == 0:
+        logger.critical("No packer found")
+    else:
+        logger.info("Packers: %s" % ", ".join(sorted([p.name for p in packers])))
+        candidates = []
+        for src in args.source_dir:
+            candidates.extend(ts.Path(src, expand=True).listdir())
+        executables = {}
+        random.shuffle(candidates)
+        dst = ts.Path(args.destination_dir, create=True)
+        for f in candidates:
+            if exe_format(f) is None or f.filename in executables.keys():
+                continue
+            if len(executables) >= args.n:
+                break
+            df = dst.joinpath(f.filename)
+            shutil.copy(str(f), str(df))
+            df.chmod(0o777)
+            label = None
+            if random.randint(0, 1):
+                label = random.choice(packers).pack(str(df), categories=args.categories)
+                if label is None:
+                    continue
+            executables[f.filename] = label
+        labels = dst.joinpath("labels.json")
+        labels.touch()
+        with labels.open('w') as f:
+            json.dump(executables, f, indent=2)
+
