@@ -1,0 +1,2 @@
+- [] The new feature was tested
+- [] The new feature does not conflict with any other
