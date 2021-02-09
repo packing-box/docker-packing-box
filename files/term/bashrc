@@ -264,9 +264,6 @@ export LESS_TERMCAP_zz=$'\E[0m'               # Underline end
 export LS_OPTIONS='--color=auto --time-style long-iso'
 eval "`dircolors`"
 
-# Remove games from PATH
-PATH=${PATH/":/usr/games"/""}
-PATH=${PATH/":/usr/local/games"/""}
 # Add packers' bin folder to PATH
 PATH=$PATH:/opt/packers/.bin:/opt/tools
 

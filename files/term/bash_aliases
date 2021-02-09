@@ -36,7 +36,3 @@ alias ccat='pygmentize -O bg=dark,style=colorful'
 
 # gksudo gone in Ubuntu 18.04 ; create an alias
 alias gksudo='sudo -H'
-
-# add packer aliases
-source /opt/packers/.aliases
-alias help='/root/help | lolcat'
