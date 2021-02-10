@@ -1,14 +1,13 @@
 #!/usr/bin/python3
 # -*- coding: UTF-8 -*-
-import json
-from tinyscript import *
-
 from packers import *
+from tinyscript import *
+from tqdm import tqdm
 
 
 __author__      = "Alexandre D'Hondt"
 __email__       = "alexandre.dhondt@gmail.com"
-__version__     = "1.0.0"
+__version__     = "1.1.0"
 __copyright__   = ("A. D'Hondt", 2021)
 __license__     = "gpl-3.0"
 __doc__         = """
@@ -22,51 +21,96 @@ __description__ = "A tool for making datasets of packed and not packed executabl
 PACKING_BOX_SOURCES = ["/bin", "/usr/bin", "~/.wine/drive_c", "~/.wine32/drive_c"]
 
 
-if __name__ == '__main__':
-    parser.add_argument("-c", "--categories", type=ts.values_list, default="all",
-                        help="list of categories to be considered")
-    parser.add_argument("-s", "--destination-dir", default="dataset", type=ts.folder_does_not_exist,
-                        help="executables destination directory for the dataset")
-    parser.add_argument("-n", "--number-executables", dest="n", type=ts.pos_int, default=100,
-                        help="number of executables for the output dataset")
-    parser.add_argument("-s", "--source-dir", default=PACKING_BOX_SOURCES, nargs="*",
-                        type=lambda p: ts.Path(p, create=True),
-                        help="executables source directory to be included")
-    initialize()
-    args.categories = Packer.expand(*categories)
-    packers = []
-    for k, i in list(globals().items()):
-        if k in PACKERS.keys() or ts.is_class(i) and i.__base__ is Packer:
-            packer = i()
-            if packer.enabled:
-                packers.append(packer)
-    logging.setLoggers(*[p.name for p in packers])
-    if len(packers) == 0:
-        logger.critical("No packer found")
-    else:
-        logger.info("Packers: %s" % ", ".join(sorted([p.name for p in packers])))
+class Dataset:
+    @logging.bindLogger
+    def __init__(self, destination_dir="dataset", source_dir=PACKING_BOX_SOURCES, **kw):
+        self.path = ts.Path(destination_dir, create=True)
+        self.sources = source_dir
+    
+    def __setattr__(self, name, value):
+        if name == "categories":
+            # get the list of packers related to the selected categories
+            categories = Packer.expand(*value)
+            self.packers = [p for p in PACKERS if p.enabled and p.check(*categories)]
+            if len(self.packers) == 0:
+                raise ValueError("No packer found for these categories")
+        elif name == "sources":
+            sources = []
+            for src in value:
+                src = ts.Path(src, expand=True)
+                if not src.exists() or not src.is_dir():
+                    continue
+                sources.append(src)
+            value = sources
+        super(Dataset, self).__setattr__(name, value)
+    
+    def make(self, n=100, categories=["All"], balance=False, **kw):
+        """ Makes a dataset of n samples among the given binary categories, balanced or not according to the number of
+             distinct packers. """
+        pbar = tqdm(total=n, unit="executable")
+        self.categories = categories
+        self.logger.info("Source directories:    %s" % ",".join(map(str, self.sources)))
+        self.logger.info("Considered categories: %s" % ",".join(categories))
+        # collect lists of binaries and randomly choose a subset of them, to be randomly packed or not
         candidates = []
-        for src in args.source_dir:
-            candidates.extend(ts.Path(src, expand=True).listdir())
+        for src in self.sources:
+            candidates.extend(ts.Path(src, expand=True).listdir(filter_func=exe_format))
+        if len(candidates) < n:
+            raise ValueError("Not enough candidate executables available")
         executables = {}
         random.shuffle(candidates)
-        dst = ts.Path(args.destination_dir, create=True)
+        # now pack the required number of executables
+        labels = {}
         for f in candidates:
             if exe_format(f) is None or f.filename in executables.keys():
                 continue
             if len(executables) >= args.n:
                 break
-            df = dst.joinpath(f.filename)
+            df = self.path.joinpath(f.filename)
             shutil.copy(str(f), str(df))
             df.chmod(0o777)
             label = None
-            if random.randint(0, 1):
-                label = random.choice(packers).pack(str(df), categories=args.categories)
-                if label is None:
-                    continue
+            if random.randint(0, len(self.packers) if balance else 1):
+                packers = self.packers[:]
+                random.shuffle(packers)
+                for packer in packers:
+                    label = packer.pack(str(df))
+                    if label is None or label is False or packer._bad:
+                        if label is False or packer._bad:
+                            self.logger.warning("Disabling %s..." % packer.__class__.__name__)
+                            self.packers.remove(packer)
+                        continue
             executables[f.filename] = label
-        labels = dst.joinpath("labels.json")
+            pbar.update()
+            if len(executables) >= n:
+                break
+        # finally, save dataset's metadata and labels to JSON files
+        packers = [p.__class__.__name__ for p in self.packers]
+        self.logger.info("Used packers: %s" % ", ".join(packers))
+        data = {'categories': self.categories, 'packers': packers, 'executables': n}
+        meta = self.path.joinpath("metadata.json")
+        meta.touch()
+        with meta.open('w') as f:
+            json.dump(data, f, indent=2)
+        labels = self.path.joinpath("labels.json")
         labels.touch()
         with labels.open('w') as f:
             json.dump(executables, f, indent=2)
+        
+
+
+if __name__ == '__main__':
+    parser.add_argument("-b", "--balance", action="store_true", help="balance the dataset relatively to the number of "
+                                                                     "packers used, not between packed and not packed")
+    parser.add_argument("-c", "--categories", type=ts.values_list, default="All",
+                        help="list of categories to be considered")
+    parser.add_argument("-d", "--destination-dir", default="dataset", type=ts.folder_does_not_exist,
+                        help="executables destination directory for the dataset")
+    parser.add_argument("-n", "--number-executables", dest="n", type=ts.pos_int, default=100,
+                        help="number of executables for the output dataset")
+    parser.add_argument("-s", "--source-dir", default=PACKING_BOX_SOURCES, nargs="*",
+                        type=lambda p: ts.Path(p, expand=True, create=True),
+                        help="executables source directory to be included")
+    initialize()
+    Dataset(**vars(args)).make(**vars(args))
 

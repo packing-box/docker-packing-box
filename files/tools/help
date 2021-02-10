@@ -1,9 +1,8 @@
 #!/usr/bin/python3
 # -*- coding: UTF-8 -*-
 import mdv
-from tinyscript import *
-
 from packers import *
+from tinyscript import *
 
 
 __script__      = "packing-box"
@@ -36,11 +35,10 @@ if __name__ == '__main__':
     md += tools_section + "\n\n"
     packers_section = "## Packers\n\n**Name** | **URL** | **Targets** | **Status**\n---|---|:---:|:---:\n"
     cmds = subprocess.check_output("compgen -c", shell=True, executable="/bin/bash").splitlines()
-    for name, obj in sorted(globals().items(), key=lambda x: x[0]):
-        if getattr(obj, "__base__", None) and obj.__base__.__name__ == "Packer":
-            row = [name, obj.source, ",".join(obj.categories)]
-            row.append([colored("✗", "red"), colored("✓", "green")][b(name.lower()) in cmds])
-            packers_section += "|".join(row) + "\n"
+    for packer in PACKERS:
+        row = [packer.__class__.__name__, packer.source, ",".join(packer.categories)]
+        row.append([colored("✗", "red"), colored("✓", "green")][b(packer.name) in cmds])
+        packers_section += "|".join(row) + "\n"
     md += packers_section
     print(mdv.main(md))
 
