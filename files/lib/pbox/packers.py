@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 # -*- coding: UTF-8 -*-
-from tinyscript import *
+from tinyscript import b, ensure_str, hashlib, logging, os, random, shlex, shutil, subprocess, ts
 from tinyscript.helpers import execute_and_log as run, Path
 
 
@@ -38,6 +38,7 @@ class Packer:
         self.logger = logging.getLogger(self.name)
         self.enabled = shutil.which(self.name) is not None
         self._bad = False
+        self._error = False
     
     def check(self, *categories):
         """ Checks if the current packer has the given category """
@@ -84,31 +85,53 @@ class Packer:
         self.logger.info("Setting up %s..." % self.__class__.__name__)
         tmp, ubin = Path("/tmp"), Path("/usr/bin")
         result, rm, kw = None, True, {'logger': self.logger}
+        cwd = os.getcwd()
         for cmd, arg in self.install.items():
-            if result and not result.exists():
-                raise ValueError("Last command's result does not exist (%s)" % result)
+            if isinstance(result, Path) and not result.exists():
+                raise ValueError("Last command's result does not exist (%s) ; current: %s" % (result, cmd))
             # simple install through APT
             if cmd == "apt":
                 run("apt -qy install %s" % arg, **kw)
             # change to the given dir (starting from the reference /tmp directory if no command was run before)
             elif cmd == "cd":
                 result = (result or tmp).joinpath(arg)
+                self.logger.debug("cd %s" % result)
+                os.chdir(str(result))
             # copy a file from the previous location (or /tmp if not defined) to /usr/bin,
             #  making the destination file executable
             elif cmd == "copy":
-                src, dst = (result or tmp).joinpath(arg), ubin.joinpath(arg)
-                if run("cp %s %s" % (src, dst), **kw)[-1] == 0:
+                try:
+                    arg1, arg2 = shlex.split(arg)
+                except ValueError:
+                    arg1, arg2 = arg, arg
+                src, dst = (result or tmp).joinpath(arg1), ubin.joinpath(arg2)
+                if run("cp %s %s" % (src, dst), **kw)[-1] == 0 and arg1 == arg2:
                     run("chmod +x %s" % dst, **kw)
+            # execute the given command as is, with no pre-/post-condition, not altering the result state variable
+            elif cmd == "exec":
+                result = None
+                run(arg, **kw)
             # make a symbolink link in /usr/bin (if relative path) relatively to the previous considered location
             elif cmd == "ln":
                 r = ubin.joinpath(self.name)
                 run("ln -s %s %s" % (result.joinpath(arg), r), **kw)
                 result = r
+            elif cmd == "lsh":
+                try:
+                    arg1, arg2 = shlex.split(arg)
+                except ValueError:
+                    arg1, arg2 = "/opt/packers/%s" % self.name, arg
+                result = ubin.joinpath(self.name)
+                arg = "#!/bin/bash\nPWD=`pwd`\nif [[ \"$1\" = /* ]]; then TARGET=\"$1\"; else TARGET=\"$PWD/$1\"; fi" \
+                      "\ncd %s\n./%s $TARGET $2\ncd $PWD" % (arg1, arg2)
+                self.logger.debug("echo -en '%s' > %s" % (arg, result))
+                try:
+                    result.write_text(arg)
+                    run("chmod +x %s" % result, **kw)
+                except PermissionError:
+                    self.logger.error("bash: %s: Permission denied" % result)
             # compile a C project
             elif cmd == "make":
-                cwd = os.getcwd()
-                self.logger.debug("cd %s" % result)
-                os.chdir(str(result))
                 if not result.is_dir():
                     raise ValueError("Got a file ; should have a folder")
                 files = [x.filename for x in result.listdir()]
@@ -122,8 +145,6 @@ class Packer:
                     if run("chmod +x make.sh", **kw)[-1] == 0:
                         run("sh -c './make.sh'", **kw)
                 result = result.joinpath(arg)
-                self.logger.debug("cd %s" % cwd)
-                os.chdir(cwd)
             # move the previous location to /usr/bin (if relative path), make it executable if it is a file
             elif cmd == "move":
                 if result is None:
@@ -139,6 +160,7 @@ class Packer:
             # create a shell script to execute Bash code and make it executable
             elif cmd == "sh":
                 result = ubin.joinpath(self.name)
+                arg = "\n".join(arg.split("\\n"))
                 arg = "#!/bin/bash\n%s" % arg
                 self.logger.debug("echo -en '%s' > %s" % (arg, result))
                 try:
@@ -185,6 +207,9 @@ class Packer:
                 else:
                     result = tmp.joinpath(self.name + Path(ts.urlparse(arg).path).extension)
                     run("wget -q -O %s %s" % (result, arg), **kw)[-1]
+        if os.getcwd() != cwd:
+            self.logger.debug("cd %s" % cwd)
+            os.chdir(cwd)
         if rm:
             run("rm -rf %s" % tmp.joinpath(self.name), **kw)
         
@@ -199,36 +224,52 @@ class Packer:
                         selected.append(ssc)
         return selected
 
-
+# ------------------------------------------------ NON-STANDARD PACKERS ------------------------------------------------
 class Ezuri(Packer):
+    key = None
+    iv  = None
+    
     def run(self, executable, **kwargs):
         """ This packer prompts for parameters. """
         self._error = False
         p = subprocess.Popen(["ezuri"], stdout=subprocess.PIPE, stderr=subprocess.PIPE, stdin=subprocess.PIPE)
-        self.logger.debug("ezuri ; inputs: src/dst=%s, procname=ezuri" % executable)
-        out, err = p.communicate(b("%(e)s\n%(e)s\%(n)s\n\n\n" % {'e': executable, 'n': executable.split(os.sep)[-1]}))
-        key, iv = "", ""
+        executable = Path(executable)
+        self.logger.debug("ezuri ; inputs: src/dst=%s, procname=%s" % (executable, executable.stem))
+        out, err = p.communicate(b("%(e)s\n%(e)s\n%(n)s\n%(k)s\n%(iv)s\n" % {
+            'e': executable, 'n': executable.stem,
+            'k': "" if Ezuri.key is None else Ezuri.key,
+            'iv': "" if Ezuri.iv is None else Ezuri.iv,
+        }))
         for l in out.splitlines():
             l = ensure_str(l)
             if not l.startswith("[?] "):
                 self.logger.debug(l)
-            if " encryption key " in l:
-                key = l.split(":", 1)[1].strip()
-            if " encryption IV " in l:
-                iv = l.split(":", 1)[1].strip()
+            if Ezuri.key is None and "Random encryption key (used in stub):" in l:
+                Ezuri.key = l.split(":", 1)[1].strip()
+            if Ezuri.iv is None and "Random encryption IV (used in stub):" in l:
+                Ezuri.iv = l.split(":", 1)[1].strip()
         if err:
             self.logger.error(ensure_str(err.strip()))
-            #self._error = True
-        return "%s[key:%s;iv:%s]" % (self.name, key, iv)
+            self._error = True
+        return "%s[key:%s;iv:%s]" % (self.name, Ezuri.key, Ezuri.iv)
 
 
 class M0dern_P4cker(Packer):
+    stubs = ["xor", "not", "xorp"]
+    
     def run(self, executable, **kwargs):
         """ This packer allows to define 3 different stubs: XOR, NOT, XORP (see documentation). """
-        stub = random.choice(["xor", "not", "xorp"])
-        run([self.name, executable, stub], logger=self.logger)
-        return "%s[%s]" % (self.name, stub)
-
+        stubs = self.stubs[:]
+        self._error = True
+        while len(stubs) > 0 and self._error:
+            stub = random.choice(stubs)
+            out, err, retc = run([self.name, executable, stub], logger=self.logger)
+            for l in ensure_str(out).splitlines():
+                if "Stub Injected" in l:
+                    self._error = False
+                    return "%s[%s]" % (self.name, stub)
+            stubs.remove(stub)
+# ----------------------------------------------------------------------------------------------------------------------
 
 # dynamically makes Packer child classes from the PACKERS dictionary
 PACKERS = []

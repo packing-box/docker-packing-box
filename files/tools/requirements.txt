@@ -1,1 +1,0 @@
-tinyscript>=1.23.21

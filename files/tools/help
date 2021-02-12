@@ -1,8 +1,11 @@
 #!/usr/bin/python3
 # -*- coding: UTF-8 -*-
-import mdv
-from packers import *
+from pbox import *
 from tinyscript import *
+try:  # from Python3.9
+    import mdv3 as mdv
+except ImportError:
+    import mdv
 
 
 __script__      = "packing-box"
@@ -23,7 +26,7 @@ This Docker image is a ready-to-use platform for making datasets of packed and n
 if __name__ == '__main__':
     initialize()
     md = MARKDOWN_TEMPLATE
-    tools_section = "## Tools\n\n**Name** | **Description**\n---|---\n"
+    tools_section = "## Tools\n\n **Name** | **Description** \n---|---\n"
     for tool in ts.Path(__file__).dirname.listdir(lambda f: f.is_file()):
         try:
             for line in tool.read_text().splitlines():
@@ -33,12 +36,22 @@ if __name__ == '__main__':
         except UnicodeDecodeError:
             continue
     md += tools_section + "\n\n"
-    packers_section = "## Packers\n\n**Name** | **URL** | **Targets** | **Status**\n---|---|:---:|:---:\n"
+    packers_section = "## Packers\n\n **Name** | **Source** | **Targets** | **Status** \n---|---|:---:|:---:\n"
     cmds = subprocess.check_output("compgen -c", shell=True, executable="/bin/bash").splitlines()
     for packer in PACKERS:
         row = [packer.__class__.__name__, packer.source, ",".join(packer.categories)]
         row.append([colored("✗", "red"), colored("✓", "green")][b(packer.name) in cmds])
         packers_section += "|".join(row) + "\n"
-    md += packers_section
+    md += packers_section + "\n\n"
+    datasets_section = "## Datasets\n\n **Name** | **Size** | **Categories** | **Packers** \n---|---|---|---\n"
+    for dset in ts.Path().listdir(lambda f: f.is_dir() and f.joinpath("metadata.json").exists()):
+        with dset.joinpath("metadata.json").open() as meta:
+            metadata = json.load(meta)
+        row = [dset.stem,
+               str(metadata['executables']),
+               ",".join(sorted(metadata['categories'])),
+               ",".join("%s{%d}" % i for i in sorted(metadata['counts'].items(), key=lambda x: -x[1]))]
+        datasets_section += "|".join(row) + "\n"
+    md += datasets_section
     print(mdv.main(md))
 

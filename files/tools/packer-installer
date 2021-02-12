@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 # -*- coding: UTF-8 -*-
-from packers import *
+from pbox import *
 from tinyscript import *
 
 

@@ -18,7 +18,7 @@ RUN (apt -qq -y install apt-transport-https apt-utils \
                    libfreetype6-dev libfuse-dev libgif-dev libgirepository1.0-dev libgl1-mesa-dev libglib2.0-dev \
                    libglu1-mesa-dev libjpeg-dev libpulse-dev libssl-dev libtiff5-dev libudev-dev libxcursor-dev \
                    libxkbfile-dev libxml2-dev libxrandr-dev \
- && apt -qq -y install colordiff colortail dosbox git less ltrace strace sudo tmate tmux unzip vim wget yarnpkg xterm \
+ && apt -qq -y install colordiff colortail dosbox git golang less ltrace strace sudo tmate tmux unzip vim wget yarnpkg xterm \
  && apt -qq -y install iproute2 nodejs npm python3-setuptools python3-pip unzip x11-apps xvfb wget zstd) 2>&1 > /dev/null \
  || echo -e "\033[1;31m DEPENDENCIES INSTALL FAILED \033[0m"
 # install wine (for running Windows software on Linux)
@@ -60,9 +60,8 @@ ADD files/term/viminfo /root/.viminfo
 FROM customized AS tools
 # install & upgrade Python packages
 ADD files/tools/* /opt/tools/
-RUN (pip3 install -r /opt/tools/requirements.txt && rm -f /opt/tools/requirements.txt) > /dev/null \
- || echo -e "\033[1;31m PYTHON REQUIRED PACKAGES INSTALL FAILED \033[0m"
-RUN mv /opt/tools/help /opt/tools/?
+ADD files/lib /tmp/lib
+RUN cd /tmp/lib && (pip3 install .) 2>&1 > /dev/null && mv /opt/tools/help /opt/tools/?
 # ----------------------------------------------------------------------------------------------------------------------
 FROM tools AS packers
 ADD packers.yml .

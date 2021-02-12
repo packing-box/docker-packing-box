@@ -1,8 +1,7 @@
 #!/usr/bin/python3
 # -*- coding: UTF-8 -*-
-from packers import *
+from pbox import *
 from tinyscript import *
-from tqdm import tqdm
 
 
 __author__      = "Alexandre D'Hondt"
@@ -16,87 +15,6 @@ This tool aims to make a dataset from executables contained in the packing-box D
 """
 __examples__    = ["-c dotnet -n 1000", "-c pe,dotnet -n 2000"]
 __description__ = "A tool for making datasets of packed and not packed executables for use with machine learning."
-
-
-PACKING_BOX_SOURCES = ["/bin", "/usr/bin", "~/.wine/drive_c", "~/.wine32/drive_c"]
-
-
-class Dataset:
-    @logging.bindLogger
-    def __init__(self, destination_dir="dataset", source_dir=PACKING_BOX_SOURCES, **kw):
-        self.path = ts.Path(destination_dir, create=True)
-        self.sources = source_dir
-    
-    def __setattr__(self, name, value):
-        if name == "categories":
-            # get the list of packers related to the selected categories
-            categories = Packer.expand(*value)
-            self.packers = [p for p in PACKERS if p.enabled and p.check(*categories)]
-            if len(self.packers) == 0:
-                raise ValueError("No packer found for these categories")
-        elif name == "sources":
-            sources = []
-            for src in value:
-                src = ts.Path(src, expand=True)
-                if not src.exists() or not src.is_dir():
-                    continue
-                sources.append(src)
-            value = sources
-        super(Dataset, self).__setattr__(name, value)
-    
-    def make(self, n=100, categories=["All"], balance=False, **kw):
-        """ Makes a dataset of n samples among the given binary categories, balanced or not according to the number of
-             distinct packers. """
-        pbar = tqdm(total=n, unit="executable")
-        self.categories = categories
-        self.logger.info("Source directories:    %s" % ",".join(map(str, self.sources)))
-        self.logger.info("Considered categories: %s" % ",".join(categories))
-        # collect lists of binaries and randomly choose a subset of them, to be randomly packed or not
-        candidates = []
-        for src in self.sources:
-            candidates.extend(ts.Path(src, expand=True).listdir(filter_func=exe_format))
-        if len(candidates) < n:
-            raise ValueError("Not enough candidate executables available")
-        executables = {}
-        random.shuffle(candidates)
-        # now pack the required number of executables
-        labels = {}
-        for f in candidates:
-            if exe_format(f) is None or f.filename in executables.keys():
-                continue
-            if len(executables) >= args.n:
-                break
-            df = self.path.joinpath(f.filename)
-            shutil.copy(str(f), str(df))
-            df.chmod(0o777)
-            label = None
-            if random.randint(0, len(self.packers) if balance else 1):
-                packers = self.packers[:]
-                random.shuffle(packers)
-                for packer in packers:
-                    label = packer.pack(str(df))
-                    if label is None or label is False or packer._bad:
-                        if label is False or packer._bad:
-                            self.logger.warning("Disabling %s..." % packer.__class__.__name__)
-                            self.packers.remove(packer)
-                        continue
-            executables[f.filename] = label
-            pbar.update()
-            if len(executables) >= n:
-                break
-        # finally, save dataset's metadata and labels to JSON files
-        packers = [p.__class__.__name__ for p in self.packers]
-        self.logger.info("Used packers: %s" % ", ".join(packers))
-        data = {'categories': self.categories, 'packers': packers, 'executables': n}
-        meta = self.path.joinpath("metadata.json")
-        meta.touch()
-        with meta.open('w') as f:
-            json.dump(data, f, indent=2)
-        labels = self.path.joinpath("labels.json")
-        labels.touch()
-        with labels.open('w') as f:
-            json.dump(executables, f, indent=2)
-        
 
 
 if __name__ == '__main__':
