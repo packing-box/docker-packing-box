@@ -12,7 +12,7 @@ APack:
     - PE
   install:
     wget:  https://www.ibsensoftware.com/files/apack-1.00.zip
-    unzip: /opt/packers/
+    unzip: /opt/packers/apack
     sh:    wine /opt/packers/apack/apackw.exe
   source: https://www.ibsensoftware.com/download.html
 
@@ -20,7 +20,11 @@ Ezuri:
   categories:
     - ELF
   install:
-    copy: ezuri
+    wget:  https://github.com/guitmz/ezuri/archive/master.zip
+    unzip: /opt/packers
+    cd:    ezuri-master
+    exec:  go build -o ezuri .
+    lsh:   /opt/packers/ezuri-master ezuri
   source: https://github.com/guitmz/ezuri
 
 Kkrunchy:
@@ -32,17 +36,17 @@ Kkrunchy:
     sh:    wine /opt/packers/kkrunchy_k7.exe
   source: http://www.farbrausch.de/~fg/kkrunchy
 
-M0dern_p4cker:
+M0dern_P4cker:
   categories:
     - ELF
   install:
     apt:   libcapstone-dev
     wget:  https://github.com/n4sm/m0dern_p4cker/archive/master.zip
-    unzip: /tmp/m0dern_p4cker
-    cd:    packer@git
+    unzip: /opt/packers
+    exec:  mv /opt/packers/m0dern_p4cker-master/packer@git /opt/packers/m0dern_p4cker
+    cd:    /opt/packers/m0dern_p4cker
     make:  main
-    move:  m0dern_p4cker
-    rm:    /tmp/m0dern_p4cker-master
+    lsh:   main
   source: https://github.com/n4sm/m0dern_p4cker
 
 MEW:
@@ -93,4 +97,6 @@ UPX:
     - All
   install:
     apt: upx
+  silent:
+    - NotCompressibleException
   source: https://upx.github.io
