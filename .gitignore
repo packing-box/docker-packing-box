@@ -23,10 +23,6 @@ eggs/
 lib64/
 parts/
 sdist/
-reinstall.sh
-test.sh
-update.sh
-version.py
 
 var/
 *.egg-info/
@@ -71,9 +67,7 @@ target/
 .vagrant
 .test
 .pytest_cache
-.tinyscript-test.ini
 tmp
 TODO
-script.py
-tool.py
 .mypy_cache
+dataset*
