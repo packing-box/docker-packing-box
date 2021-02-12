@@ -157,6 +157,12 @@ class Packer:
             elif cmd == "rm":
                 run("rm -rf %s" % Path(arg), **kw)
                 rm = False
+            # manually set the result to be used in the next command
+            elif cmd == "set":
+                result = arg
+            # manually set the result as a path object to be used in the next command
+            elif cmd == "setp":
+                result = tmp.joinpath(arg)
             # create a shell script to execute Bash code and make it executable
             elif cmd == "sh":
                 result = ubin.joinpath(self.name)
@@ -168,17 +174,23 @@ class Packer:
                     run("chmod +x %s" % result, **kw)
                 except PermissionError:
                     self.logger.error("bash: %s: Permission denied" % result)
-            # decompress a ZIP archive to the given location (absolute or relative to /tmp)
-            elif cmd == "unzip":
+            # decompress a RAR/ZIP archive to the given location (absolute or relative to /tmp)
+            elif cmd in ["unrar", "unzip"]:
+                ext = "." + cmd[-3:]
                 if result is None:
-                    result = tmp.joinpath("%s.zip" % self.name)
-                if result and result.extension == ".zip":
+                    result = tmp.joinpath("%s%s" % (self.name, ext))
+                if result and result.extension == ext:
                     r = tmp.joinpath(arg)
-                    run("unzip -qqo %s -d %s" % (result, r), **kw)
+                    if ext == ".zip":
+                        run("unzip -qqo %s -d %s" % (result, r), **kw)
+                    else:
+                        if not r.exists():
+                            r.mkdir()
+                        run("unrar x %s %s" % (result, r), **kw)
                     result.remove()
                     result = r
                 else:
-                    raise ValueError("Not a ZIP file")
+                    raise ValueError("Not a %s file" % ext.lstrip(".").upper())
                 if result and result.is_dir():
                     ld = list(result.listdir())
                     while len(ld) == 1 and ld[0].is_dir():
@@ -191,7 +203,7 @@ class Packer:
                 # (2-stage) dynamic download link
                 rc = 0
                 if isinstance(arg, list):
-                    url = arg[0]
+                    url = arg[0].replace("%%", "%")
                     for line in run("wget -qO - %s" % url, **kw)[0].splitlines():
                         line = line.decode()
                         m = re.search(r"href\s+=\s+(?P<q>[\"'])(.*)(?P=q)", line)
@@ -206,7 +218,7 @@ class Packer:
                 # normal link
                 else:
                     result = tmp.joinpath(self.name + Path(ts.urlparse(arg).path).extension)
-                    run("wget -q -O %s %s" % (result, arg), **kw)[-1]
+                    run("wget -q -O %s %s" % (result, arg.replace("%%", "%")), **kw)[-1]
         if os.getcwd() != cwd:
             self.logger.debug("cd %s" % cwd)
             os.chdir(cwd)

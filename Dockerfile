@@ -12,14 +12,15 @@ RUN (apt -qq update \
  || echo -e "\033[1;31m SYSTEM UPGRADE FAILED \033[0m"
 # install common dependencies, libraries and tools
 RUN (apt -qq -y install apt-transport-https apt-utils \
- && apt -qq -y install bash-completion build-essential curl software-properties-common \
+ && apt -qq -y install bash-completion build-essential software-properties-common \
  && apt -qq -y install libavcodec-dev libavformat-dev libavresample-dev libavutil-dev libbsd-dev libc6-dev-i386 \
                    libcairo2-dev libdbus-1-dev libegl1-mesa-dev libelf-dev libffi-dev libfontconfig1-dev \
                    libfreetype6-dev libfuse-dev libgif-dev libgirepository1.0-dev libgl1-mesa-dev libglib2.0-dev \
                    libglu1-mesa-dev libjpeg-dev libpulse-dev libssl-dev libtiff5-dev libudev-dev libxcursor-dev \
                    libxkbfile-dev libxml2-dev libxrandr-dev \
- && apt -qq -y install colordiff colortail dosbox git golang less ltrace strace sudo tmate tmux unzip vim wget yarnpkg xterm \
- && apt -qq -y install iproute2 nodejs npm python3-setuptools python3-pip unzip x11-apps xvfb wget zstd) 2>&1 > /dev/null \
+ && apt -qq -y install colordiff colortail dosbox git golang less ltrace strace sudo tmate tmux vim xterm \
+ && apt -qq -y install iproute2 nodejs npm python3-setuptools python3-pip x11-apps xvfb yarnpkg zstd \
+ && apt -qq -y install curl unrar unzip wget) 2>&1 > /dev/null \
  || echo -e "\033[1;31m DEPENDENCIES INSTALL FAILED \033[0m"
 # install wine (for running Windows software on Linux)
 RUN (dpkg --add-architecture i386 \
@@ -43,8 +44,8 @@ RUN (apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys 3FA7E0328
 # && make lkm && make lkm_install) 2>&1 > /dev/null \
 # || echo -e "\033[1;31m DARLING INSTALL FAILED \033[0m"
 # install/update Python packages
-RUN pip3 install tinyscript
-RUN (pip3 freeze - local | grep -v "^\-e" | cut -d = -f 1 | xargs -n1 pip3 install -qU) 2>&1 > /dev/null \
+RUN (pip3 install tinyscript \
+ && pip3 freeze - local | grep -v "^\-e" | cut -d = -f 1 | xargs -n1 pip3 install -qU) 2>&1 > /dev/null \
  || echo -e "\033[1;31m PIP PACKAGES UPDATE FAILED \033[0m"
 # ----------------------------------------------------------------------------------------------------------------------
 FROM base AS customized

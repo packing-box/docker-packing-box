@@ -21,12 +21,13 @@ if __name__ == '__main__':
     parser.add_argument("-p", "--packer", nargs="*", help="specific packer to install")
     initialize()
     for packer in PACKERS:
-        if args.packer and all(packer.name not in list(map(lambda x: x.lower(), args.packer or []))):
-            logger.debug("Skipping %s..." % packer)
+        name = packer.__class__.__name__
+        if args.packer and packer.name not in list(map(lambda x: x.lower(), args.packer or [])):
+            logger.debug("Skipping %s..." % name)
             continue
         try:
             packer.setup()
         except:
-            logger.critical("Packer install failed: %s" % packer)
+            logger.critical("Packer install failed: %s" % name)
             raise
 

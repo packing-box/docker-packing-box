@@ -40,7 +40,11 @@ if __name__ == '__main__':
     cmds = subprocess.check_output("compgen -c", shell=True, executable="/bin/bash").splitlines()
     for packer in PACKERS:
         row = [packer.__class__.__name__, packer.source, ",".join(packer.categories)]
-        row.append([colored("✗", "red"), colored("✓", "green")][b(packer.name) in cmds])
+        if b(packer.name) in cmds:
+            status = colored("✓", "green") if getattr(packer, "status", None) == "ok" else colored("✓", "yellow")
+        else:
+            status = colored("✗", "red")
+        row.append(status)
         packers_section += "|".join(row) + "\n"
     md += packers_section + "\n\n"
     datasets_section = "## Datasets\n\n **Name** | **Size** | **Categories** | **Packers** \n---|---|---|---\n"
