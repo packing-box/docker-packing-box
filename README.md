@@ -4,16 +4,18 @@ This Docker image aims to regroup multiple common executable packers and make da
 
 ## Currently installed packers
 
-- [Amber](https://github.com/EgeBalci/amber)
-- [APack](https://www.ibsensoftware.com/download.html)
+**Tested and functional**:
 - [Ezuri](https://github.com/guitmz/ezuri)
-- [KKrunchy](http://www.farbrausch.de/~fg/kkrunchy/)
 - [m0dern_p4cker](https://github.com/n4sm/m0dern_p4cker)
-- [PEtite](https://www.un4seen.com/petite/)
 - [UPX](https://upx.github.io/)
 
+**To be tested**:
+- [Amber](https://github.com/EgeBalci/amber)
+- [APack](https://www.ibsensoftware.com/download.html)
+- [KKrunchy](http://www.farbrausch.de/~fg/kkrunchy/)
+- [PEtite](https://www.un4seen.com/petite/)
+
 > **GUI (Windows)**
-> 
 > - [MEW](https://www.softpedia.com/get/Programming/Packers-Crypters-Protectors/MEW-SE.shtml)
 > - [NetCrypt](https://github.com/friedkiwi/netcrypt)
 > - [tElock](https://www.softpedia.com/get/Programming/Packers-Crypters-Protectors/Telock.shtml)
@@ -30,20 +32,6 @@ $ docker run -it -h packing-box -v `pwd`:/mnt/share dhondta/packing-box
 ┌──[root@packing-box]──[/]────────                     ────[172.17.0.2]──[12:34:56]──[0.12]────
 # 
 ```
-
-> **Note**: Build from intermediate step
-> 
-> This allows not to reinstall from scratch, i.e. when adding a new **packer**.
-> 
-> ```sh
-> $ docker build -t dhondta/packing-box --target packers .
-> ```
-> 
-> This allows not to reinstall from scratch, i.e. when adding a new **tool**.
-> 
-> ```sh
-> $ docker build -t dhondta/packing-box --target tools .
-> ```
 
 ## TODO
 
