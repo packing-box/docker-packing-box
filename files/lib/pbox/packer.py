@@ -2,6 +2,7 @@
 # -*- coding: UTF-8 -*-
 from tinyscript import b, ensure_str, hashlib, logging, os, random, shlex, shutil, subprocess, ts
 from tinyscript.helpers import execute_and_log as run, Path
+from tinyscript.report import *
 
 
 __all__ = ["exe_format", "Packer", "PACKERS"]  # this list is filled in with packer subclasses at the end of this module
@@ -13,22 +14,29 @@ CATEGORIES = {
     'Mach-O': ["Mach-O32", "Mach-O64", "Mach-Ou"],
     'PE':     ["PE32", "PE64"],
 }
+OS_COMMANDS = subprocess.check_output("compgen -c", shell=True, executable="/bin/bash").splitlines()
 SIGNATURES = {
-    '^Mach-O 32-bit ':           "Mach-O32",
-    '^Mach-O 64-bit ':           "Mach-O64",
-    '^Mach-O universal binary ': "Mach-Ou",
-    '^MS-DOS executable ':       "MSDOS",
-    '^PE32 executable ':         "PE32",
-    '^PE32\+ executable ':       "PE64",
-    '^(set[gu]id )?ELF 32-bit ': "ELF32",
-    '^(set[gu]id )?ELF 64-bit ': "ELF64",
+    '^Mach-O 32-bit ':                         "Mach-O32",
+    '^Mach-O 64-bit ':                         "Mach-O64",
+    '^Mach-O universal binary ':               "Mach-Ou",
+    '^MS-DOS executable ':                     "MSDOS",
+    '^PE32\+? executable (.+?)\.Net assembly': ".NET",
+    '^PE32 executable ':                       "PE32",
+    '^PE32\+ executable ':                     "PE64",
+    '^(set[gu]id )?ELF 32-bit ':               "ELF32",
+    '^(set[gu]id )?ELF 64-bit ':               "ELF64",
 }
 
 
-def exe_format(executable):
-    for ftype, fmt in SIGNATURES.items():
-        if ts.is_filetype(str(executable), ftype):
-            return fmt
+def exe_format(*categories):
+    categories = Packer.expand(*categories)
+    def _wrapper(executable):
+        best_fmt, l = None, 0
+        for ftype, fmt in SIGNATURES.items():
+            if fmt in categories and len(ftype) > l and ts.is_filetype(str(executable), ftype):
+                best_fmt, l = fmt, len(ftype)
+        return best_fmt
+    return _wrapper
 
 
 class Packer:
@@ -36,37 +44,46 @@ class Packer:
     def __init__(self):
         self.name = self.__class__.__name__.lower()
         self.logger = logging.getLogger(self.name)
-        self.enabled = shutil.which(self.name) is not None
         self._bad = False
         self._error = False
     
     def check(self, *categories):
         """ Checks if the current packer has the given category """
-        return any(c in Packer.expand(*self.categories) for c in Packer.expand(*(categories or ["all"])))
+        return any(c in Packer.expand(*self.categories) for c in Packer.expand(*(categories or ["All"])))
+    
+    def help(self):
+        """ Returns a help message in Markdown format. """
+        md = Report()
+        if getattr(self, "description", None):
+            md.append(Text(self.description))
+        if getattr(self, "comment", None):
+            md.append(Blockquote("**Note**: " + self.comment))
+        md.append(Text("**Source**: " + self.source))
+        md.append(Text("**Applies to**: " + ", ".join(sorted(Packer.expand(*self.categories, **{'once': True})))))
+        if getattr(self, "references", None):
+            md.append(Section("References"), List(*self.references, **{'ordered': True}))
+        return md.md()
     
     def pack(self, executable, **kwargs):
         """ Runs the packer according to its command line format and checks if the executable has been changed by this
              execution. """
         logging.setLogger(self.name)
         exe = executable.split(os.sep)[-1]
-        # check 1: does packer's binary exist ?
-        if not self.enabled:
-            self.logger.warning("%s disabled" % self.name)
+        # check 1: is this packer operational ?
+        if self.status <= 2:
             return False
-        # check 2: is packer selected while using the pack() method ?
-        if not self.check(*kwargs.get('categories', ["All"])):
-            self.logger.debug("%s not selected" % self.name)
-            return False
-        # check 3: is input executable in an applicable format ?
-        fmt = exe_format(executable)
-        if fmt is None or fmt not in Packer.expand(*self.categories):
+        # check 2: is this packer able to process the input executable ?
+        if exe_format(*self.categories)(executable) is None:
             return False
         # now pack the input executable, taking its SHA256 in order to check for changes
         s256 = hashlib.sha256_file(executable)
+        self._error = False
         label = self.run(executable, **kwargs)
-        if s256 == hashlib.sha256_file(executable):
+        if self._error:
+            return
+        elif s256 == hashlib.sha256_file(executable):
             self.logger.debug("%s's content was not changed by %s" % (exe, self.name))
-            self._bad = not self._error
+            self._bad = True
             return
         # if packing succeeded, we can return packer's label
         self.logger.debug("%s packed with %s" % (exe, self.name))
@@ -74,13 +91,14 @@ class Packer:
     
     def run(self, executable, **kwargs):
         """ Customizable method for shaping the command line to run the packer on an input executable. """
-        self._error = False
         if run([self.name, executable], logger=self.logger)[-1] > 0:
             self._error = True
         return self.name
     
     def setup(self):
         """ Sets the packer up according to its install instructions. """
+        if self.status == 0:
+            return
         logging.setLogger(self.name)
         self.logger.info("Setting up %s..." % self.__class__.__name__)
         tmp, ubin = Path("/tmp"), Path("/usr/bin")
@@ -111,6 +129,10 @@ class Packer:
             elif cmd == "exec":
                 result = None
                 run(arg, **kw)
+            # git clone a project
+            elif cmd == "git":
+                result = (result or tmp).joinpath(Path(ts.urlparse(arg).path).stem)
+                run("git clone %s %s" % (arg, result), **kw)
             # make a symbolink link in /usr/bin (if relative path) relatively to the previous considered location
             elif cmd == "ln":
                 r = ubin.joinpath(self.name)
@@ -175,18 +197,23 @@ class Packer:
                 except PermissionError:
                     self.logger.error("bash: %s: Permission denied" % result)
             # decompress a RAR/ZIP archive to the given location (absolute or relative to /tmp)
-            elif cmd in ["unrar", "unzip"]:
+            elif cmd in ["unrar", "untar", "unzip"]:
                 ext = "." + cmd[-3:]
+                if ext == ".tar":
+                    ext = ".tar.gz"
                 if result is None:
                     result = tmp.joinpath("%s%s" % (self.name, ext))
                 if result and result.extension == ext:
                     r = tmp.joinpath(arg)
                     if ext == ".zip":
                         run("unzip -qqo %s -d %s" % (result, r), **kw)
-                    else:
+                    elif ext == ".rar":
                         if not r.exists():
                             r.mkdir()
                         run("unrar x %s %s" % (result, r), **kw)
+                    else:
+                        run("mkdir -p %s" % r, **kw)
+                        run("tar xzf %s -C %s" % (result, r), **kw)
                     result.remove()
                     result = r
                 else:
@@ -224,27 +251,65 @@ class Packer:
             os.chdir(cwd)
         if rm:
             run("rm -rf %s" % tmp.joinpath(self.name), **kw)
-        
+    
+    @property
+    def status(self):
+        """ Get the status of packer's executable. """
+        st = getattr(self, "_status", None)
+        if st == "broken":  # manually set in packers.yml ; for packers that cannot be installed or run
+            return 0
+        elif st in ["gui", "todo"]:  # packer to be automated yet
+            return 2
+        elif b(self.name) not in OS_COMMANDS:  # when the setup failed
+            return 1
+        elif st == "ok":  # the packer runs, works correctly and was tested
+            return 4
+        # in this case, the binary/symlink exists but running the packer was not tested yet
+        return 3
+    
     @staticmethod
-    def expand(*categories):
+    def expand(*categories, **kw):
         """ 2-depth dictionary-based expansion function for resolving a list of executable categories. """
         selected = []
         for c in categories:                    # depth 1: e.g. All => ELF,PE OR ELF => ELF32,ELF64
             for sc in CATEGORIES.get(c, [c]):   # depth 2: e.g. ELF => ELF32,ELF64
-                for ssc in CATEGORIES.get(sc, [sc]):
-                    if ssc not in selected:
-                        selected.append(ssc)
+                if kw.get('once', False):
+                    selected.append(sc)
+                else:
+                    for ssc in CATEGORIES.get(sc, [sc]):
+                        if ssc not in selected:
+                            selected.append(ssc)
         return selected
+    
+    @staticmethod
+    def get(packer):
+        """ Simple method for returning the class of a packer based on its name (case-insensitive). """
+        for p in PACKERS:
+            if p.name == packer.lower():
+                return p
 
 # ------------------------------------------------ NON-STANDARD PACKERS ------------------------------------------------
+class Amber(Packer):
+    def run(self, executable, **kwargs):
+        """ This packer packs an executable to a new predictible name. """
+        out, err, retc = run([self.name, "-build", "-f", executable], logger=self.logger)
+        self._error = retc != 0
+        executable = Path(executable)
+        executable2 = executable.dirname.joinpath("%s_packed%s" % (executable.stem, executable.extension))
+        if not executable2.exists():
+            return
+        run(["mv", "-f", executable2, executable], logger=self.logger)
+        return self.name
+
+
 class Ezuri(Packer):
     key = None
     iv  = None
     
     def run(self, executable, **kwargs):
         """ This packer prompts for parameters. """
-        self._error = False
-        p = subprocess.Popen(["ezuri"], stdout=subprocess.PIPE, stderr=subprocess.PIPE, stdin=subprocess.PIPE)
+        P = subprocess.PIPE
+        p = subprocess.Popen(["ezuri"], stdout=P, stderr=P, stdin=P)
         executable = Path(executable)
         self.logger.debug("ezuri ; inputs: src/dst=%s, procname=%s" % (executable, executable.stem))
         out, err = p.communicate(b("%(e)s\n%(e)s\n%(n)s\n%(k)s\n%(iv)s\n" % {
@@ -266,6 +331,21 @@ class Ezuri(Packer):
         return "%s[key:%s;iv:%s]" % (self.name, Ezuri.key, Ezuri.iv)
 
 
+class MidgetPack(Packer):
+    def run(self, executable, **kwargs):
+        """ This packer prompts for a protection password (with confirmation). """
+        password = random.randstr()
+        P = subprocess.PIPE
+        p = subprocess.Popen(["midgetpack", executable], stdout=P, stderr=P, stdin=P)
+        self.logger.debug("midgetpack ; inputs: password=%s" % password)
+        out, err = p.communicate(b("%(p)s\n%(p)s\n" % {'p': password}))
+        packed = Path(executable).parent.joinpath("a.out")
+        if packed.exists():
+            run("mv -f %s %s" % (packed, executable))
+            return "%s[pswd:%s]" % (self.name, password)
+        self._error = True
+
+
 class M0dern_P4cker(Packer):
     stubs = ["xor", "not", "xorp"]
     
@@ -285,12 +365,14 @@ class M0dern_P4cker(Packer):
 
 # dynamically makes Packer child classes from the PACKERS dictionary
 PACKERS = []
-for packer, data in ts.yaml_config(str(Path("packers.yml"))).items():
+for packer, data in ts.yaml_config(str(Path("/opt/packers/packers.yml"))).items():
     if packer not in globals():
         p = globals()[packer] = type(packer, (Packer, ), dict(Packer.__dict__))
     else:
         p = globals()[packer]
     for k, v in data.items():
+        if k == "status":
+            k = "_" + k
         setattr(p, k, v)
     __all__.append(packer)
     PACKERS.append(p())
