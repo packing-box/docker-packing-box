@@ -1,36 +1,99 @@
 Amber:
   categories:
     - PE
+  description: Amber is a position-independent(reflective) PE loader that enables in-memory execution of native PE files(EXE, DLL, SYS...). It enables stealthy in-memory payload deployment that can be used to bypass anti-virus, firewall, IDS, IPS products, and application white-listing mitigations.
   install:
     wget:  https://github.com/EgeBalci/amber/releases/download/v3.0/amber_linux_amd64_3.0.zip
     unzip: /opt/packers/
-    ln:    amber
+    ln:    amber_linux_amd64_3.0/amber
   source: https://github.com/EgeBalci/amber
+  status: ok
 
 APack:
   categories:
-    - PE
+    - MSDOS
+  description: 16-bit DOS executable compressor. aPACK compresses the file while keeping it executable. aPACK uses advanced compression heuristics and tricks to achieve the best compression ratio.
   install:
     wget:  https://www.ibsensoftware.com/files/apack-1.00.zip
     unzip: /opt/packers/apack
     sh:    wine /opt/packers/apack/apackw.exe
   source: https://www.ibsensoftware.com/download.html
 
+ASPack:
+  categories:
+    - PE32
+  description: ASPack is an advanced solution created to provide Win32 EXE file packing and to protect them against non-professional reverse engineering.
+  install:
+    exec: echo "TODO"
+  references:
+    - https://github.com/fireeye/capa-rules/blob/master/anti-analysis/packer/aspack/packed-with-aspack.yml
+  source: http://www.aspack.com/aspack.html
+
+BurnEye:
+  categories:
+    - ELF32
+  description: Burneye is an executeable encryption program, which is suited to protect ELF binaries on the Intel x86 Linux operating system. It supports a variety of options to wrap an arbitrary executeable with multiple encryption layers.
+  install:
+    exec: echo "LEFT FOR INFORMATION"
+  references:
+    - https://docplayer.net/86668430-Modern-linux-malware-exposed.html
+  source: https://packetstormsecurity.com/files/29691/burneye-1.0-linux-static.tar.gz.html
+  status: broken
+
+Crinkler:
+  categories:
+    - PE
+  description: Crinkler is an executable file compressor (or rather, a compressing linker) for Windows for compressing small demoscene executables. As of 2020, it is the most widely used tool for compressing 1k/4k/8k intros.
+  install:
+    wget:  http://www.crinkler.net/crinkler20.zip
+    unzip: /opt/packers
+    sh:    wine /opt/packers/crinkler20/crinkler.exe
+  source:  https://github.com/runestubbe/Crinkler
+
+DotNetZ:
+  categories:
+    - .NET
+  description: .NETZ is a straightforward and lightweight, command-line piece of software written in C that allows you to compress and pack Microsoft .NET Framework executable files to ensure they consume as little space on your computer's hard drive as possible.
+  install:
+    unzip: /opt/packers
+    sh:    wine /opt/packers/netz-bin/netz.exe
+  references:
+    - https://mindlocksite.wordpress.com/2017/01/19/analyse-netz-packer/
+    - https://mindlocksite.wordpress.com/2017/01/22/netz-packer-unpack-avec-windbg/
+    - https://ltops9.wordpress.com/2012/12/02/191/
+  source: https://www.softpedia.com/get/Programming/Packers-Crypters-Protectors/NETZ.shtml
+
+ELFuck:
+  categories:
+    - ELF32
+  description: ELF packer for i386 origial version from sk2 by sd.
+  install:
+    copy: elfuck
+  references:
+    - https://docplayer.net/86668430-Modern-linux-malware-exposed.html
+  source: https://github.com/timhsutw/elfuck
+  status: broken
+
 Ezuri:
   categories:
     - ELF
+  description: A Simple Linux ELF Runtime Crypter. An unpacker by f0wl can be found at f0wl/ezuri_unpack.
   install:
     wget:  https://github.com/guitmz/ezuri/archive/master.zip
     unzip: /opt/packers
     cd:    ezuri-master
     exec:  go build -o ezuri .
     lsh:   /opt/packers/ezuri-master ezuri
+  references:
+    - https://www.guitmz.com/linux-elf-runtime-crypter/
+    - https://github.com/f0wl/ezuri_unpack
   source: https://github.com/guitmz/ezuri
   status: ok
 
 FSG:
   categories:
     - PE
+  description: FSG states for Fast Small Good and is a Windows executable packer.
   install:
     wget:  http://in4k.untergrund.net/packers%%20droppers%%20etc/xt_fsg20.zip
     unzip: fsg
@@ -39,20 +102,26 @@ FSG:
     sh:    wine /opt/packers/fsg/fsg.exe
   references:
     - https://www.aldeid.com/wiki/Category:Digital-Forensics/Computer-Forensics/Anti-Reverse-Engineering/Packers/FSG
+    - http://beatrix2004.free.fr/FSG.pdf
   source: https://in4k.github.io/wiki/exe-packers-tweakers-and-linkers
+  status: gui
 
 Kkrunchy:
   categories:
     - PE
+  description: Kkrunchy is a small exe packer primarily meant for 64k intros.
   install:
     wget:  http://www.farbrausch.de/~fg/kkrunchy/kkrunchy_023a2.zip
     unzip: /opt/packers/
     sh:    wine /opt/packers/kkrunchy_k7.exe
+  references:
+    - https://github.com/fireeye/capa-rules/blob/master/anti-analysis/packer/kkrunchy/packed-with-kkrunchy.yml
   source: http://www.farbrausch.de/~fg/kkrunchy
 
 M0dern_P4cker:
   categories:
     - ELF
+  description: Just a modern packer for Elf binaries.
   install:
     apt:   libcapstone-dev
     wget:  https://github.com/n4sm/m0dern_p4cker/archive/master.zip
@@ -67,57 +136,148 @@ M0dern_P4cker:
 MEW:
   categories:
     - PE
+  description: MEW is an EXE compression tool that was specifically designed to handle small files, but does a pretty good job when working with larger files too.
   install:
     unzip: /opt/packers/mew
     sh:    wine /opt/packers/mew/mew11.exe
+  references:
+    - https://webscene.ir/tools/show/Mew-packer-11-SE-1.2
   source: https://in4k.github.io/wiki/exe-packers-tweakers-and-linkers
+  status: gui
+
+MidgetPack:
+  categories:
+    - ELF64
+  description: "Midgetpack is a binary packer for ELF binaries, such as burneye, upx or other tools. Its goal is to protect your assets (tools, exploits) when using them on untrusted systems (e.g on a monitored customer's system during a pentest). Midgetpack contains two modes of operation: password and curve25519 key exchange."
+  install:
+    copy: midgetpack
+  references:
+    - https://docplayer.net/86668430-Modern-linux-malware-exposed.html
+  source: https://github.com/arisada/midgetpack
+  status: ok
 
 MPRESS:
   categories:
-    - PE32
+    - PE
     - .NET
+    - Mach-O
+  description: MPRESS is a free, high-performance executable packer for PE32/PE32+/.NET/MAC-DARWIN executable formats.
   install:
     unzip: /opt/packers/mpress
     sh:    wine /opt/packers/mpress/mpress.exe
+  references:
+    - https://storage.ey.md/Technology%%20Related/Programming%%20%%26%%20Reversing/Tuts4You%%20Collection/UnPackMe%%20Collection/dotNET/MPress%%200.71.rar
+    - https://storage.ey.md/Technology%%20Related/Programming%%20%%26%%20Reversing/Tuts4You%%20Collection/UnPackMe%%20Collection/PE32/MPress%%200.77.rar
+    - https://storage.ey.md/Technology%%20Related/Programming%%20%%26%%20Reversing/Tuts4You%%20Collection/UnPackMe%%20Collection/PE32/MPress%%201.27.rar
+    - https://storage.ey.md/Technology%%20Related/Programming%%20%%26%%20Reversing/Tuts4You%%20Collection/UnPackMe%%20Collection/PE32/MPress%%202.12.rar
+    - https://storage.ey.md/Technology%%20Related/Programming%%20%%26%%20Reversing/Tuts4You%%20Collection/UnPackMe%%20Collection/PE64/MPress%%201.07%%20x64.rar
+    - https://storage.ey.md/Technology%%20Related/Programming%%20%%26%%20Reversing/Tuts4You%%20Collection/UnPackMe%%20Collection/PE64/MPress%%202.12%%20x64.rar
   source: https://www.softpedia.com/get/Programming/Packers-Crypters-Protectors/MPRESS.shtml
+  status: todo
+
+Muncho:
+  categories:
+    - Mach-O
+  comment: (TODO) this is a Mac OS X executable ; requires Darling installed.
+  description: Mac OS X executable packer.
+  install:
+    wget:  ftp://ftp.untergrund.net/users/irokos/titan/titan-muncho-0.01b.zip
+    unzip: /opt/packers/muncho
+  references:
+    - https://www.pouet.net/prod.php?which=51324
+  source: https://demozoo.org/productions/175774/
+  status: todo
 
 NetCrypt:
   categories:
     - .NET
+  description: A proof-of-concept packer for .NET executables, designed to provide a starting point to explain the basic principles of runtime packing.
   install:
     wget:  https://github.com/friedkiwi/netcrypt/releases/download/v1.1/netcrypt.zip
     unzip: /opt/packers/netcrypt
     sh:    wine /opt/packers/netcrypt/SimplePacker.exe
   source: https://github.com/friedkiwi/netcrypt
+  status: gui
+
+PEShield:
+  categories:
+    - PE32
+  description: PE-SHiELD is a program, which encrypts 32-bit Windows EXE files, leaving them still executable. The previous version was over a year in the wild and there is still no unpacker for it.
+  install:
+    unzip: /opt/packers/peshield
+    sh:    wine /opt/packers/peshield/peshield.exe
+  references:
+    - http://protools.narod.ru/packers.htm
+  source: https://webscene.ir/tools/show/PE-SHIELD-0.25
 
 PEtite:
   categories:
     - PE
+  description: Petite is a free Win32 (Windows 95/98/2000/NT/XP/Vista/7/etc) executable (EXE/DLL/etc) compressor.
   install:
     wget:  https://www.un4seen.com/files/petite24.zip
     unzip: /opt/packers/petite
     sh:    wine /opt/packers/petite/petite.exe
   references:
     - https://www.aldeid.com/wiki/Category:Digital-Forensics/Computer-Forensics/Anti-Reverse-Engineering/Packers/Petite
+    - https://github.com/fireeye/capa-rules/blob/master/anti-analysis/packer/petite/packed-with-petite.yml
   source: https://www.un4seen.com/petite
+
+RLPack:
+  categories:
+    - PE
+  description: RLPack is a tiny application which compresses executable files but still allows you to run them under normal conditions. Its features can be seamlessly figured out.
+  install:
+    unzip: /opt/packers/rlpack
+    sh:    wine /opt/packers/rlpack/RLPack.exe
+  references:
+    - https://storage.ey.md/Technology%%20Related/Programming%%20%%26%%20Reversing/Tuts4You%%20Collection/Unpacking%%20Tutorials/RLPack%%201.21%%20%%28Unpacking%%29.rar
+  source: https://www.softpedia.com/get/Programming/Packers-Crypters-Protectors/RLPack-Basic-Edition.shtml
+  status: gui
+
+Shiva:
+  categories:
+    - ELF
+  description: Shiva is a tool to encrypt ELF executables under Linux. Shiva can be used to wrap an executable in such a way that though it continues to run as it did before it is very difficult to debug or reverse engineer. Shiva can be used to password protect critical programs, including setuid programs, or simply to obfuscate sensitive data stored within programs.
+  install:
+    wget:  https://dl.packetstormsecurity.net/crypt/linux/shiva-0.95.tar.gz
+    untar: /opt/packers
+    ln:    shiva
+  references:
+    - https://docplayer.net/86668430-Modern-linux-malware-exposed.html
+  source: https://packetstormsecurity.com/files/31087/shiva-0.95.tar.gz.html
+  status: broken
 
 Telock:
   categories:
     - PE
+  description: Telock is a practical tool that intends to help developers who want to protect their work and reduce the size of the executable files. The application is designed to encode your files in order to make them impossible or at least hard to reverse engineer.
   install:
     unzip: /opt/packers/telock
     sh:    wine /opt/packers/telock/telock.exe
+  references:
+    - http://beatrix2004.free.fr/TELOCK98.pdf
+    - http://beatrix2004.free.fr/Comprendre%%20tElock%%200.51.pdf
+    - https://storage.ey.md/Technology%%20Related/Programming%%20%%26%%20Reversing/Tuts4You%%20Collection/Unpacking%%20Tutorials/tElock%%200.98%%20%%28Unpacking%%29.rar
   source: https://www.softpedia.com/get/Programming/Packers-Crypters-Protectors/Telock.shtml
+  status: gui
 
 UPX:
   categories:
     - All
+  description: UPX is a free, portable, extendable, high-performance executable packer for several executable formats.
   install:
     apt: upx
   references:
     - https://www.aldeid.com/wiki/Category:Digital-Forensics/Computer-Forensics/Anti-Reverse-Engineering/Packers/UPX
   silent:
     - NotCompressibleException
+  references:
+    - https://linux.die.net/man/1/upx
+    - https://github.com/fireeye/capa-rules/blob/master/anti-analysis/packer/upx/packed-with-upx.yml
+    - https://storage.ey.md/Technology%%20Related/Programming%%20%%26%%20Reversing/Tuts4You%%20Collection/UnPackMe%%20Collection/PE32/UPX%%201.25.rar
+    - https://storage.ey.md/Technology%%20Related/Programming%%20%%26%%20Reversing/Tuts4You%%20Collection/UnPackMe%%20Collection/PE32/UPX%%203.04.rar
+    - https://storage.ey.md/Technology%%20Related/Programming%%20%%26%%20Reversing/Tuts4You%%20Collection/Unpacking%%20Tutorials/UPX%%20%%28Unpacking%%29.rar
   source: https://upx.github.io
   status: ok
 
