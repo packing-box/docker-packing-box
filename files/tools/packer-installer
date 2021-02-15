@@ -16,8 +16,6 @@ __description__ = "A tool for easily installing packers based on a YML config fi
 
 
 if __name__ == '__main__':
-    parser.add_argument("-c", "--config", type=ts.yaml_config, default="packers.yml",
-                        help="YAML configuration file for installing packers")
     parser.add_argument("-p", "--packer", nargs="*", help="specific packer to install")
     initialize()
     for packer in PACKERS:

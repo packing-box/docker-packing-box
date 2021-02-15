@@ -26,7 +26,9 @@ if __name__ == '__main__':
                         help="executables destination directory for the dataset")
     parser.add_argument("-n", "--number-executables", dest="n", type=ts.pos_int, default=100,
                         help="number of executables for the output dataset")
-    parser.add_argument("-s", "--source-dir", default=PACKING_BOX_SOURCES, nargs="*",
+    parser.add_argument("-p", "--packer", action="extend", nargs="*", type=lambda p: Packer.get(p),
+                        help="packer to be used")
+    parser.add_argument("-s", "--source-dir", action="extend", nargs="*",
                         type=lambda p: ts.Path(p, expand=True, create=True),
                         help="executables source directory to be included")
     initialize()
