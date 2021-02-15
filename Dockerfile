@@ -60,15 +60,21 @@ ADD files/term/viminfo /root/.viminfo
 # ----------------------------------------------------------------------------------------------------------------------
 FROM customized AS tools
 # install & upgrade Python packages
+ADD packers.yml /opt/packers/
 ADD files/tools/* /opt/tools/
 ADD files/lib /tmp/lib
-RUN cd /tmp/lib && (pip3 install .) 2>&1 > /dev/null && mv /opt/tools/help /opt/tools/?
+RUN cd /tmp/lib \
+ && pip3 install . 2>&1 > /dev/null \
+ && mv /opt/tools/help /opt/tools/?
 # ----------------------------------------------------------------------------------------------------------------------
 FROM tools AS packers
-ADD packers.yml .
 COPY files/packers/* /tmp/
 # install packers with a dedicated tool
-RUN /opt/tools/packer-installer && mkdir -p /mnt/share
+RUN /opt/tools/packer-installer \
+ && mkdir -p /mnt/share
+# ----------------------------------------------------------------------------------------------------------------------
+FROM packers AS unpackers
+RUN apt install pev
 # ----------------------------------------------------------------------------------------------------------------------
 ENTRYPOINT /opt/tools/startup
 WORKDIR /mnt/share
