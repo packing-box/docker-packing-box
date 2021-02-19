@@ -6,7 +6,7 @@ from tinyscript import *
 
 __author__      = "Alexandre D'Hondt"
 __email__       = "alexandre.dhondt@gmail.com"
-__version__     = "1.1.0"
+__version__     = "1.1.1"
 __copyright__   = ("A. D'Hondt", 2021)
 __license__     = "gpl-3.0"
 __doc__         = """
@@ -14,7 +14,7 @@ This tool aims to make a dataset from executables contained in the packing-box D
  source of executable files, packed or not with the selected packers installed in the image.
 """
 __examples__    = ["-c dotnet -n 1000", "-c pe,dotnet -n 2000"]
-__description__ = "A tool for making datasets of packed and not packed executables for use with machine learning."
+__description__ = "Make datasets of packed and not packed executables for use with Machine Learning"
 
 
 if __name__ == '__main__':

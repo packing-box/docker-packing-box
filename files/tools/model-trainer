@@ -1,0 +1,21 @@
+#!/usr/bin/python3
+# -*- coding: UTF-8 -*-
+from pbox import *
+from tinyscript import *
+
+
+__author__      = "Alexandre D'Hondt"
+__email__       = "alexandre.dhondt@gmail.com"
+__version__     = "1.0.0"
+__copyright__   = ("A. D'Hondt", 2021)
+__license__     = "gpl-3.0"
+__doc__         = """
+This utility aims to train Machine Learning models based on the dataset produced with dataset-maker.
+"""
+__description__ = "Train Machine Learning models"
+
+
+if __name__ == '__main__':
+    parser.add_argument("dataset", default="dataset", type=Dataset.check, help="specific packer to test")
+    initialize()
+
