@@ -23,7 +23,7 @@ APack:
   install:
     wget:  https://www.ibsensoftware.com/files/apack-1.00.zip
     unzip: /opt/packers/apack
-    sh:    wine /opt/packers/apack/apackw.exe "$@"
+    wine:  apackw.exe
   source: https://www.ibsensoftware.com/download.html
 
 ASPack:
@@ -54,7 +54,7 @@ Crinkler:
   install:
     wget:  http://www.crinkler.net/crinkler20.zip
     unzip: /opt/packers
-    sh:    wine /opt/packers/crinkler20/crinkler.exe "$@"
+    wine:  crinkler20/crinkler.exe
   source:  https://github.com/runestubbe/Crinkler
 
 DotNetZ:
@@ -63,7 +63,7 @@ DotNetZ:
   description: .NETZ is a straightforward and lightweight, command-line piece of software written in C that allows you to compress and pack Microsoft .NET Framework executable files to ensure they consume as little space on your computer's hard drive as possible.
   install:
     unzip: /opt/packers
-    sh:    wine /opt/packers/netz-bin/netz.exe "$@"
+    wine:  netz-bin/netz.exe
   references:
     - https://mindlocksite.wordpress.com/2017/01/19/analyse-netz-packer/
     - https://mindlocksite.wordpress.com/2017/01/22/netz-packer-unpack-avec-windbg/
@@ -106,7 +106,7 @@ FSG:
     unzip: fsg
     setp:  fsg/fsg.rar
     unrar: /opt/packers/fsg
-    sh:    wine /opt/packers/fsg/fsg.exe "$@"
+    wine:  fsg.exe
   references:
     - https://www.aldeid.com/wiki/Category:Digital-Forensics/Computer-Forensics/Anti-Reverse-Engineering/Packers/FSG
     - http://beatrix2004.free.fr/FSG.pdf
@@ -120,7 +120,7 @@ Kkrunchy:
   install:
     wget:  http://www.farbrausch.de/~fg/kkrunchy/kkrunchy_023a2.zip
     unzip: /opt/packers/
-    sh:    wine /opt/packers/kkrunchy_k7.exe "$@"
+    wine:  kkrunchy_k7.exe
   references:
     - https://github.com/fireeye/capa-rules/blob/master/anti-analysis/packer/kkrunchy/packed-with-kkrunchy.yml
   source: http://www.farbrausch.de/~fg/kkrunchy
@@ -151,7 +151,7 @@ MEW:
   description: MEW is an EXE compression tool that was specifically designed to handle small files, but does a pretty good job when working with larger files too.
   install:
     unzip: /opt/packers/mew
-    sh:    wine /opt/packers/mew/mew11.exe "$@"
+    wine:  mew11.exe
   references:
     - https://webscene.ir/tools/show/Mew-packer-11-SE-1.2
   source: https://in4k.github.io/wiki/exe-packers-tweakers-and-linkers
@@ -182,7 +182,7 @@ MPRESS:
   description: MPRESS is a free, high-performance executable packer for PE32/PE32+/.NET/MAC-DARWIN executable formats.
   install:
     unzip: /opt/packers/mpress
-    sh:    wine /opt/packers/mpress/mpress.exe "$@"
+    wine:  mpress.exe
   references:
     - https://storage.ey.md/Technology%%20Related/Programming%%20%%26%%20Reversing/Tuts4You%%20Collection/UnPackMe%%20Collection/dotNET/MPress%%200.71.rar
     - https://storage.ey.md/Technology%%20Related/Programming%%20%%26%%20Reversing/Tuts4You%%20Collection/UnPackMe%%20Collection/PE32/MPress%%200.77.rar
@@ -213,7 +213,7 @@ NetCrypt:
   install:
     wget:  https://github.com/friedkiwi/netcrypt/releases/download/v1.1/netcrypt.zip
     unzip: /opt/packers/netcrypt
-    sh:    wine /opt/packers/netcrypt/SimplePacker.exe "$@"
+    wine:  SimplePacker.exe
   source: https://github.com/friedkiwi/netcrypt
   status: gui
 
@@ -223,7 +223,7 @@ PEShield:
   description: PE-SHiELD is a program, which encrypts 32-bit Windows EXE files, leaving them still executable. The previous version was over a year in the wild and there is still no unpacker for it.
   install:
     unzip: /opt/packers/peshield
-    sh:    wine /opt/packers/peshield/peshield.exe "$@"
+    wine:  peshield.exe
   references:
     - http://protools.narod.ru/packers.htm
   source: https://webscene.ir/tools/show/PE-SHIELD-0.25
@@ -239,7 +239,7 @@ PEtite:
   install:
     wget:  https://www.un4seen.com/files/petite24.zip
     unzip: /opt/packers/petite
-    sh:    wine /opt/packers/petite/petite.exe "$@"
+    wine:  petite.exe
   steps:
     - petite -5 -o {{executable}} {{executable}}
   references:
@@ -254,7 +254,7 @@ RLPack:
   description: RLPack is a tiny application which compresses executable files but still allows you to run them under normal conditions. Its features can be seamlessly figured out.
   install:
     unzip: /opt/packers/rlpack
-    sh:    wine /opt/packers/rlpack/RLPack.exe "$@"
+    wine:  RLPack.exe
   references:
     - https://storage.ey.md/Technology%%20Related/Programming%%20%%26%%20Reversing/Tuts4You%%20Collection/Unpacking%%20Tutorials/RLPack%%201.21%%20%%28Unpacking%%29.rar
   source: https://www.softpedia.com/get/Programming/Packers-Crypters-Protectors/RLPack-Basic-Edition.shtml
@@ -279,7 +279,7 @@ Telock:
   description: Telock is a practical tool that intends to help developers who want to protect their work and reduce the size of the executable files. The application is designed to encode your files in order to make them impossible or at least hard to reverse engineer.
   install:
     unzip: /opt/packers/telock
-    sh:    wine /opt/packers/telock/telock.exe "$@"
+    wine:  telock.exe
   references:
     - http://beatrix2004.free.fr/TELOCK98.pdf
     - http://beatrix2004.free.fr/Comprendre%%20tElock%%200.51.pdf
