@@ -264,8 +264,8 @@ export LESS_TERMCAP_zz=$'\E[0m'               # Underline end
 export LS_OPTIONS='--color=auto --time-style long-iso'
 eval "`dircolors`"
 
-# Add packers' bin folder to PATH
-PATH=$PATH:/opt/packers/.bin:/opt/tools
+# Add tools' bin folder to PATH
+PATH=$PATH:/opt/tools
 
 eval 
     function fuck () {
@@ -300,3 +300,5 @@ pip-upgrade() {
     | cut -d = -f 1 \
     | xargs -n1 sudo pip3 install -U
 }
+
+export HOME=/mnt/share
