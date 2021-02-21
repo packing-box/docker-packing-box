@@ -22,7 +22,7 @@ if __name__ == '__main__':
                                                                      "packers used, not between packed and not packed")
     parser.add_argument("-c", "--categories", type=ts.values_list, default="All",
                         help="list of categories to be considered")
-    parser.add_argument("-d", "--destination-dir", default="dataset", type=ts.folder_does_not_exist,
+    parser.add_argument("-d", "--destination-dir", default="dataset", type=ts.folder_exists_or_create,
                         help="executables destination directory for the dataset")
     parser.add_argument("-n", "--number-executables", dest="n", type=ts.pos_int, default=100,
                         help="number of executables for the output dataset")
@@ -32,5 +32,5 @@ if __name__ == '__main__':
                         type=lambda p: ts.Path(p, expand=True, create=True),
                         help="executables source directory to be included")
     initialize()
-    Dataset(**vars(args)).make(**vars(args))
+    Dataset(**vars(args)).add(**vars(args)).save()
 

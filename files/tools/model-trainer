@@ -15,7 +15,12 @@ This utility aims to train Machine Learning models based on the dataset produced
 __description__ = "Train Machine Learning models"
 
 
+def at_interrupt():
+    """ Interrupt handler """
+    logger.warn("Interrupted by the user.")
+
+
 if __name__ == '__main__':
-    parser.add_argument("dataset", default="dataset", type=Dataset.check, help="specific packer to test")
+    parser.add_argument("dataset", default="dataset", type=Dataset.validate, help="specific packer to test")
     initialize()
 

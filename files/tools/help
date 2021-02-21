@@ -1,6 +1,7 @@
 #!/usr/bin/python3
 # -*- coding: UTF-8 -*-
 from pbox import *
+from pbox.__info__ import *
 from tinyscript import *
 from tinyscript.report import *
 try:  # from Python3.9
@@ -10,11 +11,7 @@ except ImportError:
 
 
 __script__      = "packing-box"
-__author__      = "Alexandre D'Hondt"
-__email__       = "alexandre.dhondt@gmail.com"
 __version__     = "1.0.1"
-__copyright__   = ("A. D'Hondt", 2021)
-__license__     = "gpl-3.0"
 __description__ = "Display this help message or packer's help"
 
 
@@ -24,55 +21,26 @@ BANNER_STYLE = {'fgcolor': "lolcat"}
 MD_TEMPLATE  = """
 This Docker image is a ready-to-use platform for making datasets of packed and not packed executables, especially for training machine learning models.
 """
-_c = colored
-STATUS = [_c("✗", "magenta"), _c("✗", "red"), _c("?", "grey"), _c("✓", "yellow"), _c("✓", "green")]
 
 
 def overview(show=False):
-    """ Display an overview of tools, packers and datasets. """
+    """ Display an overview of tools, detectors, packers, unpackers and datasets. """
     md, n = Report(Text(MD_TEMPLATE)), 0
     tools = []
-    tools_headers = ["Name", "Description"]
+    tools_headers = ["Name", "Description", "Version"]
     for tool in ts.Path(__file__).dirname.listdir(lambda f: f.is_file()):
+        row = [tool.stem, "", ""]
         try:
             for line in tool.read_text().splitlines():
-                if "__description__" in line:
-                    n += 1
-                    tools.append([tool.stem, line.split("=", 1)[1].strip(" \"")])
-                    break
+                if "__version__" in line or "__description__" in line:
+                    row[[1, 2]["__version__" in line]] = line.split("=", 1)[-1].strip(" \"")
         except UnicodeDecodeError:
             continue
-    md.append(Section("Tools (%d)" % n), Table(tools, column_headers=tools_headers))
-    packers = []
-    pheaders = ["Name", "Targets", "Status", "Source"]
-    pfooters = [" ", " ", " "]
-    descr = ["broken", "not installed", "todo", "installed", "tested"]
-    pfooters.append(" ; ".join("%s: %s" % (s, d) for s, d in \
-                    zip(STATUS if show else STATUS[1:], descr if show else descr[1:])))
-    n = 0
-    for packer in PACKERS:
-        if not show and packer.status == 0:
-            continue
-        n += 1
-        packers.append([
-            packer.__class__.__name__,
-            ",".join(packer.categories),
-            STATUS[packer.status],
-            "<%s>" % packer.source,
-        ])
-    md.append(Section("Packers (%d)" % n), Table(packers, column_headers=pheaders, column_footers=pfooters))
-    datasets = []
-    datasets_headers = ["Name", "Size", "Packers"]
-    for n, dset in enumerate(ts.Path().listdir(lambda f: f.is_dir() and f.joinpath("metadata.json").exists())):
-        with dset.joinpath("metadata.json").open() as meta:
-            metadata = json.load(meta)
-        datasets.append([
-            dset.stem,
-            str(metadata['executables']),
-            ",".join("%s{%d}" % i for i in sorted(metadata['counts'].items(), key=lambda x: -x[1])),
-        ])
-    if len(datasets) > 0:
-        md.append(Section("Datasets (%d)" % (n+1)), Table(datasets, column_headers=datasets_headers))
+        if row[1]:
+            tools.append(row)
+    md.append(Section("Tools (%d)" % len(tools)), Table(tools, column_headers=tools_headers))
+    for cls in [Detector, Packer, Unpacker, Dataset]:
+        md.append(*cls.summary(show))
     return md.md()
 
 
