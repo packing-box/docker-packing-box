@@ -1,0 +1,25 @@
+UPX:
+  categories:
+    - All
+  description: UPX is a free, portable, extendable, high-performance executable packer for several executable formats.
+  exclude:
+    PE:
+      - ds
+    ELF:
+      - o
+      - so
+  install:
+    apt: upx
+  references:
+    - https://www.aldeid.com/wiki/Category:Digital-Forensics/Computer-Forensics/Anti-Reverse-Engineering/Packers/UPX
+  steps:
+    - upx -d {{executable}}
+  references:
+    - https://linux.die.net/man/1/upx
+    - https://github.com/fireeye/capa-rules/blob/master/anti-analysis/packer/upx/packed-with-upx.yml
+    - https://storage.ey.md/Technology%%20Related/Programming%%20%%26%%20Reversing/Tuts4You%%20Collection/UnPackMe%%20Collection/PE32/UPX%%201.25.rar
+    - https://storage.ey.md/Technology%%20Related/Programming%%20%%26%%20Reversing/Tuts4You%%20Collection/UnPackMe%%20Collection/PE32/UPX%%203.04.rar
+    - https://storage.ey.md/Technology%%20Related/Programming%%20%%26%%20Reversing/Tuts4You%%20Collection/Unpacking%%20Tutorials/UPX%%20%%28Unpacking%%29.rar
+  source: https://upx.github.io
+  status: ok
+
