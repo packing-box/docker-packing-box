@@ -1,0 +1,64 @@
+DIE:
+  categories:
+    - All
+  description: Detect It Easy (DIE) is a program for determining types of files.
+  install:
+    gitr:  https://github.com/horsicq/DIE-engine.git
+    cd:    /tmp/DIE-engine
+    exec:  chmod +x build_lin64.sh
+    exec:  ./build_lin64.sh
+    exec:  cp release/die_lin64_portable_*.tar.gz /tmp/die.tar.gz
+    cd:    /tmp/
+    untar: /opt/detectors
+    cd:    die_lin64_portable
+    setp:  /tmp/detectors/die.tar.gz
+    untar: /opt/detectors/die_lin64_portable
+    ln:    diec.sh
+  source: https://github.com/horsicq/Detect-It-Easy
+  status: broken
+
+Manalyze:
+  categories:
+    - PE
+  description: A static analyzer for PE executables.
+  install:
+    git: https://github.com/JusticeRage/Manalyze
+    make: bin/manalyze
+    move: manalyze
+  source: https://github.com/JusticeRage/Manalyze
+  status: ok
+
+PeFrame:
+  categories:
+    - PE
+  description: Open source tool to perform static analysis on Portable Executable malware and malicious MS Office documents.
+  install:
+    pip: git+https://github.com/digitalsleuth/peframe
+  steps:
+    - peframe -sj {{executable}}
+  source: https://github.com/guelfoweb/peframe
+
+PePack:
+  categories:
+    - PE
+  description: Check if a PE file is packed. This tool belongs to pev, an open source, full-featured, multiplatform command line toolkit to work with PE (Portable Executables) binaries.
+  install:
+    apt: pev
+  steps:
+    - pepack -d /usr/share/pev/userdb.txt {{executable}}
+  source: https://github.com/merces/pev
+
+PEiD:
+  categories:
+    - PE
+  description: PEiD detects most common packers, cryptors and compilers for PE files. It can currently detect more than 600 different signatures in PE files.
+  install:
+    git:  https://github.com/wolfram77web/app-peid
+    move: /opt/detectors/peid
+    wine: PEiD.exe
+  references:
+    - https://www.aldeid.com/wiki/PEiD
+    - www.softpedia.com/get/Programming/Packers-Crypters-Protectors/PEiD-updated.shtml
+    - https://github.com/ynadji/peid/
+  source: https://github.com/wolfram77web/app-peid
+
