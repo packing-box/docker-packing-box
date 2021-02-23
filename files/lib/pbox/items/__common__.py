@@ -199,7 +199,8 @@ class Base:
             # git clone a project
             elif cmd in ["git", "gitr"]:
                 result = (result or tmp).joinpath(Path(ts.urlparse(arg).path).stem)
-                run("git clone -q %s%s %s" % (["", "--recursive "][cmd == "gitr"], arg, result), **kw)
+                run("git clone -q %s%s %s" % (["", "--recursive "][cmd == "gitr"], arg, result),
+                    silent=["Checking out ", "Cloning into "], **kw)
             # make a symbolink link in /usr/bin (if relative path) relatively to the previous considered location
             elif cmd == "ln":
                 r = ubin.joinpath(self.name)
@@ -240,9 +241,8 @@ class Base:
                 result = result.joinpath(arg)
             # move the previous location to /usr/bin (if relative path), make it executable if it is a file
             elif cmd == "move":
-                if result is None:
-                    result = tmp.joinpath("%s.*" % self.name)
-                r = ubin.joinpath(arg)
+                result = (result or tmp).joinpath(arg)
+                r = ubin.joinpath(self.name)
                 if run("mv %s %s" % (result, r), **kw)[-1] == 0 and r.is_file():
                     run("chmod +x %s" % r, **kw)
                 result = r

@@ -84,19 +84,19 @@ RUN pip3 install /tmp/lib/ 2>&1 > /dev/null \
 # +--------------------------------------------------------------------------------------------------------------------+
 FROM tools AS detectors
 ADD files/detectors/* /tmp/
-RUN /opt/tools/box setup detector
+RUN /opt/tools/packing-box setup detector
 # +--------------------------------------------------------------------------------------------------------------------+
 # |                                                  ADD UNPACKERS                                                     |
 # +--------------------------------------------------------------------------------------------------------------------+
 FROM detectors AS unpackers
 #ADD files/unpackers/* /tmp/
-#RUN /opt/tools/box setup unpacker
+#RUN /opt/tools/packing-box setup unpacker
 # +--------------------------------------------------------------------------------------------------------------------+
 # |                                                   ADD PACKERS                                                      |
 # +--------------------------------------------------------------------------------------------------------------------+
 FROM unpackers AS packers
 ADD files/packers/* /tmp/
-RUN /opt/tools/box setup packer
+RUN /opt/tools/packing-box setup packer
 # ----------------------------------------------------------------------------------------------------------------------
 ENTRYPOINT /opt/tools/startup
 WORKDIR /mnt/share
