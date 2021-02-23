@@ -138,7 +138,7 @@ class Base:
                     for value in (self._params[name] if values is None else [self._params[name]]):
                         attempts.append((re.sub(PARAM_PATTERN, value, step), "%s=%s" % (name, value)))
                 except KeyError:
-                    self.logger("Unknown parameter name %s" % name)
+                    self.logger.error("Unknown parameter name %s" % name)
                     return
             # now, run attempts for this step in random order until one succeeds
             random.shuffle(attempts)

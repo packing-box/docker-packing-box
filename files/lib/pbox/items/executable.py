@@ -1,7 +1,7 @@
 # -*- coding: UTF-8 -*-
 from functools import cached_property
 from magic import from_file
-from tinyscript import hashlib
+from tinyscript import hashlib, shutil
 from tinyscript.helpers import is_filetype, Path
 
 
@@ -50,6 +50,10 @@ def expand_categories(*categories, **kw):
 
 
 class Executable(Path):
+    def copy(self):
+        shutil.copy(str(self), str(self.destination))
+        self.destination.chmod(0o777)
+    
     @cached_property
     def category(self):
         best_fmt, l = None, 0
@@ -57,6 +61,10 @@ class Executable(Path):
             if len(ftype) > l and is_filetype(str(self), ftype):
                 best_fmt, l = fmt, len(ftype)
         return best_fmt
+    
+    @cached_property
+    def destination(self):
+        return self.dataset.joinpath("files", self.hash)
     
     @cached_property
     def features(self):
