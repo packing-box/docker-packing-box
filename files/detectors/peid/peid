@@ -1,0 +1,27 @@
+#!/usr/bin/python3
+# -*- coding: UTF-8 -*-
+import argparse
+import os
+from pefile import PE
+from peutils import SignatureDatabase
+
+
+def main(path):
+    with open("/opt/detectors/peid/userdb.txt", encoding="latin-1") as f:
+        sigs = SignatureDatabase(data=f.read())
+    if not os.path.exists(path):
+        print("[ERROR] file not found")
+        return
+    try:
+        for s in (sigs.match(PE(path), ep_only=True) or []):
+            print(s)
+    except Exception as err:
+        print("[ERROR] %s" % str(err))
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(formatter_class=argparse.RawTextHelpFormatter)
+    parser.add_argument("pe", help="PE file")
+    args = parser.parse_args()
+    main(args.pe)
+

@@ -53,9 +53,8 @@ PEiD:
     - PE
   description: PEiD detects most common packers, cryptors and compilers for PE files. It can currently detect more than 600 different signatures in PE files.
   install:
-    git:  https://github.com/wolfram77web/app-peid
-    move: /opt/detectors/peid
-    wine: PEiD.exe
+    exec: mv /tmp/peid /opt/detectors/
+    move: /opt/detectors/peid/peid
   references:
     - https://www.aldeid.com/wiki/PEiD
     - www.softpedia.com/get/Programming/Packers-Crypters-Protectors/PEiD-updated.shtml
