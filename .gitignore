@@ -70,4 +70,4 @@ target/
 tmp
 TODO
 .mypy_cache
-dataset*
+dataset*/
