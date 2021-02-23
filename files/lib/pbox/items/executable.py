@@ -1,19 +1,16 @@
 # -*- coding: UTF-8 -*-
 from functools import cached_property
 from magic import from_file
-from tinyscript import hashlib, shutil
+from tinyscript import classproperty, hashlib, shutil
 from tinyscript.helpers import is_filetype, Path
+
+from .__common__ import expand_categories
+from ..learning.features import *
 
 
 __all__ = ["expand_categories", "Executable"]
 
 
-CATEGORIES = {
-    'All':    ["ELF", "Mach-O", "MSDOS", "PE"],
-    'ELF':    ["ELF32", "ELF64"],
-    'Mach-O': ["Mach-O32", "Mach-O64", "Mach-Ou"],
-    'PE':     ["PE32", "PE64"],
-}
 SIGNATURES = {
     '^Mach-O 32-bit ':                         "Mach-O32",
     '^Mach-O 64-bit ':                         "Mach-O64",
@@ -27,29 +24,11 @@ SIGNATURES = {
 }
 
 
-#TODO: move this to learning submodule
-FEATURES = {
-    'All': {
-        'checksum': None,
-    },
-}
-
-
-def expand_categories(*categories, **kw):
-    """ 2-depth dictionary-based expansion function for resolving a list of executable categories. """
-    selected = []
-    for c in categories:                    # depth 1: e.g. All => ELF,PE OR ELF => ELF32,ELF64
-        for sc in CATEGORIES.get(c, [c]):   # depth 2: e.g. ELF => ELF32,ELF64
-            if kw.get('once', False):
-                selected.append(sc)
-            else:
-                for ssc in CATEGORIES.get(sc, [sc]):
-                    if ssc not in selected:
-                        selected.append(ssc)
-    return selected
-
-
 class Executable(Path):
+    """ Executable abstraction. """
+    def __init__(self):
+        self._features = Features(self.category)
+    
     def copy(self):
         shutil.copy(str(self), str(self.destination))
         self.destination.chmod(0o777)
@@ -63,12 +42,23 @@ class Executable(Path):
         return best_fmt
     
     @cached_property
+    def data(self):
+        data = {}
+        for name, func in self._features.items():
+            r = func(str(self))
+            if isinstance(r, dict):
+                data.update(r)
+            else:
+                data[name] = r
+        return data
+    
+    @cached_property
     def destination(self):
         return self.dataset.joinpath("files", self.hash)
     
     @cached_property
-    def features(self):
-        return []
+    def filetype(self):
+        return from_file(str(self))
     
     @cached_property
     def filetype(self):
@@ -77,26 +67,8 @@ class Executable(Path):
     @cached_property
     def hash(self):
         return hashlib.sha256_file(str(self))
-
-
-class Features(dict):
-    #TODO: move this to learning submodule
-    """ This class represents the dictionary of features valid for a given list of executable categories. """
-    def __init__(self, *categories):
-        categories = expand_categories(*categories)
-        all_categories = expand_categories("All")
-        # consider most generic features first
-        for category, features in FEATURES.items():
-            if category in all_categories:
-                continue
-            for subcategory in expand_categories(category):
-                if subcategory in categories:
-                    for name, func in features.items():
-                        self[name] = func
-        # then consider most specific ones
-        for category, features in FEATURES.items():
-            if category not in all_categories or category not in categories:
-                continue
-            for name, func in features.items():
-                self[name] = func
+    
+    @classproperty
+    def features(cls):
+        return self._features.descriptions
 

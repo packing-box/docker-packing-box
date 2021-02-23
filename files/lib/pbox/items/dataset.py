@@ -4,7 +4,8 @@ from tinyscript import b, colored, hashlib, json, logging, random, ts
 from tinyscript.report import *
 from tqdm import tqdm
 
-from .executable import expand_categories, Executable
+from .__common__ import expand_categories
+from .executable import Executable
 from .packer import Packer
 
 

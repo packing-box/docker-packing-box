@@ -6,9 +6,15 @@ from tinyscript.report import *
 from .executable import expand_categories, Executable
 
 
-__all__ = ["make_registry", "Base"]
+__all__ = ["expand_categories", "make_registry", "Base"]
 
 
+CATEGORIES = {
+    'All':    ["ELF", "Mach-O", "MSDOS", "PE"],
+    'ELF':    ["ELF32", "ELF64"],
+    'Mach-O': ["Mach-O32", "Mach-O64", "Mach-Ou"],
+    'PE':     ["PE32", "PE64"],
+}
 OS_COMMANDS = subprocess.check_output("compgen -c", shell=True, executable="/bin/bash").splitlines()
 PARAM_PATTERN = r"{{(.*?)(?:\[(.*?)\])?}}"
 STATUS = [_c("✗", "magenta"), _c("✗", "red"), _c("?", "grey"), _c("✓", "yellow"), _c("✓", "green")]
@@ -50,6 +56,20 @@ TEST_FILES = {
         "/root/.wine/drive_c/windows/twain_64/gphoto2.ds",
     ],
 }
+
+
+def expand_categories(*categories, **kw):
+    """ 2-depth dictionary-based expansion function for resolving a list of executable categories. """
+    selected = []
+    for c in categories:                    # depth 1: e.g. All => ELF,PE OR ELF => ELF32,ELF64
+        for sc in CATEGORIES.get(c, [c]):   # depth 2: e.g. ELF => ELF32,ELF64
+            if kw.get('once', False):
+                selected.append(sc)
+            else:
+                for ssc in CATEGORIES.get(sc, [sc]):
+                    if ssc not in selected:
+                        selected.append(ssc)
+    return selected
 
 
 def make_registry(cls):
