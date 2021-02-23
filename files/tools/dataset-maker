@@ -32,5 +32,5 @@ if __name__ == '__main__':
                         type=lambda p: ts.Path(p, expand=True, create=True),
                         help="executables source directory to be included")
     initialize()
-    Dataset(**vars(args)).add(**vars(args)).save()
+    Dataset(**vars(args)).make(**vars(args)).save()
 
