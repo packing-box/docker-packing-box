@@ -32,7 +32,7 @@ def overview(show=False):
         row = [tool.stem, "", ""]
         try:
             for line in tool.read_text().splitlines():
-                if "__version__" in line or "__description__" in line:
+                if re.match(r"__(description|version)__", line):
                     row[[1, 2]["__version__" in line]] = line.split("=", 1)[-1].strip(" \"")
         except UnicodeDecodeError:
             continue
