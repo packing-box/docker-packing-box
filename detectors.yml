@@ -22,8 +22,10 @@ Manalyze:
     - PE
   description: A static analyzer for PE executables.
   install:
-    git: https://github.com/JusticeRage/Manalyze
-    make: bin/manalyze
+    git:  https://github.com/JusticeRage/Manalyze
+    exec: mv /tmp/Manalyze /opt/detectors/manalyze
+    setp: /opt/detectors/manalyze
+    make: bin -j5
     move: manalyze
   source: https://github.com/JusticeRage/Manalyze
   status: ok
@@ -53,7 +55,7 @@ PEiD:
     - PE
   description: PEiD detects most common packers, cryptors and compilers for PE files. It can currently detect more than 600 different signatures in PE files.
   install:
-    exec: mv /tmp/peid /opt/detectors/
+    exec: cp -r /tmp/peid /opt/detectors/peid
     move: /opt/detectors/peid/peid
   references:
     - https://www.aldeid.com/wiki/PEiD
