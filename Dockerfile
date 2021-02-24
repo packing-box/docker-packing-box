@@ -56,46 +56,46 @@ RUN (pip3 install pandas pefile sklearn tinyscript weka \
 # +--------------------------------------------------------------------------------------------------------------------+
 FROM base AS customized
 # copy customized files
-ADD files/term/bash_aliases /root/.bash_aliases
-ADD files/term/bash_colors /root/.bash_colors
-ADD files/term/bash_gitprompt /root/.bash_gitprompt
-ADD files/term/bashrc /root/.bashrc
-ADD files/term/profile /root/.profile
-ADD files/term/viminfo /root/.viminfo
+COPY files/term/bash_aliases /root/.bash_aliases
+COPY files/term/bash_colors /root/.bash_colors
+COPY files/term/bash_gitprompt /root/.bash_gitprompt
+COPY files/term/bashrc /root/.bashrc
+COPY files/term/profile /root/.profile
+COPY files/term/viminfo /root/.viminfo
 # set the base files and folders for further setup
-ADD *.yml /opt/
-RUN mkdir -p /mnt/share /tmp/detectors /tmp/packers /tmp/unpackers /opt/detectors /opt/packers /opt/tools /opt/unpackers
+COPY *.yml /opt/
+RUN mkdir -p /mnt/share /opt/bin /opt/detectors /opt/packers /opt/tools /opt/unpackers
 # +--------------------------------------------------------------------------------------------------------------------+
 # |                           ADD UTILITIES (that are not packers, unpackers or home-made tools)                       |
 # +--------------------------------------------------------------------------------------------------------------------+
 FROM customized AS utils
 # copy pre-built utils
-ADD files/utils/* /usr/bin/
+COPY files/utils /usr/bin/
 # +--------------------------------------------------------------------------------------------------------------------+
 # |                                                    ADD TOOLS                                                       |
 # +--------------------------------------------------------------------------------------------------------------------+
 FROM utils AS tools
-ADD files/tools/* /opt/tools/
-ADD files/lib /tmp/lib
+COPY files/tools /opt/tools/
+COPY files/lib /tmp/lib
 RUN pip3 install /tmp/lib/ 2>&1 > /dev/null \
  && mv /opt/tools/help /opt/tools/?
 # +--------------------------------------------------------------------------------------------------------------------+
 # |                                                  ADD DETECTORS                                                     |
 # +--------------------------------------------------------------------------------------------------------------------+
 FROM tools AS detectors
-ADD files/detectors/* /tmp/
+COPY files/detectors /tmp/
 RUN /opt/tools/packing-box setup detector
 # +--------------------------------------------------------------------------------------------------------------------+
 # |                                                  ADD UNPACKERS                                                     |
 # +--------------------------------------------------------------------------------------------------------------------+
 FROM detectors AS unpackers
-#ADD files/unpackers/* /tmp/
+#COPY files/unpackers/* /tmp/
 #RUN /opt/tools/packing-box setup unpacker
 # +--------------------------------------------------------------------------------------------------------------------+
 # |                                                   ADD PACKERS                                                      |
 # +--------------------------------------------------------------------------------------------------------------------+
 FROM unpackers AS packers
-ADD files/packers/* /tmp/
+COPY files/packers /tmp/
 RUN /opt/tools/packing-box setup packer
 # ----------------------------------------------------------------------------------------------------------------------
 ENTRYPOINT /opt/tools/startup
