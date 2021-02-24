@@ -3,18 +3,13 @@ from tinyscript import b, colored as _c, ensure_str, inspect, logging, os, rando
 from tinyscript.helpers import execute_and_log as run, yaml_config, Path
 from tinyscript.report import *
 
-from .executable import expand_categories, Executable
+from .executable import Executable
+from ..utils import expand_categories
 
 
-__all__ = ["expand_categories", "make_registry", "Base"]
+__all__ = ["make_registry", "Base"]
 
 
-CATEGORIES = {
-    'All':    ["ELF", "Mach-O", "MSDOS", "PE"],
-    'ELF':    ["ELF32", "ELF64"],
-    'Mach-O': ["Mach-O32", "Mach-O64", "Mach-Ou"],
-    'PE':     ["PE32", "PE64"],
-}
 OS_COMMANDS = subprocess.check_output("compgen -c", shell=True, executable="/bin/bash").splitlines()
 PARAM_PATTERN = r"{{(.*?)(?:\[(.*?)\])?}}"
 STATUS = [_c("✗", "magenta"), _c("✗", "red"), _c("?", "grey"), _c("✓", "yellow"), _c("✓", "green")]
@@ -56,20 +51,6 @@ TEST_FILES = {
         "/root/.wine/drive_c/windows/twain_64/gphoto2.ds",
     ],
 }
-
-
-def expand_categories(*categories, **kw):
-    """ 2-depth dictionary-based expansion function for resolving a list of executable categories. """
-    selected = []
-    for c in categories:                    # depth 1: e.g. All => ELF,PE OR ELF => ELF32,ELF64
-        for sc in CATEGORIES.get(c, [c]):   # depth 2: e.g. ELF => ELF32,ELF64
-            if kw.get('once', False):
-                selected.append(sc)
-            else:
-                for ssc in CATEGORIES.get(sc, [sc]):
-                    if ssc not in selected:
-                        selected.append(ssc)
-    return selected
 
 
 def make_registry(cls):
@@ -179,7 +160,7 @@ class Base:
                     break
         return output if use_output else retval
     
-    def setup(self):
+    def setup(self, **kw):
         """ Sets the item up according to its install instructions. """
         if self.status == 0:
             return
@@ -219,8 +200,7 @@ class Base:
             # git clone a project
             elif cmd in ["git", "gitr"]:
                 result = (result or tmp).joinpath(Path(ts.urlparse(arg).path).stem)
-                run("git clone -q %s%s %s" % (["", "--recursive "][cmd == "gitr"], arg, result),
-                    silent=["Checking out ", "Cloning into "], **kw)
+                run("git clone -q %s%s %s" % (["", "--recursive "][cmd == "gitr"], arg, result), **kw)
             # make a symbolink link in /usr/bin (if relative path) relatively to the previous considered location
             elif cmd == "ln":
                 r = ubin.joinpath(self.name)
@@ -244,16 +224,20 @@ class Base:
             elif cmd == "make":
                 if not result.is_dir():
                     raise ValueError("Got a file ; should have a folder")
+                try:
+                    arg, opt = shlex.split(arg)
+                except ValueError:
+                    opt = None
                 os.chdir(str(result))
                 files = [x.filename for x in result.listdir()]
                 if "CMakeLists.txt" in files:
-                    if run("cmake .", **kw)[-1] == 0:
-                        run("make", **kw)
+                    if run("cmake .", silent=["Checking out ", "Cloning into ", "Updating "], **kw)[-1] == 0:
+                        run("make %s" % opt if opt else "make", **kw)
                 elif "Makefile" in files:
                     if "configure.sh" in files:
                         if run("chmod +x configure.sh", **kw)[-1] == 0:
                             run("./configure.sh", **kw)
-                    if run("make", **kw)[-1] == 0:
+                    if run("make %s" % opt if opt else "make", **kw)[-1] == 0:
                         run("make install", **kw)
                 elif "make.sh" in files:
                     if run("chmod +x make.sh", **kw)[-1] == 0:
@@ -341,13 +325,12 @@ class Base:
                 else:
                     result = tmp.joinpath(self.name + Path(ts.urlparse(arg).path).extension)
                     run("wget -q -O %s %s" % (result, arg.replace("%%", "%")), **kw)[-1]
-        if os.getcwd() != cwd:
-            self.logger.debug("cd %s" % cwd)
-            os.chdir(cwd)
+        self.logger.debug("cd %s" % cwd)
+        os.chdir(cwd)
         if rm:
             run("rm -rf %s" % tmp.joinpath(self.name), **kw)
     
-    def test(self, *files):
+    def test(self, files=None, **kw):
         """ Tests the item on some executable files. """
         if self.status < 2:
             return
@@ -362,15 +345,15 @@ class Base:
             if len(l) == 0:
                 continue
             self.logger.info(category)
-            for file in l:
-                file = Executable(file)
-                ext = file.extension[1:]
-                if file.category not in self._categories_exp or \
-                   ext in getattr(self, "exclude", {}).get(file.category, []):
+            for exe in l:
+                exe = Executable(exe)
+                ext = exe.extension[1:]
+                if exe.category not in self._categories_exp or \
+                   ext in getattr(self, "exclude", {}).get(exe.category, []):
                     continue
-                tmp = d.joinpath(file.filename)
-                self.logger.debug(file.filetype)
-                run("cp %s %s" % (file, tmp))
+                tmp = d.joinpath(exe.filename)
+                self.logger.debug(exe.filetype)
+                run("cp %s %s" % (exe, tmp))
                 run("chmod +x %s" % tmp)
                 # use the verb corresponding to the item type by shortening it by 2 chars ; 'packer' will give 'pack'
                 label, n = getattr(self, self.type[:-2])(str(tmp)), tmp.filename

@@ -10,14 +10,20 @@ __doc__         = """
 This utility aims to facilitate detectors|packers|unpackers' setup|test according to the related YAML data file.
 """
 __description__ = "Setup/test detectors/packers/unpackers (based on the related YAML config)"
+__examples__ = [
+    "setup packer",
+    "setup detector peid",
+    "test packer upx ezuri midgetpack",
+    "test unpacker upx",
+]
 
 
 def _set_subparsers(parent, *items):
     sparsers = parent.add_subparsers(dest="type", help="select the type of item")
     for i in items:
         p = sparsers.add_parser(i, help="select %s" % i)
-        p.add_argument(i, default=[], action="extend", nargs="*", help="specific %s to %s" % (i, parent.name))
-        if parent.name == "test":
+        p.add_argument(i, default=[], action="extend", nargs="*", help="specific %s to %s" % (i, parent._name))
+        if parent._name == "test":
             p.add_argument("-f", "--file", default=[], action="extend", nargs="*", help="file to test the %s on" % i)
 
 
@@ -25,16 +31,18 @@ if __name__ == '__main__':
     sparsers = parser.add_subparsers(dest="command", help="command to be executed")
     for n in ["setup", "test"]:
         p = sparsers.add_parser(n, help="%s something" % n)
+        p._name = n
         _set_subparsers(p, "detector", "packer", "unpacker")
     initialize()
     cls_item = args.type.capitalize()
-    for item in globals()[cls_item].registry:
-        name = item.__class__.__name__
-        arg_item = getattr(args, args.type)
-        if not arg_item or item.name in list(map(lambda x: x.lower(), arg_item)):
-            try:
-                getattr(item, args.command)()
-            except:
-                logger.critical("%s %s failed: %s" % (cls_item, args.command, name))
-                raise
+    registry = globals()[cls_item].registry
+    selected = list(map(lambda x: x.lower(), getattr(args, args.type))) or [x.name for x in registry]
+    for item in registry:
+        if item.name not in selected:
+            continue
+        try:
+            getattr(item, args.command)(**vars(args))
+        except:
+            logger.critical("%s %s failed: %s" % (cls_item, args.command, item.__class__.__name__))
+            raise
 

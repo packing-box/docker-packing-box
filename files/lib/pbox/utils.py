@@ -2,7 +2,15 @@
 from time import time
 
 
-__all__ = ["benchmark", "compute", "highlight_best", "process"]
+__all__ = ["benchmark", "expand_categories", "highlight_best"]
+
+
+CATEGORIES = {
+    'All':    ["ELF", "Mach-O", "MSDOS", "PE"],
+    'ELF':    ["ELF32", "ELF64"],
+    'Mach-O': ["Mach-O32", "Mach-O64", "Mach-Ou"],
+    'PE':     ["PE32", "PE64"],
+}
 
 
 bold = lambda text: "\033[1m{}\033[0m".format(text)
@@ -23,6 +31,20 @@ def benchmark(f):
             logger.debug(message)
         return r
     return _wrapper
+
+
+def expand_categories(*categories, **kw):
+    """ 2-depth dictionary-based expansion function for resolving a list of executable categories. """
+    selected = []
+    for c in categories:                    # depth 1: e.g. All => ELF,PE OR ELF => ELF32,ELF64
+        for sc in CATEGORIES.get(c, [c]):   # depth 2: e.g. ELF => ELF32,ELF64
+            if kw.get('once', False):
+                selected.append(sc)
+            else:
+                for ssc in CATEGORIES.get(sc, [sc]):
+                    if ssc not in selected:
+                        selected.append(ssc)
+    return selected
 
 
 def highlight_best(table_data, from_col=2):

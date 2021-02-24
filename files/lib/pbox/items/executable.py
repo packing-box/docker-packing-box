@@ -4,11 +4,10 @@ from magic import from_file
 from tinyscript import classproperty, hashlib, shutil
 from tinyscript.helpers import is_filetype, Path
 
-from .__common__ import expand_categories
 from ..learning.features import *
 
 
-__all__ = ["expand_categories", "Executable"]
+__all__ = ["Executable"]
 
 
 SIGNATURES = {
@@ -26,8 +25,15 @@ SIGNATURES = {
 
 class Executable(Path):
     """ Executable abstraction. """
-    def __init__(self):
-        self._features = Features(self.category)
+    _features = {}
+    
+    def __getattribute__(self, name):
+        if name == "_features":
+            fset = Executable._features.get(self.category)
+            if fset is None:
+                Executable._features[self.category] = fset = Features(self.category)
+            return fset
+        return super(Executable, self).__getattribute__(name)
     
     def copy(self):
         shutil.copy(str(self), str(self.destination))
@@ -56,9 +62,9 @@ class Executable(Path):
     def destination(self):
         return self.dataset.joinpath("files", self.hash)
     
-    @cached_property
-    def filetype(self):
-        return from_file(str(self))
+    @property
+    def features(cls):
+        return self._features.descriptions
     
     @cached_property
     def filetype(self):
@@ -67,8 +73,4 @@ class Executable(Path):
     @cached_property
     def hash(self):
         return hashlib.sha256_file(str(self))
-    
-    @classproperty
-    def features(cls):
-        return self._features.descriptions
 

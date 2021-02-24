@@ -2,7 +2,7 @@
 from functools import cached_property
 from tinyscript.helpers import execute_and_log as run
 
-from ..items.__common__ import expand_categories
+from ..utils import expand_categories
 
 
 __all__ = ["Features", "FEATURE_DESCRIPTIONS"]
@@ -40,7 +40,8 @@ FEATURE_DESCRIPTIONS = {
     'section_alignment': "Section Alignment",
     'number_standard_sections': "number of standards sections the PE holds",
     'number_non_standard_sections': "number of non-standards sections the PE holds",
-    'ratio_standard_sections': "ratio between the number of standards sections found and the number of all sections found in the PE under analysis",
+    'ratio_standard_sections': "ratio between the number of standards sections found and the number of all sections "
+                               "found in the PE under analysis",
     'number_x_sections': "number of Executable sections the PE holds",
     'number_w_sections': "number of Writable sections the PE holds",
     'number_wx_sections': "number of Writable and Executable sections the PE holds",
@@ -132,7 +133,8 @@ FEATURE_DESCRIPTIONS = {
     'number_dll_imported': "number of DLLs imported",
     'number_func_imported_in_idt': "number of functions imported found in the import table directory (IDT)",
     'number_malicious_api_imported': "number of malicious APIs imported",
-    'ratio_malicious_api_imported': "ratio between the number of malicious APIs imported to the number of all functions imported by the PE",
+    'ratio_malicious_api_imported': "ratio between the number of malicious APIs imported to the number of all functions"
+                                    " imported by the PE",
     'number_addresses_in_iat': "number of addresses (corresponds to functions) found in the import address table (IAT)",
     'debug_dir_present': "debug directory is present or not",
     'number_resources': "number of resources the PE holds",
@@ -143,7 +145,7 @@ def pefeats(executable):
     """ This uses pefeats to extract 119 features from PE files. """
     out, err, retc = run("pefeats %s" % executable)
     if retc == 0:
-        out = 
+        out = None
 
 
 class Features(dict):

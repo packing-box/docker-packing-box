@@ -4,15 +4,15 @@ from tinyscript import b, colored, hashlib, json, logging, random, ts
 from tinyscript.report import *
 from tqdm import tqdm
 
-from .__common__ import expand_categories
 from .executable import Executable
 from .packer import Packer
+from ..utils import expand_categories
 
 
 __all__ = ["Dataset", "PACKING_BOX_SOURCES"]
 
 
-PACKING_BOX_SOURCES = ["/usr/bin", "/root/.wine/drive_c/windows", "/root/.wine32/drive_c/windows"]
+PACKING_BOX_SOURCES = ["/sbin", "/usr/bin", "/root/.wine/drive_c/windows", "/root/.wine32/drive_c/windows"]
 
 
 class Dataset:
@@ -179,6 +179,33 @@ class Dataset:
         self.save()
         self.logger.info("Used packers: %s" % ", ".join(sorted(list(self._data['label'].values))))
         return self
+    
+    def overview(self):
+        """ Compute an overview table of the executables in the dataset. """
+        result = [Section("Executables by size and category")]
+        headers = ["Size Range", "Total", "Percentage", "Packed", "Percentage"]
+        CAT = ["<20kB", "20-50kB", "50-100kB", "100-500kB", "500kB-1MB", ">1MB"]
+        size_cat = lambda s: CAT[0] if s < 20 * 1024 else CAT[1] if 20 * 1024 <= s < 50 * 1024 else \
+                             CAT[2] if 50 * 1024 <= s < 100 * 1024 else CAT[3] if 100 * 1024 <= s < 500 * 1024 else \
+                             CAT[4] if 500 * 1024 <= s < 1024 * 1024 else CAT[5]
+        for category in self._categories_exp:
+            data = []
+            d = {c: [0, 0] for c in CAT}
+            for h, label in self._labels.items():
+                exe = Executable(self.path.joinpath("files", h))
+                if exe.category != category:
+                    continue
+                s = size_cat(exe.size)
+                d[s][0] += 1
+                if label is not None:
+                    d[s][1] += 1
+            total, totalp = sum([v[0] for v in d.values()]), sum([v[1] for v in d.values()])
+            for c in CAT:
+                data.append([c, d[c][0], "%.2f" % (100 * (float(d[c][0]) / total)),
+                                d[c][1], "%.2f" % (100 * (float(d[c][1]) / totalp))])
+            data.append(["Total", str(total), "", str(totalp), ""])
+            result.append(Table(data, title=category, column_headers=headers))
+        return [] if total == 0 else result
     
     def prepare(self):
         """ Compute and attach sets of data from self.data and self.target to the instance.
