@@ -11,6 +11,8 @@ __all__ = ["Detector"]
 
 class Detector(Base):
     """ Detector abstraction. """
+    use_output = True
+    
     def detect(self, executable, **kwargs):
         """ Runs the detector according to its command line format and checks if the executable has been changed by this
              execution. """

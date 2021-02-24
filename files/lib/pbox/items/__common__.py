@@ -95,6 +95,7 @@ class Base:
                 self.__init = True
             # check: is this item operational ?
             if self.status <= 2:
+                self.logger.debug("Status: %s" % ["broken", "not installed", "todo"][self.status])
                 return lambda *a, **kw: False
         return super(Base, self).__getattribute__(name)
     
@@ -149,6 +150,7 @@ class Base:
                 if isinstance(attempt, tuple) and len(attempt) == 2:
                     attempt, param = attempt
                 output, _, retc = run(attempt, **kw)
+                output = ensure_str(output)
                 if retc > 0:
                     attempts.remove(attempt if param is None else (attempt, param))
                     if len(attempts) == 0:
@@ -158,11 +160,12 @@ class Base:
                     if param:
                         retval += "[%s]" % param
                     break
-        return output if use_output else retval
+        return (output or None) if use_output or getattr(self, "use_output", False) else retval
     
     def setup(self, **kw):
         """ Sets the item up according to its install instructions. """
         if self.status == 0:
+            self.logger.debug("Status: broken")
             return
         logging.setLogger(self.name)
         self.logger.info("Setting up %s..." % self.__class__.__name__)
@@ -183,20 +186,24 @@ class Base:
                     result.mkdir()
                 self.logger.debug("cd %s" % result)
                 os.chdir(str(result))
-            # copy a file from the previous location (or /tmp if not defined) to /usr/bin,
-            #  making the destination file executable
+            # copy a file from the previous location (or /tmp if not defined) to /opt/bin, making the destination file
+            #  executable
             elif cmd == "copy":
                 try:
                     arg1, arg2 = shlex.split(arg)
                 except ValueError:
                     arg1, arg2 = arg, arg
                 src, dst = (result or tmp).joinpath(arg1), ubin.joinpath(arg2)
-                if run("cp %s%s %s" % (["", "-r"][src.is_dir()], src, dst), **kw)[-1] == 0 and arg1 == arg2:
+                if run("cp %s%s %s" % (["", "-r"][src.is_dir()], src, dst), **kw)[-1] == 0 and dst.is_file():
                     run("chmod +x %s" % dst, **kw)
             # execute the given command as is, with no pre-/post-condition, not altering the result state variable
+            #  (if a list of commands is given, execute them all
             elif cmd == "exec":
                 result = None
-                run(arg, **kw)
+                if not isinstance(arg, list):
+                    arg = [arg]
+                for a in arg:
+                    run(a, **kw)
             # git clone a project
             elif cmd in ["git", "gitr"]:
                 result = (result or tmp).joinpath(Path(ts.urlparse(arg).path).stem)
@@ -204,7 +211,7 @@ class Base:
             # make a symbolink link in /usr/bin (if relative path) relatively to the previous considered location
             elif cmd == "ln":
                 r = ubin.joinpath(self.name)
-                run("ln -s %s %s" % (result.joinpath(arg), r), **kw)
+                run("ln -s %s %s" % ((result or tmp).joinpath(arg), r), **kw)
                 result = r
             elif cmd == "lsh":
                 try:
@@ -255,7 +262,7 @@ class Base:
                 run("pip3 -q install %s" % arg, **kw)
             # remove a given directory (then bypassing the default removal at the end of all commands)
             elif cmd == "rm":
-                run("rm -rf %s" % Path(arg), **kw)
+                run("rm -rf %s" % Path(arg).absolute(), **kw)
                 rm = False
             # manually set the result to be used in the next command
             elif cmd == "set":
@@ -282,7 +289,10 @@ class Base:
                     ext = ".tar.gz"
                 if result is None:
                     result = tmp.joinpath("%s%s" % (self.name, ext))
-                if result and result.extension == ext:
+                result2 = result.dirname.joinpath("%s.tar.xz" % self.name)
+                if cmd[-3:] == "tar" and not result.exists() and result2.exists():
+                    ext, result = ".tar.xz", result2
+                if result.extension == ext:
                     r = tmp.joinpath(arg)
                     if ext == ".zip":
                         run("unzip -qqo %s -d %s" % (result, r), **kw)
@@ -292,7 +302,7 @@ class Base:
                         run("unrar x %s %s" % (result, r), **kw)
                     else:
                         run("mkdir -p %s" % r, **kw)
-                        run("tar xzf %s -C %s" % (result, r), **kw)
+                        run("tar x%sf %s -C %s" % (["", "z"][ext == ".tar.gz"], result, r), **kw)
                     result.remove()
                     result = r
                 else:
@@ -333,6 +343,7 @@ class Base:
     def test(self, files=None, **kw):
         """ Tests the item on some executable files. """
         if self.status < 2:
+            self.logger.warning("Status: %s" % ["broken", "not installed"][self.status])
             return
         logging.setLogger(self.name)
         self.logger.info("Testing %s..." % self.__class__.__name__)
@@ -388,7 +399,7 @@ class Base:
         items = []
         pheaders = ["Name", "Targets", "Status", "Source"]
         pfooters = [" ", " ", " "]
-        descr = ["broken", "not installed", "todo", "installed", "tested"]
+        descr = ["broken", "not installed", "todo", "installed", "functional"]
         pfooters.append(" ; ".join("%s: %s" % (s, d) for s, d in \
                         zip(STATUS if show else STATUS[1:], descr if show else descr[1:])))
         n = 0

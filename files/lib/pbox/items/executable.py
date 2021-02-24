@@ -60,7 +60,7 @@ class Executable(Path):
     
     @cached_property
     def destination(self):
-        return self.dataset.joinpath("files", self.hash)
+        return self.dataset.path.joinpath("files", self.hash)
     
     @property
     def features(cls):
