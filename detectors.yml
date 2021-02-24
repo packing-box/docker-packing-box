@@ -3,41 +3,37 @@ DIE:
     - All
   description: Detect It Easy (DIE) is a program for determining types of files.
   install:
-    gitr:  https://github.com/horsicq/DIE-engine.git
-    cd:    /tmp/DIE-engine
-    exec:  chmod +x build_lin64.sh
-    exec:  ./build_lin64.sh
-    exec:  cp release/die_lin64_portable_*.tar.gz /tmp/die.tar.gz
-    cd:    /tmp/
-    untar: /opt/detectors
-    cd:    die_lin64_portable
-    setp:  /tmp/detectors/die.tar.gz
-    untar: /opt/detectors/die_lin64_portable
-    ln:    diec.sh
+    copy: die
+    gitr: https://github.com/horsicq/DIE-engine.git
+    cd:   /tmp/DIE-engine
+    exec:
+      - chmod +x build_lin64.sh
+      - ./build_lin64.sh
+      - tar xzf /tmp/DIE-engine/release/die_lin64_portable_3.02.tar.gz -C /opt/detectors/
+      - tar xf /tmp/die.tar.xz -C /opt/detectors/die_lin64_portable
   source: https://github.com/horsicq/Detect-It-Easy
-  status: broken
+  status: ok
 
 Manalyze:
   categories:
     - PE
   description: A static analyzer for PE executables.
   install:
+    copy: manalyze /opt/bin/manalyze
     git:  https://github.com/JusticeRage/Manalyze
     exec: mv /tmp/Manalyze /opt/detectors/manalyze
     setp: /opt/detectors/manalyze
     make: bin -j5
     move: manalyze
   source: https://github.com/JusticeRage/Manalyze
-  status: ok
 
 PeFrame:
   categories:
     - PE
   description: Open source tool to perform static analysis on Portable Executable malware and malicious MS Office documents.
   install:
-    pip: git+https://github.com/digitalsleuth/peframe
-  steps:
-    - peframe -sj {{executable}}
+    copy: peframe /opt/bin/peframe
+    pip:  git+https://github.com/digitalsleuth/peframe
   source: https://github.com/guelfoweb/peframe
 
 PePack:
@@ -45,18 +41,18 @@ PePack:
     - PE
   description: Check if a PE file is packed. This tool belongs to pev, an open source, full-featured, multiplatform command line toolkit to work with PE (Portable Executables) binaries.
   install:
-    apt: pev
-  steps:
-    - pepack -d /usr/share/pev/userdb.txt {{executable}}
+    copy: pepack /opt/bin/pepack
+    apt:  pev
   source: https://github.com/merces/pev
+  status: ok
 
 PEiD:
   categories:
     - PE
   description: PEiD detects most common packers, cryptors and compilers for PE files. It can currently detect more than 600 different signatures in PE files.
   install:
-    exec: cp -r /tmp/peid /opt/detectors/peid
-    move: /opt/detectors/peid/peid
+    copy: peid
+    exec: mv /tmp/userdb.txt /opt/detectors/
   references:
     - https://www.aldeid.com/wiki/PEiD
     - www.softpedia.com/get/Programming/Packers-Crypters-Protectors/PEiD-updated.shtml

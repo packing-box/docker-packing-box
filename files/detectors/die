@@ -1,0 +1,26 @@
+#!/usr/bin/python3
+# -*- coding: UTF-8 -*-
+import argparse
+import os
+import re
+import subprocess
+
+
+def main(path):
+    if not os.path.exists(path):
+        print("[ERROR] file not found")
+        return
+    out = subprocess.check_output(["/opt/detectors/die_lin64_portable/diec.sh", path]).decode()
+    for l in out.splitlines():
+        try:
+            return re.search(r"^[^:]+:\s+packer:\s+([^([{]+)", l).group(1).lower()
+        except AttributeError:
+            pass
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(formatter_class=argparse.RawTextHelpFormatter)
+    parser.add_argument("exe", help="executable path")
+    args = parser.parse_args()
+    main(args.exe)
+

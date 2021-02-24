@@ -1,0 +1,22 @@
+#!/usr/bin/python3
+# -*- coding: UTF-8 -*-
+import argparse
+import os
+import subprocess
+
+
+def main(path):
+    if not os.path.exists(path):
+        print("[ERROR] file not found")
+        return
+    out = subprocess.check_output(["/usr/bin/manalyze", path]).decode()
+    #TODO: parse output to match packer labels
+    print(out)
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(formatter_class=argparse.RawTextHelpFormatter)
+    parser.add_argument("pe", help="PE file")
+    args = parser.parse_args()
+    main(args.pe)
+

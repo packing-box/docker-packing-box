@@ -6,14 +6,15 @@ from pefile import PE
 from peutils import SignatureDatabase
 
 
-def main(path):
-    with open("/opt/detectors/peid/userdb.txt", encoding="latin-1") as f:
+def main(path, db):
+    with open(db, encoding="latin-1") as f:
         sigs = SignatureDatabase(data=f.read())
     if not os.path.exists(path):
         print("[ERROR] file not found")
         return
     try:
         for s in (sigs.match(PE(path), ep_only=True) or []):
+            #TODO: parse output to match packer labels (see /opt/detectors/userdb.txt)
             print(s)
     except Exception as err:
         print("[ERROR] %s" % str(err))
@@ -22,6 +23,7 @@ def main(path):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(formatter_class=argparse.RawTextHelpFormatter)
     parser.add_argument("pe", help="PE file")
+    parser.add_argument("-d", dest="db", default="/opt/detectors/userdb.txt", help="signatures database")
     args = parser.parse_args()
-    main(args.pe)
+    main(args.pe, args.db)
 

@@ -1,0 +1,33 @@
+#!/usr/bin/python3
+# -*- coding: UTF-8 -*-
+import argparse
+import os
+import re
+import subprocess
+
+
+def main(path, db):
+    if not os.path.exists(path):
+        print("[ERROR] file not found")
+        return
+    if not os.path.exists(db):
+        print("[ERROR] database not found")
+        return
+    out = subprocess.check_output(["/usr/bin/pepack", "-d", db, path]).decode()
+    for l in out.splitlines():
+        try:  #TODO: test for match with packer labels
+            packer = re.search(r"^packer:\s+(.*)$", l).group(1).lower()
+            if packer != "no packer found":
+                print(packer)
+        except AttributeError:
+            pass
+    print(out)
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(formatter_class=argparse.RawTextHelpFormatter)
+    parser.add_argument("pe", help="PE file")
+    parser.add_argument("-d", dest="db", default="/usr/share/pev/userdb.txt", help="signatures database")
+    args = parser.parse_args()
+    main(args.pe, args.db)
+
