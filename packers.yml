@@ -75,7 +75,7 @@ ELFuck:
     - ELF32
   description: ELF packer for i386 origial version from sk2 by sd.
   install:
-    copy: elfuck
+    move: elfuck
   references:
     - https://docplayer.net/86668430-Modern-linux-malware-exposed.html
   source: https://github.com/timhsutw/elfuck
@@ -166,7 +166,7 @@ MidgetPack:
       - o
       - so
   install:
-    copy: midgetpack
+    move: midgetpack
   steps:
     - midgetpack -P {{password}} -o {{executable}} {{executable}}
   references:
