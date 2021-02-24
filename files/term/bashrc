@@ -265,7 +265,7 @@ export LS_OPTIONS='--color=auto --time-style long-iso'
 eval "`dircolors`"
 
 # Add tools' bin folder to PATH
-PATH=$PATH:/opt/tools
+PATH=/opt/tools:/opt/bin:$PATH
 
 eval 
     function fuck () {
