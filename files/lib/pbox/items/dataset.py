@@ -16,14 +16,16 @@ PACKING_BOX_SOURCES = ["/sbin", "/usr/bin", "/root/.wine/drive_c/windows", "/roo
 
 
 class Dataset:
-    """ File structure:
+    """ Folder structure:
     
     [name]
       +-- files
       |     +-- {executables, renamed to their SHA256 hashes}
-      +-- data.csv (contains the labels)
-      +-- metadata.json
-      +-- names.csv
+      +-- data.csv (contains the labels)        # features for an executable, formatted for ML
+      +-- features.json                         # dictionary of feature name/description pairs
+      +-- labels.json                           # dictionary of hashes with their full labels
+      +-- metadata.json                         # simple statistics about the dataset
+      +-- names.json                            # dictionary of hashes and their real filenames
     """
     @logging.bindLogger
     def __init__(self, destination_dir="dataset", source_dir=None, **kw):
@@ -48,14 +50,14 @@ class Dataset:
             value = sources
         super(Dataset, self).__setattr__(name, value)
     
-    def _add(self, executable, label=None, refresh=True):
+    def _add(self, executable, label=None, refresh=False):
         """ Add an executable based on its real name to the dataset. """
         e = executable
-        if refresh:
+        if refresh and len(self._data) > 0:
             self._data = self._data[self._data['hash'] != e.hash]
-        d = {'hash': h, 'label': label}
+        d = {'hash': e.hash, 'label': label}
         d.update(e.data)
-        self._data.insert(d, ignore_index=True)
+        self._data = self._data.append(d, ignore_index=True)
         self._features.update(e.features)
         if not refresh:
             self._labels[e.hash] = label
@@ -73,6 +75,10 @@ class Dataset:
                 pass
         self._data = self._data[self._data.hash != h]
         self.path.joinpath("files", h).remove(error=False)
+    
+    def _update(self, executable):
+        """ Update an executable based on its real name to the dataset. """
+        self._add(executable, refresh=True)
     
     def _walk(self):
         """ Walk the sources for random in-scope executables. """
@@ -116,15 +122,14 @@ class Dataset:
         self.path.joinpath("files").mkdir(exist_ok=True)
         for n in ["data", "features", "labels", "metadata", "names"]:
             p = self.path.joinpath(n + [".json", ".csv"][n == "data"])
-            if p.exists():
-                if n == "data":
-                    try:
-                        self._data = pd.read_csv(str(p), sep=";").set_index('name')
-                    except KeyError:
-                        self._data = pd.DataFrame()
-                else:
-                    with p.open() as f:
-                        setattr(self, "_" + n, json.load(f))
+            if n == "data":
+                try:
+                    self._data = pd.read_csv(str(p), sep=";").set_index('name')
+                except (OSError, KeyError):
+                    self._data = pd.DataFrame()
+            elif p.exists():
+                with p.open() as f:
+                    setattr(self, "_" + n, json.load(f))
             else:
                 setattr(self, "_" + n, {})
                 p.write_text("{}")
@@ -141,7 +146,7 @@ class Dataset:
                                                                 [p.__class__.__name__ for p in packer]))
         self._metadata['categories'] = list(set(self._metadata.get('categories', []) + categories))
         # get executables to be randomly packed or not
-        i, l = 0, self._data
+        i, l = 0, len(self._data)
         for exe in self._walk():
             if i >= n:
                 break
@@ -150,7 +155,7 @@ class Dataset:
                 # when refresh=True, the features are recomputed for the existing target executable ; it allows to
                 #  recompute features for a previously made dataset if the list of features was updated
                 if refresh:
-                    self._add(exe, refresh=True)
+                    self._update(exe)
                 continue
             i += 1
             exe.copy()
@@ -161,7 +166,7 @@ class Dataset:
                     return
                 random.shuffle(packers)
                 for p in packers:
-                    label = p.pack(str(dst.absolute()))
+                    label = p.pack(str(exe.absolute()))
                     if not label or p._bad:
                         if label is False or p._bad:
                             self.logger.warning("Disabling %s..." % p.__class__.__name__)
@@ -177,7 +182,8 @@ class Dataset:
             self.logger.warning("Found too few candidate executables")
         # finally, save dataset's metadata and labels to JSON files
         self.save()
-        self.logger.info("Used packers: %s" % ", ".join(sorted(list(self._data['label'].values))))
+        p = sorted([l for l in self._data['label'].values if isinstance(l, str)])
+        self.logger.info("Used packers: %s" % ", ".join(p))
         return self
     
     def overview(self):
@@ -232,15 +238,19 @@ class Dataset:
     
     def save(self):
         """ Save dataset's state to JSON files. """
-        self._metadata['counts'] = self._data['label'].value_counts().to_dict()
-        for n in ["data", "features", "labels", "metadata", "names"]:
-            if n == "data":
-                self._data.set_index('hash')
-                headers = ["name"] + sorted([h for h in self._data.columns if h not in ["name", "label"]]) + ["label"]
-                self._data.sort_index().to_csv(str(self.path.joinpath("data.csv")), sep=";", columns=headers)
-            else:
-                with self.path.joinpath(n + ".json").open('w+') as f:
-                    json.dump(getattr(self, "_" + n), f, indent=2)
+        if len(self._data) > 0:
+            self._metadata['counts'] = self._data['label'].value_counts().to_dict()
+            self._metadata['executables'] = len(self._labels)
+            for n in ["data", "features", "labels", "metadata", "names"]:
+                if n == "data":
+                    self._data = self._data.sort_values("hash")
+                    h = ["hash"] + sorted([c for c in self._data.columns if c not in ["hash", "label"]]) + ["label"]
+                    self._data.to_csv(str(self.path.joinpath("data.csv")), sep=";", columns=h, index=False, header=True)
+                else:
+                    with self.path.joinpath(n + ".json").open('w+') as f:
+                        json.dump(getattr(self, "_" + n), f, indent=2)
+        else:
+            self.logger.warning("No data to save")
         return self
     
     @staticmethod
@@ -248,7 +258,7 @@ class Dataset:
         try:
             Dataset.validate(folder)
             return True
-        except ValueError:
+        except ValueError as e:
             return False
     
     @staticmethod
@@ -256,11 +266,13 @@ class Dataset:
         f = ts.Path(folder)
         if not f.exists():
             raise ValueError("Folder does not exist")
+        if not f.is_dir():
+            raise ValueError("Input is not a folder")
         if not f.joinpath("files").exists():
             raise ValueError("Files subfolder does not exist")
         if not f.joinpath("files").is_dir():
             raise ValueError("Files subfolder is not a folder")
-        for fn in ["data.json", "features.json", "labels.json", "names.json"]:  # NB: metadata.json is optional
+        for fn in ["data.csv", "features.json", "labels.json", "names.json"]:  # NB: metadata.json is optional
             if not f.joinpath(fn).exists():
                 raise ValueError("Folder does not have %s" % fn)
         return f

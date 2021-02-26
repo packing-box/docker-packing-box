@@ -169,7 +169,7 @@ class Base:
             return
         logging.setLogger(self.name)
         self.logger.info("Setting up %s..." % self.__class__.__name__)
-        tmp, ubin = Path("/tmp"), Path("/usr/bin")
+        tmp, obin, ubin = Path("/tmp"), Path("/opt/bin"), Path("/usr/bin")
         result, rm, kw = None, True, {'logger': self.logger}
         cwd = os.getcwd()
         for cmd, arg in self.install.items():
@@ -194,6 +194,9 @@ class Base:
                 except ValueError:
                     arg1, arg2 = arg, arg
                 src, dst = (result or tmp).joinpath(arg1), ubin.joinpath(arg2)
+                # if /usr/bin/... exists, then save it to /opt/bin/... to superseed it
+                if dst.is_samepath(ubin.joinpath(arg2)) and dst.exists():
+                    dst = obin.joinpath(arg2)
                 if run("cp %s%s %s" % (["", "-r"][src.is_dir()], src, dst), **kw)[-1] == 0 and dst.is_file():
                     run("chmod +x %s" % dst, **kw)
             # execute the given command as is, with no pre-/post-condition, not altering the result state variable
@@ -254,6 +257,9 @@ class Base:
             elif cmd == "move":
                 result = (result or tmp).joinpath(arg)
                 r = ubin.joinpath(self.name)
+                # if /usr/bin/... exists, then save it to /opt/bin/... to superseed it
+                if r.is_samepath(ubin.joinpath(self.name)) and r.exists():
+                    r = obin.joinpath(self.name)
                 if run("mv %s %s" % (result, r), **kw)[-1] == 0 and r.is_file():
                     run("chmod +x %s" % r, **kw)
                 result = r

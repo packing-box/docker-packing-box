@@ -10,6 +10,7 @@ from ..learning.features import *
 __all__ = ["Executable"]
 
 
+# NB: the best signature matched is the longest
 SIGNATURES = {
     '^Mach-O 32-bit ':                         "Mach-O32",
     '^Mach-O 64-bit ':                         "Mach-O64",
@@ -51,7 +52,7 @@ class Executable(Path):
     def data(self):
         data = {}
         for name, func in self._features.items():
-            r = func(str(self))
+            r = func(self)
             if isinstance(r, dict):
                 data.update(r)
             else:
@@ -63,8 +64,8 @@ class Executable(Path):
         return self.dataset.path.joinpath("files", self.hash)
     
     @property
-    def features(cls):
-        return self._features.descriptions
+    def features(self):
+        return {n: FEATURE_DESCRIPTIONS.get(n, "") for n in self.data.keys()}
     
     @cached_property
     def filetype(self):
