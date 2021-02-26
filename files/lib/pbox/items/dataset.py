@@ -182,7 +182,7 @@ class Dataset:
             self.logger.warning("Found too few candidate executables")
         # finally, save dataset's metadata and labels to JSON files
         self.save()
-        p = sorted([l for l in self._data['label'].values if isinstance(l, str)])
+        p = sorted(list(set([l for l in self._data['label'].values if isinstance(l, str)])))
         self.logger.info("Used packers: %s" % ", ".join(p))
         return self
     
@@ -280,7 +280,7 @@ class Dataset:
     @classmethod
     def summary(cls, show=False):
         datasets = []
-        headers = ["Name", "Size", "Packers"]
+        headers = ["Name", "Size", "Categories", "Packers"]
         for dset in ts.Path().listdir(Dataset.check):
             with dset.joinpath("metadata.json").open() as meta:
                 metadata = json.load(meta)
@@ -288,6 +288,7 @@ class Dataset:
                 datasets.append([
                     dset.stem,
                     str(metadata['executables']),
+                    ",".join(metadata['categories']),
                     ",".join("%s{%d}" % i for i in sorted(metadata['counts'].items(), key=lambda x: -x[1])),
                 ])
             except KeyError:

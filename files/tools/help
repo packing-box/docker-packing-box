@@ -11,11 +11,11 @@ except ImportError:
 
 
 __script__      = "packing-box"
-__version__     = "1.0.1"
+__version__     = "1.0.2"
 __description__ = "Display this help message or packer's help"
 
 
-BANNER_ARG   = "packer"
+BANNER_ARG   = "item"
 BANNER_FONT  = "starwars"
 BANNER_STYLE = {'fgcolor': "lolcat"}
 MD_TEMPLATE  = """
@@ -45,8 +45,15 @@ def overview(show=False):
 
 
 if __name__ == '__main__':
-    parser.add_argument("-p", "--packer", help="get help for a particular packer")
+    parser.add_argument("-i", "--item", help="get help for a particular detector, packer or unpacker")
     parser.add_argument("--show-all", action="store_true", help="show all packers, even those that are broken")
     initialize()
-    print(mdv.main(overview(args.show_all) if args.packer is None else Packer.get(args.packer).help()))
+    if args.item is None:
+        print(mdv.main(overview(args.show_all)))
+    else:
+        for cls in [Detector, Packer, Unpacker]:
+            subcls = cls.get(args.item)
+            if subcls:
+                print(mdv.main(subcls.help()))
+                break
 
