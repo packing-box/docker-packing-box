@@ -7,15 +7,22 @@ from peutils import SignatureDatabase
 
 
 def main(path, db):
-    with open(db, encoding="latin-1") as f:
-        sigs = SignatureDatabase(data=f.read())
     if not os.path.exists(path):
         print("[ERROR] file not found")
         return
+    if not os.path.exists(db):
+        print("[ERROR] database not found")
+        return
+    with open(db, encoding="latin-1") as f:
+        sigs = SignatureDatabase(data=f.read())
     try:
         for s in (sigs.match(PE(path), ep_only=True) or []):
-            #TODO: parse output to match packer labels (see /opt/detectors/userdb.txt)
-            print(s)
+            try:
+                p = re.match(r"^\[(?:.*?)((?:[A-Z$][A-Za-z0-9]{2,}(?:\d+)?(?:'s)?(?:\s+)?)+)", s).group(1).strip()
+                p = re.sub(r"[\s-]+", "_", re.sub(r"['/]", "", p.replace("'s", "")), p)
+                print(p.lower())
+            except AttributeError:
+                pass
     except Exception as err:
         print("[ERROR] %s" % str(err))
 

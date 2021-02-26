@@ -15,19 +15,22 @@ def main(path, db):
         return
     out = subprocess.check_output(["/usr/bin/pepack", "-d", db, path]).decode()
     for l in out.splitlines():
-        try:  #TODO: test for match with packer labels
-            packer = re.search(r"^packer:\s+(.*)$", l).group(1).lower()
-            if packer != "no packer found":
-                print(packer)
+        # important note: this tool uses the same signature DB format as PEiD, it is therefore expected to produce the
+        #                  same kind of output
+        try:
+            p = re.search(r"^packer:\s+(.*)$", l).group(1).lower()
+            p = re.match(r"^(?:.*?)((?:[A-Z$][A-Za-z0-9]{2,}(?:\d+)?(?:'s)?(?:\s+)?)+)", s).group(1).strip()
+            p = re.sub(r"[\s-]+", "_", re.sub(r"['/]", "", p.replace("'s", "")), p)
+            print(p.lower())
         except AttributeError:
             pass
-    print(out)
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(formatter_class=argparse.RawTextHelpFormatter)
     parser.add_argument("pe", help="PE file")
     parser.add_argument("-d", dest="db", default="/usr/share/pev/userdb.txt", help="signatures database")
+    # important note: this tool uses the same signature DB format as PEiD, therefore it probably does not perform better
     args = parser.parse_args()
     main(args.pe, args.db)
 
