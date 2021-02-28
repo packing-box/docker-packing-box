@@ -1,26 +1,13 @@
 # -*- coding: UTF-8 -*-
 from ast import literal_eval
 from collections import OrderedDict
-from functools import cached_property
-from tinyscript.helpers import entropy, execute_and_log as run
-
-from ..utils import expand_categories
+from tinyscript.helpers import execute_and_log as run
 
 
-__all__ = ["Features", "FEATURE_DESCRIPTIONS"]
+__all__ = ["pefeats", "PEFEATS"]
 
 
-FEATURE_DESCRIPTIONS = {}
-FEATURES = {
-    'All': {
-        'entropy': lambda exe: entropy(exe.read_bytes()),
-    },
-    'PE': {
-        'pefeats': lambda exe: pefeats(exe),
-    },
-}
-
-
+# features are in order of appearance in pefeats' output
 PEFEATS = __d = OrderedDict()
 __d['dll_characteristics_1'] = "DLLs characteristics 1"
 __d['dll_characteristics_2'] = "DLLs characteristics 2"
@@ -144,7 +131,6 @@ __d['number_addresses_in_iat'] = "number of addresses (corresponds to functions)
                                  "(IAT)"
 __d['debug_dir_present'] = "debug directory is present or not"
 __d['number_resources'] = "number of resources the PE holds"
-FEATURE_DESCRIPTIONS.update(PEFEATS)
 
 
 def pefeats(executable):
@@ -152,24 +138,4 @@ def pefeats(executable):
     out, err, retc = run("pefeats %s" % executable)
     if retc == 0:
         return {f: literal_eval(v) for f, v in zip(PEFEATS.keys(), out.decode().strip().split(",")[1:])}
-
-
-class Features(dict):
-    """ This class represents the dictionary of features valid for a given list of executable categories. """
-    def __init__(self, *categories):
-        categories, all_categories = expand_categories(*categories), expand_categories("All")
-        # consider most generic features first
-        for category, features in FEATURES.items():
-            if category in all_categories:
-                continue
-            for subcategory in expand_categories(category):
-                if subcategory in categories:
-                    for name, func in features.items():
-                        self[name] = func
-        # then consider most specific ones
-        for category, features in FEATURES.items():
-            if category not in all_categories or category not in categories:
-                continue
-            for name, func in features.items():
-                self[name] = func
 
