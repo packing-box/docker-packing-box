@@ -3,7 +3,7 @@ from tinyscript.helpers import entropy
 
 from .elf import *
 from .pe import *
-from ..utils import expand_categories
+from ...utils import expand_categories
 
 
 __all__ = ["Features", "FEATURE_DESCRIPTIONS"]
@@ -14,6 +14,9 @@ FEATURE_DESCRIPTIONS.update(PEFEATS)
 FEATURES = {
     'All': {
         'entropy': lambda exe: entropy(exe.read_bytes()),
+    },
+    'ELF': {
+        'elfeats': lambda exe: elfeats(exe),
     },
     'PE': {
         'pefeats': lambda exe: pefeats(exe),

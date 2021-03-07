@@ -33,24 +33,26 @@ ELFEATS = {
 
 def elfeats(executable):
     """ This uses features computed in ELF-Miner to extract +300 features from ELF files. """
-    elf = ELFFile(executable)
+    with executable.open('rb') as fh:
+        elf = ELFFile(fh)
+        headers = elf.header
     return {
         'magic': sum(elf.e_ident_raw),
-        'data': elf.header['e_ident']['EI_DATA'],
-        'type': elf.header['e_type'],
-        'machine': elf.header['e_machine'],
-        'version': elf.header['e_ident']['EI_VERSION'],
-        'entry_address': elf.header['e_entry'],
-        'os_abi': elf.header['e_ident']['EI_OSABI'],
-        'abi_version': elf.header['e_ident']['EI_ABIVERSION'],
-        'flags': elf.header['e_flags'],
-        'size_of_elf_header': elf.header['e_ehsize'],
-        'start_prg_headers': elf.header['e_phoff'],
-        'size_prg_headers': elf.header['e_phentsize'],
-        'number_prg_headers': elf.header['e_phnum'],
-        'start_sec_headers': elf.header['e_shoff'],
-        'size_sec_headers': elf.header['e_shentsize'],
-        'number_sec_headers': elf.header['e_shnum'],
-        'sec_header_str_table_idx': elf.header['e_shstrndx'],
+        'data': headers['e_ident']['EI_DATA'],
+        'type': headers['e_type'],
+        'machine': headers['e_machine'],
+        'version': headers['e_ident']['EI_VERSION'],
+        'entry_address': headers['e_entry'],
+        'os_abi': headers['e_ident']['EI_OSABI'],
+        'abi_version': headers['e_ident']['EI_ABIVERSION'],
+        'flags': headers['e_flags'],
+        'size_of_elf_header': headers['e_ehsize'],
+        'start_prg_headers': headers['e_phoff'],
+        'size_prg_headers': headers['e_phentsize'],
+        'number_prg_headers': headers['e_phnum'],
+        'start_sec_headers': headers['e_shoff'],
+        'size_sec_headers': headers['e_shentsize'],
+        'number_sec_headers': headers['e_shnum'],
+        'sec_header_str_table_idx': headers['e_shstrndx'],
     }
 
