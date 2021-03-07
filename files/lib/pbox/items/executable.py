@@ -27,6 +27,14 @@ SIGNATURES = {
 class Executable(Path):
     """ Executable abstraction. """
     _features = {}
+
+    def __new__(cls, *parts, **kwargs):
+        ds = kwargs.pop('dataset', None)
+        self = super(Executable, cls).__new__(cls, *parts, **kwargs)
+        self.__data = kwargs.pop('data', None)
+        self.__hash = kwargs.pop('hash', None)
+        self.dataset = ds
+        return self
     
     def __getattribute__(self, name):
         if name == "_features":
@@ -50,6 +58,8 @@ class Executable(Path):
     
     @cached_property
     def data(self):
+        if self.__data is not None:
+            return self.__data
         data = {}
         for name, func in self._features.items():
             r = func(self)
@@ -69,9 +79,12 @@ class Executable(Path):
     
     @cached_property
     def filetype(self):
-        return from_file(str(self))
+        try:
+            return from_file(str(self))
+        except OSError:
+            return
     
     @cached_property
     def hash(self):
-        return hashlib.sha256_file(str(self))
+        return self.__hash or hashlib.sha256_file(str(self))
 

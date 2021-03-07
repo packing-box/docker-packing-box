@@ -119,10 +119,13 @@ class Base:
     def run(self, executable, **kwargs):
         """ Customizable method for shaping the command line to run the item on an input executable. """
         retval = self.name
-        use_output = False
+        use_output, benchmark = False, kwargs.get('benchmark', False)
         kw = {'logger': self.logger}
         output = None
         for step in getattr(self, "steps", ["%s %s" % (self.name, executable)]):
+            if self.name in step and benchmark:
+                i = step.index(self.name)
+                step = step[:i] + self.name + " -b" + step[i+len(self.name):]
             attempts = []
             # first, replace generic patterns
             step = step.replace("{{executable}}", str(executable)) \
@@ -136,12 +139,8 @@ class Base:
             m = re.search(PARAM_PATTERN, step)
             if m:
                 name, values = m.groups()
-                try:
-                    for value in (self._params[name] if values is None else [self._params[name]]):
-                        attempts.append((re.sub(PARAM_PATTERN, value, step), "%s=%s" % (name, value)))
-                except KeyError:
-                    self.logger.error("Unknown parameter name %s" % name)
-                    return
+                for value in (values or "").split("|"):
+                    attempts.append((re.sub(PARAM_PATTERN, value, step), "%s=%s" % (name, value)))
             # now, run attempts for this step in random order until one succeeds
             random.shuffle(attempts)
             attempts = attempts or [step]
@@ -151,6 +150,8 @@ class Base:
                     attempt, param = attempt
                 output, _, retc = run(attempt, **kw)
                 output = ensure_str(output)
+                if self.name in attempt and benchmark:
+                    output, dt = shlex.split(output)
                 if retc > 0:
                     attempts.remove(attempt if param is None else (attempt, param))
                     if len(attempts) == 0:
@@ -160,7 +161,10 @@ class Base:
                     if param:
                         retval += "[%s]" % param
                     break
-        return (output or None) if use_output or getattr(self, "use_output", False) else retval
+        r = (output or None) if use_output or getattr(self, "use_output", False) else retval
+        if benchmark:
+            r = (r, dt)
+        return r
     
     def setup(self, **kw):
         """ Sets the item up according to its install instructions. """
@@ -264,7 +268,7 @@ class Base:
                     run("chmod +x %s" % r, **kw)
                 result = r
             # simple install through PIP
-            if cmd == "pip":
+            elif cmd == "pip":
                 run("pip3 -q install %s" % arg, **kw)
             # remove a given directory (then bypassing the default removal at the end of all commands)
             elif cmd == "rm":
