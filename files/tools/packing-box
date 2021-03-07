@@ -5,7 +5,7 @@ from pbox.__info__ import *
 from tinyscript import *
 
 
-__version__     = "1.0.0"
+__version__     = "1.1.0"
 __doc__         = """
 This utility aims to facilitate detectors|packers|unpackers' setup|test according to the related YAML data file.
 """
@@ -14,7 +14,7 @@ __examples__ = [
     "setup packer",
     "setup detector peid",
     "test packer upx ezuri midgetpack",
-    "test unpacker upx",
+    "test -b unpacker upx",
 ]
 
 
@@ -24,6 +24,7 @@ def _set_subparsers(parent, *items):
         p = sparsers.add_parser(i, help="select %s" % i)
         p.add_argument(i, default=[], action="extend", nargs="*", help="specific %s to %s" % (i, parent._name))
         if parent._name == "test":
+            p.add_argument("-b", "--benchmark", action="store_true", help="enable benchmarking")
             p.add_argument("-f", "--file", default=[], action="extend", nargs="*", help="file to test the %s on" % i)
 
 

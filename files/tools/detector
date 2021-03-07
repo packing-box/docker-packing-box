@@ -1,23 +1,30 @@
 #!/usr/bin/python3
 # -*- coding: UTF-8 -*-
 from pbox import *
+from pbox.__info__ import *
 from tinyscript import *
 
 
-__author__      = "Alexandre D'Hondt"
-__email__       = "alexandre.dhondt@gmail.com"
-__version__     = "1.1.1"
-__copyright__   = ("A. D'Hondt", 2021)
-__license__     = "gpl-3.0"
+__version__     = "1.0.0"
 __doc__         = """
 This tool aims to make a dataset from executables contained in the packing-box Docker image or from a user-defined
  source of executable files, packed or not with the selected packers installed in the image.
 """
-__examples__    = ["-c dotnet -n 1000", "-c pe,dotnet -n 2000"]
+__examples__    = ["show"]
 __description__ = "Make datasets of packed and not packed executables for use with Machine Learning"
 
 
+def __add_detector(parser):
+    parser.add_argument("detector", help="detector's name")
+    return parser
+
+
 if __name__ == '__main__':
+    sparsers = parser.add_subparsers(dest="command", help="command to be executed")
+    view = sparsers.add_parser("overview", help="get an overview of all the datasets in the given folder")
+    __add_detector(sparsers.add_parser("show", help="show detector's characteristics"))
+
+
     parser.add_argument("-b", "--balance", action="store_true", help="balance the dataset relatively to the number of "
                                                                      "packers used, not between packed and not packed")
     parser.add_argument("-c", "--categories", type=ts.values_list, default="All",

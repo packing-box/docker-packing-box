@@ -18,14 +18,14 @@ __description__ = "Display this help message or packer's help"
 BANNER_ARG   = "item"
 BANNER_FONT  = "starwars"
 BANNER_STYLE = {'fgcolor': "lolcat"}
-MD_TEMPLATE  = """
+TEMPLATE  = """
 This Docker image is a ready-to-use platform for making datasets of packed and not packed executables, especially for training machine learning models.
 """
 
 
 def overview(show=False):
     """ Display an overview of tools, detectors, packers, unpackers and datasets. """
-    md, n = Report(Text(MD_TEMPLATE)), 0
+    report, n = Report(Text(TEMPLATE)), 0
     tools = []
     tools_headers = ["Name", "Description", "Version"]
     for tool in ts.Path(__file__).dirname.listdir(lambda f: f.is_file()):
@@ -38,10 +38,11 @@ def overview(show=False):
             continue
         if row[1]:
             tools.append(row)
-    md.append(Section("Tools (%d)" % len(tools)), Table(tools, column_headers=tools_headers))
-    for cls in [Detector, Packer, Unpacker, Dataset]:
-        md.append(*cls.summary(show))
-    return md.md()
+    report.append(Section("Tools (%d)" % len(tools)), Table(tools, column_headers=tools_headers))
+    for cls in [Detector, Packer, Unpacker]:
+        report.append(*cls.summary(show))
+    report.append(*Dataset.summarize(".", args.show_all))
+    return report.md()
 
 
 if __name__ == '__main__':
