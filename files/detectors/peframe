@@ -1,22 +1,28 @@
 #!/usr/bin/python3
 # -*- coding: UTF-8 -*-
-import argparse
-import os
-import subprocess
+from argparse import ArgumentParser, RawTextHelpFormatter
+from os.path import exists
+from subprocess import check_output
+from time import perf_counter
 
 
-def main(path):
-    if not os.path.exists(path):
+def main(path, benchmark=False):
+    if not exists(path):
         print("[ERROR] file not found")
         return
-    out = subprocess.check_output(["/usr/local/bin/peframe", "-sj", path]).decode()
+    t1 = perf_counter()
+    out = check_output(["/usr/local/bin/peframe", "-sj", path]).decode()
+    t2 = perf_counter()
     #TODO: parse output to match packer labels
+    if benchmark:
+        out += " " + str(t2 - t1)
     print(out)
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(formatter_class=argparse.RawTextHelpFormatter)
-    parser.add_argument("pe", help="PE file")
+    parser = ArgumentParser(formatter_class=RawTextHelpFormatter)
+    parser.add_argument("pe", help="PE file's path")
+    parser.add_argument("-b", "--benchmark", action="store_true", help="enable benchmarking")
     args = parser.parse_args()
-    main(args.pe)
+    main(args.pe, args.benchmark)
 

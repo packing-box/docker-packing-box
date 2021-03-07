@@ -1,26 +1,33 @@
 #!/usr/bin/python3
 # -*- coding: UTF-8 -*-
-import argparse
-import os
+from argparse import ArgumentParser, RawTextHelpFormatter
+from os.path import exists
 from pefile import PE
 from peutils import SignatureDatabase
+from time import perf_counter
 
 
-def main(path, db):
-    if not os.path.exists(path):
+def main(path, db, benchmark=False):
+    if not exists(path):
         print("[ERROR] file not found")
         return
-    if not os.path.exists(db):
+    if not exists(db):
         print("[ERROR] database not found")
         return
     with open(db, encoding="latin-1") as f:
         sigs = SignatureDatabase(data=f.read())
+    t1 = perf_counter()
+    matches = sigs.match(PE(path), ep_only=True)
+    t2 = perf_counter()
     try:
-        for s in (sigs.match(PE(path), ep_only=True) or []):
+        for s in (matches or []):
             try:
                 p = re.match(r"^\[(?:.*?)((?:[A-Z$][A-Za-z0-9]{2,}(?:\d+)?(?:'s)?(?:\s+)?)+)", s).group(1).strip()
-                p = re.sub(r"[\s-]+", "_", re.sub(r"['/]", "", p.replace("'s", "")), p)
-                print(p.lower())
+                p = re.sub(r"[\s-]+", "_", re.sub(r"['/]", "", p.replace("'s", "")), p).lower()
+                if benchmark:
+                    p += " " + str(t2 - t1)
+                print(p)
+                return
             except AttributeError:
                 pass
     except Exception as err:
@@ -28,9 +35,10 @@ def main(path, db):
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(formatter_class=argparse.RawTextHelpFormatter)
+    parser = ArgumentParser(formatter_class=RawTextHelpFormatter)
     parser.add_argument("pe", help="PE file")
+    parser.add_argument("-b", "--benchmark", action="store_true", help="enable benchmarking")
     parser.add_argument("-d", dest="db", default="/opt/detectors/userdb.txt", help="signatures database")
     args = parser.parse_args()
-    main(args.pe, args.db)
+    main(args.pe, args.db, args.benchmark)
 

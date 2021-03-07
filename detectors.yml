@@ -10,7 +10,7 @@ DIE:
       - ./build_lin64.sh
       - tar xzf /tmp/DIE-engine/release/die_lin64_portable_3.02.tar.gz -C /opt/detectors/
       - tar xf /tmp/die.tar.xz -C /opt/detectors/die_lin64_portable
-    move: die
+    copy: die
   source: https://github.com/horsicq/Detect-It-Easy
   status: ok
 
@@ -25,7 +25,7 @@ Manalyze:
       - mv /tmp/manalyze /opt/bin/manalyze
     setp: /opt/detectors/manalyze
     make: bin -j5
-    move: manalyze
+    copy: manalyze
   source: https://github.com/JusticeRage/Manalyze
 
 PeFrame:
@@ -34,7 +34,7 @@ PeFrame:
   description: Open source tool to perform static analysis on Portable Executable malware and malicious MS Office documents.
   install:
     pip:  git+https://github.com/digitalsleuth/peframe
-    move: peframe
+    copy: peframe
   source: https://github.com/guelfoweb/peframe
 
 PePack:
@@ -43,7 +43,7 @@ PePack:
   description: Check if a PE file is packed. This tool belongs to pev, an open source, full-featured, multiplatform command line toolkit to work with PE (Portable Executables) binaries.
   install:
     apt:  pev
-    move: pepack
+    copy: pepack
   source: https://github.com/merces/pev
   status: ok
 
@@ -53,7 +53,7 @@ PEiD:
   description: PEiD detects most common packers, cryptors and compilers for PE files. It can currently detect more than 600 different signatures in PE files.
   install:
     exec: mv /tmp/userdb.txt /opt/detectors/
-    move: peid
+    copy: peid
   references:
     - https://www.aldeid.com/wiki/PEiD
     - www.softpedia.com/get/Programming/Packers-Crypters-Protectors/PEiD-updated.shtml

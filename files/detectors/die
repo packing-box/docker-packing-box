@@ -1,26 +1,34 @@
 #!/usr/bin/python3
 # -*- coding: UTF-8 -*-
-import argparse
-import os
-import re
-import subprocess
+from argparse import ArgumentParser, RawTextHelpFormatter
+from os.path import exists
+from re import search
+from subprocess import check_output
+from time import perf_counter
 
 
-def main(path):
-    if not os.path.exists(path):
+def main(path, benchmark=False):
+    if not exists(path):
         print("[ERROR] file not found")
         return
-    out = subprocess.check_output(["/opt/detectors/die_lin64_portable/diec.sh", path]).decode()
+    t1 = perf_counter()
+    out = check_output(["/opt/detectors/die_lin64_portable/diec.sh", path]).decode()
+    t2 = perf_counter()
     for l in out.splitlines():
         try:
-            return re.search(r"^[^:]+:\s+packer:\s+([^([{]+)", l).group(1).lower()
+            p = search(r"^[^:]+:\s+packer:\s+([^([{]+)", l).group(1).lower()
+            if benchmark:
+                p += " " + str(t2 - t1)
+            print(p)
+            return
         except AttributeError:
             pass
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(formatter_class=argparse.RawTextHelpFormatter)
+    parser = ArgumentParser(formatter_class=RawTextHelpFormatter)
     parser.add_argument("exe", help="executable path")
+    parser.add_argument("-b", "--benchmark", action="store_true", help="enable benchmarking")
     args = parser.parse_args()
-    main(args.exe)
+    main(args.exe, args.benchmark)
 
