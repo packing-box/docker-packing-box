@@ -7,7 +7,7 @@ from subprocess import check_output
 from time import perf_counter
 
 
-def main(path, db, benchmark=False):
+def main(path, db, benchmark=False, debug=False):
     if not exists(path):
         print("[ERROR] file not found")
         return
@@ -16,16 +16,21 @@ def main(path, db, benchmark=False):
         return
     t1 = perf_counter()
     out = check_output(["/usr/bin/pepack", "-d", db, path]).decode()
-    t2 = perf_counter()
+    dt = perf_counter() - t1
+    if debug:
+        if benchmark:
+            print(str(dt))
+        print("[DEBUG]\n" + out)
+        return
     for l in out.splitlines():
         # important note: this tool uses the same signature DB format as PEiD, it is therefore expected to produce the
         #                  same kind of output
         try:
             p = search(r"^packer:\s+(.*)$", l).group(1).lower()
-            p = search(r"^(?:.*?)((?:[A-Z$][A-Za-z0-9]{2,}(?:\d+)?(?:'s)?(?:\s+)?)+)", s).group(1).strip()
+            p = search(r"^(?:.*?)((?:[A-Z$][A-Za-z0-9]{2,}(?:\d+)?(?:'s)?(?:\s+)?)+)", p).group(1).strip()
             p = sub(r"[\s-]+", "_", sub(r"['/]", "", p.replace("'s", "")), p)
             if benchmark:
-                p += " " + str(t2 - t1)
+                p += " " + str(dt)
             print(p.lower())
             return
         except AttributeError:
@@ -37,7 +42,8 @@ if __name__ == "__main__":
     parser.add_argument("pe", help="PE file")
     parser.add_argument("-b", "--benchmark", action="store_true", help="enable benchmarking")
     parser.add_argument("-d", dest="db", default="/usr/share/pev/userdb.txt", help="signatures database")
+    parser.add_argument("-v", "--verbose", action="store_true", help="display debug information")
     # important note: this tool uses almost the same signature DB as PEiD, therefore it probably does not perform better
     args = parser.parse_args()
-    main(args.pe, args.db, args.benchmark)
+    main(args.pe, args.db, args.benchmark, args.verbose)
 

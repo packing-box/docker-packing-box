@@ -7,18 +7,23 @@ from subprocess import check_output
 from time import perf_counter
 
 
-def main(path, benchmark=False):
+def main(path, benchmark=False, debug=False):
     if not exists(path):
         print("[ERROR] file not found")
         return
     t1 = perf_counter()
     out = check_output(["/opt/detectors/die_lin64_portable/diec.sh", path]).decode()
-    t2 = perf_counter()
+    dt = perf_counter() - t1
+    if debug:
+        if benchmark:
+            print(str(dt))
+        print("[DEBUG]\n" + out)
+        return
     for l in out.splitlines():
         try:
             p = search(r"^[^:]+:\s+packer:\s+([^([{]+)", l).group(1).lower()
             if benchmark:
-                p += " " + str(t2 - t1)
+                p += " " + str(dt)
             print(p)
             return
         except AttributeError:
@@ -29,6 +34,7 @@ if __name__ == "__main__":
     parser = ArgumentParser(formatter_class=RawTextHelpFormatter)
     parser.add_argument("exe", help="executable path")
     parser.add_argument("-b", "--benchmark", action="store_true", help="enable benchmarking")
+    parser.add_argument("-v", "--verbose", action="store_true", help="display debug information")
     args = parser.parse_args()
-    main(args.exe, args.benchmark)
+    main(args.exe, args.benchmark, args.verbose)
 

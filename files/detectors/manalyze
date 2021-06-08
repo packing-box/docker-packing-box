@@ -2,27 +2,40 @@
 # -*- coding: UTF-8 -*-
 from argparse import ArgumentParser, RawTextHelpFormatter
 from os.path import exists
+from re import search
 from subprocess import check_output
 from time import perf_counter
 
 
-def main(path, benchmark=False):
+def main(path, benchmark=False, debug=False):
     if not exists(path):
         print("[ERROR] file not found")
         return
     t1 = perf_counter()
-    out = check_output(["/usr/bin/manalyze", path]).decode()
-    t2 = perf_counter()
-    #TODO: parse output to match packer labels
-    if benchmark:
-        out += " " + str(t2 - t1)
-    print(out)
+    # https://github.com/JusticeRage/Manalyze/blob/master/plugins/plugin_packer_detection.cpp
+    out = check_output("/usr/bin/manalyze -p packer %s 2>/dev/null" % path, shell=True).decode()
+    dt = perf_counter() - t1
+    if debug:
+        if benchmark:
+            print(str(dt))
+        print("[DEBUG]\n" + out)
+        return
+    for l in out.splitlines():
+        try:
+            p = search(r"^\[ .+ \] The PE is packed with ([[^\(\d]+)", l).group(1).replace(" ", "-").lower()
+            if benchmark:
+                p += " " + str(dt)
+            print(p)
+            return
+        except AttributeError:
+            pass
 
 
 if __name__ == "__main__":
     parser = ArgumentParser(formatter_class=RawTextHelpFormatter)
     parser.add_argument("pe", help="PE file's path")
     parser.add_argument("-b", "--benchmark", action="store_true", help="enable benchmarking")
+    parser.add_argument("-v", "--verbose", action="store_true", help="display debug information")
     args = parser.parse_args()
-    main(args.pe, args.benchmark)
+    main(args.pe, args.benchmark, args.verbose)
 
