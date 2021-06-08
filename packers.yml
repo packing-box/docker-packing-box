@@ -134,9 +134,9 @@ M0dern_P4cker:
       - o
   install:
     apt:   libcapstone-dev
-    wget:  https://github.com/n4sm/m0dern_p4cker/archive/master.zip
+    wget:  https://github.com/n4sm/m0dern_p4cker/archive/e24a1d47dae1acb0cc3dc4d2fb42a61662bc210c.zip
     unzip: /opt/packers
-    exec:  mv /opt/packers/m0dern_p4cker-master/packer@git /opt/packers/m0dern_p4cker
+    exec:  mv /opt/packers/m0dern_p4cker-e24a1d47dae1acb0cc3dc4d2fb42a61662bc210c/packer@git /opt/packers/m0dern_p4cker
     cd:    /opt/packers/m0dern_p4cker
     make:  main
     lsh:   main
