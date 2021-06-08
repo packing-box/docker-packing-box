@@ -1,4 +1,5 @@
 # -*- coding: UTF-8 -*-
+from datetime import datetime
 from functools import cached_property
 from magic import from_file
 from tinyscript import classproperty, hashlib, shutil
@@ -29,9 +30,16 @@ class Executable(Path):
     _features = {}
 
     def __new__(cls, *parts, **kwargs):
-        ds = kwargs.pop('dataset', None)
+        ds, h = kwargs.pop('dataset', None), kwargs.pop('data', None)
+        opt = {}
+        for k in ["category", "data", "filetype", "hash"]:
+            opt[k] = kwargs.pop(k, None)
+        if len(parts) == 0 and ds and h:
+            parts = (ds.files.joinpath(h), )
+        elif len(parts) == 0 and not ds:
+            raise ValueError("Cannot determine executable's path")
         self = super(Executable, cls).__new__(cls, *parts, **kwargs)
-        self.__data = kwargs.pop('data', None)
+        self.__hash = h #FIXME: use self.attributes
         self.__hash = kwargs.pop('hash', None)
         self.dataset = ds
         return self
@@ -45,8 +53,13 @@ class Executable(Path):
         return super(Executable, self).__getattribute__(name)
     
     def copy(self):
-        shutil.copy(str(self), str(self.destination))
-        self.destination.chmod(0o777)
+        if str(self) != str(self.destination):
+            shutil.copy(str(self), str(self.destination))
+            self.destination.chmod(0o777)
+    
+    @property
+    def attributes(self):
+        return {n: getattr(self, n) for n in ["category", "ctime", "data", "filetype", "hash", "mtime"]} #FIXME
     
     @cached_property
     def category(self):
@@ -55,6 +68,10 @@ class Executable(Path):
             if len(ftype) > l and is_filetype(str(self), ftype):
                 best_fmt, l = fmt, len(ftype)
         return best_fmt
+    
+    @cached_property
+    def ctime(self):
+        return datetime.fromtimestamp(self.stat().st_ctime)
     
     @cached_property
     def data(self):
@@ -71,7 +88,7 @@ class Executable(Path):
     
     @cached_property
     def destination(self):
-        return self.dataset.path.joinpath("files", self.hash)
+        return self.dataset._file(self.hash, hash=self.hash, data=self.data)
     
     @property
     def features(self):
@@ -87,4 +104,12 @@ class Executable(Path):
     @cached_property
     def hash(self):
         return self.__hash or hashlib.sha256_file(str(self))
+    
+    @cached_property
+    def mtime(self):
+        return datetime.fromtimestamp(self.stat().st_mtime)
+    
+    @property
+    def path(self):
+        return Path(self.dataset._names[self.hash])
 

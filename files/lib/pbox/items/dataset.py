@@ -1,5 +1,6 @@
 # -*- coding: UTF-8 -*-
 import pandas as pd
+from datetime import datetime
 from tinyscript import b, colored, hashlib, json, logging, random, time, ts
 from tinyscript.report import *
 from tqdm import tqdm
@@ -154,6 +155,38 @@ class Dataset:
         """ Copy the current dataset to a given destination. """
         self.path.copy(path)
     
+    def _file(self, hash):
+        """ Get an Executable instance from a hash. """
+        return Executable(self.files.joinpath(hash), dataset=self, hash=hash,
+                          data={k: v for k, v in self[hash, True].items() if k not in ["hash", "label"]})
+    
+    def _filter(self, hash=None, start_hash=None, end_hash=None, start_ctime=None, end_ctime=None, start_mtime=None,
+                end_mtime=None, label=None, **kw):
+        """ Yield executables' hashes from the dataset based on multiple criteria. """
+        # first, yield hashes provided
+        for h in (hash or []):
+            yield self._file(h)
+        # internal function to adapt inputs for filtering (with a value that enables a strict order)
+        def _convert(name, value):
+            if name == "hash":
+                return ts.hex2int(value)
+            elif name in ["ctime", "mtime"]:
+                return datetime.strptime(value, "%d/%m/%y")
+            raise ValueError("Not handled: %s" % name)
+        # filter on hashes, creation time or modification time (UNION filter)
+        for n in ["hash", "ctime", "mtime"]:
+            start, end = _convert(n, locals()['start_' + n]), _convert(n, locals()['end_' + n])
+            if start is not None or end is not None:
+                for h in self.files.listdir():
+                    f = self._file(h)
+                    if start and getattr(f, n) >= start or end and getattr(f, n) < end:
+                        yield f
+        # finally, yield based on the packer label
+        if label is not None:
+            for h, l in list(self._labels.items()):
+                if label == l:
+                    yield self._file(h)
+    
     def _hash(self):
         """ Custom object hashing function. """
         return hashlib.md5(b(str(self.path.resolve()))).hexdigest()
@@ -225,7 +258,7 @@ class Dataset:
         """ Make dataset's structure and files match. """
         self.backup = self
         labels = Dataset.labels(labels)
-        # first, clean duplicates in data
+        # first, ensure there is no duplicate
         self._data = self._data.drop_duplicates()
         if files:
             # fix wrt existing files
@@ -334,25 +367,10 @@ class Dataset:
             Executable(f, dataset=self).copy()
         self._save()
     
-    def remove(self, hash=None, start=None, end=None, label=None, **kw):
+    def remove(self, **kw):
         """ Remove executables from the dataset given their hashes. """
-        self.backup = self
-        for h in (hash or []):
-            del self[h]
-        if start is not None or end is not None:
-            remove = start is None
-            for f in self.files.listdir(sort=True):
-                h = f.filename
-                if start == h:
-                    remove = True
-                if remove:
-                    del self[h]
-                if end == h:
-                    remove = False
-        if label is not None:
-            for h, l in list(self._labels.items()):
-                if label == l:
-                    del self[h]
+        for f in self._filter(**kw):
+            del self[f.hash]
         self._save()
     
     def rename(self, path2=None, **kw):
@@ -361,6 +379,8 @@ class Dataset:
             tmp = ts.TempPath(".dataset-backup", self._hash())
             self.path = self.path.rename(path2)
             tmp.rename(ts.TempPath(".dataset-backup", self._hash()))
+        else:
+            self.logger.warning("%s already exists" % path2)
     
     def reset(self, save=True, **kw):
         """ Truncate and recreate a blank dataset. """
@@ -382,6 +402,15 @@ class Dataset:
             b._copy(self.path)
             b._remove()
             self._save()
+    
+    def select(self, path2=None, **kw):
+        """ Select a subset from the current dataset based on multiple criteria. """
+        if not ts.Path(path2).exists():
+            ds2 = Dataset(path2)
+            for f in self._filter(**kw):
+                ds2 #TODO
+        else:
+            self.logger.warning("%s already exists" % path2)
     
     def show(self, limit=10, per_category=False, **kw):
         """ Show an overview of the dataset. """
@@ -455,61 +484,39 @@ class Dataset:
     def overview(self):
         """ Represent an overview of the dataset. """
         r = []
-        categories = expand_categories("All")
         CAT = ["<20kB", "20-50kB", "50-100kB", "100-500kB", "500kB-1MB", ">1MB"]
         size_cat = lambda s: CAT[0] if s < 20 * 1024 else CAT[1] if 20 * 1024 <= s < 50 * 1024 else \
                              CAT[2] if 50 * 1024 <= s < 100 * 1024 else CAT[3] if 100 * 1024 <= s < 500 * 1024 else \
                              CAT[4] if 500 * 1024 <= s < 1024 * 1024 else CAT[5]
         data1, data2 = {}, {}
-        total, totalp, d = 0, 0, {c: [0, 0] for c in CAT}
-        if self.__per_category:
-            for category in categories:
-                d = {c: [0, 0] for c in CAT}
-                for h, label in self._labels.items():
-                    exe = Executable(self.files.joinpath(h), dataset=self)
-                    if exe.category != category:
-                        continue
-                    s = size_cat(exe.size)
-                    d[s][0] += 1
-                    if label is not None:
-                        d[s][1] += 1
-                    data2.setdefault(category, [])
-                    if len(data2[category]) < self.__limit:
-                        row = [v if isinstance(v, str) else "" for k, v in self[h, True].items() \
-                               if k in ["hash", "label"]]
-                        row.insert(1, self._names[h])
-                        data2[category].append(row)
-                    elif len(data2[category]) == self.__limit:
-                        data2[category].append(["...", "...", "..."])
-                total, totalp = sum([v[0] for v in d.values()]), sum([v[1] for v in d.values()])
-                if total == 0:
-                    continue
-                data1.setdefault(category, [])
-                for c in CAT:
-                    data1[category].append([c, d[c][0], "%.2f" % (100 * (float(d[c][0]) / total)) if total > 0 else 0,
-                                            d[c][1], "%.2f" % (100 * (float(d[c][1]) / totalp)) if totalp > 0 else 0])
-                data1[category].append(["Total", str(total), "", str(totalp), ""])
-        else:
+        categories = expand_categories("All") if self.__per_category else ["All"]
+        for category in categories:
             d = {c: [0, 0] for c in CAT}
             for h, label in self._labels.items():
                 exe = Executable(self.files.joinpath(h), dataset=self)
+                if category != "All" and exe.category != category:
+                    continue
                 s = size_cat(exe.size)
                 d[s][0] += 1
                 if label is not None:
                     d[s][1] += 1
-                data2.setdefault('All', [])
-                if len(data2['All']) < self.__limit:
+                data2.setdefault(category, [])
+                if len(data2[category]) < self.__limit:
                     row = [v if isinstance(v, str) else "" for k, v in self[h, True].items() if k in ["hash", "label"]]
+                    row.insert(1, exe.mtime.strftime("%d/%m/%y"))
+                    row.insert(1, exe.ctime.strftime("%d/%m/%y"))
                     row.insert(1, self._names[h])
-                    data2['All'].append(row)
-                elif len(data2['All']) == self.__limit:
-                    data2['All'].append(["...", "...", "..."])
+                    data2[category].append(row)
+                elif len(data2[category]) == self.__limit:
+                    data2[category].append(["...", "...", "...", "...", "..."])
             total, totalp = sum([v[0] for v in d.values()]), sum([v[1] for v in d.values()])
-            data1.setdefault('All', [])
+            if total == 0:
+                continue
+            data1.setdefault(category, [])
             for c in CAT:
-                data1['All'].append([c, d[c][0], "%.2f" % (100 * (float(d[c][0]) / total)) if total > 0 else 0,
+                data1[category].append([c, d[c][0], "%.2f" % (100 * (float(d[c][0]) / total)) if total > 0 else 0,
                                         d[c][1], "%.2f" % (100 * (float(d[c][1]) / totalp)) if totalp > 0 else 0])
-            data1['All'].append(["Total", str(total), "", str(totalp), ""])
+            data1[category].append(["Total", str(total), "", str(totalp), ""])
         if len(data1) > 0:
             headers = ["Size Range", "Total", "%", "Packed", "%"]
             r.append(Section("Executables per size and category"))
@@ -528,7 +535,8 @@ class Dataset:
                 if c in data2:
                     if c != "All":
                         r.append(Subsection(c))
-                    r += [Table(data2[c], title=c, column_headers=["Hash", "Path", "Label"])]
+                    r += [Table(data2[c], title=c,
+                                column_headers=["Hash", "Path", "Creation", "Modification", "Label"])]
                 if c == "All":
                     break
         return r
@@ -564,7 +572,7 @@ class Dataset:
                 datasets.append([
                     dset.stem,
                     str(metadata['executables']),
-                    ",".join(metadata['categories']),
+                    ",".join(sorted(metadata['categories'])),
                     ",".join("%s{%d}" % i for i in sorted(metadata['counts'].items(), key=lambda x: -x[1])),
                 ])
             except KeyError:

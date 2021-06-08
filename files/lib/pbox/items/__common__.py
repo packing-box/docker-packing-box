@@ -1,13 +1,14 @@
 # -*- coding: UTF-8 -*-
+from functools import wraps
 from tinyscript import b, colored as _c, ensure_str, inspect, logging, os, random, re, shlex, subprocess, ts
-from tinyscript.helpers import execute_and_log as run, yaml_config, Path
+from tinyscript.helpers import execute_and_log as run, is_executable, is_file, is_folder, yaml_config, Path
 from tinyscript.report import *
 
 from .executable import Executable
 from ..utils import expand_categories
 
 
-__all__ = ["make_registry", "Base"]
+__all__ = ["class_or_instance_method", "file_or_folder_or_dataset", "make_registry", "Base"]
 
 
 OS_COMMANDS = subprocess.check_output("compgen -c", shell=True, executable="/bin/bash").splitlines()
@@ -53,6 +54,28 @@ TEST_FILES = {
 }
 
 
+def file_or_folder_or_dataset(method):
+    @wraps(method)
+    def _wrapper(self, e, *args, **kwargs):
+        if is_file(e):
+            if is_executable(e):
+                e = [e]
+            else:
+                raise ValueError("Not an executable file")
+        elif is_folder(e):
+            if Dataset.check(e):
+                e = list(Dataset(e).files.listdir())
+            else:
+                e = Path(e).listdir(is_executable)
+        else:
+            raise ValueError("Bad input")
+        r = []
+        for exe in e:
+            r.append(method(self, exe, *args, **kwargs))
+        return r[0] if len(r) == 1 else r
+    return _wrapper
+
+
 def make_registry(cls):
     """ Make class' registry of child classes and fill the __all__ list in. """
     cls.registry = []
@@ -71,6 +94,12 @@ def make_registry(cls):
             setattr(i, k, v)
         glob['__all__'].append(item)
         cls.registry.append(i())
+
+
+# based on: https://stackoverflow.com/questions/28237955/same-name-for-classmethod-and-instancemethod
+class class_or_instance_method(classmethod):
+    def __get__(self, ins, typ):
+        return (super().__get__ if ins is None else self.__func__.__get__)(ins, typ)
 
 
 class Base:

@@ -9,17 +9,12 @@ from .executable import Executable
 __all__ = ["Detector"]
 
 
-# based on: https://stackoverflow.com/questions/28237955/same-name-for-classmethod-and-instancemethod
-class class_or_instance_method(classmethod):
-    def __get__(self, ins, typ):
-        return (super().__get__ if ins is None else self.__func__.__get__)(ins, typ)
-
-
 class Detector(Base):
     """ Detector abstraction. """
     use_output = True
     
     @class_or_instance_method
+    @file_or_folder_or_dataset
     def detect(self, executable, **kwargs):
         """ If called from the class:
             Runs every known detector on the given executable and decides the label through majority voting.
@@ -27,15 +22,19 @@ class Detector(Base):
             Runs the detector according to its command line format and checks if the executable has been changed by this
              execution. """
         if isinstance(self, type):
-            results = {}
+            results, details = {}, {}
             for detector in Detector.registry:
                 label = detector.detect(executable, **kwargs)
+                if label is False:
+                    continue
                 results.setdefault(label, 0)
                 results[label] += 1
-            return max(results.items(), key=itemgetter(1))[0]
+                details[detector.name] = label
+            label = max(results.items(), key=itemgetter(1))[0]
+            return (label, details) if kwargs.get("debug", False) else label
         else:
             # check: is this detector able to process the input executable ?
-            e = Executable(executable)
+            e = executable if isinstance(executable, Executable) else Executable(executable)
             if e.category not in self._categories_exp or \
                e.extension[1:] in getattr(self, "exclude", {}).get(e.category, []):
                 return False
@@ -44,6 +43,7 @@ class Detector(Base):
             # if packer detection succeeded, we can return packer's label
             if label:
                 self.logger.debug("%s detected as packed with %s by %s" % (e.filename, label, self.name))
+                label = label.strip()
             return label
 
 

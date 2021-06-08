@@ -21,10 +21,12 @@ def benchmark(f):
     def _wrapper(*args, **kwargs):
         logger = kwargs.get("logger")
         info = kwargs.pop("info", None)
-        start = time()
+        perf = kwargs.pop("perf", True)
+        t = perf_counter if perf else time
+        start = t()
         r = f(*args, **kwargs)
-        info = "" if info is None else "[{}]".format(info)
-        message = "{}{}: {} seconds".format(f.__name__, info, time() - start)
+        dt = t() - start
+        message = "{}{}: {} seconds".format(f.__name__, "" if info is None else "[{}]".format(info), dt)
         if logger is None:
             print(message)
         else:
