@@ -1,38 +1,12 @@
 #!/usr/bin/python3
 # -*- coding: UTF-8 -*-
-from argparse import ArgumentParser, RawTextHelpFormatter
-from json import loads
-from os.path import exists
-from subprocess import check_output
-from time import perf_counter
+from pboxtools import *
 
 
-def main(path, benchmark=False, debug=False):
-    if not exists(path):
-        print("[ERROR] file not found")
-        return
-    t1 = perf_counter()
-    out = check_output(["/usr/local/bin/peframe", "-sj", path]).decode()
-    dt = perf_counter() - t1
-    if debug:
-        if benchmark:
-            print(str(dt))
-        print("[DEBUG]\n" + out)
-        return
-    js = loads(out)
-    if js['yara_plugins']['packer_compiler_signatures.yar']:
-        #TODO: parse output to match packer labels
-        pass
-    if benchmark:
-        out += " " + str(dt)
-    print(out)
+def parse(output):
+    return json.loads(output).get('peinfo', {}).get('features', {}).get('packer', [])
 
 
 if __name__ == "__main__":
-    parser = ArgumentParser(formatter_class=RawTextHelpFormatter)
-    parser.add_argument("pe", help="PE file's path")
-    parser.add_argument("-b", "--benchmark", action="store_true", help="enable benchmarking")
-    parser.add_argument("-v", "--verbose", action="store_true", help="display debug information")
-    args = parser.parse_args()
-    main(args.pe, args.benchmark)
+    run("PeFrame", parse_func=parse, exe_type="pe", exe_help="path to the PE file")
 

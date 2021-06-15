@@ -5,7 +5,7 @@ from pbox.__info__ import *
 from tinyscript import *
 
 
-__version__     = "1.0.0"
+__version__     = "1.0.1"
 __doc__         = """
 This tool aims to detect the packer used on an input executable, folder of executables or Dataset.
 """
@@ -17,22 +17,24 @@ if __name__ == '__main__':
     parser.add_argument("executable", help="executable or folder containing executables or dataset")
     parser.add_argument("-d", "--detector", action="extend", nargs="*", type=lambda d: Detector.get(d),
                         help="detector(s) to be used")
-    initialize()
+    initialize(multi_level_debug=True)
+    kw = {'debug': args.verbose > 0, 'verbose': args.verbose > 1}
     if args.detector:
         for name in args.detector:
-            r = Detector.get(name).detect(args.executable)
+            r = Detector.get(name).detect(args.executable, **kw)
             if r:
                 print(r)
     else:
-        if args.verbose:
-            r, details = Detector.detect(args.executable, debug=args.verbose)
-        else:
-            r, details = Detector.detect(args.executable), {}
+        r = Detector.detect(args.executable, **kw)
+        try:
+            r, details = r
+        except:
+            details = {}
         mlen = 0
         for name in details.keys():
             mlen = max(mlen, len(name))
         for name, label in details.items():
-            logger.debug(("{: <%d}: {}" % mlen).format(name, "unknown" if label is None else label))
+            logger.warning(("{: <%d}: {}" % mlen).format(name, label or "-"))
         if r:
             print(r)
 

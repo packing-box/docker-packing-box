@@ -1,45 +1,24 @@
 #!/usr/bin/python3
 # -*- coding: UTF-8 -*-
-from argparse import ArgumentParser, RawTextHelpFormatter
-from os.path import exists
-from pefile import PE
-from peutils import SignatureDatabase
-from re import match, sub
-from time import perf_counter
+from pboxtools import *
 
 
-def main(path, db, benchmark=False):
-    if not exists(path):
-        print("[ERROR] file not found")
-        return
-    if not exists(db):
-        print("[ERROR] database not found")
-        return
-    with open(db, encoding="latin-1") as f:
-        sigs = SignatureDatabase(data=f.read())
-    t1 = perf_counter()
-    matches = sigs.match(PE(path), ep_only=True)
-    dt = perf_counter() - t1
-    try:
-        for s in (matches or []):
-            try:
-                p = match(r"^\[(?:.*?)((?:[A-Z$][A-Za-z0-9]{2,}(?:\d+)?(?:'s)?(?:\s+)?)+)", s).group(1).strip()
-                p = sub(r"[\s-]+", "_", sub(r"['/]", "", p.replace("'s", "")), p).lower()
-                if benchmark:
-                    p += " " + str(dt)
-                print(p)
-                return
-            except AttributeError:
-                pass
-    except Exception as err:
-        print("[ERROR] %s" % str(err))
+def execute(name, **kwargs):
+    with open(kwargs['db'], encoding="latin-1") as f:
+        sigs = peutils.SignatureDatabase(data=f.read())
+    return "\n".join(sigs.match(pefile.PE(kwargs['path']), ep_only=True) or []), None
+
+
+def parse(output):
+    for s in output.splitlines():
+        try:
+            p = re.match(r"^\[(?:.*?)((?:[A-Z$][A-Za-z0-9]{2,}(?:\d+)?(?:'s)?(?:\s+)?)+)", s).group(1).strip()
+            return re.sub(r"[\s-]+", "_", sub(r"['/]", "", p.replace("'s", "")), p).lower()
+        except AttributeError:
+            pass
 
 
 if __name__ == "__main__":
-    parser = ArgumentParser(formatter_class=RawTextHelpFormatter)
-    parser.add_argument("pe", help="PE file")
-    parser.add_argument("-b", "--benchmark", action="store_true", help="enable benchmarking")
-    parser.add_argument("-d", dest="db", default="/opt/detectors/userdb.txt", help="signatures database")
-    args = parser.parse_args()
-    main(args.pe, args.db, args.benchmark)
+    run("PEiD", exec_func=execute, parse_func=parse, exe_type="pe", exe_help="path to the PE file",
+        db="/opt/detectors/userdb.txt")
 

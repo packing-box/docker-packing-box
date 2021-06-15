@@ -1,41 +1,27 @@
 #!/usr/bin/python3
 # -*- coding: UTF-8 -*-
-from argparse import ArgumentParser, RawTextHelpFormatter
-from os.path import exists
-from re import search
-from subprocess import check_output
-from time import perf_counter
+from pboxtools import *
 
 
-def main(path, benchmark=False, debug=False):
-    if not exists(path):
-        print("[ERROR] file not found")
-        return
-    t1 = perf_counter()
-    # https://github.com/JusticeRage/Manalyze/blob/master/plugins/plugin_packer_detection.cpp
-    out = check_output("/usr/bin/manalyze -p packer %s 2>/dev/null" % path, shell=True).decode()
-    dt = perf_counter() - t1
-    if debug:
-        if benchmark:
-            print(str(dt))
-        print("[DEBUG]\n" + out)
-        return
-    for l in out.splitlines():
+def parse(output):
+    p, patterns = None, []
+    for l in output.splitlines():
         try:
-            p = search(r"^\[ .+ \] The PE is packed with ([[^\(\d]+)", l).group(1).replace(" ", "-").lower()
-            if benchmark:
-                p += " " + str(dt)
-            print(p)
-            return
-        except AttributeError:
+            r = re.search(r"^\[ .+? \] The PE is packed with ([^\(\d]+)", l).group(1)
+            return r.strip().replace(" ", "-").lower()
+        except (AttributeError, TypeError):
             pass
+        if "The PE is possibly packed." in l:
+            p = "unknown"
+        if p == "unknown" and "Unusual section name found:" in l:
+            s = l.split(":", 1)[1].strip()
+            if len(s) > 0:
+                patterns.append(s)  # possibly a string of interest for identifying the packer
+                             # e.g.: petite
+    return p if len(patterns) == 0 else patterns
 
 
 if __name__ == "__main__":
-    parser = ArgumentParser(formatter_class=RawTextHelpFormatter)
-    parser.add_argument("pe", help="PE file's path")
-    parser.add_argument("-b", "--benchmark", action="store_true", help="enable benchmarking")
-    parser.add_argument("-v", "--verbose", action="store_true", help="display debug information")
-    args = parser.parse_args()
-    main(args.pe, args.benchmark, args.verbose)
+    # https://github.com/JusticeRage/Manalyze/blob/master/plugins/plugin_packer_detection.cpp
+    run("Manalyze", parse_func=parse, exe_type="pe", exe_help="path to the PE file")
 

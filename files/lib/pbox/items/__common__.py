@@ -55,6 +55,8 @@ TEST_FILES = {
 
 
 def file_or_folder_or_dataset(method):
+    """ This decorator allows to handle, as the first positional argument of an instance method, either an executable,
+         a folder with executables or the executable files from a Dataset. """
     @wraps(method)
     def _wrapper(self, e, *args, **kwargs):
         if is_file(e):
@@ -103,7 +105,28 @@ class class_or_instance_method(classmethod):
 
 
 class Base:
-    """ Item abstraction, for defining the common machinery for Detector, Packer and Unpacker. """
+    """ Item abstraction, for defining the common machinery for Detector, Packer and Unpacker.
+    
+    Attributes:
+      status [int]
+        0: broken
+        1: not installed
+        2: gui|todo
+        3: installed
+        4: tested
+      use_output [bool]
+    
+    Instance methods:
+      .check(*categories) [bool]
+      .help() [str]
+      .run(executable, **kwargs) [str|(str,time)]
+      .setup(**kwargs)
+      .test(files, **kwargs)
+    
+    Class methods:
+      .get(item)
+      .summary()
+    """
     def __init__(self):
         self.name = self.__class__.__name__.lower()
         self.type = self.__class__.__base__.__name__.lower()
@@ -148,7 +171,7 @@ class Base:
     def run(self, executable, **kwargs):
         """ Customizable method for shaping the command line to run the item on an input executable. """
         retval = self.name
-        use_output, benchmark = False, kwargs.get('benchmark', False)
+        use_output, benchmark, verbose = False, kwargs.get('benchmark', False), kwargs.get('verbose', False)
         kw = {'logger': self.logger}
         output = None
         for step in getattr(self, "steps", ["%s %s" % (self.name, executable)]):
@@ -177,6 +200,8 @@ class Base:
                 param = None
                 if isinstance(attempt, tuple) and len(attempt) == 2:
                     attempt, param = attempt
+                if verbose:
+                    attempt += " -v"
                 output, _, retc = run(attempt, **kw)
                 output = ensure_str(output)
                 if self.name in attempt and benchmark:
@@ -382,7 +407,7 @@ class Base:
     def test(self, files=None, **kw):
         """ Tests the item on some executable files. """
         if self.status < 2:
-            self.logger.warning("Status: %s" % ["broken", "not installed"][self.status])
+            self.logger.warning("%s %s" % (self.__class__.__name__, ["broken", "not installed"][self.status]))
             return
         logging.setLogger(self.name)
         self.logger.info("Testing %s..." % self.__class__.__name__)
@@ -430,7 +455,7 @@ class Base:
     def get(cls, item):
         """ Simple class method for returning the class of an item based on its name (case-insensitive). """
         for i in cls.registry:
-            if i.name == item.lower():
+            if i.name == (item.name if isinstance(item, Base) else item).lower():
                 return i
     
     @classmethod

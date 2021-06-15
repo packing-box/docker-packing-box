@@ -1,6 +1,4 @@
 # -*- coding: UTF-8 -*-
-from operator import itemgetter
-
 from .__common__ import *
 from .executable import Executable
 
@@ -10,19 +8,24 @@ __all__ = ["Detector"]
 
 
 class Detector(Base):
-    """ Detector abstraction. """
+    """ Detector abstraction.
+    
+    Extra methods:
+      .detect(executable, **kwargs) [str]
+    """
     use_output = True
     
     @class_or_instance_method
     @file_or_folder_or_dataset
     def detect(self, executable, **kwargs):
         """ If called from the class:
-            Runs every known detector on the given executable and decides the label through majority voting.
+            Runs every known detector on the given executable and decides the label through voting (with a penalty on
+             cases where the executable is considered not packed).
         If called from an instance:
             Runs the detector according to its command line format and checks if the executable has been changed by this
              execution. """
         if isinstance(self, type):
-            results, details = {}, {}
+            results, details = {None: -len(Detector.registry)}, {}
             for detector in Detector.registry:
                 label = detector.detect(executable, **kwargs)
                 if label is False:
@@ -30,7 +33,7 @@ class Detector(Base):
                 results.setdefault(label, 0)
                 results[label] += 1
                 details[detector.name] = label
-            label = max(results.items(), key=itemgetter(1))[0]
+            label = max(results, key=results.get)
             return (label, details) if kwargs.get("debug", False) else label
         else:
             # check: is this detector able to process the input executable ?
