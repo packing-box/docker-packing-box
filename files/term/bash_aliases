@@ -38,4 +38,4 @@ alias ccat='pygmentize -O bg=dark,style=colorful'
 alias gksudo='sudo -H'
 
 # packing-box update command (development)
-alias pbox-update-dev="cp /mnt/share/files/tools/* /opt/tools/ && cp /mnt/share/*.yml /opt/ && pip3 install /mnt/share/files/lib/ > /dev/null"
+alias pbox-update-dev="cp /mnt/share/files/tools/* /opt/tools/ && cp /mnt/share/*.yml /opt/ && find /mnt/share/files/detectors/ -type f \( ! -iname \"*\.*\" \) -exec cp {} /opt/bin/ \; && pip3 install /mnt/share/files/lib/ > /dev/null"
