@@ -24,7 +24,7 @@ RUN (apt -qq -y install apt-transport-https apt-utils \
                    libxcursor-dev libxkbfile-dev libxml2-dev libxrandr-dev  \
  && apt -qq -y install colordiff colortail dosbox git golang less ltrace strace sudo tmate tmux vim xterm \
  && apt -qq -y install iproute2 nodejs npm python3-setuptools python3-pip swig weka x11-apps xvfb yarnpkg zstd \
- && apt -qq -y install curl unrar unzip wget) 2>&1 > /dev/null \
+ && apt -qq -y install curl jq unrar unzip wget) 2>&1 > /dev/null \
  || echo -e "\033[1;31m DEPENDENCIES INSTALL FAILED \033[0m"
 # install wine (for running Windows software on Linux)
 RUN (dpkg --add-architecture i386 \
@@ -83,7 +83,7 @@ RUN pip3 install /tmp/lib/ 2>&1 > /dev/null \
 # |                                                  ADD DETECTORS                                                     |
 # +--------------------------------------------------------------------------------------------------------------------+
 FROM tools AS detectors
-COPY files/detectors /tmp/
+COPY files/detectors /opt/bin
 RUN /opt/tools/packing-box setup detector
 # +--------------------------------------------------------------------------------------------------------------------+
 # |                                                  ADD UNPACKERS                                                     |
@@ -98,5 +98,6 @@ FROM unpackers AS packers
 COPY files/packers /tmp/
 RUN /opt/tools/packing-box setup packer
 # ----------------------------------------------------------------------------------------------------------------------
+RUN find /opt/bin -type f -exec chmod +x {} \;
 ENTRYPOINT /opt/tools/startup
 WORKDIR /mnt/share
