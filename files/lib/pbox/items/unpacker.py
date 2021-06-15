@@ -10,7 +10,11 @@ __all__ = ["Unpacker"]
 
 
 class Unpacker(Base):
-    """ Unpacker abstraction. """
+    """ Unpacker abstraction.
+    
+    Extra methods:
+      .unpack(executable, **kwargs) [str]
+    """
     def unpack(self, executable, **kwargs):
         """ Runs the unpacker according to its command line format and checks if the executable has been changed by this
              execution. """

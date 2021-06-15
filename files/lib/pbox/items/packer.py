@@ -11,7 +11,12 @@ __all__ = ["Packer"]
 
 
 class Packer(Base):
-    """ Packer abstraction. """
+    """ Packer abstraction.
+    
+    Extra methods:
+      .pack(executable, **kwargs) [str]
+      .run(executable, **kwargs) [str|(str,time)]
+    """
     def pack(self, executable, **kwargs):
         """ Runs the packer according to its command line format and checks if the executable has been changed by this
              execution. """
