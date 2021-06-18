@@ -1,0 +1,21 @@
+#!/usr/bin/python3
+# -*- coding: UTF-8 -*-
+from pboxtools import *
+
+
+def execute(name, **kwargs):
+    f = kwargs.get('full', False)
+    try:
+        r = bintropy(kwargs['path'], f)
+        if not f:
+            l = max(map(len, r.keys()))
+            r = "\n".join(("{: <%d}: {}" % l).format(*s) for s in r.items())
+        return r, ""
+    except Exception as e:
+        return "", str(e)
+
+
+if __name__ == "__main__":
+    run("Bintropy", exec_func=execute, normalize_output=False,
+        parser_args=[(2, ("-f", "--full"), {'action': "store_true", 'help': "consider the whole executable"})])
+
