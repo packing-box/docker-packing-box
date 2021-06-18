@@ -29,12 +29,14 @@ APack:
 ASPack:
   categories:
     - PE32
+  comment: Cannot run inside a virtualized environment unless cracked.
   description: ASPack is an advanced solution created to provide Win32 EXE file packing and to protect them against non-professional reverse engineering.
   install:
     exec: echo "TODO"
   references:
     - https://github.com/fireeye/capa-rules/blob/master/anti-analysis/packer/aspack/packed-with-aspack.yml
   source: http://www.aspack.com/aspack.html
+  status: todo
 
 BurnEye:
   categories:
@@ -75,11 +77,35 @@ ELFuck:
     - ELF32
   description: ELF packer for i386 origial version from sk2 by sd.
   install:
-    move: elfuck
+    copy: elfuck
   references:
     - https://docplayer.net/86668430-Modern-linux-malware-exposed.html
   source: https://github.com/timhsutw/elfuck
   status: broken
+
+EXEPacker:
+  categories:
+    - PE
+  comment: Relies on UPX 3.96.
+  description: This program is able to compress executable files (type EXE) or DLL-files. Already compressed files may also be decompressed with this program. There exist 12 different levels for file-compression. This program is also able to create backups of the files that shall be compressed.
+  references:
+    - https://www.alternate-tools.com/pages/c_exepacker.php
+  source: https://www.alternate-tools.com/files/EXEPacker.exe
+  status: useless
+
+EXEStealth:
+  categories:
+    - PE
+  description: EXE Stealth can protect most of the executable files that are compatible with PE format. However, not every executable file is compatible with EXEStealth and other PE protectors. A problem can enter the compiler or if it uses a loader with data submitted after the loader.
+  install:
+    copy: exestealth.exe /opt/packers/exestealth.exe
+    setp: /opt/packers/
+    wine: exestealth.exe
+  references:
+    - http://www.webtoolmaster.com/exestealth-tutorial.htm
+    - http://www.webtoolmaster.com/download/ExeStealth.exe
+  source: http://www.webtoolmaster.com/index.htm#ExeStealth
+  status: gui
 
 Ezuri:
   categories:
@@ -183,6 +209,8 @@ MPRESS:
   install:
     unzip: /opt/packers/mpress
     wine:  mpress.exe
+  steps:
+    - mpress {{executable}}{{compress[| -r]}}{{lzmat[| -m]}}
   references:
     - https://storage.ey.md/Technology%%20Related/Programming%%20%%26%%20Reversing/Tuts4You%%20Collection/UnPackMe%%20Collection/dotNET/MPress%%200.71.rar
     - https://storage.ey.md/Technology%%20Related/Programming%%20%%26%%20Reversing/Tuts4You%%20Collection/UnPackMe%%20Collection/PE32/MPress%%200.77.rar
@@ -191,7 +219,6 @@ MPRESS:
     - https://storage.ey.md/Technology%%20Related/Programming%%20%%26%%20Reversing/Tuts4You%%20Collection/UnPackMe%%20Collection/PE64/MPress%%201.07%%20x64.rar
     - https://storage.ey.md/Technology%%20Related/Programming%%20%%26%%20Reversing/Tuts4You%%20Collection/UnPackMe%%20Collection/PE64/MPress%%202.12%%20x64.rar
   source: https://www.softpedia.com/get/Programming/Packers-Crypters-Protectors/MPRESS.shtml
-  status: todo
 
 Muncho:
   categories:
@@ -217,9 +244,39 @@ NetCrypt:
   source: https://github.com/friedkiwi/netcrypt
   status: gui
 
+PELock:
+  categories:
+    - PE
+  comment: Demo version.
+  description: Software copy protection against cracking & reverse engineering with anti-cracking & anti-debugging techniques. Software license key system with time trial options.
+  install:
+    copy: pelock.exe /opt/packers/pelock.exe
+    setp: /opt/packers/
+    wine: pelock.exe
+    references:
+      - https://github.com/PELock/PELock-Software-Protection-and-Licensing-SDK
+  source: https://www.pelock.com/products/pelock
+  status: gui
+
+PEPacker:
+  categories:
+    - PE32
+  description: Simple packer for Windows 32-bits PE files. The new PE file after packing can obstruct the process of reverse engineering. It will transform the original import table, encrypt sections, clear section names and installing the shell-entry. When running a packed PE file, the shell-entry will decrypt and load the original program by decrypting sections, initializing the original import table and relocation.
+  install:
+    wget:  https://github.com/czs108/PE-Packer/releases/download/v1.0.0-beta/PE-Packer-1.0.0-beta-win-x86.zip
+    unzip: /opt/packers/pepacker
+    wine:  PE-Packer.exe
+  steps:
+    - pepacker {{executable}} {{executable}}
+  references:
+    - https://zenodo.org/record/4698355
+  source: https://github.com/czs108/PE-Packer
+  status: ok
+
 PEShield:
   categories:
     - PE32
+  comment: The provided executable does not run.
   description: PE-SHiELD is a program, which encrypts 32-bit Windows EXE files, leaving them still executable. The previous version was over a year in the wild and there is still no unpacker for it.
   install:
     unzip: /opt/packers/peshield
@@ -227,7 +284,7 @@ PEShield:
   references:
     - http://protools.narod.ru/packers.htm
   source: https://webscene.ir/tools/show/PE-SHIELD-0.25
-  status: gui
+  status: broken
 
 PEtite:
   categories:
