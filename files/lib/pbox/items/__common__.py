@@ -440,11 +440,11 @@ class Base:
     def status(self):
         """ Get the status of item's binary. """
         st = getattr(self, "_status", None)
-        if st == "broken":  # manually set in [item].yml ; for items that cannot be installed or run
-            return 0
+        if st in ["broken", "useless"]:  # manually set in [item].yml ; for items that cannot be installed/run or that
+            return 0          #  are useless (e.g. because it relies on another already existing item)
         elif st in ["gui", "todo"]:  # item to be automated yet
             return 2
-        elif b(self.name) not in OS_COMMANDS:  # when the setup failed
+        elif b(self.name) not in OS_COMMANDS:  # when the setup failed or is incomplete
             return 1
         elif st == "ok":  # the item runs, works correctly and was tested
             return 4
