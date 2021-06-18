@@ -4,6 +4,7 @@ import pefile
 import peutils
 import re
 from argparse import ArgumentParser, RawTextHelpFormatter
+from ast import literal_eval
 from os.path import abspath, exists
 from shlex import split
 from subprocess import Popen, PIPE
@@ -11,8 +12,11 @@ from sys import stderr
 from time import perf_counter
 from yaml import safe_load
 
+from .utils import *
+from .utils import __all__ as _utils
 
-__all__ = ["json", "pefile", "peutils", "re", "run", "PACKERS", "PACKERS_FILE"]
+
+__all__ = ["json", "literal_eval", "pefile", "peutils", "re", "run", "PACKERS", "PACKERS_FILE"] + _utils
 
 
 DETECTORS      = None
@@ -49,7 +53,8 @@ def normalize(*packers):
     return max(d, key=d.get)
 
 
-def run(name, exec_func=execute, parse_func=lambda x: x, stderr_func=lambda x: None, normalize_output=True, **kwargs):
+def run(name, exec_func=execute, parse_func=lambda x: x, stderr_func=lambda x: x, parser_args=[],
+        normalize_output=True, **kwargs):
     """ Run a tool and parse its output.
     
     It also allows to parse stderr and to normalize the output.
@@ -58,7 +63,7 @@ def run(name, exec_func=execute, parse_func=lambda x: x, stderr_func=lambda x: N
     :param exec_func:        function for executing the tool
     :param parse_func:       function for parsing the output of stdout
     :param stderr_func:      function for handling the output of stderr
-    :param shell:            shell option for Popen
+    :param parser_args:      additional arguments for the parser ; format: [(index, args, kwargs), ...]
     :param normalize_output: normalize the final output based on a base of items
     
     The parse_func shall take the output of stdout and return either a parsed value or None (if no relevant result).
@@ -67,18 +72,24 @@ def run(name, exec_func=execute, parse_func=lambda x: x, stderr_func=lambda x: N
     global DETECTORS, DETECTORS_FILE, PACKERS, PACKERS_FILE
     parser = ArgumentParser(formatter_class=RawTextHelpFormatter)
     exe_type = kwargs.pop('exe_type', "exe")
-    parser.add_argument(exe_type, help=kwargs.pop('exe_help', "path to executable"))
-    parser.add_argument("-b", "--benchmark", action="store_true", help="enable benchmarking")
-    if "db" in kwargs.keys():
-        parser.add_argument("-d", dest="db", default=kwargs['db'], help=kwargs.get('db_help', "signatures database"))
-    parser.add_argument("-v", "--verbose", action="store_true", help="display debug information")
-    parser.add_argument("--detectors-file", default=DETECTORS_FILE, help="path to detectors YAML")
-    parser.add_argument("--packers-file", default=PACKERS_FILE, help="path to packers YAML")
+    pargs = [
+        ((exe_type, ), {'help': kwargs.pop('exe_help', "path to executable")}),
+        (("-b", "--benchmark"), {'action': "store_true", 'help': "enable benchmarking"}),
+        (("-v", "--verbose"), {'action': "store_true", 'help': "display debug information"}),
+        (("--detectors-file", ), {'default': DETECTORS_FILE, 'help': "path to detectors YAML"}),
+        (("--packers-file", ), {'default': PACKERS_FILE, 'help': "path to packers YAML"}),
+    ]
+    for i, args, kw in sorted(parser_args, key=lambda x: -x[0]):
+        pargs.insert(i, (args, kw))
+    for args, kw in pargs:
+        parser.add_argument(*args, **kw)
     a = parser.parse_args()
     p = kwargs['path'] = abspath(getattr(a, exe_type))
     if not exists(p):
         print("[ERROR] file not found")
         return
+    for arg in a.__dict__:
+        kwargs[arg] = getattr(a, arg)
     # load related dictionaries
     DETECTORS_FILE = a.detectors_file
     with open(DETECTORS_FILE) as f:
@@ -90,17 +101,17 @@ def run(name, exec_func=execute, parse_func=lambda x: x, stderr_func=lambda x: N
     t1 = perf_counter()
     out, err = exec_func(name, **kwargs)
     dt = perf_counter() - t1
-    # now handle the result
-    if a.verbose:
-        stderr.write("[DEBUG]\n" + out)
+    # now handle the result if no error
     err = stderr_func(err)
-    if err is not None:
-        stderr.write("[ERROR]\n" + err)
+    if err:
+        stderr.write("[ERROR] " + err)
     else:
         p = parse_func(out)
-        if not isinstance(p, list):
-            p = [p]
+        if a.verbose and len(out) > 0 and p != out:
+            stderr.write("[DEBUG]\n" + out + "\n")
         if normalize_output:
+            if not isinstance(p, list):
+                p = [p]
             p = normalize(*p)
         if p is not None:
             if a.benchmark:

@@ -3,6 +3,9 @@
 from pboxtools import *
 
 
+DB = "/opt/detectors/userdb.txt"
+
+
 def execute(name, **kwargs):
     with open(kwargs['db'], encoding="latin-1") as f:
         sigs = peutils.SignatureDatabase(data=f.read())
@@ -20,5 +23,6 @@ def parse(output):
 
 if __name__ == "__main__":
     run("PEiD", exec_func=execute, parse_func=parse, exe_type="pe", exe_help="path to the PE file",
-        db="/opt/detectors/userdb.txt")
+        parser_args=[(2, ("-d", "--db"), {'dest': "db", 'default': "/opt/detectors/userdb.txt",
+                                          'help': "signatures database"})])
 
