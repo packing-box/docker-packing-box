@@ -12,11 +12,11 @@ from sys import stderr
 from time import perf_counter
 from yaml import safe_load
 
-from .utils import *
-from .utils import __all__ as _utils
+from bintropy import *
+from bintropy import __all__ as _bintropy
 
 
-__all__ = ["json", "literal_eval", "pefile", "peutils", "re", "run", "PACKERS", "PACKERS_FILE"] + _utils
+__all__ = ["json", "literal_eval", "pefile", "peutils", "re", "run", "PACKERS", "PACKERS_FILE"] + _bintropy
 
 
 DETECTORS      = None

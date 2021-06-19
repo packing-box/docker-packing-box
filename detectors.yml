@@ -1,3 +1,14 @@
+Bintropy:
+  categories:
+    - ELF
+    - PE
+  comment: Developed based on the description from the reference paper.
+  description: Bintropy is an analysis tool that estimates the likelihood that a binary file contains compressed or encrypted bytes.
+  references:
+    - https://ieeexplore.ieee.org/document/4140989
+  source: https://github.com/dhondta/docker-packing-box
+  status: ok
+
 DIE:
   categories:
     - All
