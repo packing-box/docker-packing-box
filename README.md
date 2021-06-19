@@ -2,38 +2,7 @@
 
 This Docker image aims to regroup multiple common executable packers and make datasets of packed executables.
 
-## Currently installed packers
-
-**Tested and functional**:
-- [Amber](https://github.com/EgeBalci/amber)
-- [Ezuri](https://github.com/guitmz/ezuri)
-- [m0dern_p4cker](https://github.com/n4sm/m0dern_p4cker)
-- [MidgetPack](https://github.com/arisada/midgetpack)
-- [UPX](https://upx.github.io/)
-
-**To be tested**:
-- [APack](https://www.ibsensoftware.com/download.html)
-- [ASPack](http://www.aspack.com/) (demo version)
-- [Crinkler](http://www.crinkler.net)
-- [KKrunchy](http://www.farbrausch.de/~fg/kkrunchy/)
-- [MPRESS](https://www.softpedia.com/get/Programming/Packers-Crypters-Protectors/MPRESS.shtml)
-- [.NetZ](https://www.softpedia.com/get/Programming/Packers-Crypters-Protectors/NETZ.shtml)
-- [PEtite](https://www.un4seen.com/petite/)
-
-> **Mac OS X**
-> - [muncho](http://www.pouet.net/prod.php?which=51324)
-
-> **GUI (Windows)**
-> - [FSG](http://in4k.untergrund.net/packers%20droppers%20etc/xt_fsg20.zip)
-> - [MEW](https://www.softpedia.com/get/Programming/Packers-Crypters-Protectors/MEW-SE.shtml)
-> - [NetCrypt](https://github.com/friedkiwi/netcrypt)
-> - [RLPack](https://www.softpedia.com/get/Programming/Packers-Crypters-Protectors/RLPack-Basic-Edition.shtml)
-> - [tElock](https://www.softpedia.com/get/Programming/Packers-Crypters-Protectors/Telock.shtml)
-
-> **Not working**
-> - [BurnEye](https://packetstormsecurity.com/files/29691/burneye-1.0-linux-static.tar.gz.html)
-> - [ELFuck](https://github.com/timhsutw/elfuck)
-> - [Shiva](https://packetstormsecurity.com/files/31087/shiva-0.95.tar.gz.html)
+![](docs/screenshot.png)
 
 ## Quick Start
 
