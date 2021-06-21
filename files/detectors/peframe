@@ -4,7 +4,12 @@ from pboxtools import *
 
 
 def parse(output):
-    return json.loads(output).get('peinfo', {}).get('features', {}).get('packer', [])
+    packer_strings = json.loads(output).get('peinfo', {}).get('features', {}).get('packer', [])
+    # filter some patterns found by trial and error
+    for s in packer_strings[:]:
+        if s.startswith("Microsoft_Visual_Cpp_"):
+            packer_strings.remove(s)
+    return packer_strings or [None]
 
 
 if __name__ == "__main__":
