@@ -26,6 +26,7 @@ def _set_subparsers(parent, *items):
         if parent._name == "test":
             p.add_argument("-b", "--benchmark", action="store_true", help="enable benchmarking")
             p.add_argument("-f", "--file", default=[], action="extend", nargs="*", help="file to test the %s on" % i)
+            p.add_argument("--boolean", action="store_true", help="only consider packed or not packed labels")
 
 
 if __name__ == '__main__':

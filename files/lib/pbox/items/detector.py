@@ -27,6 +27,8 @@ class Detector(Base):
         if isinstance(self, type):
             results, details = {None: -len(Detector.registry)}, {}
             for detector in Detector.registry:
+                if not getattr(detector, "vote", True):
+                    continue
                 label = detector.detect(executable, **kwargs)
                 if label is False:
                     continue
@@ -48,6 +50,28 @@ class Detector(Base):
                 self.logger.debug("%s detected as packed with %s by %s" % (e.filename, label, self.name))
                 label = label.strip()
             return label
+    
+    @file_or_folder_or_dataset
+    def test(self, executable=None, **kwargs):
+        """ Tests the given item on some executable files. """
+        b = kwargs.get('boolean', False)
+        self._test(kwargs.get('silent', False))
+        label = self.detect(executable, **kwargs)
+        real = realv = kwargs.get('label', -1)
+        if b and str(label).lower() not in ["true", "false"]:
+            label = label is not None
+        l = str(label).lower()
+        if l in ["true", "false"]:
+            label = l == "true"
+            msg = "{} is {}packed".format(executable, ["not ", ""][label])
+            realv = real is not None
+        elif label is None:
+            msg = "{} is not packed".format(executable)
+        else:
+            msg = "{} is packed with {}".format(executable, label)
+        if real != -1:
+            msg += " ({})".format("not packed" if realv in [None, False] else "packed" if realv is True else realv)
+        (self.logger.warning if real == -1 else [self.logger.failure, self.logger.success][label == realv])(msg)
 
 
 # dynamically makes Detector's registry of child classes from the dictionary of detectors

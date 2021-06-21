@@ -1,6 +1,6 @@
 # -*- coding: UTF-8 -*-
 from functools import wraps
-from tinyscript import b, colored as _c, ensure_str, inspect, logging, os, random, re, shlex, subprocess, ts
+from tinyscript import b, colored as _c, ensure_str, inspect, json, logging, os, random, re, shlex, subprocess, ts
 from tinyscript.helpers import execute_and_log as run, is_executable, is_file, is_folder, yaml_config, Path
 from tinyscript.report import *
 
@@ -58,22 +58,42 @@ def file_or_folder_or_dataset(method):
     """ This decorator allows to handle, as the first positional argument of an instance method, either an executable,
          a folder with executables or the executable files from a Dataset. """
     @wraps(method)
-    def _wrapper(self, e, *args, **kwargs):
-        if is_file(e):
-            if is_executable(e):
-                e = [e]
+    def _wrapper(self, *args, **kwargs):
+        # collect executables and folders from args
+        n, e, l = -1, [], {}
+        # exe list extension function
+        def _extend_e(i):
+            if is_file(i) and is_executable(i) and i not in e:
+                e.append(i)
+            elif is_folder(i):
+                i = Path(i)
+                if i.joinpath("files").is_dir() and \
+                   all(i.joinpath(f).is_file() for f in ["data.csv", "features.json", "labels.json", "names.json"]):
+                    with i.joinpath("labels.json").open() as f:
+                        l.update(json.load(f))
+                    i = i.joinpath("files")
+                for f in i.listdir(is_executable):
+                    f = str(f)
+                    if f not in e:
+                        e.append(f)
             else:
-                raise ValueError("Not an executable file")
-        elif is_folder(e):
-            if Dataset.check(e):
-                e = list(Dataset(e).files.listdir())
-            else:
-                e = Path(e).listdir(is_executable)
-        else:
-            raise ValueError("Bad input")
-        r = []
+                return False
+            return True
+        # use the extension function to parse:
+        # - positional arguments up to the last valid file/folder
+        # - then the 'file' keyword-argument
+        for n, a in enumerate(args):
+            if not _extend_e(a):
+                break
+        args = tuple(args[n+1:])
+        for a in kwargs.pop('file', []):
+            _extend_e(a)
+        # then handle the list
+        r, kwargs['silent'] = [], False
         for exe in e:
+            kwargs['label'] = l.get(Path(exe).stem, -1)
             r.append(method(self, exe, *args, **kwargs))
+            kwargs['silent'] = True
         return r[0] if len(r) == 1 else r
     return _wrapper
 
@@ -150,6 +170,15 @@ class Base:
                 self.logger.debug("Status: %s" % ["broken", "not installed", "todo"][self.status])
                 return lambda *a, **kw: False
         return super(Base, self).__getattribute__(name)
+    
+    def _test(self, silent=False):
+        """ Preamble to the .test(...) method. """
+        if self.status < 2:
+            self.logger.warning("%s %s" % (self.__class__.__name__, ["broken", "not installed"][self.status]))
+            return
+        logging.setLogger(self.name)
+        if not silent:
+            self.logger.info("Testing %s..." % self.__class__.__name__)
     
     def check(self, *categories):
         """ Checks if the current item is applicable to the given categories. """
@@ -406,11 +435,7 @@ class Base:
     
     def test(self, files=None, **kw):
         """ Tests the item on some executable files. """
-        if self.status < 2:
-            self.logger.warning("%s %s" % (self.__class__.__name__, ["broken", "not installed"][self.status]))
-            return
-        logging.setLogger(self.name)
-        self.logger.info("Testing %s..." % self.__class__.__name__)
+        self._test(kw.get('silent', False))
         d = ts.TempPath(prefix="%s-tests-" % self.type, length=8)
         for category in self._categories_exp:
             if files:
