@@ -8,6 +8,7 @@ Bintropy:
     - https://ieeexplore.ieee.org/document/4140989
   source: https://github.com/dhondta/docker-packing-box
   status: ok
+  vote:   false
 
 DIE:
   categories:

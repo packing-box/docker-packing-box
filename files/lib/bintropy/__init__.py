@@ -1,7 +1,7 @@
 # -*- coding: UTF-8 -*-
 from elftools.elf.elffile import ELFFile
 from magic import from_file
-from math import ceil, log2
+from math import ceil, log2, sqrt
 from pefile import PE
 from re import match
 
@@ -21,7 +21,6 @@ def bintropy(executable, full=False, blocksize=256, ignore_half_block_zeros=True
     :param blocksize:               process per block of N bytes (0 means considering the executable as a single block)
     :param ignore_half_block_zeros: ignore blocks having more than half of zeros
     :param decide:                  decide if packed or not, otherwise simply return the entropy values
-    :param verbose:                 display detailed information
     """
     try:
         ft = from_file(str(executable))
@@ -41,40 +40,40 @@ def bintropy(executable, full=False, blocksize=256, ignore_half_block_zeros=True
             print("[DEBUG] Entropy (average): {}".format(e[1]))
             iw = len(str(len(e[0])))
             for i, j in enumerate(e[0]):
-                print(("  #{: <%s}: {}" % iw).format(i + 1, "-" if j is None else j))
+                print(("    #{: <%s}: {}" % iw).format(i + 1, "-" if j is None else j))
         return is_packed(e[0], e[1], verbose) if decide else e
     # compute a weighted entropy of all the sections of the executable
     else:
         e, w = {}, {}
+        def _handle(n, d):
+            r = entropy(d, blocksize, ignore_half_block_zeros)
+            e[n] = r if isinstance(r, (list, tuple)) else ([r], r)
+            w[n] = len(d)
         if pe:
             for s in PE(str(executable)).sections:
-                n = s.Name.strip(b"\x00").decode() or "main"
-                e[n] = entropy(s.get_data(), blocksize, ignore_half_block_zeros)
-                w[n] = len(s.get_data())
+                _handle(s.Name.strip(b"\x00").decode() or "main", s.get_data())
         else:
             with open(str(executable), 'rb') as f:
                 elf = ELFFile(f)
                 for s in elf.iter_sections():
-                    n = s.name.strip() or "main"
-                    e[n] = entropy(elf.get_section_by_name(n).data(), blocksize, ignore_half_block_zeros)
-                    w[n] = len(elf.get_section_by_name(n).data())
+                    _handle(s.name.strip() or "main", elf.get_section_by_name(s.name).data())
         if verbose:
             print("[DEBUG] Entropy per section:")
             for name, entr in e.items():
-                print("{}: {}{}".format(name, (entr or ("", "-"))[1], [" (average)", ""][entr is None]))
+                print("  {}: {}{}".format(name, (entr or ("", "-"))[1], [" (average)", ""][entr is None]))
                 for i, j in enumerate((entr or [[]])[0]):
-                    print(("  #{: <%s}: {}" % len(str(len(entr[0])))).format(i + 1, "-" if j is None else j))
+                    print(("    #{: <%s}: {}" % len(str(len(entr[0])))).format(i + 1, "-" if j is None else j))
         if decide:
-            # aggregate per-section entropy scores
+            # aggregate per-section entropy scores with a simple weighted sum
             e2, e_avg2, t = 0, 0, 0
             for n, entr in e.items():
-                if entr is None:
+                if entr[1] in [.0, None]:
                     continue
-                e2 += max(entr[0]) * w[n]
+                e2 += max([x for x in entr[0] if x is not None]) * w[n]
                 e_avg2 += entr[1] * w[n]
                 t += w[n]
             return is_packed(e2 / t, e_avg2 / t, verbose)
-        return e
+    return e
 
 
 def entropy(something, blocksize=0, ignore_half_block_zeros=False):
@@ -102,6 +101,8 @@ def entropy(something, blocksize=0, ignore_half_block_zeros=False):
                 if n_zeros > lz:
                     ignore = True
                     break
+        # when ignore has been set to True, this means that the current block has more than half of its bytes filled
+        #  with zeros ; then put None instead of an entropy value and increase the related counter
         if ignore:
             e.append(None)
             n_ignored += 1
@@ -122,14 +123,15 @@ def is_packed(entropies, average, verbose=False):
     :param entropies: the list of block entropy values or the highest block entropy value
     ;param average:   the average block entropy
     """
+    _t1, _t2 = THREASHOLD_AVERAGE_ENTROPY, THREASHOLD_HIGHEST_ENTROPY
     if not isinstance(entropies, (list, tuple)):
         entropies = [entropies]
     entropies = [x for x in entropies if x is not None]
     max_e = max(entropies)
-    c1 = average > THREASHOLD_AVERAGE_ENTROPY
-    c2 = max_e > THREASHOLD_HIGHEST_ENTROPY
+    c1 = average > _t1
+    c2 = max_e > _t2
     if verbose:
-        print("[DEBUG] Average entropy criteria (>{}): {} ({})".format(THREASHOLD_AVERAGE_ENTROPY, c1, average))
-        print("[DEBUG] Highest entropy criteria (>{}): {} ({})".format(THREASHOLD_HIGHEST_ENTROPY, c2, max_e))
+        print("[DEBUG] Average entropy criteria (>{}): {} ({})".format(_t1, c1, average))
+        print("[DEBUG] Highest entropy criteria (>{}): {} ({})".format(_t2, c2, max_e))
     return c1 and c2
 
