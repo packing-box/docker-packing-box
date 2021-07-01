@@ -356,8 +356,6 @@ UPX:
       - so
   install:
     apt: upx
-  references:
-    - https://www.aldeid.com/wiki/Category:Digital-Forensics/Computer-Forensics/Anti-Reverse-Engineering/Packers/UPX
   silent:
     - NotCompressibleException
   references:
@@ -366,6 +364,20 @@ UPX:
     - https://storage.ey.md/Technology%%20Related/Programming%%20%%26%%20Reversing/Tuts4You%%20Collection/UnPackMe%%20Collection/PE32/UPX%%201.25.rar
     - https://storage.ey.md/Technology%%20Related/Programming%%20%%26%%20Reversing/Tuts4You%%20Collection/UnPackMe%%20Collection/PE32/UPX%%203.04.rar
     - https://storage.ey.md/Technology%%20Related/Programming%%20%%26%%20Reversing/Tuts4You%%20Collection/Unpacking%%20Tutorials/UPX%%20%%28Unpacking%%29.rar
+    - https://www.aldeid.com/wiki/Category:Digital-Forensics/Computer-Forensics/Anti-Reverse-Engineering/Packers/UPX
   source: https://upx.github.io
   status: ok
+
+Yoda_Protector:
+  categories:
+    - PE32
+  description: Yoda's Protector is a free, open source, Windows 32-bit software protector. It performs string & resource encryption, resource compression, uses Microsoft Crypto API, program compression, program optimization, polymorphic encryption, API redirection, anti-debugging tricks, removes debug information and relocation table, optimizes and removes DOS header.
+  exclude:
+    PE:
+      - ds
+  install:
+    unzip: /opt/packers/yoda_protector
+    wine:  yP.exe
+  source: http://yodap.sourceforge.net
+  status: gui
 
