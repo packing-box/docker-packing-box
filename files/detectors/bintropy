@@ -1,30 +1,14 @@
 #!/usr/bin/python3
 # -*- coding: UTF-8 -*-
+from bintropy import bintropy
 from pboxtools import *
 
 
 def execute(name, **kwargs):
-    _last = lambda x: x[-1] if isinstance(x, (list, tuple)) else x
-    p, d, f = kwargs['path'], kwargs['decide'], kwargs['full']
-    try:
-        r = bintropy(p, f, kwargs['blocksize'], not kwargs['all_blocks'], d, kwargs['verbose'])
-        if f or d:
-            return str(_last(r)), ""
-        else:
-            if len(r) == 0:
-                return "", "This file has no section"
-            return "\n".join(("{: <%d}: {}" % max(map(len, r.keys()))).format(n, _last(e)) for n, e in r.items()), ""
-    except Exception as e:
-        raise
-        return "", str(e)
+    r = bintropy(kwargs['path'])
+    return (None, "no result") if r is None else (r, None)
 
 
 if __name__ == "__main__":
-    run("Bintropy", exec_func=execute, normalize_output=False,
-        parser_args=[(1, ("-a", "--all-blocks"), {'action': "store_true", 'help': "consider all blocks (even those in "
-                                                                                "which more than the half are zeros)"}),
-                     (2, ("-d", "--do-not-decide"), {'action': "store_false", 'dest': "decide",
-                                                     'help': "do not decide if packed, return entropy values"}),
-                     (2, ("-f", "--full"), {'action': "store_true", 'help': "consider the whole executable"}),
-                     (3, ("--blocksize", ), {'type': int, 'default': 256, 'help':"block size to be considered"})])
+    run("Bintropy", exec_func=execute, normalize_output=False)
 

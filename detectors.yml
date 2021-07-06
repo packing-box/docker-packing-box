@@ -2,8 +2,10 @@ Bintropy:
   categories:
     - ELF
     - PE
-  comment: Developed based on the description from the reference paper.
+  command: bintropy {path}
   description: Bintropy is an analysis tool that estimates the likelihood that a binary file contains compressed or encrypted bytes.
+  install:
+    pip: bintropy
   references:
     - https://ieeexplore.ieee.org/document/4140989
   source: https://github.com/dhondta/docker-packing-box
@@ -16,6 +18,7 @@ DIE:
   command: /opt/detectors/die_lin64_portable/diec.sh {path}
   description: Detect It Easy (DIE) is a program for determining types of files.
   install:
+    rm:   /tmp/DIE-engine
     gitr: https://github.com/horsicq/DIE-engine.git
     cd:   /tmp/DIE-engine
     exec:
@@ -64,7 +67,7 @@ PEiD:
     - PE
   description: PEiD detects most common packers, cryptors and compilers for PE files. It can currently detect more than 600 different signatures in PE files.
   install:
-    exec: cp /tmp/userdb.txt /opt/detectors/
+    pip: peid
   references:
     - https://www.aldeid.com/wiki/PEiD
     - www.softpedia.com/get/Programming/Packers-Crypters-Protectors/PEiD-updated.shtml

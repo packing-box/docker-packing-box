@@ -1,15 +1,12 @@
 #!/usr/bin/python3
 # -*- coding: UTF-8 -*-
 from pboxtools import *
-
-
-DB = "/opt/detectors/userdb.txt"
+from peid import identify_packer
 
 
 def execute(name, **kwargs):
-    with open(kwargs['db'], encoding="latin-1") as f:
-        sigs = peutils.SignatureDatabase(data=f.read())
-    return "\n".join(sigs.match(pefile.PE(kwargs['path']), ep_only=True) or []), None
+    r = identify_packer(kwargs['path'], kwargs['db']).split("\n")
+    return (None, "no result") if r is None else (r, None)
 
 
 def parse(output):
@@ -23,6 +20,5 @@ def parse(output):
 
 if __name__ == "__main__":
     run("PEiD", exec_func=execute, parse_func=parse, exe_type="pe", exe_help="path to the PE file",
-        parser_args=[(2, ("-d", "--db"), {'dest': "db", 'default': "/opt/detectors/userdb.txt",
-                                          'help': "signatures database"})])
+        parser_args=[(2, ("-d", "--db"), {'dest': "db", 'help': "custom signatures database"})])
 
