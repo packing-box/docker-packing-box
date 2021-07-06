@@ -26,22 +26,51 @@ SIGNATURES = {
 
 
 class Executable(Path):
-    """ Executable abstraction. """
+    """ Executable abstraction.
+    
+    Can be initialized in three different ways:
+    (1) Executable instance provided as single element in 'parts', with 'dataset' kwarg set
+    (2) Classical Path instance, with 'parts' and no dataset bound
+    (3) Classical Path instance, with 'parts' and 'dataset' kwarg set for binding a parent Dataset instance
+    (4) No 'parts' provided, but a Dataset instance and a hash are provided as kwargs
+    """
     _features = {}
 
     def __new__(cls, *parts, **kwargs):
-        ds, h = kwargs.pop('dataset', None), kwargs.pop('data', None)
-        opt = {}
-        for k in ["category", "data", "filetype", "hash"]:
-            opt[k] = kwargs.pop(k, None)
-        if len(parts) == 0 and ds and h:
-            parts = (ds.files.joinpath(h), )
-        elif len(parts) == 0 and not ds:
-            raise ValueError("Cannot determine executable's path")
-        self = super(Executable, cls).__new__(cls, *parts, **kwargs)
-        self.__hash = h #FIXME: use self.attributes
-        self.__hash = kwargs.pop('hash', None)
-        self.dataset = ds
+        ds = kwargs.pop('dataset', None)
+        l = kwargs.pop('label', None)
+        # cases 1 to 3
+        if len(parts) > 0:
+            e = parts[0]
+            if len(parts) == 1 and isinstance(e, Executable) and ds == e.dataset:
+                return e
+            self = super(Executable, cls).__new__(cls, *parts, **kwargs)
+            # case 1: an Executable instance is given, i.e. from another dataset ; make self inherit its properties
+            if len(parts) == 1 and isinstance(e, Executable):
+                self.hash = e.destination.filename
+                # otherwise, clone its cached properties
+                for attr in ["category", "data", "filetype", "realpath"]:
+                    setattr(self, attr, getattr(e, attr))
+                l = e.label
+            # case 3: a dataset is given, bind it and copy the input executable to dataset's files if relevant
+            if ds:
+                self.dataset = ds
+                if self.absolute().is_under(ds.files):
+                    self.hash = self.filename
+                ds[self] = l
+                ds._save()
+                
+        # case 4: get cached properties and data for the given hash from the bound dataset
+        else:
+            try:
+                h = kwargs.pop('hash')
+                d = ds[h, True]
+            except (KeyError, TypeError):
+                raise ValueError("When no 'parts' arg is provided, 'dataset' and 'hash' kwargs must be provided")
+            self = super(Executable, cls).__new__(cls, ds.files.joinpath(h), **kwargs)
+            self.dataset, self.hash, l, _ = ds, h, d.pop('label'), d.pop('hash')
+            self.data = d
+        self.label = l
         return self
     
     def __getattribute__(self, name):
@@ -53,13 +82,13 @@ class Executable(Path):
         return super(Executable, self).__getattribute__(name)
     
     def copy(self):
-        if str(self) != str(self.destination):
+        if str(self) != str(self.destination) and not self.destination.exists():
             shutil.copy(str(self), str(self.destination))
             self.destination.chmod(0o777)
     
     @property
     def attributes(self):
-        return {n: getattr(self, n) for n in ["category", "ctime", "data", "filetype", "hash", "mtime"]} #FIXME
+        return {n: getattr(self, n) for n in ["category", "ctime", "data", "filetype", "hash", "mtime"]}
     
     @cached_property
     def category(self):
@@ -75,8 +104,6 @@ class Executable(Path):
     
     @cached_property
     def data(self):
-        if self.__data is not None:
-            return self.__data
         data = {}
         for name, func in self._features.items():
             r = func(self)
@@ -88,7 +115,10 @@ class Executable(Path):
     
     @cached_property
     def destination(self):
-        return self.dataset._file(self.hash, hash=self.hash, data=self.data)
+        try:
+            return self.dataset.files.joinpath(self.hash)
+        except (AttributeError, TypeError):
+            raise ValueError("No 'Dataset' instance bound")
     
     @property
     def features(self):
@@ -103,13 +133,16 @@ class Executable(Path):
     
     @cached_property
     def hash(self):
-        return self.__hash or hashlib.sha256_file(str(self))
+        return hashlib.sha256_file(str(self))
     
     @cached_property
     def mtime(self):
         return datetime.fromtimestamp(self.stat().st_mtime)
     
-    @property
-    def path(self):
-        return Path(self.dataset._names[self.hash])
+    @cached_property
+    def realpath(self):
+        try:
+            return Path(self.dataset._names[self.hash])
+        except (AttributeError, TypeError):
+            raise ValueError("No 'Dataset' instance bound")
 

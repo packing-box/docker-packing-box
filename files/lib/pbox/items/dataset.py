@@ -103,8 +103,9 @@ class Dataset:
     
     def __len__(self):
         """ Get dataset's length. """
-        if not len(self._data) == len(self._labels) == len(self._names):
-            raise InconsistentDataset(self.name)
+        ld, ll, ln = len(self._data), len(self._labels), len(self._names)
+        if not ld == ll == ln:
+            raise InconsistentDataset("%s (data: %d ; labels: %d ; names: %d)" % (self.name, ld, ll, ln))
         return len(self._labels)
     
     def __setattr__(self, name, value):
@@ -117,21 +118,25 @@ class Dataset:
         super(Dataset, self).__setattr__(name, value)
     
     def __setitem__(self, executable, label):
-        """ Add an executable based on its real name to the dataset. """
+        """ Add an executable based on its real name to the dataset.
+        
+        :param executable: either the path to the executable or its Executable instance
+        :param label:      either the text label of the given executable or its dictionary of data
+        """
         self.__change = True
         e = executable
         try:
             e, refresh = e
         except (TypeError, ValueError):
             refresh = False
-        if not isinstance(e, Executable):
-            e = Executable(e)
+        e = Executable(e, dataset=self)
         if refresh or not e.is_file():
             del self[e, refresh]
             return
         if isinstance(label, dict):
             d = label
-            e = Executable(e, hash=d['hash'], data={k: v for k, v in d.items() if k not in ["hash", "label"]})
+            e.hash = d['hash']
+            e.data = {k: v for k, v in d.items() if k not in ["hash", "label"]}
             label = d['label']
         else:
             d = {'hash': e.hash, 'label': label}
@@ -141,10 +146,10 @@ class Dataset:
             self._metadata.setdefault('categories', [])
             if e.category not in self._metadata['categories']:
                 self._metadata['categories'].append(e.category)
-        self._names[e.hash] = str(e)
-        if len(self._data) > 0 and e.hash in self._data.hash:
+        self._names[e.hash] = str(e.realpath)
+        if len(self._data) > 0 and e.hash in list(self._data.hash):
             self.logger.debug("updating %s..." % e.hash)
-            self._data.update(pd.DataFrame.from_dict(d))
+            self._data.update(pd.DataFrame(d, index=[0]))
         else:
             self.logger.debug("adding %s..." % e.hash)
             self._data = self._data.append(d, ignore_index=True)
@@ -155,17 +160,12 @@ class Dataset:
         """ Copy the current dataset to a given destination. """
         self.path.copy(path)
     
-    def _file(self, hash):
-        """ Get an Executable instance from a hash. """
-        return Executable(self.files.joinpath(hash), dataset=self, hash=hash,
-                          data={k: v for k, v in self[hash, True].items() if k not in ["hash", "label"]})
-    
     def _filter(self, hash=None, start_hash=None, end_hash=None, start_ctime=None, end_ctime=None, start_mtime=None,
                 end_mtime=None, label=None, **kw):
         """ Yield executables' hashes from the dataset based on multiple criteria. """
         # first, yield hashes provided
         for h in (hash or []):
-            yield self._file(h)
+            yield Executable(dataset=self, hash=h)
         # internal function to adapt inputs for filtering (with a value that enables a strict order)
         def _convert(name, value):
             if name == "hash":
@@ -178,14 +178,14 @@ class Dataset:
             start, end = _convert(n, locals()['start_' + n]), _convert(n, locals()['end_' + n])
             if start is not None or end is not None:
                 for h in self.files.listdir():
-                    f = self._file(h)
+                    f = Executable(dataset=self, hash=h)
                     if start and getattr(f, n) >= start or end and getattr(f, n) < end:
                         yield f
         # finally, yield based on the packer label
         if label is not None:
             for h, l in list(self._labels.items()):
                 if label == l:
-                    yield self._file(h)
+                    yield Executable(dataset=self, hash=h)
     
     def _hash(self):
         """ Custom object hashing function. """
@@ -364,7 +364,8 @@ class Dataset:
         self._features = d
         # now copy files from the input dataset
         for f in ds2.files.listdir():
-            Executable(f, dataset=self).copy()
+            e = Executable(f, dataset=self)
+            self[e, True] = e.label
         self._save()
     
     def remove(self, **kw):
@@ -493,7 +494,7 @@ class Dataset:
         for category in categories:
             d = {c: [0, 0] for c in CAT}
             for h, label in self._labels.items():
-                exe = Executable(self.files.joinpath(h), dataset=self)
+                exe = Executable(dataset=self, hash=h)
                 if category != "All" and exe.category != category:
                     continue
                 s = size_cat(exe.size)

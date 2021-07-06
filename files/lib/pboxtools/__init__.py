@@ -1,7 +1,5 @@
 # -*- coding: UTF-8 -*-
 import json
-import pefile
-import peutils
 import re
 from argparse import ArgumentParser, RawTextHelpFormatter
 from ast import literal_eval
@@ -12,11 +10,8 @@ from sys import stderr
 from time import perf_counter
 from yaml import safe_load
 
-from bintropy import *
-from bintropy import __all__ as _bintropy
 
-
-__all__ = ["json", "literal_eval", "pefile", "peutils", "re", "run", "PACKERS", "PACKERS_FILE"] + _bintropy
+__all__ = ["json", "literal_eval", "re", "run", "PACKERS", "PACKERS_FILE"]
 
 
 DETECTORS      = None
@@ -77,8 +72,9 @@ def run(name, exec_func=execute, parse_func=lambda x: x, stderr_func=lambda x: x
         (("-b", "--benchmark"), {'action': "store_true", 'help': "enable benchmarking"}),
         (("-v", "--verbose"), {'action': "store_true", 'help': "display debug information"}),
         (("--detectors-file", ), {'default': DETECTORS_FILE, 'help': "path to detectors YAML"}),
-        (("--packers-file", ), {'default': PACKERS_FILE, 'help': "path to packers YAML"}),
     ]
+    if normalize_output:  # the PACKERS list is only required when normalizing
+        pargs.append((("--packers-file", ), {'default': PACKERS_FILE, 'help': "path to packers YAML"}))
     for i, args, kw in sorted(parser_args, key=lambda x: -x[0]):
         pargs.insert(i, (args, kw))
     for args, kw in pargs:
@@ -94,9 +90,10 @@ def run(name, exec_func=execute, parse_func=lambda x: x, stderr_func=lambda x: x
     DETECTORS_FILE = a.detectors_file
     with open(DETECTORS_FILE) as f:
         DETECTORS = safe_load(f.read())
-    PACKERS_FILE = a.packers_file
-    with open(PACKERS_FILE) as f:
-        PACKERS = safe_load(f.read())
+    if normalize_output:
+        PACKERS_FILE = a.packers_file
+        with open(PACKERS_FILE) as f:
+            PACKERS = safe_load(f.read())
     # execute the tool
     t1 = perf_counter()
     out, err = exec_func(name, **kwargs)
