@@ -1,3 +1,6 @@
+[![Read The Docs](https://readthedocs.org/projects/docker-packing-box/badge/?version=latest)](http://docker-packing-box.readthedocs.io/en/latest/?badge=latest)
+[![License: GPL v3](https://img.shields.io/badge/License-GPLv3-orange.svg)](https://www.gnu.org/licenses/gpl-3.0)
+
 # Packing Box
 
 This Docker image aims to regroup multiple common executable packers and make datasets of packed executables.
