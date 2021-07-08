@@ -394,7 +394,7 @@ class Dataset:
             self._save()
     
     def revert(self, **kw):
-        """ Revert to the latest version of the dataset (if a backup copy exists in /tmp. """
+        """ Revert to the latest version of the dataset (if a backup copy exists in /tmp). """
         b = self.backup
         if b is None:
             self.logger.warning("No backup found ; could not revert")

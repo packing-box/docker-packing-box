@@ -9,7 +9,7 @@ CATEGORIES = {
     'All':    ["ELF", "Mach-O", "MSDOS", "PE"],
     'ELF':    ["ELF32", "ELF64"],
     'Mach-O': ["Mach-O32", "Mach-O64", "Mach-Ou"],
-    'PE':     ["PE32", "PE64"],
+    'PE':     [".NET", "PE32", "PE64"],
 }
 
 

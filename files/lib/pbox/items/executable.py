@@ -28,7 +28,7 @@ SIGNATURES = {
 class Executable(Path):
     """ Executable abstraction.
     
-    Can be initialized in three different ways:
+    Can be initialized in four different ways:
     (1) Executable instance provided as single element in 'parts', with 'dataset' kwarg set
     (2) Classical Path instance, with 'parts' and no dataset bound
     (3) Classical Path instance, with 'parts' and 'dataset' kwarg set for binding a parent Dataset instance
