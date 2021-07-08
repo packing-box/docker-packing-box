@@ -57,39 +57,28 @@ Entries can also be cleaned as with a `dict` instance.
 <[ this will completely remove the item from the dataset ]>
 ```
 
-**Attributes**:
-- `_data`: `pandas.DataFrame` instance holding the data collected from a set of features applicable for the [executable formats](executable.html) selected (loaded from and saved to [`data.csv`](#structure)))
-- `_features`: dictionary of included features, with short names as keys and their corresponding descriptions as values (loaded from and saved to [`features.json`](#structure)))
-- `_labels`: dictionary with SHA256-filenames as keys and their corresponding labels of packers (or `None` if unpacked) (loaded from and saved to [`labels.json`](#structure)))
-- `_metadata`: dictionary of metadata, e.g. holding the list of selected categories of executable format and counts of included executables (loaded from and saved to [`metadata.json`](#structure)))
-- `_names`: dictionary with SHA256-filenames as keys and their corresponding original filenames as values (loaded from and saved to [`names.json`](#structure)))
+Attributes:
+- `_data`: `pandas.DataFrame` instance holding the data collected from a set of features applicable for the executable formats selected
+- `_features`: dictionary of included features, with short names as keys and their corresponding descriptions as values
+- `_labels`: dictionary with SHA256-filenames as keys and their corresponding labels of packers (or `None` if unpacked)
+- `_metadata`: dictionary of metadata, e.g. holding the list of selected categories of executable format and counts of included executables
+- `_names`: dictionary with SHA256-filenames as keys and their corresponding original filenames as values
 - `categories`: list of applicable categories of executable formats
 - `logger`: `logging.Logger` instance for producing debug messages
 - `packers`: list of `Packer` instances applicable to the dataset, given the selected categories of executable formats
 - `path`: `tinyscript.Path` instance holding the path the the dataset folder
 - `sources`: dictionary containing applicable categories as keys and their corresponding lists of source folders for making the dataset
 
-**Properties**:
+Properties:
 - `backup` (settable): `Dataset` instance holding the latest backup of the current dataset
 - `files`: `tinyscript.Path` instance pointing on dataset's `files` subfolder
 - `name`: dataset's name, composed with the folder's name and, between brackets, the comma-separated list of applicable categories of executable formats
 - `overview`: string representation of the dataset, for describing it in the terminal
 
-**Methods**:
-- `fix`: for making dataset's structure and files match
-- `is_valid`: for checking if this Dataset instance has a valid structure
-- `list`: for listing all the datasets from the given path
-- `make`: for making N new samples in the current dataset among the input binary categories, balanced or not according to the number of distinct packers
-- `merge`: for merging another dataset with the current one ; precedence is set by the `update` parameter
-- `remove`: for removing executables from the dataset given their hashes
-- `rename`: for renaming the current dataset
-- `reset`: for truncating and recreating a blank dataset
-- `revert`: for reverting to the latest version of the dataset (if a backup copy exists in `/tmp`)
-- `select`: for selecting a subset from the current dataset based on multiple criteria
-- `show`: for showing an overview of the dataset
-- `update`: for updating the dataset with a folder of binaries, detecting used packers if `detect=True`, otherwise packing randomly ; if labels are provided, they are used instead of applying packer detection
+Methods:
+- ``
 
-**Static methods**:
+Static methods:
 - `check(folder)`: for checking a `folder` against the required `Dataset` structure ; returns a boolean
 - `labels(labels)`: for loading a `labels` dictionary (from a string or a `Path` instance) ; ensures a valid dictionary is returned
 - `summarize(path=None, show=False)`: displays the summary of a dataset (if `path=None`, the local folder is the used), showing corrupted data too if `show=True`

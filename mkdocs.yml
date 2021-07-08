@@ -3,12 +3,12 @@ repo_url: https://github.com/dhondta/python-codext
 site_author: dhondta
 docs_dir: docs
 pages:
-  - Introduction: index.md
-  - Executables: executables.md
-  - Datasets: datasets.md
-  - Detectors: detectors.md
-  - Packers: packers.md
-  - Unpackers: unpackers.md
+  - Introduction: pages/index.md
+  - Executables: pages/executables.md
+  - Datasets: pages/datasets.md
+  - Detectors: pages/detectors.md
+  - Packers: pages/packers.md
+  - Unpackers: pages/unpackers.md
 extra:
   mailto: alexandre.dhondt@gmail.com
 theme: readthedocs

@@ -14,28 +14,6 @@ This class can be used in four different ways:
 3. With no positional arguments for describing a path but a [`Dataset`](dataset.html) instance and a *hash* as keyword-arguments ; this will bind the `Executable` instance to the dataset and make the path point to the executable with the given *hash* from within the dataset
 4. From an `Executable` instance as positional argument with a [`Dataset`](dataset.html) instance as keyword-argument ; in this case, the new `Executable` will have the properties of the input one and the file will be copied to the bound dataset
 
-## Supported Formats
-
-This abstraction handles multiple executable formats sorted in categories:
-
-```
-All
-  +-- ELF
-  |     +-- ELF32           ^(set[gu]id )?ELF 32-bit
-  |     +-- ELF64           ^(set[gu]id )?ELF 64-bit
-  +-- Mach-O
-  |     +-- Mach-O32        ^Mach-O 32-bit
-  |     +-- Mach-O64        ^Mach-O 64-bit
-  |     +-- Mach-Ou         ^Mach-O universal binary
-  +-- MSDOS                 ^MS-DOS executable\s*
-  +-- PE
-        +-- .NET            ^PE32\+? executable (.+?)\.Net assembly
-        +-- PE32            ^PE32 executable
-        +-- PE64            ^PE32\+ executable
-```
-
-Each processing depending on categories flattens its list from this tree structure ; e.g. `["PE", "ELF64"]` will be expanded to `[".NET", "PE32", "PE64", "ELF64"]`
-
 ## `Executable` Class
 
 This class subclasses [`ts.Path`](https://python-tinyscript.readthedocs.io/en/latest/helpers.html#extended-pathlib-like-classes) (from [Tinyscript](https://python-tinyscript.readthedocs.io/en/latest/)), itself extending [`pathlib.Path`](https://docs.python.org/3/library/pathlib.html) with additional methods.
