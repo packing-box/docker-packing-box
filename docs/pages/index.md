@@ -6,7 +6,7 @@ It aims to provide a single platform for studying packing for more than what we 
 
 ## Setup
 
-Setting up the *Packing Box* requires installing Docker and cloning this repository. The `Dockerfile` can then be used to build the image.
+Setting up the *Packing Box* requires installing Docker and cloning this repository. The [`Dockerfile`](https://github.com/dhondta/docker-packing-box/blob/main/Dockerfile) can then be used to build the image.
 
 ```session
 # apt install docker
@@ -25,15 +25,15 @@ Running the *Packing Box* is done by starting it up with Docker.
 
 ```session
 # docker run -it -h packing-box -v `pwd`:/mnt/share dhondta/packing-box
-                                                          .______      ___       ______  __  ___  __  .__   __.   _______ .______     ______   ___   ___
-                                                          |   _  \    /   \     /      ||  |/  / |  | |  \ |  |  /  _____||   _  \   /  __  \  \  \ /  /
-                                                          |  |_)  |  /  ^  \   |  ,----'|  '  /  |  | |   \|  | |  |  __  |  |_)  | |  |  |  |  \  V  /
-                                                          |   ___/  /  /_\  \  |  |     |    <   |  | |  . `  | |  | |_ | |   _  <  |  |  |  |   >   <
-                                                          |  |     /  _____  \ |  `----.|  .  \  |  | |  |\   | |  |__| | |  |_)  | |  `--'  |  /  .  \
-                                                          | _|    /__/     \__\ \______||__|\__\ |__| |__| \__|  \______| |______/   \______/  /__/ \__\
+                              .______      ___       ______  __  ___  __  .__   __.   _______ .______     ______   ___   ___
+                              |   _  \    /   \     /      ||  |/  / |  | |  \ |  |  /  _____||   _  \   /  __  \  \  \ /  /
+                              |  |_)  |  /  ^  \   |  ,----'|  '  /  |  | |   \|  | |  |  __  |  |_)  | |  |  |  |  \  V  /
+                              |   ___/  /  /_\  \  |  |     |    <   |  | |  . `  | |  | |_ | |   _  <  |  |  |  |   >   <
+                              |  |     /  _____  \ |  `----.|  .  \  |  | |  |\   | |  |__| | |  |_)  | |  `--'  |  /  .  \
+                              | _|    /__/     \__\ \______||__|\__\ |__| |__| \__|  \______| |______/   \______/  /__/ \__\
 
 
- 
+
   This Docker image is a ready-to-use platform for making datasets of packed and not packed executables, especially for training machine learning models.
 
 [...]
@@ -47,28 +47,27 @@ From inside the box, help can be obtained by using the "`?`" tool. This will dis
 
 - `-i ITEM`: allows to see the particular help of an item from the box
 
-  ```session
-  # ? -i peid    
-                                                                                           .______    _______  __   _______
-                                                                                           |   _  \  |   ____||  | |       \
-                                                                                           |  |_)  | |  |__   |  | |  .--.  |
-                                                                                           |   ___/  |   __|  |  | |  |  |  |
-                                                                                           |  |      |  |____ |  | |  '--'  |
-                                                                                           | _|      |_______||__| |_______/
+```session
+# \? -i peid    
+                                           .______    _______  __   _______
+                                           |   _  \  |   ____||  | |       \
+                                           |  |_)  | |  |__   |  | |  .--.  |
+                                           |   ___/  |   __|  |  | |  |  |  |
+                                           |  |      |  |____ |  | |  '--'  |
+                                           | _|      |_______||__| |_______/
 
 
 
-   
-    PEiD detects most common packers, cryptors and compilers for PE files. It can currently detect more than 600 different signatures in PE files.
-    Source: https://github.com/wolfram77web/app-peid
-    Applies to: PE32, PE64
+PEiD detects most common packers, cryptors and compilers for PE files. It can currently detect more than 600 different signatures in PE files.
+Source: https://github.com/wolfram77web/app-peid
+Applies to: PE32, PE64
 
-   References
-      1. https://www.aldeid.com/wiki/PEiD
-      2. www.softpedia.com/get/Programming/Packers-Crypters-Protectors/PEiD-updated.shtml
-      3. https://github.com/ynadji/peid/
+References
+  1. https://www.aldeid.com/wiki/PEiD
+  2. www.softpedia.com/get/Programming/Packers-Crypters-Protectors/PEiD-updated.shtml
+  3. https://github.com/ynadji/peid/
 
-  ```
+```
 
 - `--show-all`: will make the tool display the whole items, even those that are marked as *broken*.
 

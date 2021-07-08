@@ -9,10 +9,11 @@ The `Executable` class allows to abstract an executable. It inherits from the `t
 ## Use Cases
 
 This class can be used in four different ways:
+
 1. As a classical `Path` instance
-2. As a classical `Path` instance with a [`Dataset`](dataset.html) instance bound
-3. With no positional arguments for describing a path but a [`Dataset`](dataset.html) instance and a *hash* as keyword-arguments ; this will bind the `Executable` instance to the dataset and make the path point to the executable with the given *hash* from within the dataset
-4. From an `Executable` instance as positional argument with a [`Dataset`](dataset.html) instance as keyword-argument ; in this case, the new `Executable` will have the properties of the input one and the file will be copied to the bound dataset
+2. As a classical `Path` instance with a [`Dataset`](datasets.html) instance bound
+3. With no positional arguments for describing a path but a [`Dataset`](datasets.html) instance and a *hash* as keyword-arguments ; this will bind the `Executable` instance to the dataset and make the path point to the executable with the given *hash* from within the dataset
+4. From an `Executable` instance as positional argument with a [`Dataset`](datasets.html) instance as keyword-argument ; in this case, the new `Executable` will have the properties of the input one and the file will be copied to the bound dataset
 
 ## Supported Formats
 
@@ -38,11 +39,9 @@ Each processing depending on categories flattens its list from this tree structu
 
 ## `Executable` Class
 
-This class subclasses [`ts.Path`](https://python-tinyscript.readthedocs.io/en/latest/helpers.html#extended-pathlib-like-classes) (from [Tinyscript](https://python-tinyscript.readthedocs.io/en/latest/)), itself extending [`pathlib.Path`](https://docs.python.org/3/library/pathlib.html) with additional methods.
+This [class](https://github.com/dhondta/docker-packing-box/blob/main/files/lib/pbox/items/executable.py#L28) subclasses [`ts.Path`](https://python-tinyscript.readthedocs.io/en/latest/helpers.html#extended-pathlib-like-classes) (from [Tinyscript](https://python-tinyscript.readthedocs.io/en/latest/)), itself extending [`pathlib.Path`](https://docs.python.org/3/library/pathlib.html) with additional methods.
 
 ```session
->>> from pbox import Executable
-
 >>> exe = Executable("hello-world.exe")
 
 >>> exe.category
@@ -61,23 +60,26 @@ datetime.datetime(2021, 7, 8, 7, 41, 4, 875819)
 This abstraction facilitates the retrieval of important attributes and the integration of new [features](https://github.com/dhondta/docker-packing-box/tree/main/files/lib/pbox/learning/features).
 
 **Attributes**:
-- `dataset`: [`Dataset`](dataset.html) instance bound
+
+- `dataset`: [`Dataset`](datasets.html) instance bound
 - `label`: packer label
 
 **Properties**:
+
 - `attributes`: dictionary with properties (see hereafter) `category`, `ctime`, `data`, `filetype`, `hash` and `mtime`
 - `category` \*: format category (e.g. *PE*, *ELF32*, *.NET*)
 - `ctime` \*: creation time as a [`datetime`](https://docs.python.org/3/library/datetime.html#datetime.datetime) instance
 - `data` \*: set of features computed based on the `category`
-- `destination` \*: destination path for integrating the executable into a dataset (only works if a [`Dataset`](dataset.html) instance is bound)
+- `destination` \*: destination path for integrating the executable into a dataset (only works if a [`Dataset`](datasets.html) instance is bound)
 - `features`: dictionary of features (key: feature name, value: feature description)
 - `filetype` \*: file type description (based on [`python-magic`](https://github.com/ahupp/python-magic))
 - `hash` \*: file hash (based on [`hashlib`](https://docs.python.org/3/library/hashlib.html))
 - `mtime` \*: last modification time as a [`datetime`](https://docs.python.org/3/library/datetime.html#datetime.datetime) instance
-- `realpath` \*: real path the executable comes from (only works if a [`Dataset`](dataset.html) instance is bound)
+- `realpath` \*: real path the executable comes from (only works if a [`Dataset`](datasets.html) instance is bound)
 
     \* [`cached_property`](https://docs.python.org/3/library/functools.html#functools.cached_property)
 
 **Methods**:
+
 - `copy()`: copy the file to `self.destination`, that is, to the dataset it is bound to
 
