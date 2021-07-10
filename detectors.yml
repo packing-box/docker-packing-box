@@ -24,7 +24,7 @@ DIE:
     exec:
       - chmod +x build_lin64.sh
       - ./build_lin64.sh
-      - tar xzf /tmp/DIE-engine/release/die_lin64_portable_3.02.tar.gz -C /opt/detectors/
+      - find /tmp/DIE-engine/release -type f -exec tar xzf {} -C /opt/detectors \;
       - tar xf /tmp/die.tar.xz -C /opt/detectors/die_lin64_portable
   source: https://github.com/horsicq/Detect-It-Easy
   status: ok
@@ -32,7 +32,7 @@ DIE:
 Manalyze:
   categories:
     - PE
-  command: /usr/bin/manalyze -p packer {path} 2>/dev/null
+  command: /usr/local/bin/manalyze -p packer {path} 2>/dev/null
   description: A static analyzer for PE executables.
   install:
     git:  https://github.com/JusticeRage/Manalyze
