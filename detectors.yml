@@ -29,6 +29,14 @@ DIE:
   source: https://github.com/horsicq/Detect-It-Easy
   status: ok
 
+ASL:
+  categories:
+    - PE
+  comment: Uses a signature database (userdb.txt) slightly more recent than PEiD, but works the same way.
+  description: Free windows software. Detect packer, compiler, protector, .NET obfuscator or binary packed data (rar, zip ,iso ,img , ...).
+  source: https://github.com/ExeinfoASL/ASL
+  status: useless
+
 Manalyze:
   categories:
     - PE
@@ -65,7 +73,7 @@ PePack:
 PEiD:
   categories:
     - PE
-  description: PEiD detects most common packers, cryptors and compilers for PE files. It can currently detect more than 600 different signatures in PE files.
+  description: PEiD detects most common packers, cryptors and compilers for PE files.
   install:
     pip: peid
   references:

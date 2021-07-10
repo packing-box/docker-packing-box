@@ -267,10 +267,10 @@ class Base:
     
     def setup(self, **kw):
         """ Sets the item up according to its install instructions. """
-        if self.status == 0:
-            self.logger.debug("Status: broken")
-            return
         logging.setLogger(self.name)
+        if self.status == 0:
+            self.logger.debug("Status: broken or useless ; this item won't be installed")
+            return
         self.logger.info("Setting up %s..." % self.__class__.__name__)
         tmp, obin, ubin = Path("/tmp"), Path("/opt/bin"), Path("/usr/bin")
         result, rm, kw = None, True, {'logger': self.logger}
