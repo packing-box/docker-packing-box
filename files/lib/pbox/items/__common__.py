@@ -206,6 +206,7 @@ class Base:
         use_output, benchmark, verbose = False, kwargs.get('benchmark', False), kwargs.get('verbose', False)
         kw = {'logger': self.logger}
         output = None
+        cwd = os.getcwd()
         for step in getattr(self, "steps", ["%s %s" % (self.name, executable)]):
             if self.name in step and benchmark:
                 i = step.index(self.name)
@@ -213,6 +214,8 @@ class Base:
             attempts = []
             # first, replace generic patterns
             step = step.replace("{{executable}}", str(executable)) \
+                       .replace("{{executable.dirname}}", str(executable.dirname)) \
+                       .replace("{{executable.filename}}", executable.filename) \
                        .replace("{{executable.extension}}", executable.extension) \
                        .replace("{{executable.stem}}", str(executable.dirname.joinpath(executable.stem)))
             # now, replace a previous output and handle it as the return value
@@ -223,8 +226,12 @@ class Base:
             m = re.search(PARAM_PATTERN, step)
             if m:
                 name, values = m.groups()
-                for value in (values or "").split("|"):
-                    attempts.append((re.sub(PARAM_PATTERN, value, step), "%s=%s" % (name, value)))
+                values = (values or "").split("|")
+                for value in values:
+                    disp = "%s=%s" % (name, value)
+                    if len(values) == 2 and "" in values:
+                        disp = "" if value == "" else name
+                    attempts.append((re.sub(PARAM_PATTERN, value, step), disp))
             # now, run attempts for this step in random order until one succeeds
             random.shuffle(attempts)
             attempts = attempts or [step]
@@ -232,8 +239,13 @@ class Base:
                 param = None
                 if isinstance(attempt, tuple) and len(attempt) == 2:
                     attempt, param = attempt
+                if attempt.startswith("cd "):
+                    self.logger.debug(attempt)
+                    os.chdir(attempt[3:])
+                    continue
                 if verbose:
                     attempt += " -v"
+                kw['shell'] = ">" in attempt
                 output, _, retc = run(attempt, **kw)
                 output = ensure_str(output)
                 if self.name in attempt and benchmark:
@@ -247,6 +259,7 @@ class Base:
                     if param:
                         retval += "[%s]" % param
                     break
+        os.chdir(cwd)
         r = (output or None) if use_output or getattr(self, "use_output", False) else retval
         if benchmark:
             r = (r, dt)

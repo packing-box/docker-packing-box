@@ -15,7 +15,7 @@ RUN (apt -qq update \
  || echo -e "\033[1;31m SYSTEM UPGRADE FAILED \033[0m"
 # install common dependencies, libraries and tools
 RUN (apt -qq -y install apt-transport-https apt-utils \
- && apt -qq -y install bash-completion build-essential cmake software-properties-common \
+ && apt -qq -y install bash-completion build-essential clang cmake software-properties-common \
  && apt -qq -y install libavcodec-dev libavformat-dev libavresample-dev libavutil-dev libbsd-dev libboost-regex-dev \
                    libboost-program-options-dev libboost-system-dev libboost-filesystem-dev libc6-dev-i386 \
                    libcairo2-dev libdbus-1-dev libegl1-mesa-dev libelf-dev libffi-dev libfontconfig1-dev \

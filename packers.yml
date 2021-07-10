@@ -210,7 +210,7 @@ MPRESS:
     unzip: /opt/packers/mpress
     wine:  mpress.exe
   steps:
-    - mpress {{executable}}{{compress[| -r]}}{{lzmat[| -m]}}
+    - mpress {{executable}}{{compressed[| -r]}}{{lzmat[| -m]}}
   references:
     - https://storage.ey.md/Technology%%20Related/Programming%%20%%26%%20Reversing/Tuts4You%%20Collection/UnPackMe%%20Collection/dotNET/MPress%%200.71.rar
     - https://storage.ey.md/Technology%%20Related/Programming%%20%%26%%20Reversing/Tuts4You%%20Collection/UnPackMe%%20Collection/PE32/MPress%%200.77.rar
@@ -244,6 +244,17 @@ NetCrypt:
   source: https://github.com/friedkiwi/netcrypt
   status: gui
 
+Pakkero:
+  categories:
+    - ELF
+  description: Pakkero is a binary packer written in Go made for fun and educational purpose. Its main goal is to take in input a program file (elf binary, script, even appimage) and compress it, protect it from tampering and intrusion.
+  install:
+    wget: https://github.com/89luca89/pakkero/releases/download/0.7.0/pakkero_linux_amd64
+    move: /tmp/pakkero
+  steps:
+    - pakkero --file {{executable}} -o {{executable}}{{compressed[| -c]}}
+  source: https://github.com/89luca89/pakkero
+
 PELock:
   categories:
     - PE
@@ -253,8 +264,8 @@ PELock:
     copy: pelock.exe /opt/packers/pelock.exe
     setp: /opt/packers/
     wine: pelock.exe
-    references:
-      - https://github.com/PELock/PELock-Software-Protection-and-Licensing-SDK
+  references:
+    - https://github.com/PELock/PELock-Software-Protection-and-Licensing-SDK
   source: https://www.pelock.com/products/pelock
   status: gui
 
@@ -367,6 +378,23 @@ UPX:
     - https://www.aldeid.com/wiki/Category:Digital-Forensics/Computer-Forensics/Anti-Reverse-Engineering/Packers/UPX
   source: https://upx.github.io
   status: ok
+
+Ward:
+  categories:
+    - ELF
+  description: This is a simple implementation of an ELF packer that creates stealthy droppers for loading malicious ELFs in-memory. Useful for red teamers trying to proliferate a payload while evading detection.
+  install:
+    wget:  https://github.com/ex0dus-0x/ward/archive/refs/heads/master.zip
+    unzip: /opt/packers/
+    cd:    ward-master
+    make:  ward
+    ln:    /opt/packers/ward-master/ward
+  steps:
+    - cd {{executable.dirname}}
+    - ward ./{{executable.filename}} 2>/dev/null
+    - rm -f {{executable.filename}}
+    - mv {{executable.filename}}.packed {{executable.filename}}
+  source: https://github.com/ex0dus-0x/ward
 
 Yoda_Protector:
   categories:
