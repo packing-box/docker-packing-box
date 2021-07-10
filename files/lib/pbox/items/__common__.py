@@ -67,10 +67,12 @@ def file_or_folder_or_dataset(method):
                 e.append(i)
             elif is_folder(i):
                 i = Path(i)
+                # check if it is a dataset
                 if i.joinpath("files").is_dir() and \
                    all(i.joinpath(f).is_file() for f in ["data.csv", "features.json", "labels.json", "names.json"]):
                     with i.joinpath("labels.json").open() as f:
                         l.update(json.load(f))
+                    # if so, move to the dataset's "files" folder
                     i = i.joinpath("files")
                 for f in i.listdir(is_executable):
                     f = str(f)
@@ -83,6 +85,7 @@ def file_or_folder_or_dataset(method):
         # - positional arguments up to the last valid file/folder
         # - then the 'file' keyword-argument
         for n, a in enumerate(args):
+            # if not a valid file, folder or dataset, stop as it is another type of argument
             if not _extend_e(a):
                 break
         args = tuple(args[n+1:])

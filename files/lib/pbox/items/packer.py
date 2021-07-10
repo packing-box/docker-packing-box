@@ -26,12 +26,11 @@ class Packer(Base):
            exe.extension[1:] in getattr(self, "exclude", {}).get(exe.category, []):
             return False
         # now pack the input executable, taking its SHA256 in order to check for changes
-        s256 = hashlib.sha256_file(str(exe))
-        self._error = False
+        h, self._error = exe.hash, False
         label = self.run(exe, **kwargs)
         if self._error:
             return
-        elif s256 == hashlib.sha256_file(str(exe)):
+        elif h == hashlib.sha256_file(str(exe)):
             self.logger.debug("%s's content was not changed by %s" % (exe.filename, self.name))
             self._bad = True
             return

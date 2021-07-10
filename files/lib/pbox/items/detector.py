@@ -52,7 +52,7 @@ class Detector(Base):
             return label
     
     @file_or_folder_or_dataset
-    def test(self, executable=None, **kwargs):
+    def test(self, executable, **kwargs):
         """ Tests the given item on some executable files. """
         b = kwargs.get('boolean', False)
         self._test(kwargs.get('silent', False))

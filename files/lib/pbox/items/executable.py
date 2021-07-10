@@ -42,7 +42,7 @@ class Executable(Path):
         # cases 1 to 3
         if len(parts) > 0:
             e = parts[0]
-            if len(parts) == 1 and isinstance(e, Executable) and ds == e.dataset:
+            if len(parts) == 1 and isinstance(e, Executable) and ds == getattr(e, "dataset", None):
                 return e
             self = super(Executable, cls).__new__(cls, *parts, **kwargs)
             # case 1: an Executable instance is given, i.e. from another dataset ; make self inherit its properties
