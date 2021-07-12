@@ -83,3 +83,25 @@ PEiD:
   source: https://github.com/wolfram77web/app-peid
   status: ok
 
+PyPackerDetect:
+  categories:
+    - PE
+  comment: Relies on PEiD but also uses custom heuristics (e.g. known packer section names, entrypoint in non-standard section, threshhold of non-standard sections reached, low number of imports and overlapping entrypoint sections).
+  description: A complete refactoring of the original PyPackerDetect to a Python package with a console script to detect whether an executable is packed.
+  install:
+    pip: pypackerdetect
+  source: https://github.com/dhondta/PyPackerDetect
+  status: ok
+
+PyPeid:
+  categories:
+    - PE
+  description: Yet another implementation of PEiD with yara-python.
+  install:
+    gitr: https://github.com/FFRI/pypeid.git
+    cd:   /tmp/pypeid
+    exec:
+      - poetry build
+      - find dist -iname *.whl -exec pip3 install {} \;
+  source: https://github.com/FFRI/pypeid
+
