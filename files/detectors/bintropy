@@ -1,14 +1,16 @@
 #!/usr/bin/python3
 # -*- coding: UTF-8 -*-
 from bintropy import bintropy
-from pboxtools import *
+from pboxtools import run
 
 
 def execute(name, **kwargs):
-    r = bintropy(kwargs['path'])
-    return (None, "no result") if r is None else (r, None)
+    try:
+        return str(bintropy(kwargs['path'], logger=kwargs['logger'])), None
+    except Exception as e:
+        return None, str(e)
 
 
 if __name__ == "__main__":
-    run("Bintropy", exec_func=execute, normalize_output=False)
+    run("Bintropy", exec_func=execute, binary_only=True)
 

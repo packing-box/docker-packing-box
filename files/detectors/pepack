@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 # -*- coding: UTF-8 -*-
-from pboxtools import *
+from pboxtools import re, run
 
 
 def parse(output):
@@ -16,7 +16,5 @@ def parse(output):
 
 
 if __name__ == "__main__":
-    run("PePack", parse_func=parse, exe_type="pe", exe_help="path to the PE file",
-        parser_args=[(2, ("-d", "--db"), {'dest': "db", 'default': "/opt/detectors/userdb.txt",
-                                          'help': "signatures database"})])
+    run("PePack", parse_func=parse, exe_type="pe", exe_help="path to the PE file", db="/opt/detectors/userdb.txt")
 

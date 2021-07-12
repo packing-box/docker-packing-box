@@ -178,10 +178,11 @@ class Base:
         """ Preamble to the .test(...) method. """
         if self.status < 2:
             self.logger.warning("%s %s" % (self.__class__.__name__, ["broken", "not installed"][self.status]))
-            return
+            return False
         logging.setLogger(self.name)
         if not silent:
             self.logger.info("Testing %s..." % self.__class__.__name__)
+        return True
     
     def check(self, *categories):
         """ Checks if the current item is applicable to the given categories. """
@@ -451,7 +452,8 @@ class Base:
     
     def test(self, files=None, **kw):
         """ Tests the item on some executable files. """
-        self._test(kw.get('silent', False))
+        if not self._test(kw.get('silent', False)):
+            return
         d = ts.TempPath(prefix="%s-tests-" % self.type, length=8)
         for category in self._categories_exp:
             if files:

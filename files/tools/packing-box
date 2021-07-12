@@ -38,7 +38,7 @@ if __name__ == '__main__':
     initialize(noargs_action="help", ext_logging=True)
     cls_item = args.type.capitalize()
     registry = globals()[cls_item].registry
-    selected = list(map(lambda x: x.lower(), getattr(args, args.type))) or [x.name for x in registry]
+    selected = list(map(lambda x: x.lower(), getattr(args, args.type))) or [x.name for x in registry if x.status > 0]
     for item in registry:
         if item.name in selected:
             try:

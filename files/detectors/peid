@@ -1,16 +1,18 @@
 #!/usr/bin/python3
 # -*- coding: UTF-8 -*-
-from pboxtools import *
+from pboxtools import re, run
 from peid import identify_packer
 
 
 def execute(name, **kwargs):
-    r = identify_packer(kwargs['path'], kwargs['db']).split("\n")
-    return (None, "no result") if r is None else (r, None)
+    try:
+        return identify_packer(kwargs['path'], kwargs['db'], logger=kwargs['logger']), None
+    except Exception as e:
+        return None, str(e)
 
 
 def parse(output):
-    for s in output.splitlines():
+    for s in output:
         try:
             p = re.match(r"^\[(?:.*?)((?:[A-Z$][A-Za-z0-9]{2,}(?:\d+)?(?:'s)?(?:\s+)?)+)", s).group(1).strip()
             return re.sub(r"[\s-]+", "_", sub(r"['/]", "", p.replace("'s", "")), p).lower()
@@ -19,6 +21,5 @@ def parse(output):
 
 
 if __name__ == "__main__":
-    run("PEiD", exec_func=execute, parse_func=parse, exe_type="pe", exe_help="path to the PE file",
-        parser_args=[(2, ("-d", "--db"), {'dest': "db", 'help': "custom signatures database"})])
+    run("PEiD", exec_func=execute, parse_func=parse, exe_type="pe", exe_help="path to the PE file", db=None)
 
