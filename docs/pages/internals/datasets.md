@@ -57,11 +57,11 @@ Entries can also be cleaned as with a `dict` instance.
 
 **Attributes**:
 
-- `_data`: `pandas.DataFrame` instance holding the data collected from a set of features applicable for the [executable formats](executables.html) selected (loaded from and saved to [`data.csv`](#structure)))
-- `_features`: dictionary of included features, with short names as keys and their corresponding descriptions as values (loaded from and saved to [`features.json`](#structure)))
-- `_labels`: dictionary with SHA256-filenames as keys and their corresponding labels of packers (or `None` if unpacked) (loaded from and saved to [`labels.json`](#structure)))
-- `_metadata`: dictionary of metadata, e.g. holding the list of selected categories of executable format and counts of included executables (loaded from and saved to [`metadata.json`](#structure)))
-- `_names`: dictionary with SHA256-filenames as keys and their corresponding original filenames as values (loaded from and saved to [`names.json`](#structure)))
+- `_data`: `pandas.DataFrame` instance holding the data collected from a set of features applicable for the [executable formats](executables.html) selected (loaded from and saved to [`data.csv`](#structure))
+- `_features`: dictionary of included features, with short names as keys and their corresponding descriptions as values (loaded from and saved to [`features.json`](#structure))
+- `_labels`: dictionary with SHA256-filenames as keys and their corresponding labels of packers (or `None` if unpacked) (loaded from and saved to [`labels.json`](#structure))
+- `_metadata`: dictionary of metadata, e.g. holding the list of selected categories of executable format and counts of included executables (loaded from and saved to [`metadata.json`](#structure))
+- `_names`: dictionary with SHA256-filenames as keys and their corresponding original filenames as values (loaded from and saved to [`names.json`](#structure))
 - `categories`: list of applicable categories of executable formats
 - `logger`: `logging.Logger` instance for producing debug messages
 - `packers`: list of `Packer` instances applicable to the dataset, given the selected categories of executable formats

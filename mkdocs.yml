@@ -5,6 +5,12 @@ docs_dir: docs
 pages:
   - Introduction: pages/index.md
   - 'Quick Start': pages/quickstart.md
+  - Usage:
+    - Datasets: pages/usage/datasets.md
+    - Detectors: pages/usage/detectors.md
+    - Packers: pages/usage/packers.md
+    - Training: pages/usage/training.md
+    - Analysis: pages/usage/analysis.md
   - Internals:
     - Executables: pages/internals/executables.md
     - Datasets: pages/internals/datasets.md
