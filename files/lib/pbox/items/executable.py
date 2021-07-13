@@ -64,9 +64,12 @@ class Executable(Path):
         else:
             try:
                 h = kwargs.pop('hash')
-                d = ds[h, True]
             except (KeyError, TypeError):
                 raise ValueError("When no 'parts' arg is provided, 'dataset' and 'hash' kwargs must be provided")
+            try:
+                d = ds[h, True]
+            except KeyError:
+                raise KeyError("Hash %s not found in %s (missing in dataset's data)" % (h, ds.name))
             self = super(Executable, cls).__new__(cls, ds.files.joinpath(h), **kwargs)
             self.dataset, self.hash, l, _ = ds, h, d.pop('label'), d.pop('hash')
             self.data = d
@@ -145,4 +148,6 @@ class Executable(Path):
             return Path(self.dataset._names[self.hash])
         except (AttributeError, TypeError):
             raise ValueError("No 'Dataset' instance bound")
+        except KeyError:
+            raise KeyError("Hash %s not found in %s (missing in dataset's names)" % (self.hash, self.dataset.name))
 
