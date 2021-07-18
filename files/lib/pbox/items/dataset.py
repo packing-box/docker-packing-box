@@ -1,18 +1,15 @@
 # -*- coding: UTF-8 -*-
 import pandas as pd
-from datetime import datetime
+import re
+from datetime import datetime, timedelta
 from tinyscript import b, colored, hashlib, json, logging, random, time, ts
 from tinyscript.report import *
 from tqdm import tqdm
-try:  # from Python3.9
-    import mdv3 as mdv
-except ImportError:
-    import mdv
 
 from .executable import Executable
 from .detector import Detector
 from .packer import Packer
-from ..utils import expand_categories
+from ..utils import *
 
 
 __all__ = ["Dataset", "PACKING_BOX_SOURCES"]
@@ -23,6 +20,14 @@ PACKING_BOX_SOURCES = {
     'ELF': ["/sbin", "/usr/bin"],
     'PE':  ["/root/.wine/drive_c/windows", "/root/.wine32/drive_c/windows"],
 }
+
+
+def backup(f):
+    """ Simple method decorator for making a backup of the dataset. """
+    def _wrapper(s, *a, **kw):
+        s.backup = s
+        return f(s, *a, **kw)
+    return _wrapper
 
 
 class Dataset:
@@ -37,9 +42,13 @@ class Dataset:
       +-- metadata.json                         # simple statistics about the dataset
       +-- names.json                            # dictionary of hashes and their real filenames
     """
+    FIELDS = ["category", "ctime", "filetype", "hash", "label", "mtime", "size"]
+    
     @logging.bindLogger
-    def __init__(self, path="dataset", source_dir=None, **kw):
-        self.path = ts.Path(path, create=True).absolute()
+    def __init__(self, name="dataset", source_dir=None, load=True, **kw):
+        p = config['workspace'].joinpath("datasets")
+        p.mkdir(exist_ok=True)
+        self.path = ts.Path(p.joinpath(name), create=True).absolute()
         self.sources = source_dir or PACKING_BOX_SOURCES
         if isinstance(self.sources, list):
             self.sources = {'All': self.sources}
@@ -48,8 +57,9 @@ class Dataset:
                 s = ts.Path(source, expand=True)
                 if not s.exists() or not s.is_dir():
                     sources.remove(source)
-        self._load()
-        self.categories = self._metadata.get('categories', [])
+        if load:
+            self._load()
+        self.categories = getattr(self, "_metadata", {}).get('categories', [])
         self.__change = False
         self.__limit = 20
     
@@ -135,17 +145,23 @@ class Dataset:
             return
         if isinstance(label, dict):
             d = label
-            e.hash = d['hash']
-            e.data = {k: v for k, v in d.items() if k not in ["hash", "label"]}
-            label = d['label']
+            for k in []:
+                if d.get(k):
+                    setattr(e, k, d[k])
+            e.data = {k: v for k, v in d.items() if k not in Dataset.FIELDS}
+            label = e.label
+            for k in Dataset.FIELDS:
+                if k not in d:
+                    d[k] = getattr(e, k)
         else:
-            d = {'hash': e.hash, 'label': label}
+            e.label = label
+            d = {k: getattr(e, k) for k in Dataset.FIELDS}
             d.update(e.data)
-            self._features.update(e.features)
             e.copy()
-            self._metadata.setdefault('categories', [])
-            if e.category not in self._metadata['categories']:
-                self._metadata['categories'].append(e.category)
+        self._features.update(e.features)
+        self._metadata.setdefault('categories', [])
+        if e.category not in self._metadata['categories']:
+            self._metadata['categories'].append(e.category)
         self._names[e.hash] = str(e.realpath)
         if len(self._data) > 0 and e.hash in list(self._data.hash):
             self.logger.debug("updating %s..." % e.hash)
@@ -160,32 +176,62 @@ class Dataset:
         """ Copy the current dataset to a given destination. """
         self.path.copy(path)
     
-    def _filter(self, hash=None, start_hash=None, end_hash=None, start_ctime=None, end_ctime=None, start_mtime=None,
-                end_mtime=None, label=None, **kw):
-        """ Yield executables' hashes from the dataset based on multiple criteria. """
-        # first, yield hashes provided
-        for h in (hash or []):
-            yield Executable(dataset=self, hash=h)
-        # internal function to adapt inputs for filtering (with a value that enables a strict order)
-        def _convert(name, value):
-            if name == "hash":
-                return ts.hex2int(value)
-            elif name in ["ctime", "mtime"]:
-                return datetime.strptime(value, "%d/%m/%y")
-            raise ValueError("Not handled: %s" % name)
-        # filter on hashes, creation time or modification time (UNION filter)
-        for n in ["hash", "ctime", "mtime"]:
-            start, end = _convert(n, locals()['start_' + n]), _convert(n, locals()['end_' + n])
-            if start is not None or end is not None:
-                for h in self.files.listdir():
-                    f = Executable(dataset=self, hash=h)
-                    if start and getattr(f, n) >= start or end and getattr(f, n) < end:
-                        yield f
-        # finally, yield based on the packer label
-        if label is not None:
-            for h, l in list(self._labels.items()):
-                if label == l:
-                    yield Executable(dataset=self, hash=h)
+    def _filter(self, query=None, **kw):
+        """ Yield executables' hashes from the dataset using Pandas' query language. """
+        # datetime transformation function for the other formats
+        def _time(v, end=False):
+            if v is None:
+                return [datetime.min, datetime.max][end]
+            # year format ; 2020 => start: 01/01/20 ; end: 31/12/20
+            try:
+                dt = datetime.strptime(v, "%Y")
+                return dt.replace(year=dt.year+1) - timedelta(seconds=1) if end else dt
+            except ValueError:
+                pass
+            # year-month formats ; Jan 2020 => start: 01/01/20 ; end: 31/01/20
+            for f in ["%Y-%m", "%b %Y", "%B %Y"]:
+                try:
+                    dt = datetime.strptime(v, f)
+                    return dt.replace(month=dt.month+1) - timedelta(seconds=1) if end else dt
+                except ValueError:
+                    pass
+            # year-month-day formats ; 01/01/20 => start: 01/01/20 00:00:00 ; end: 01/01/20 23:59:59
+            for f in ["%d/%m/%y", "%d/%m/%Y", "%Y-%m-%d", "%b %d %Y", "%B %d, %Y"]:
+                try:
+                    dt = datetime.strptime(v, f)
+                    return dt.replace(day=dt.day+1) - timedelta(seconds=1) if end else dt
+                except:
+                    pass
+            raise ValueError("Input datetime could not be parseds")
+        # set the list of categories
+        categories = expand_categories(*(category or ["All"]))
+        # format ctime and mtime datetimes for the time criteria
+        if ctime_year is not None:
+            if not re.match("[1-9][0-9]{3}$", ctime_year):
+                raise ValueError("Bad input year")
+            ctime_s, ctime_e = _time(ctime_year), _time(ctime_year, True)
+        else:
+            ctime_s = datetime.min if ctime_start is None else _time(ctime_start)
+            ctime_e = datetime.max if ctime_end is None else _time(ctime_end, True)
+        if mtime_year is not None:
+            if not re.match("[1-9][0-9]{3}$", mtime_year):
+                raise ValueError("Bad input year")
+            mtime_s, mtime_e = _time(mtime_year), _time(mtime_year, True)
+        else:
+            mtime_s = datetime.min if mtime_start is None else _time(mtime_start)
+            mtime_e = datetime.max if mtime_end is None else _time(mtime_end, True)
+        # prepare the list of valid hashes
+        hashes = sorted(set(self._labels.keys()) if hash is None else [hash] if not isinstance(hash, list) else hash)
+        hashes = hashes[hashes.index(hash_start or hashes[0]):hashes.index(hash_end or hashes[-1])+1]
+        # prepare the list of valid labels
+        labels = set(self._labels.values()) if label is None else [label] if not isinstance(label, list) else label
+        labels = [None if l.lower() == "none" else l for l in labels]
+        # now yield executables given filters' intersection
+        for h in self._labels.keys():
+            e = Executable(dataset=self, hash=h)
+            if h in hashes and e.label in labels and ctime_s <= e.ctime <= ctime_e and mtime_s <= e.mtime <= mtime_e \
+               and e.category in categories:
+                yield e
     
     def _hash(self):
         """ Custom object hashing function. """
@@ -218,18 +264,21 @@ class Dataset:
         if not self.__change:
             return self
         if len(self) > 0:
-            self._metadata['counts'] = self._data['label'].value_counts().to_dict()
+            self._metadata['counts'] = self._data.label.value_counts().to_dict()
             self._metadata['executables'] = len(self._labels)
             for n in ["data", "features", "labels", "metadata", "names"]:
                 if n == "data":
                     self._data = self._data.sort_values("hash")
-                    h = ["hash"] + sorted([c for c in self._data.columns if c not in ["hash", "label"]]) + ["label"]
+                    h = ["hash"] + \
+                        sorted([c for c in self._data.columns if c in set(Dataset.FIELDS) - set(["hash", "label"])]) + \
+                        sorted([c for c in self._data.columns if c not in Dataset.FIELDS]) + ["label"]
                     self._data.to_csv(str(self.path.joinpath("data.csv")), sep=";", columns=h, index=False, header=True)
                 else:
                     with self.path.joinpath(n + ".json").open('w+') as f:
                         json.dump(getattr(self, "_" + n), f, indent=2)
         else:
             self.logger.warning("No data to save")
+        self.__change = False
     
     def _walk(self, walk_all=False, sources=None):
         """ Walk the sources for random in-scope executables. """
@@ -254,10 +303,10 @@ class Dataset:
             for c in candidates:
                 yield c
     
+    @backup
     def fix(self, labels=None, detect=False, files=False, **kw):
         """ Make dataset's structure and files match. """
-        self.backup = self
-        labels = Dataset.labels(labels)
+        labels = Dataset.labels_from_file(labels)
         # first, ensure there is no duplicate
         self._data = self._data.drop_duplicates()
         if files:
@@ -277,22 +326,22 @@ class Dataset:
                 if not e.exists() or h not in self._names:
                     del self[h]
                 else:
-                    self[self._names[h], True] = Detector.detect(e) if detect else l
+                    self[Executable(dataset=self, hash=h), True] = Detector.detect(e) if detect else l
         self._save()
     
     def is_valid(self):
         """ Check if this Dataset instance has a valid structure. """
         return Dataset.check(self.path)
     
-    def list(self, **kw):
+    def list(self, show_all=False, **kw):
         """ List all the datasets from the given path. """
-        print(mdv.main(Report(*Dataset.summarize(kw.get('path', "."), kw.get('show_all', False))).md()))
+        print(mdv.main(Report(*Dataset.summarize(str(config['workspace'].joinpath("datasets")), show_all)).md()))
     
+    @backup
     def make(self, n=100, categories=["All"], balance=False, packer=None, refresh=False, **kw):
         """ Make n new samples in the current dataset among the given binary categories, balanced or not according to
              the number of distinct packers. """
         pbar = tqdm(total=n, unit="executable")
-        self.backup = self
         self.categories = categories
         sources = []
         for cat, src in self.sources.items():
@@ -342,25 +391,25 @@ class Dataset:
         l = len(self)
         if l > 0:
             # finally, save dataset's metadata and labels to JSON files
-            p = sorted(list(set([l for l in self._data['label'].values if isinstance(l, str)])))
+            p = sorted(list(set([l for l in self._data.label.values if isinstance(l, str)])))
             self.logger.info("Used packers: %s" % ", ".join(p))
             self.logger.info("#Executables: %d" % l)
         self._save()
     
-    def merge(self, path2=None, update=False, **kw):
-        """ Merge another dataset with the current one ; precedence is set by the 'update' parameter. """
-        self.backup = self
+    @backup
+    def merge(self, path2=None, **kw):
+        """ Merge another dataset with the current one. """
         ds2 = Dataset(path2)
         # add rows from the input dataset
         for row, name in ds2:
-            self[name, update] = row
+            self[name, False] = row
         # as the previous operation does not update categories and features, do it manually
         self._metadata.setdefault('categories', [])
         for category in ds2._metadata.get('categories', []):
             if category not in self._metadata['categories']:
                 self._metadata['categories'].append(category)
-        d = {k: v for k, v in (self if update else ds2)._features.items()}
-        d.update((ds2 if update else self)._features)
+        d = {k: v for k, v in ds2._features.items()}
+        d.update(self._features)
         self._features = d
         # now copy files from the input dataset
         for f in ds2.files.listdir():
@@ -368,10 +417,15 @@ class Dataset:
             self[e, True] = e.label
         self._save()
     
-    def remove(self, **kw):
-        """ Remove executables from the dataset given their hashes. """
-        for f in self._filter(**kw):
-            del self[f.hash]
+    @backup
+    def remove(self, query=None, **kw):
+        """ Remove executables from the dataset given multiple criteria. """
+        r = self._data.query(query or "tuple()")
+        if len(r) == 0:
+            self.logger.warning("No data selected")
+            return
+        for i, e in r.iterrows():
+            del self[e.hash]
         self._save()
     
     def rename(self, path2=None, **kw):
@@ -404,12 +458,17 @@ class Dataset:
             b._remove()
             self._save()
     
-    def select(self, path2=None, **kw):
+    def select(self, path2=None, query=None, **kw):
         """ Select a subset from the current dataset based on multiple criteria. """
         if not ts.Path(path2).exists():
             ds2 = Dataset(path2)
-            for f in self._filter(**kw):
-                ds2 #TODO
+            r = self._data.query(query or "tuple()")
+            if len(r) == 0:
+                self.logger.warning("No data selected")
+                return
+            for i, e in r.iterrows():
+                ds2[Executable(dataset=self, hash=e.hash)] = self[e.hash, True]
+            ds2._save()
         else:
             self.logger.warning("%s already exists" % path2)
     
@@ -427,12 +486,12 @@ class Dataset:
         else:
             self.logger.warning("Empty dataset")
     
+    @backup
     def update(self, source_dir=".", categories=["All"], labels=None, detect=False, **kw):
         """ Update the dataset with a folder of binaries, detecting used packers if 'detect' is set to True, otherwise
              packing randomly. If labels are provided, they are used instead of applying packer detection. """
-        self.backup = self
         self.categories = categories
-        labels = Dataset.labels(labels)
+        labels = Dataset.labels_from_file(labels)
         if source_dir is None:
             self.logger.warning("No source folder provided")
             return self
@@ -447,6 +506,19 @@ class Dataset:
             # precedence: input dictionary of labels > dataset's own labels > detection (if enabled) > no label
             self[e] = labels.get(e.hash, labels.get(str(e), Detector.detect(e) if detect else None))
         self._save()
+    
+    def view(self, query=None, **kw):
+        """ View executables from the dataset given multiple criteria. """
+        d = []
+        r = self._data.query(query or "tuple()")
+        if len(r) == 0:
+            self.logger.warning("No data selected")
+            return
+        for i, e in r.iterrows():
+            e = Executable(dataset=self, hash=e.hash)
+            d.append([e.hash, str(e), e.ctime.strftime("%d/%m/%y"), e.mtime.strftime("%d/%m/%y"), e.label or ""])
+        r = [Table(d, title="Filered records", column_headers=["Hash", "Path", "Creation", "Modification", "Label"])]
+        print(mdv.main(Report(*r).md()))
     
     @property
     def backup(self):
@@ -475,6 +547,11 @@ class Dataset:
     def files(self):
         """ Get the Path instance for the 'files' folder. """
         return self.path.joinpath("files")
+    
+    @property
+    def labels(self):
+        """ Get the series of labels. """
+        return self._data.label
     
     @property
     def name(self):
@@ -551,7 +628,7 @@ class Dataset:
             return False
     
     @staticmethod
-    def labels(labels):
+    def labels_from_file(labels):
         labels = labels or {}
         if isinstance(labels, str):
             labels = ts.Path(labels)
@@ -566,7 +643,7 @@ class Dataset:
     def summarize(path=None, show=False):
         datasets = []
         headers = ["Name", "Size", "Categories", "Packers"]
-        for dset in ts.Path(path or ".").listdir(Dataset.check):
+        for dset in ts.Path(config['workspace'].joinpath("datasets")).listdir(Dataset.check):
             with dset.joinpath("metadata.json").open() as meta:
                 metadata = json.load(meta)
             try:
@@ -597,7 +674,7 @@ class Dataset:
             raise ValueError("Files subfolder does not exist")
         if not f.joinpath("files").is_dir():
             raise ValueError("Files subfolder is not a folder")
-        for fn in ["data.csv", "features.json", "labels.json", "names.json"]:  # NB: metadata.json is optional
+        for fn in ["data.csv", "features.json", "labels.json", "metadata.json", "names.json"]:
             if not f.joinpath(fn).exists():
                 raise ValueError("Folder does not have %s" % fn)
         return f

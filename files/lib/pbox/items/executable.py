@@ -49,17 +49,15 @@ class Executable(Path):
             if len(parts) == 1 and isinstance(e, Executable):
                 self.hash = e.destination.filename
                 # otherwise, clone its cached properties
-                for attr in ["category", "data", "filetype", "realpath"]:
+                for attr in ["category", "ctime", "data", "filetype", "mtime", "realpath"]:
                     setattr(self, attr, getattr(e, attr))
                 l = e.label
             # case 3: a dataset is given, bind it and copy the input executable to dataset's files if relevant
-            if ds:
+            if ds is not None:
                 self.dataset = ds
                 if self.absolute().is_under(ds.files):
                     self.hash = self.filename
-                ds[self] = l
-                ds._save()
-                
+                self.copy()
         # case 4: get cached properties and data for the given hash from the bound dataset
         else:
             try:
@@ -73,6 +71,11 @@ class Executable(Path):
             self = super(Executable, cls).__new__(cls, ds.files.joinpath(h), **kwargs)
             self.dataset, self.hash, l, _ = ds, h, d.pop('label'), d.pop('hash')
             self.data = d
+        try:
+            if l.hex() == "nan":
+                l = None
+        except AttributeError:
+            pass
         self.label = l
         return self
     
