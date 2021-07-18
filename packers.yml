@@ -396,6 +396,16 @@ Ward:
     - mv {{executable.filename}}.packed {{executable.filename}}
   source: https://github.com/ex0dus-0x/ward
 
+Yoda_Crypter:
+  categories:
+    - PE32
+  description: This is a small PE crypter with some nice protection options.
+  install:
+    unzip: /opt/packers/yoda_crypter
+    wine:  yC.exe
+  source: https://sourceforge.net/projects/yodap/files/Yoda%20Crypter/
+  status: gui
+
 Yoda_Protector:
   categories:
     - PE32
