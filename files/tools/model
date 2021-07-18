@@ -1,0 +1,58 @@
+#!/usr/bin/python3
+# -*- coding: UTF-8 -*-
+from pbox import *
+from tinyscript import *
+
+
+__author__      = "Alexandre D'Hondt"
+__email__       = "alexandre.dhondt@gmail.com"
+__version__     = "1.0.0"
+__copyright__   = ("A. D'Hondt", 2021)
+__license__     = "gpl-3.0"
+__doc__         = """
+This utility aims to train Machine Learning models based on the dataset produced with dataset-maker.
+"""
+__description__ = "Train Machine Learning models"
+__examples__    = [
+    "list",
+    "train dataset -a MNB",
+]
+
+
+def at_interrupt():
+    """ Interrupt handler """
+    logger.warn("Interrupted by the user.")
+
+
+def __add_name(parser, optional=False, force=False):
+    def model_exists(string):
+        if string:
+            p = config['workspace'].joinpath("models", string)
+            (ts.folder_exists_or_create if force else ts.folder_exists)(str(p))
+            if not force:
+                Model.validate(p)
+            return p
+    a = ("-n", "--name", ) if optional else ("name", )
+    kw = {'type': model_exists, 'help': "name of the model"}
+    parser.add_argument(*a, **kw)
+    return parser
+
+
+if __name__ == '__main__':
+    sparsers = parser.add_subparsers(dest="command", help="command to be executed")
+    listm = sparsers.add_parser("list", help="list all the models from the workspace")
+    listm.add_argument("--algorithms", action="store_true", help="show available algorithms instead of models")
+    test = sparsers.add_parser("test", help="test the model on a given input")
+    __add_name(test)
+    test.add_argument("executable", help="executable or folder containing executables or dataset")
+    train = sparsers.add_parser("train", help="train a model on the given dataset")
+    train.add_argument("dataset", type=Dataset.validate, help="dataset for training the model")
+    __add_name(train, True)
+    train.add_argument("-a", "--algorithm", choices=CLASSIFIERS['classes'].keys(), default="DT",
+                       help="machine learning algorithm to be used\n- %s" % \
+                            "\n- ".join("%s: %s" % (k.ljust(4), v) for k, v in \
+                            sorted(CLASSIFIERS['descriptions'].items(), key=lambda x: x[0])))
+    initialize(noargs_action="help")
+    args.load = args.command != "list"
+    getattr(Model(**vars(args)), args.command)(**vars(args))
+

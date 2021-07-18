@@ -17,7 +17,7 @@ if __name__ == '__main__':
     parser.add_argument("executable", help="executable or folder containing executables or dataset")
     parser.add_argument("-d", "--detector", action="extend", nargs="*", type=lambda d: Detector.get(d),
                         help="detector(s) to be used")
-    initialize(multi_level_debug=True)
+    initialize(noargs_action="help", multi_level_debug=True)
     kw = {'debug': args.verbose > 0, 'verbose': args.verbose > 1}
     if args.detector:
         for name in args.detector:
