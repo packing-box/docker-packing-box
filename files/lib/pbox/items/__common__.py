@@ -1,5 +1,4 @@
 # -*- coding: UTF-8 -*-
-from functools import wraps
 from tinyscript import b, colored as _c, ensure_str, inspect, json, logging, os, random, re, shlex, subprocess, ts
 from tinyscript.helpers import execute_and_log as run, is_executable, is_file, is_folder, yaml_config, Path
 from tinyscript.report import *
@@ -8,7 +7,7 @@ from .executable import Executable
 from ..utils import expand_categories
 
 
-__all__ = ["class_or_instance_method", "file_or_folder_or_dataset", "make_registry", "Base"]
+__all__ = ["make_registry", "Base"]
 
 
 OS_COMMANDS = subprocess.check_output("compgen -c", shell=True, executable="/bin/bash").splitlines()
@@ -54,53 +53,6 @@ TEST_FILES = {
 }
 
 
-def file_or_folder_or_dataset(method):
-    """ This decorator allows to handle, as the first positional argument of an instance method, either an executable,
-         a folder with executables or the executable files from a Dataset. """
-    @wraps(method)
-    def _wrapper(self, *args, **kwargs):
-        # collect executables and folders from args
-        n, e, l = -1, [], {}
-        # exe list extension function
-        def _extend_e(i):
-            if is_file(i) and is_executable(i) and i not in e:
-                e.append(i)
-            elif is_folder(i):
-                i = Path(i)
-                # check if it is a dataset
-                if i.joinpath("files").is_dir() and \
-                   all(i.joinpath(f).is_file() for f in ["data.csv", "features.json", "labels.json", "names.json"]):
-                    with i.joinpath("labels.json").open() as f:
-                        l.update(json.load(f))
-                    # if so, move to the dataset's "files" folder
-                    i = i.joinpath("files")
-                for f in i.listdir(is_executable):
-                    f = str(f)
-                    if f not in e:
-                        e.append(f)
-            else:
-                return False
-            return True
-        # use the extension function to parse:
-        # - positional arguments up to the last valid file/folder
-        # - then the 'file' keyword-argument
-        for n, a in enumerate(args):
-            # if not a valid file, folder or dataset, stop as it is another type of argument
-            if not _extend_e(a):
-                break
-        args = tuple(args[n+1:])
-        for a in kwargs.pop('file', []):
-            _extend_e(a)
-        # then handle the list
-        r, kwargs['silent'] = [], False
-        for exe in e:
-            kwargs['label'] = l.get(Path(exe).stem, -1)
-            r.append(method(self, exe, *args, **kwargs))
-            kwargs['silent'] = True
-        return r[0] if len(r) == 1 else r
-    return _wrapper
-
-
 def make_registry(cls):
     """ Make class' registry of child classes and fill the __all__ list in. """
     cls.registry = []
@@ -119,12 +71,6 @@ def make_registry(cls):
             setattr(i, k, v)
         glob['__all__'].append(item)
         cls.registry.append(i())
-
-
-# based on: https://stackoverflow.com/questions/28237955/same-name-for-classmethod-and-instancemethod
-class class_or_instance_method(classmethod):
-    def __get__(self, ins, typ):
-        return (super().__get__ if ins is None else self.__func__.__get__)(ins, typ)
 
 
 class Base:
@@ -487,10 +433,10 @@ class Base:
             return 0          #  are useless (e.g. because it relies on another already existing item)
         elif st in ["gui", "todo"]:  # item to be automated yet
             return 2
-        elif b(self.name) not in OS_COMMANDS:  # when the setup failed or is incomplete
-            return 1
         elif st == "ok":  # the item runs, works correctly and was tested
             return 4
+        elif b(self.name) not in OS_COMMANDS:  # when the setup failed or is incomplete
+            return 1
         # in this case, the binary/symlink exists but running the item was not tested yet
         return 3
     

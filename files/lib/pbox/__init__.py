@@ -3,6 +3,8 @@ from .items import *
 from .items import __all__ as _items
 from .learning import *
 from .learning import __all__ as _learning
+from .utils import config
 
-__all__ = _items + _learning
+
+__all__ = _items + _learning + ["config"]
 
