@@ -14,55 +14,6 @@ from ..utils import benchmark
 __all__ = ["WekaClassifier", "CLASSIFIERS"]
 
 
-# list of implemneted classifiers
-CLASSIFIERS = {
-    # Weka algorithms
-
-    'D': lambda **kw: DEC(**kw),
-    # Ref: http://weka.sourceforge.net/doc.stable/weka/classifiers/meta/Decorate.html
-    
-    'J48': lambda **kw: J48(**kw),
-    # Ref: http://weka.sourceforge.net/doc.stable/weka/classifiers/meta/Decorate.html
-    
-    'BN': lambda **kw: BN(**kw),
-    # Ref: http://weka.sourceforge.net/doc.dev/weka/classifiers/bayes/BayesNet.html
-    
-    'LR': lambda **kw: LR(**kw),
-    # Ref: http://weka.sourceforge.net/doc.dev/weka/classifiers/functions/Logistic.html
-    
-    # SkLearn algorithms
-    
-    'AB': lambda **kw: ABC(**kw),
-    # Ref: http://scikit-learn.org/stable/modules/generated/sklearn.ensemble.AdaBoostClassifier.html
-    
-    'RF': lambda **kw: RFC(**kw),
-    # Ref: http://scikit-learn.org/stable/modules/generated/sklearn.ensemble.RandomForestClassifier.html
-    
-    'BNB': lambda **kw: BNB(**kw),
-    # Ref: http://scikit-learn.org/stable/modules/generated/sklearn.naive_bayes.BernoulliNB.html
-    
-    'GNB': lambda **kw: GNB(**kw),
-    # Ref: http://scikit-learn.org/stable/modules/generated/sklearn.naive_bayes.GaussianNB.html
-    
-    'MNB': lambda **kw: MNB(**kw),
-    # Ref: http://scikit-learn.org/stable/modules/generated/sklearn.naive_bayes.MultinomialNB.html
-    
-    'kNN': lambda **kw: KNC(**kw),
-    # Ref: http://scikit-learn.org/stable/modules/generated/sklearn.neighbors.KNeighborsClassifier.html
-    
-    'MLP': lambda **kw: MLPC(**kw),
-    # Ref: http://scikit-learn.org/stable/modules/generated/sklearn.neural_network.MLPClassifier.html
-    
-    'SVM': lambda **kw: SVC(**kw),
-    # Ref: http://scikit-learn.org/stable/modules/generated/sklearn.svm.SVC.html
-
-    'LSVM': lambda **kw: LSVC(**kw),
-    # Ref: http://scikit-learn.org/stable/modules/generated/sklearn.svm.LinearSVC.html
-
-    'DT': lambda **kw: DTC(**kw),
-    # Ref: http://scikit-learn.org/stable/modules/generated/sklearn.tree.DecisionTreeClassifier.html
-}
-
 # static test parameters
 RSTATE = 42
 STATIC_PARAM = {
@@ -177,6 +128,10 @@ class WekaClassifier(Classifier):
     test_file  = "/tmp/weka/test.arff"
     
     def __init__(self, **kwargs):
+        m = kwargs.pop('model', None)
+        if m:
+            self.train_file = m.path.joinpath("train.arff")
+            self.test_file = m.path.joinpath("test.arff")
         super(WekaClassifier, self).__init__(name=self.name, ckargs=kwargs)
     
     def fit(self, train_data, train_target):
@@ -214,24 +169,22 @@ class WekaClassifier(Classifier):
         return float(correct) / total
     
     @classmethod
-    def to_arff(cls, dataset):
-        """ This class method generates an ARFF file of the dataset, suitable for use with the Weka framework.
-        
-        NB: this method is suited to the Dataset abstraction of pbox.items.dataset """
-        ds = dataset
+    def to_arff(cls, model):
+        """ This class method generates an ARFF file of the dataset/model, suitable for use with the Weka framework. """
+        m = dataset, model
         l = len(dataset._features)
         ARFF_TEMPLATE = "@RELATION \"{rel}\"\n\n{attr}\n@ATTRIBUTE {c: <%s} {cls}\n\n@DATA\n{data}" % l
-        for f, dss in zip([cls.train_file, cls.test_file], [ds.train, ds.test]):
+        for f, dss in zip([cls.train_file, cls.test_file], [m.train, m.test]):
             f = Path(f)
             Path(f.dirname, create=True)
             a = []
-            for name in ds._features.keys():
+            for name in m._features.keys():
                 value = dataset._data[0][name]
                 attr_type = ["string", "numeric"][isinstance(value, int) or isinstance(value, float)]
                 a.append(("@ATTRIBUTE {: <%s} {}" % l).format(name, attr_type))
             d = "\n".join(",".join(map(str, row)) + "," + tgt for row, tgt in zip(dss.data, dss.target))
             with f.open('w') as arff:
-                arff.write(ARFF_TEMPLATE.format(rel=ds.name, attr="\n".join(a), c="class",
+                arff.write(ARFF_TEMPLATE.format(rel=m._metadata['dataset']['name'], attr="\n".join(a), c="class",
                                                 cls="{%s}" % ",".join(set(dss.target['label'].tolist())), data=d))
 
 
@@ -253,4 +206,43 @@ class J48(WekaClassifier):
 class LR(WekaClassifier):
     """ This class implements the Multinomial Ridge Logistic Regression algorithm from Weka. """
     name = "weka.classifiers.functions.Logistic"
+
+
+# list of implemneted classifiers
+CLASSIFIERS = {
+    'classes': {
+        # Weka algorithms (https://weka.sourceforge.io/doc.stable/weka/classifiers)
+        'D':    DEC,    # /meta/Decorate.html
+        'J48':  J48,    # /trees/J48.html
+        'BN':   BN,     # /bayes/BayesNet.html
+        'LR':   LR,     # /functions/Logistic.html
+        # SkLearn algorithms (http://scikit-learn.org/stable/modules/generated)
+        'AB':   ABC,    # /sklearn.ensemble.AdaBoostClassifier.html
+        'RF':   RFC,    # /sklearn.ensemble.RandomForestClassifier.html
+        'BNB':  BNB,    # /sklearn.naive_bayes.BernoulliNB.html
+        'GNB':  GNB,    # /sklearn.naive_bayes.GaussianNB.html
+        'MNB':  MNB,    # /sklearn.naive_bayes.MultinomialNB.html
+        'kNN':  KNC,    # /sklearn.neighbors.KNeighborsClassifier.html
+        'MLP':  MLPC,   # /sklearn.neural_network.MLPClassifier.html
+        'SVM':  SVC,    # /sklearn.svm.SVC.html
+        'LSVM': LSVC,   # /sklearn.svm.LinearSVC.html
+        'DT':   DTC,    # /sklearn.tree.DecisionTreeClassifier.html
+    },
+    'descriptions': {
+        'AB':   "Adaptive Boosting",
+        'BN':   "Bayesian Network",
+        'BNB':  "Bernoulli Naive Bayes",
+        'D':    "Decorate",
+        'DT':   "Decision Tree",
+        'GNB':  "Gaussian Naive Bayes",
+        'J48':  "Decision Tree",
+        'kNN':  "k-Nearest Neighbors",
+        'LR':   "Logistic Regression",
+        'LSVM': "Linear Support Vector Machine",
+        'MLP':  "Multi-Layer Perceptron",
+        'MNB':  "Multinomial Naive Bayes",
+        'RF':   "Random Forest",
+        'SVM':  "Support Vector Machine",
+    }
+}
 
