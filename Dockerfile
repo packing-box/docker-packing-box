@@ -17,11 +17,11 @@ RUN (apt -qq update \
 RUN (apt -qq -y install apt-transport-https apt-utils \
  && apt -qq -y install bash-completion build-essential clang cmake software-properties-common \
  && apt -qq -y install libavcodec-dev libavformat-dev libavresample-dev libavutil-dev libbsd-dev libboost-regex-dev \
-                   libboost-program-options-dev libboost-system-dev libboost-filesystem-dev libc6-dev-i386 \
-                   libcairo2-dev libdbus-1-dev libegl1-mesa-dev libelf-dev libffi-dev libfontconfig1-dev \
-                   libfreetype6-dev libfuse-dev libgif-dev libgirepository1.0-dev libgl1-mesa-dev libglib2.0-dev \
-                   libglu1-mesa-dev libjpeg-dev libpulse-dev libssl-dev libsvm-java libtiff5-dev libudev-dev \
-                   libxcursor-dev libxkbfile-dev libxml2-dev libxrandr-dev  \
+                       libboost-program-options-dev libboost-system-dev libboost-filesystem-dev libc6-dev-i386 \
+                       libcairo2-dev libdbus-1-dev libegl1-mesa-dev libelf-dev libffi-dev libfontconfig1-dev \
+                       libfreetype6-dev libfuse-dev libgif-dev libgirepository1.0-dev libgl1-mesa-dev libglib2.0-dev \
+                       libglu1-mesa-dev libjpeg-dev libpulse-dev libssl-dev libsvm-java libtiff5-dev libudev-dev \
+                       libxcursor-dev libxkbfile-dev libxml2-dev libxrandr-dev  \
  && apt -qq -y install colordiff colortail dosbox git golang less ltrace strace sudo tmate tmux vim xterm \
  && apt -qq -y install iproute2 nodejs npm python3-setuptools python3-pip swig weka x11-apps xvfb yarnpkg zstd \
  && apt -qq -y install curl jq unrar unzip wget) 2>&1 > /dev/null \

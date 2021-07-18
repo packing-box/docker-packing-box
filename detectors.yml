@@ -10,7 +10,6 @@ Bintropy:
   categories:
     - ELF
     - PE
-  command: bintropy {path}
   description: Bintropy is an analysis tool that estimates the likelihood that a binary file contains compressed or encrypted bytes.
   install:
     pip: bintropy
@@ -104,4 +103,5 @@ PyPeid:
       - poetry build
       - find dist -iname *.whl -exec pip3 install {} \;
   source: https://github.com/FFRI/pypeid
+  status: ok
 
