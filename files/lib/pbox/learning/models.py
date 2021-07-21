@@ -1,7 +1,10 @@
 # -*- coding: UTF-8 -*-
 import joblib
-from sklearn.model_selection import GridSearchCV
-from tinyscript import logging, ts
+import pandas as pd
+from sklearn.model_selection import train_test_split, GridSearchCV
+from sklearn.preprocessing import MinMaxScaler
+from tinyscript import json, logging
+from tinyscript.helpers import Path
 from tinyscript.report import *
 
 from .algorithms import *
@@ -39,9 +42,9 @@ class Model:
             self.classifier = None
             self._features = {}
             self._metadata = {}
-            self._performance = pd.DataFrame()
+            self._performance = pd.DataFrame(columns=PERF_HEADERS)
         else:
-            self.path = ts.Path(config.path.joinpath("models", self.name)).absolute()
+            self.path = Path(config['workspace'].joinpath("models", self.name)).absolute()
             Model.validate(self.path)
             for n in ["dump", "features", "metadata", "performance"]:
                 p = self.path.joinpath(n + (".joblib" if n == "dump" else ".csv" if n == "performance" else ".json"))
@@ -59,37 +62,54 @@ class Model:
     def _prepare(self, dataset):
         """ Prepare the Model instance based on the given Dataset instance. """
         ds, l = dataset, self.logger
+        if not getattr(dataset, "is_valid", lambda: False)():
+            l.error("Not a valid input dataset")
+            return False
         # copy relevant information from the input dataset
-        l.debug("Preparing model...")
+        l.debug("Preparing the dataset...")
         self._metadata['dataset'] = {k: v for k, v in dataset._metadata.items()}
         self._metadata['dataset']['path'] = str(dataset.path)
         self._metadata['dataset']['name'] = dataset.path.stem
-        self._features = {k: v for k, v in dataset._features.items()}
+        self._features = {k: {'description': v} for k, v in dataset._features.items()}
         # compute and attach sets from dataset._data and bind them to the instance.
-        ds.logger.debug("> Train and test subsets")
-        data = ds._data.loc[:, ds._data.columns not in ds.FIELDS]
-        target = ds._data.loc[:, ds._data.columns == "label"]
+        ds.logger.debug("> Split dataset to data and target vectors")
+        self._data = ds._data.loc[:, ~ds._data.columns.isin(ds.FIELDS)]
+        self._features_vector = self._data.columns
+        self._target = ds._data.loc[:, ds._data.columns == "label"].replace({'label': {float("nan"): ""}})
+        # replace string features to numerical values
+        ds.logger.debug("> Fit the data to numerical values")
+        for column in self._data:
+            values = set(self._data[column].values)
+            # remap strings with custom values
+            if any(isinstance(v, str) for v in values):
+                self._data = self._data.replace({column: {v: float(i) for i, v in enumerate(values)}})
+                self._features[column]['values'] = list(values)
         # scale the data
-        data = MinMaxScaler().fit_transform(data)
+        ds.logger.debug("> Scale the data")
+        self._data = MinMaxScaler().fit_transform(self._data)
         # prepare for sklearn
         class Dummy: pass
-        self.train, self.test = Dummy(), Dummy()
-        self.train.data, self.test.data, self.train.target, self.test.target = train_test_split(data, target)
+        self._train, self._test = Dummy(), Dummy()
+        ds.logger.debug("> Split data and target vectors to train and test subnets")
+        self._train.data, self._test.data, self._train.target, self._test.target = train_test_split(self._data,
+                                                                                                    self._target)
         # prepare for Weka
-        l.debug("> ARFF train and test files...")
+        l.debug("> Create ARFF train and test files (for Weka)")
         WekaClassifier.to_arff(self)
+        return True
     
     def _save(self):
         """ Save model's state to the related files. """
         l = self.logger
         if self.name is None:
-            c = "-".join(map(lambda x: x.lower(), collapse_categories(self._metadata['dataset']['categories'])))
+            c = "-".join(map(lambda x: x.lower(), collapse_categories(*self._metadata['dataset']['categories'])))
             self.name = "%s_%s_%d" % (self._metadata['dataset']['name'], c, self._metadata['dataset']['executables'])
-        self.path = ts.Path(config.path.joinpath("models", self.name)).absolute()
+        self.path = Path(config['workspace'].joinpath("models", self.name)).absolute()
+        self.path.mkdir(exist_ok=True)
         l.debug("Saving model %s..." % str(self.path))
         p = self.path.joinpath("performance.csv")
         l.debug("> %s" % str(p))
-        self._performances.to_csv(str(p), sep=";", columns=PERF_HEADERS, index=False, header=True)
+        self._performance.to_csv(str(p), sep=";", columns=PERF_HEADERS, index=False, header=True)
         if not self.__read_only:
             for n in ["dump", "features", "metadata"]:
                 p = self.path.joinpath(n + (".joblib" if n == "dump" else ".json"))
@@ -109,7 +129,7 @@ class Model:
             r = [Section("Algorithms (%d)" % len(d)), Table(d, column_headers=["Name", "Description"])]
         else:
             d = []
-            for model in ts.Path(config['workspace'].joinpath("models")).listdir(Model.check):
+            for model in Path(config['workspace'].joinpath("models")).listdir(Model.check):
                 with model.joinpath("metadata.json").open() as meta:
                     metadata = json.load(meta)
                 alg, ds = metadata['algorithm'], metadata['dataset']
@@ -136,34 +156,35 @@ class Model:
         print(table.table)
         return self.classifier.predict(data)
     
-    def train(self, name, cv=3, n_jobs=4, **kw):
+    def train(self, dataset=None, algorithm=None, cv=3, n_jobs=4, **kw):
         """ Training method handling the cross-validation. """
+        if not self._prepare(dataset):
+            return
         l = self.logger
         try:
-            cls = CLASSIFIERS['classes'][name]
+            cls = CLASSIFIERS['classes'][algorithm]
             if isinstance(cls, WekaClassifier):
                 params['model'] = self
         except KeyError:
-            l.error("%s not available" % name)
+            l.error("%s not available" % algorithm)
             self.classifier = None
             return
         # get classifer and grid search parameters
         try:
-            params = STATIC_PARAM[name]
+            params = STATIC_PARAM[algorithm]
         except KeyError:
             params = {}
         try:
-            param_grid = CV_PARAM[name]
+            param_grid = CV_PARAM[algorithm]
         except KeyError:
             param_grid = None
         c = cls(**params)
-        c.labels = dataset.labels
         # if a param_grid is input, perform cross-validation and select the best classifier
-        l.debug("Processing %s..." % name)
+        l.debug("Processing %s..." % algorithm)
         if param_grid is not None:
             l.debug("> Applying Grid Search (CV=%d)..." % cv)
             grid = GridSearchCV(c, param_grid=param_grid, cv=cv, scoring='accuracy', n_jobs=n_jobs)
-            grid.fit(dataset.data, dataset.target)
+            grid.fit(self._data, self._target)
             l.debug("> Best parameters found:\n  {}".format(grid.best_params_))
             results = '\n'.join("  %0.3f (+/-%0.03f) for %r" % (m, s * 2, p) \
                 for m, s, p in zip(grid.cv_results_['mean_test_score'],
@@ -176,15 +197,16 @@ class Model:
             c = cls(**params)
         # now fit the (best) classifier and predict labels
         l.debug("> Fitting the classifier...")
-        c.fit(self.train.data, self.train.target)
+        c.fit(self._train.data, self._train.target)
         l.debug("> Making predictions...")
-        self.test.prediction = c.predict(dataset.test.data)
-        self.test.proba = c.predict_proba(dataset.test.data)[:, 1]
+        self._test.prediction = c.predict(self._test.data)
+        self._test.proba = c.predict_proba(self._test.data)[:, 1]
         self.classifier = c
-        setdefault(self._metadata['algorithm'], {})
-        self._metadata['algorithm']['name'] = name
-        self._metadata['algorithm']['name'] = CLASSIFIERS['descriptions'][name]
+        self._metadata.setdefault('algorithm', {})
+        self._metadata['algorithm']['name'] = algorithm
+        self._metadata['algorithm']['description'] = CLASSIFIERS['descriptions'][algorithm]
         self._metadata['algorithm']['parameters'] = params
+        self._save()
     
     @staticmethod
     def check(folder):
@@ -196,7 +218,7 @@ class Model:
     
     @staticmethod
     def validate(folder):
-        f = ts.Path(folder)
+        f = Path(folder)
         if not f.exists():
             raise ValueError("Folder does not exist")
         if not f.is_dir():

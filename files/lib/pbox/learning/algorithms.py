@@ -6,12 +6,13 @@ from sklearn.neighbors import KNeighborsClassifier as KNC
 from sklearn.neural_network import MLPClassifier as MLPC
 from sklearn.svm import LinearSVC as LSVC, SVC
 from sklearn.tree import DecisionTreeClassifier as DTC
+from tinyscript.helpers import Path
 from weka.classifiers import Classifier
 
 from ..utils import benchmark
 
 
-__all__ = ["WekaClassifier", "CLASSIFIERS"]
+__all__ = ["WekaClassifier", "CLASSIFIERS", "CV_PARAM", "STATIC_PARAM"]
 
 
 # static test parameters
@@ -171,21 +172,21 @@ class WekaClassifier(Classifier):
     @classmethod
     def to_arff(cls, model):
         """ This class method generates an ARFF file of the dataset/model, suitable for use with the Weka framework. """
-        m = dataset, model
-        l = len(dataset._features)
+        m = model
+        l = len(m._features)
         ARFF_TEMPLATE = "@RELATION \"{rel}\"\n\n{attr}\n@ATTRIBUTE {c: <%s} {cls}\n\n@DATA\n{data}" % l
-        for f, dss in zip([cls.train_file, cls.test_file], [m.train, m.test]):
+        for f, dss in zip([cls.train_file, cls.test_file], [m._train, m._test]):
             f = Path(f)
             Path(f.dirname, create=True)
             a = []
-            for name in m._features.keys():
-                value = dataset._data[0][name]
+            for name, value in zip(m._features_vector, m._data[0]):
                 attr_type = ["string", "numeric"][isinstance(value, int) or isinstance(value, float)]
                 a.append(("@ATTRIBUTE {: <%s} {}" % l).format(name, attr_type))
             d = "\n".join(",".join(map(str, row)) + "," + tgt for row, tgt in zip(dss.data, dss.target))
+            classes = list(map(lambda x: "" if str(x) == "nan" else str(x), set(dss.target['label'].tolist())))
             with f.open('w') as arff:
                 arff.write(ARFF_TEMPLATE.format(rel=m._metadata['dataset']['name'], attr="\n".join(a), c="class",
-                                                cls="{%s}" % ",".join(set(dss.target['label'].tolist())), data=d))
+                                                cls="{%s}" % ",".join(classes), data=d))
 
 
 class BN(WekaClassifier):
