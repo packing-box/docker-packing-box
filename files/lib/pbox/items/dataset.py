@@ -622,7 +622,7 @@ class Dataset:
     @staticmethod
     def check(folder):
         try:
-            Dataset.validate(folder)
+            Dataset.validate(folder, False)
             return True
         except ValueError as e:
             return False
@@ -664,20 +664,23 @@ class Dataset:
         return [] if n == 0 else [Section("Datasets (%d)" % n), Table(datasets, column_headers=headers)]
     
     @staticmethod
-    def validate(folder):
-        f = ts.Path(folder)
-        if not f.exists():
+    def validate(name, load=True):
+        ds = Dataset(name, load=False)
+        p = ds.path
+        if not p.exists():
             raise ValueError("Folder does not exist")
-        if not f.is_dir():
+        if not p.is_dir():
             raise ValueError("Input is not a folder")
-        if not f.joinpath("files").exists():
+        if not p.joinpath("files").exists():
             raise ValueError("Files subfolder does not exist")
-        if not f.joinpath("files").is_dir():
+        if not p.joinpath("files").is_dir():
             raise ValueError("Files subfolder is not a folder")
         for fn in ["data.csv", "features.json", "labels.json", "metadata.json", "names.json"]:
-            if not f.joinpath(fn).exists():
+            if not p.joinpath(fn).exists():
                 raise ValueError("Folder does not have %s" % fn)
-        return f
+        if load:
+            ds._load()
+        return ds
 
 
 class InconsistentDataset(ValueError):
