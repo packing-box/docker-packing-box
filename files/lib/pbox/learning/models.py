@@ -2,7 +2,7 @@
 import joblib
 import pandas as pd
 from sklearn.model_selection import train_test_split, GridSearchCV
-from sklearn.preprocessing import MinMaxScaler
+from sklearn.preprocessing import *
 from tinyscript import json, logging
 from tinyscript.helpers import Path
 from tinyscript.report import *
@@ -12,10 +12,21 @@ from .metrics import *
 from ..utils import *
 
 
-__all__ = ["Model"]
+__all__ = ["Model", "SCALERS"]
 
 
 PERF_HEADERS = ["Time", "Dataset", "Accuracy", "Processing Time"]
+SCALERS = {
+    'MA':         MaxAbsScaler,
+    'MM':         MinMaxScaler,
+    'No':         None,
+    'PT-bc':      (PowerTransformer, {'method': "box-box"}),
+    'PT-yj':      (PowerTransformer, {'method': "yeo-johnson"}),
+    'QT-normal':  (QuantileTransformer, {'output_distribution': "normal"}),
+    'QT-uniform': (QuantileTransformer, {'output_distribution': "uniform"}),
+    'Rob':        (RobustScaler, {'quantile_range': (25, 75)}),
+    'Std':        StandardScaler,
+}
 
 
 class Model:
@@ -32,7 +43,7 @@ class Model:
         p = config['workspace'].joinpath("models")
         p.mkdir(exist_ok=True)
         self.__read_only = False
-        self.name = name
+        self.name = name.stem if isinstance(name, Path) else name
         if load:
             self._load()
     
@@ -48,7 +59,7 @@ class Model:
             Model.validate(self.path)
             for n in ["dump", "features", "metadata", "performance"]:
                 p = self.path.joinpath(n + (".joblib" if n == "dump" else ".csv" if n == "performance" else ".json"))
-                l.debug("Loading %s..." % str(p))
+                self.logger.debug("Loading %s..." % str(p))
                 if n == "dump":
                     self.classifier = joblib.load(str(p))
                     self.__read_only = True
@@ -59,7 +70,7 @@ class Model:
                         setattr(self, "_" + n, json.load(f))
         return self
     
-    def _prepare(self, dataset):
+    def _prepare(self, dataset, scaler="min-max", **kw):
         """ Prepare the Model instance based on the given Dataset instance. """
         ds, l = dataset, self.logger
         if not getattr(dataset, "is_valid", lambda: False)():
@@ -85,8 +96,14 @@ class Model:
                 self._data = self._data.replace({column: {v: float(i) for i, v in enumerate(values)}})
                 self._features[column]['values'] = list(values)
         # scale the data
-        ds.logger.debug("> Scale the data")
-        self._data = MinMaxScaler().fit_transform(self._data)
+        scaler = SCALERS[scaler]
+        if scaler is not None:
+            n, params = scaler.__name__, {}
+            if isinstance(scaler, tuple):
+                scaler, params = scaler
+                n = "%s with %s" % (scaler.__name__, ", ".join("{}={}".format(*i) for i in params.items()))
+            ds.logger.debug("> Scale the data (%s)" % n)
+            self._data = scaler(**params).fit_transform(self._data)
         # prepare for sklearn
         class Dummy: pass
         self._train, self._test = Dummy(), Dummy()
@@ -134,6 +151,7 @@ class Model:
                     metadata = json.load(meta)
                 alg, ds = metadata['algorithm'], metadata['dataset']
                 d.append([
+                    model.stem,
                     alg['name'],
                     alg['description'],
                     ds['name'],
@@ -144,21 +162,46 @@ class Model:
             if len(d) == 0:
                 return
             r = [Section("Models (%d)" % len(d)),
-                 Table(d, column_headers=["Algorithm", "Description", "Dataset", "Size", "Categories", "Packers"])]
+                 Table(d, column_headers=["Name", "Algorithm", "Description", "Dataset", "Size", "Categories",
+                                          "Packers"])]
         print(mdv.main(Report(*r).md()))
     
+    def remove(self, **kw):
+        """ Remove the current model. """
+        self.path.remove(error=False)
+    
+    def rename(self, path2=None, **kw):
+        """ Rename the current model. """
+        if not ts.Path(path2).exists():
+            self.path = self.path.rename(path2)
+        else:
+            self.logger.warning("%s already exists" % path2)
+    
+    def show(self, **kw):
+        """ Show an overview of the model. """
+        a, ds = self._metadata['algorithm'], self._metadata['dataset']
+        c = List(["**Path**:                  %s" % self.path,
+                  "**Algorithm**:             %s (%s)" % (a['description'], a['name']),
+                  "**Parameters**: \n\n\t- %s" % "\n\t- ".join("%s = %s" % (k, v) for k, v in a['parameters'].items())])
+        print(mdv.main(Report(Section("Model characteristics"), c).md()))
+        c = List(["**Path**:                  %s" % config['workspace'].joinpath("datasets", ds['name']),
+                  "**Number of executables**: %d" % ds['executables'],
+                  "**Categories**:            %s" % ", ".join(ds['categories']),
+                  "**Packers**:               %s" % ", ".join(ds['counts'].keys())])
+        print(mdv.main(Report(Section("Reference dataset"), c).md()))
+    
     @file_or_folder_or_dataset
-    def test(self, executable, **kwargs):
+    def test(self, executable, **kw):
         """ Test method. """
-        metrics(executable, logger=self.logger)
-        data = [["", "Model", "Accuracy", "Precision", "Recall", "F-Measure", "MCC", "AUC"]]
-        table = Table(highlight_best(table_data), "Results ([CRESCI] - {})".format(c))
-        print(table.table)
-        return self.classifier.predict(data)
+        # metrics(executable, logger=self.logger)
+        # data = [["", "Model", "Accuracy", "Precision", "Recall", "F-Measure", "MCC", "AUC"]]
+        # table = Table(highlight_best(table_data), "Results ([CRESCI] - {})".format(c))
+        # print(table.table)
+        # return self.classifier.predict(data)
     
     def train(self, dataset=None, algorithm=None, cv=3, n_jobs=4, **kw):
-        """ Training method handling the cross-validation. """
-        if not self._prepare(dataset):
+        """ Training method handling cross-validation. """
+        if not self._prepare(dataset, *kw):
             return
         l = self.logger
         try:
@@ -178,9 +221,9 @@ class Model:
             param_grid = CV_PARAM[algorithm]
         except KeyError:
             param_grid = None
+        l.debug("Processing %s..." % algorithm)
         c = cls(**params)
         # if a param_grid is input, perform cross-validation and select the best classifier
-        l.debug("Processing %s..." % algorithm)
         if param_grid is not None:
             l.debug("> Applying Grid Search (CV=%d)..." % cv)
             grid = GridSearchCV(c, param_grid=param_grid, cv=cv, scoring='accuracy', n_jobs=n_jobs)

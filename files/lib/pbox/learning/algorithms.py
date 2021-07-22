@@ -18,29 +18,6 @@ __all__ = ["WekaClassifier", "CLASSIFIERS", "CV_PARAM", "STATIC_PARAM"]
 # static test parameters
 RSTATE = 42
 STATIC_PARAM = {
-    'D': {'-S': RSTATE},
-    #  defaults:
-    #   -E    15                          Desired size of ensemble.
-    #   -R    1.0                         Factor that determines number of artificial examples to generate.
-    #   -S    1                           Random number seed.
-    #   -I    50                          Number of iterations.
-    #   -W    weka.classifiers.trees.J48  Full name of base classifier.
-
-    'J48': {'-Q': RSTATE},
-    #  defaults:
-    #   -C    0.25                  Set confidence threshold for pruning.
-    #   -M    2       Set minimum number of instances per leaf.
-    #   -N    3       Set number of folds for reduced error pruning. One fold is used as pruning set.
-
-    'BN': {},
-    #  defaults:
-    #   -E    weka.classifiers.bayes.net.estimate.SimpleEstimator   Estimator algorithm.
-    #   -Q    weka.classifiers.bayes.net.search.SearchAlgorithm     Search algorithm.
-
-    'LR': {},
-    #  defaults:
-    #   -M    -1      Set maximum number of iterations (-1: until convergence)
-
     'AB': {'random_state': RSTATE},
     #  defaults:
     #   base_estimator = DecisionTreeClassifier
@@ -48,12 +25,10 @@ STATIC_PARAM = {
     #   learning_rate  = 1
     #   algorithm      = ’SAMME.R’
 
-    'RF': {'criterion': "entropy", 'random_state': RSTATE},
+    'BN': {},
     #  defaults:
-    #   n_estimators = 10
-    #   max_features = 'auto'
-    #   max_depth    = None
-    #   others: see Ref
+    #   -E    weka.classifiers.bayes.net.estimate.SimpleEstimator   Estimator algorithm.
+    #   -Q    weka.classifiers.bayes.net.search.SearchAlgorithm     Search algorithm.
     
     'BNB': {},
     #  defaults:
@@ -62,15 +37,41 @@ STATIC_PARAM = {
     #   fit_prior   = True
     #   class_prior = None
 
+    'D': {'-S': RSTATE},
+    #  defaults:
+    #   -E    15                          Desired size of ensemble.
+    #   -R    1.0                         Factor that determines number of artificial examples to generate.
+    #   -S    1                           Random number seed.
+    #   -I    50                          Number of iterations.
+    #   -W    weka.classifiers.trees.J48  Full name of base classifier.
+
+    'DT': {'random_state': RSTATE},
+    #  defaults:
+    #   splitter  = 'best'
+    #   max_depth = None
+    #   other: see Ref
+
+    'J48': {'-Q': RSTATE},
+    #  defaults:
+    #   -C    0.25                  Set confidence threshold for pruning.
+    #   -M    2       Set minimum number of instances per leaf.
+    #   -N    3       Set number of folds for reduced error pruning. One fold is used as pruning set.
+
     'GNB': {},
     #  defaults:
     #   priors = None
 
-    'MNB': {},
+    'LR': {},
     #  defaults:
-    #   alpha       = 1.0
-    #   fit_prior   = True
-    #   class_prior = None
+    #   -M    -1      Set maximum number of iterations (-1: until convergence)
+
+    'LSVM': {'random_state': RSTATE},
+    #  defaults:
+    #   penalty = 'l2'
+    #   loss    = 'squared_hinge'
+    #   dual    = True
+    #   tol     = 1e-4
+    #   others: see Ref
 
     'kNN': {'weights': "uniform"},
     #  defaults:
@@ -88,6 +89,19 @@ STATIC_PARAM = {
     #   alpha              = 1e-4
     #   others: see Ref
 
+    'MNB': {},
+    #  defaults:
+    #   alpha       = 1.0
+    #   fit_prior   = True
+    #   class_prior = None
+
+    'RF': {'random_state': RSTATE},
+    #  defaults:
+    #   n_estimators = 10
+    #   max_features = 'auto'
+    #   max_depth    = None
+    #   others: see Ref
+
     'SVM': {'probability': True, 'random_state': RSTATE},
     #  defaults:
     #   C      = 1.0
@@ -95,29 +109,15 @@ STATIC_PARAM = {
     #   degree = 3
     #   gamma  = 'auto'
     #   others: see Ref
-
-    'LSVM': {'random_state': RSTATE},
-    #  defaults:
-    #   penalty = 'l2'
-    #   loss    = 'squared_hinge'
-    #   dual    = True
-    #   tol     = 1e-4
-    #   others: see Ref
-
-    'DT': {'criterion': "entropy", 'random_state': RSTATE},
-    #  defaults:
-    #   splitter  = 'best'
-    #   max_depth = None
-    #   other: see Ref
 }
 
 # test parameter ranges for grid search cross-validation
 CV_PARAM = {
-    'RF':   {'max_depth': range(6, 21)},
+    'DT':   {'criterion': ["entropy", "gini"], 'max_depth': range(3, 11)},
     'kNN':  {'n_neighbors': range(1, 6, 2)},
-    'SVM':  {'C': pd.np.logspace(4, 6, 3), 'gamma': pd.np.logspace(-3, -1, 3)},
     'LSVM': {'C': pd.np.logspace(1, 6, 6)},
-    'DT':   {'max_depth': range(3, 11)},
+    'RF':   {'criterion': ["entropy", "gini"], 'max_depth': range(6, 21)},
+    'SVM':  {'C': pd.np.logspace(4, 6, 3), 'gamma': pd.np.logspace(-3, -1, 3)},
 }
 
 
