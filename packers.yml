@@ -9,7 +9,7 @@ Amber:
   install:
     wget:  https://github.com/EgeBalci/amber/releases/download/v3.0/amber_linux_amd64_3.0.zip
     unzip: /opt/packers/
-    ln:    amber_linux_amd64_3.0/amber
+    ln:    amber
   steps:
     - amber -build -f {{executable}}
     - mv -f {{executable.stem}}_packed{{executable.extension}} {{executable}}
@@ -150,6 +150,7 @@ Kkrunchy:
   references:
     - https://github.com/fireeye/capa-rules/blob/master/anti-analysis/packer/kkrunchy/packed-with-kkrunchy.yml
   source: http://www.farbrausch.de/~fg/kkrunchy
+  status: gui
 
 M0dern_P4cker:
   categories:
