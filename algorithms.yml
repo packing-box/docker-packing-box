@@ -1,0 +1,176 @@
+AB:
+  base:        !!python/name:sklearn.ensemble.AdaBoostClassifier
+  description: Adaptive Boosting
+  parameters:
+    static:
+      algorithm:      SAMME.R
+      base_estimator: !!python/object:sklearn.tree.DecisionTreeClassifier {max_depth=1}
+      learning_rate:  1.
+      n_estimators:   50
+      random_state:   42
+  link: https://scikit-learn.org/stable/modules/generated/sklearn.ensemble.AdaBoostClassifier.html
+
+BN:
+  base:        !!python/name:pbox.learning.algorithms.BayesNet  # based on weka.classifiers.bayes.BayesNet
+  description: Bayesian Network
+  parameters:
+    static:
+      E: weka.classifiers.bayes.net.estimate.SimpleEstimator  # estimator algorithm
+      Q: weka.classifiers.bayes.net.search.SearchAlgorithm    # search algorithm
+  link: https://weka.sourceforge.io/doc.stable/weka/classifiers/bayes/BayesNet.html
+
+BNB:
+  base:        !!python/name:sklearn.naive_bayes.BernoulliNB
+  description: Bernoulli Naive Bayes
+  parameters:
+    static:
+      alpha:       1.
+      binarize:    0.
+      fit_prior:   true
+      class_prior: null
+  link: http://scikit-learn.org/stable/modules/generated/sklearn.naive_bayes.BernoulliNB.html
+
+D:
+  base:        !!python/name:pbox.learning.algorithms.Decorate  # based on weka.classifiers.meta.Decorate
+  description: Decorate
+  parameters:
+    static:
+      E: 15                          # desired size of ensemble
+      R: 1.0                         # factor that determines number of artificial examples to generate
+      S: 42                          # random number seed
+      I: 50                          # number of iterations
+      W: weka.classifiers.trees.J48  # full name of base classifier
+  link: https://weka.sourceforge.io/doc.stable/weka/classifiers/meta/Decorate.html
+
+DT:
+  base:        !!python/name:sklearn.tree.DecisionTreeClassifier
+  description: Decision Tree
+  parameters:
+    static:
+      class_weight:      null
+      criterion:         gini
+      max_depth:         null
+      max_features:      null
+      max_leaf_nodes:    null
+      min_samples_split: 2.
+      splitter:          best
+      random_state:      42
+    cv:
+      criterion:
+        - entropy
+        - gini
+      max_depth: !!python/object/new:range [1, 10]
+  visualization:
+    text:   sklearn.tree.export_text
+    export: null
+  link: https://scikit-learn.org/stable/modules/generated/sklearn.tree.DecisionTreeClassifier.html
+
+GNB:
+  base:        !!python/name:sklearn.naive_bayes.GaussianNB
+  description: Gaussian Naive Bayes
+  parameters:
+    static:
+      priors: null
+  link: http://scikit-learn.org/stable/modules/generated/sklearn.naive_bayes.GaussianNB.html
+
+J48:
+  base:        !!python/name:pbox.learning.algorithms.J48  # based on weka.classifiers.trees.J48
+  description: Decision Tree
+  parameters:
+    static:
+      C: 0.25  # confidence threshold for pruning
+      M: 2     # minimum number of instances per leaf
+      N: 3     # number of folds for reduced error pruning. One fold is used as pruning set
+      Q: 42    # random number seed
+  link: https://weka.sourceforge.io/doc.stable/weka/classifiers/trees/J48.html
+
+kNN:
+  base:        !!python/name:sklearn.neighbors.KNeighborsClassifier
+  description: k-Nearest Neighbors
+  parameters:
+    static:
+      leaf_size:   30
+      metric:      minkowski
+      n_neighbors: 5
+      p:           2          # euclidian distance
+      weights:     uniform
+    cv:
+      n_neighbors: !!python/object/new:range [1, 6, 2]
+  link: http://scikit-learn.org/stable/modules/generated/sklearn.neighbors.KNeighborsClassifier.html
+
+LR:
+  base:        !!python/name:pbox.learning.algorithms.Logistic  # based on weka.classifiers.functions.Logistic
+  description: Logistic Regression
+  parameters:
+    static:
+      M: -1  # maximum number of iterations (-1: until convergence)
+  link: https://weka.sourceforge.io/doc.stable/weka/classifiers/functions/Logistic.html
+
+LSVM:
+  base:        !!python/name:sklearn.svm.LinearSVC
+  description: Linear Support Vector Machine
+  parameters:
+    static:
+      dual:         true
+      loss:         squared_hinge
+      penalty:      l2
+      random_state: 42
+      tol:          !!float 1e-4
+    cv:
+      C: !!python/object/new:numpy.logspace [1, 6, 6]
+  link: http://scikit-learn.org/stable/modules/generated/sklearn.svm.LinearSVC.html
+
+MLP:
+  base:        !!python/name:sklearn.neural_network.MLPClassifier
+  description: Multi-Layer Perceptron
+  parameters:
+    static:
+      activation:         relu
+      alpha:              !!float 1e-4
+      hidden_layer_sizes: !!python/tuple [10, 2]
+      random_state:       42
+      solver:             adam
+  link: http://scikit-learn.org/stable/modules/generated/sklearn.neural_network.MLPClassifier.html
+
+MNB:
+  base:        !!python/name:sklearn.naive_bayes.MultinomialNB
+  description: Multinomial Naive Bayes
+  parameters:
+    static:
+      alpha:       1.
+      fit_prior:   true
+      class_prior: null
+  link: http://scikit-learn.org/stable/modules/generated/sklearn.naive_bayes.MultinomialNB.html
+
+RF:
+  base:        !!python/name:sklearn.ensemble.RandomForestClassifier
+  description: Random Forest
+  parameters:
+    static:
+      max_depth:    null
+      max_features: auto
+      n_estimators: 10
+      random_state: 42
+    cv:
+      criterion:
+        - entropy
+        - gini
+      max_depth: !!python/object/new:range [6, 11]
+  link: http://scikit-learn.org/stable/modules/generated/sklearn.ensemble.RandomForestClassifier.html
+
+SVM:
+  base:        !!python/name:sklearn.svm.SVC
+  description: Support Vector Machine
+  parameters:
+    static:
+      C:            1.
+      degree:       3
+      gamma:        auto
+      kernel:       rbf
+      probability:  true
+      random_state: 42
+    cv:
+      C:     !!python/object/new:numpy.logspace [4, 6, 3]
+      gamma: !!python/object/new:numpy.logspace [-3, -1, 3]
+  link: https://scikit-learn.org/stable/modules/generated/sklearn.svm.SVC.html
+
