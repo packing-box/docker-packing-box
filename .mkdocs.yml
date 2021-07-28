@@ -2,7 +2,7 @@ site_name: Packing-Box - Docker image for studying executable packing
 repo_url: https://github.com/dhondta/docker-packing-box
 site_author: dhondta
 docs_dir: docs
-pages:
+nav:
   - Introduction: pages/index.md
   - 'Quick Start': pages/quickstart.md
   - Usage:
