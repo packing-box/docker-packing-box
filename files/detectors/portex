@@ -1,0 +1,18 @@
+#!/usr/bin/python3
+# -*- coding: UTF-8 -*-
+from pboxtools import re, run
+
+
+def parse(output):
+    r = []
+    for l in output.splitlines():
+        try:
+            r.append(re.search(r"^\* Section name .+ is typical for ([a-zA-Z0-9_\-\s]+) packer$", l).group(1).lower())
+        except AttributeError:
+            pass
+    return r
+
+
+if __name__ == "__main__":
+    run("PortEx", parse_func=parse, exe_type="pe", exe_help="path to the PE file")
+

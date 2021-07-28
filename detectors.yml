@@ -1,3 +1,12 @@
+Analyze_PE:
+  categories:
+    - PE
+  comment: Relies on pefile and peutils with a userdb.txt signatures database.
+  description: Wraps around various tools and provides some additional checks/information to produce a centralized report of a PE file.
+  source: https://github.com/hiddenillusion/AnalyzePE
+  status: useless
+  maintained: false
+
 ASL:
   categories:
     - PE
@@ -36,6 +45,31 @@ DIE:
   source: https://github.com/horsicq/Detect-It-Easy
   status: ok
 
+Exeinfo_PE:
+  categories:
+    - PE
+  description: Exeinfo PE is a program that lets you verify .exe files and check out all their properties. You can also change the file name, directly open the .exe, or simply delete it. Another piece of info provided is the exact size and the point of entry. In short, you can access dozens of different options to edit any Windows executable file.
+  source: https://exeinfo-pe.fr.uptodown.com/windows
+  status: info
+
+Exescan:
+  categories:
+    - PE
+  comment: Relies on pefile and peutils with a userdb.txt signatures database and also the entropy-based function `peutils.is_probably_packed`.
+  description: ExeScan is a console based tool to detect anomalies in PE (Portable Executable) files. It quickly scans given executable file and detect all kind of anomalies in its PE header fields including checksum verifications, size of various header fields, improper size of raw data, non-ascii/empty section names etc.
+  source: https://github.com/cysinfo/Exescan
+  status: info
+  maintained: false
+
+Language_2000:
+  categories:
+    - PE
+  comment: Candidate for integration.
+  description: Language 2000 is the ultimate compiler detection utility. Using this program you can determine which compiler used to make your binary file or with which compressor the file is compressed.
+  source: https://farrokhi.net/language/
+  status: info
+  maintained: false
+
 Manalyze:
   categories:
     - PE
@@ -48,6 +82,21 @@ Manalyze:
     make: bin -j5
   source: https://github.com/JusticeRage/Manalyze
   status: ok
+
+NPEFileAnalyzer:
+  categories:
+    - PE
+  comment: PEiD-like detection.
+  description: NPE File Analyzer is a utility that allow users to view and edit 32bit and 64bit Portable Executable (PE) files, such as .EXE .DLL and .SYS files. This tool provides functions for inspection of unknown binaries, you can analyze sections, resources, import and export tables, relocations, TlsTable, and much more. It has a built-in process manager to analyze running processes and loaded modules.
+  source: https://www.novirusthanks.org/products/npe-file-analyzer/
+  status: info
+
+PE-Bear:
+  categories:
+    - PE
+  description: PE-bear is a freeware reversing tool for PE files. Its objective is to deliver fast and flexible “first view” for malware analysts, stable and capable to handle malformed PE files.
+  source: https://github.com/hasherezade/pe-bear-releases
+  status: info
 
 PeFrame:
   categories:
@@ -81,6 +130,20 @@ PEiD:
     - https://github.com/ynadji/peid/
   source: https://github.com/wolfram77web/app-peid
   status: ok
+  maintained: false
+
+PortEx:
+  categories:
+    - MSDOS
+    - PE
+  description: Java library to analyse Portable Executable files with a special focus on malware analysis and PE malformation robustness.
+  install:
+    wget: https://github.com/katjahahn/PortEx/raw/master/portex_2.12-3.0.0_FAT.jar
+    exec: mv /tmp/portex.jar /opt/detectors/
+    cd:   /opt/detectors
+    java: portex.jar
+  source: https://github.com/katjahahn/PortEx
+  status: ok
 
 PyPackerDetect:
   categories:
@@ -104,4 +167,20 @@ PyPeid:
       - find dist -iname *.whl -exec pip3 install {} \;
   source: https://github.com/FFRI/pypeid
   status: ok
+  maintained: false
+
+RDG:
+  categories:
+    - PE
+  description: RDG Packer Detector is a detector for packers, Cryptors, Compilers, Packers Scrambler, Joiners, Installers.
+  source: http://www.rdgsoft.net
+  status: info
+  maintained: false
+
+RetDec:
+  categories:
+    - All
+  description: RetDec is a retargetable machine-code decompiler based on LLVM.
+  source: https://github.com/avast/retdec
+  status: info
 
