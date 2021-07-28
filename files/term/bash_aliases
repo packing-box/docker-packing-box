@@ -42,4 +42,4 @@ alias pbox-update-dev="cp /mnt/share/files/tools/* /opt/tools/ && \
                        mv /opt/tools/help /opt/tools/? && \
                        cp /mnt/share/*.yml /opt/ && \
                        find /mnt/share/files/detectors/ -type f \( ! -iname \"*\.*\" \) -exec cp {} /opt/bin/ \; && \
-                       pip3 install /mnt/share/files/lib/ > /dev/null"
+                       pip3 install --upgrade /mnt/share/files/lib/ -q > /dev/null"
