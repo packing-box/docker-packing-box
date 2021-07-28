@@ -1,4 +1,7 @@
 # -*- coding: UTF-8 -*-
+from tinyscript.helpers import is_executable
+from tqdm import tqdm
+
 from .executable import Executable
 from ..common.dataset import Dataset
 from ..common.utils import backup
@@ -21,12 +24,7 @@ class FilelessDataset(Dataset):
         # compute the executable's metadata as normally
         super(FilelessDataset, self).__setitem__(executable, label)
         # then, compute features so that the file is no longer needed
-        e = executable
-        try:
-            e, refresh = e
-        except (TypeError, ValueError):
-            refresh = False
-        e = Executable(e, dataset=self)
+        e = Executable(executable, dataset=self)
         if not hasattr(self, "_features"):
             self._features = {}
         self._features.update(e.features)
@@ -43,19 +41,23 @@ class FilelessDataset(Dataset):
     def convert(self, feature=None, pattern=None, **kw):
         """ Convert a dataset with files to a dataset without files. """
         if not self._files:
-            raise ValueError("A fileless dataset cannot be converted to a dataset with files")
+            self.logger.warning("A fileless dataset cannot be converted to a dataset with files")
+            return
+        self._files = False
+        self.logger.debug("converting dataset...")
         headers, fnames = self._data.columns[:-1], []  # columns[-1] is assumed to be "label"
-        for exe in self.files.listdir(ts.is_executable):
+        self.path.joinpath("features.json").write_text("{}")
+        self._features = {}
+        pbar = tqdm(total=self._metadata['executables'], unit="executable")
+        for exe in self.files.listdir(is_executable):
             h = exe.basename
             exe = Executable(dataset=self, hash=h)
-            exe.selection = features or pattern
-            d = {'hash': h}
-            d.update(exe.data)
-            for n, v in exe.features.items():
-                if n not in fnames:
-                    fnames.append(n)
-                self._data.at[self._data.hash == h, n] = v
-        self._data = self._data[headers + sorted(fnames) + "label"]
+            exe.selection = feature or pattern
+            self[exe.hash] = self[exe.hash, True]
+            pbar.update()
+        self._data = self._data[headers.to_list() + sorted(fnames) + ["label"]]
+        self.files.remove(error=False)
         self._save()
+        self.logger.debug("removing files...")
     Dataset.convert = convert
 

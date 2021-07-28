@@ -14,13 +14,16 @@ class Executable(Base):
     _features = {}
     
     def __new__(cls, *parts, **kwargs):
-        self = super(Executable, self).__new__(*parts, **kwargs)
+        self = super(Executable, cls).__new__(cls, *parts, **kwargs)
+        self._selection = None
         if hasattr(self, "_dataset"):
-            d = ds._data[ds._data.hash == h].iloc[0].to_dict()
+            h = kwargs.pop('hash', self.basename)
+            d = self._dataset._data[self._dataset._data.hash == h].iloc[0].to_dict()
             f = {a: v for a, v in d.items() if a not in Executable.FIELDS + ["hash", "label"]}
             if len(f) > 0:
-                setattr(self, "features", f)
+                setattr(self, "data", f)
                 self.selection = list(f.keys())
+        return self
     
     def __getattribute__(self, name):
         if name == "_features":
@@ -52,9 +55,7 @@ class Executable(Base):
     
     @selection.setter
     def selection(self, features):
-        if features is None or len(features) == 0:
-            self._selection = sorted(list(self.features.keys()))
-        elif isinstance(features, (list, tuple)):
+        if isinstance(features, (list, tuple)):
             self._selection = sorted(features)
         elif isinstance(features, str):
             self._selection = sorted(x for x in self.features.keys() if re.search(features, x))

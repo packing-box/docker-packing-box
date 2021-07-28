@@ -52,7 +52,6 @@ class Executable(Path):
             try:
                 shutil.copy(str(self), str(self.destination))
             except:
-                print(self, self.destination)
                 raise
             self.destination.chmod(0o777)
     

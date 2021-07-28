@@ -158,7 +158,8 @@ class Dataset:
     
     def _load(self):
         """ Load dataset's associated files or create them. """
-        self.files.mkdir(exist_ok=True)
+        if self._files:
+            self.files.mkdir(exist_ok=True)
         for n in ["data", "metadata"] + [["features"], []][self._files]:
             p = self.path.joinpath(n + [".json", ".csv"][n == "data"])
             if n == "data":
@@ -312,7 +313,11 @@ class Dataset:
     @backup
     def merge(self, name2=None, **kw):
         """ Merge another dataset with the current one. """
-        ds2 = Dataset(name2)
+        ds2 = Dataset(name2) if Dataset.check(name2) else FilelessDataset(name2)
+        cls1, cls2 = self.__class__.__name__, ds2.__class__.__name__
+        if cls1 != cls2:
+            self.logger.error("Cannot merge %s and %s" % (cls1, cls2))
+            return
         # add rows from the input dataset
         self.logger.debug("merging rows from %s..." % ds2.path)
         for row, name in ds2:
@@ -332,16 +337,17 @@ class Dataset:
             self[e, True] = e.label
         self._save()
     
-    def purge(self, save=True, **kw):
+    def purge(self, **kw):
         """ Truncate and recreate a blank dataset. """
         self.logger.debug("purging %s..." % self.path)
-        if save:
-            self.backup = self
         self._remove()
         ts.Path(self.path, create=True)
         self._load()
-        if save:
-            self._save()
+        # also recursively purge the backups
+        try:
+            self.backup.purge()
+        except AttributeError:
+            pass
     
     @backup
     def remove(self, query=None, **kw):
@@ -476,7 +482,7 @@ class Dataset:
     @property
     def files(self):
         """ Get the Path instance for the 'files' folder. """
-        if self._files:
+        if self._files or self.__class__ is Dataset:
             return self.path.joinpath("files")
         raise AttributeError("'FilelessDataset' object has no attribute 'files'")
     
@@ -555,9 +561,9 @@ class Dataset:
         return r
     
     @classmethod
-    def check(cls, folder):
+    def check(cls, name):
         try:
-            cls.validate(folder, False)
+            cls.validate(name, False)
             return True
         except ValueError as e:
             return False
@@ -567,18 +573,13 @@ class Dataset:
         f = getattr(cls, "_files", True)
         ds = cls(name, load=False)
         p = ds.path
-        if not p.exists():
-            raise ValueError("Folder does not exist")
         if not p.is_dir():
-            raise ValueError("Input is not a folder")
-        if f:
-            if not p.joinpath("files").exists():
-                raise ValueError("Files subfolder does not exist")
-            if not p.joinpath("files").is_dir():
-                raise ValueError("Files subfolder is not a folder")
+            raise ValueError
+        if f and not p.joinpath("files").is_dir() or not f and p.joinpath("files").is_dir():
+            raise ValueError
         for fn in ["data.csv", "metadata.json"] + [["features.json"], []][f]:
             if not p.joinpath(fn).exists():
-                raise ValueError("Folder does not have %s" % fn)
+                raise ValueError
         if load:
             ds._load()
         return ds
