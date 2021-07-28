@@ -4,18 +4,20 @@ import pandas as pd
 from sklearn.model_selection import train_test_split, GridSearchCV
 from sklearn.preprocessing import *
 from tinyscript import json, logging
-from tinyscript.helpers import Path
+from tinyscript.helpers import human_readable_size, Path
 from tinyscript.report import *
 
-from .algorithms import *
+from .algorithms import Algorithm, WekaClassifier
+from .executable import Executable
 from .metrics import *
-from ..utils import *
+from ..common.config import config
+from ..common.utils import *
 
 
 __all__ = ["Model", "SCALERS"]
 
 
-PERF_HEADERS = ["Time", "Dataset", "Accuracy", "Processing Time"]
+PERF_HEADERS = ["Accuracy", "Precision", "Recall", "F-Measure", "MCC", "AUC", "Processing Time"]
 SCALERS = {
     'MA':         MaxAbsScaler,
     'MM':         MinMaxScaler,
@@ -40,12 +42,17 @@ class Model:
     """
     @logging.bindLogger
     def __init__(self, name=None, load=True, **kw):
-        p = config['workspace'].joinpath("models")
-        p.mkdir(exist_ok=True)
         self.__read_only = False
         self.name = name.stem if isinstance(name, Path) else name
         if load:
             self._load()
+    
+    @file_or_folder_or_dataset
+    def _iter(self, executable, **kw):
+        """ Iterate over executables using the special decorator file_or_folder_or_dataset. """
+        exe = Executable(executable)
+        exe.dataset = executable.dataset
+        return exe
     
     def _load(self):
         """ Load model's associated files if relevant or create instance's attributes. """
@@ -55,7 +62,7 @@ class Model:
             self._metadata = {}
             self._performance = pd.DataFrame(columns=PERF_HEADERS)
         else:
-            self.path = Path(config['workspace'].joinpath("models", self.name)).absolute()
+            self.path = Path(config['models'].joinpath(self.name)).absolute()
             Model.validate(self.path)
             for n in ["dump", "features", "metadata", "performance"]:
                 p = self.path.joinpath(n + (".joblib" if n == "dump" else ".csv" if n == "performance" else ".json"))
@@ -70,7 +77,13 @@ class Model:
                         setattr(self, "_" + n, json.load(f))
         return self
     
-    def _prepare(self, dataset, scaler="min-max", **kw):
+    @file_or_folder_or_dataset
+    def _predict(self, executable, **kw):
+        """ Predict the label of an executable or executables from a folder or for a complete dataset. """
+        exe = Executable(executable)
+        return exe, self.classifier.predict(pd.DataFrame(exe.features, index=[0]))
+    
+    def _prepare(self, dataset, scaler="MM", multiclass=False, **kw):
         """ Prepare the Model instance based on the given Dataset instance. """
         ds, l = dataset, self.logger
         if not getattr(dataset, "is_valid", lambda: False)():
@@ -86,7 +99,11 @@ class Model:
         ds.logger.debug("> Split dataset to data and target vectors")
         self._data = ds._data.loc[:, ~ds._data.columns.isin(ds.FIELDS)]
         self._features_vector = self._data.columns
-        self._target = ds._data.loc[:, ds._data.columns == "label"].replace({'label': {float("nan"): ""}})
+        self._target = ds._data.loc[:, ds._data.columns == "label"]
+        if not multiclass:  # convert to binary class
+            self._target = self._target.fillna(0).where(pd.isnull(self._target), 1)
+        else:
+            self._target = self._target.fillna("")
         # replace string features to numerical values
         ds.logger.debug("> Fit the data to numerical values")
         for column in self._data:
@@ -121,7 +138,7 @@ class Model:
         if self.name is None:
             c = "-".join(map(lambda x: x.lower(), collapse_categories(*self._metadata['dataset']['categories'])))
             self.name = "%s_%s_%d" % (self._metadata['dataset']['name'], c, self._metadata['dataset']['executables'])
-        self.path = Path(config['workspace'].joinpath("models", self.name)).absolute()
+        self.path = Path(config['models'].joinpath(self.name)).absolute()
         self.path.mkdir(exist_ok=True)
         l.debug("Saving model %s..." % str(self.path))
         p = self.path.joinpath("performance.csv")
@@ -142,11 +159,11 @@ class Model:
     def list(self, algorithms=False, **kw):
         """ List all the models from the given path or all available algorithms. """
         if algorithms:
-            d = [list(row) for row in CLASSIFIERS['descriptions'].items()]
+            d = [(a.name, a.description) for a in Algorithm.registry]
             r = [Section("Algorithms (%d)" % len(d)), Table(d, column_headers=["Name", "Description"])]
         else:
             d = []
-            for model in Path(config['workspace'].joinpath("models")).listdir(Model.check):
+            for model in Path(config['models']).listdir(Model.check):
                 with model.joinpath("metadata.json").open() as meta:
                     metadata = json.load(meta)
                 alg, ds = metadata['algorithm'], metadata['dataset']
@@ -160,6 +177,7 @@ class Model:
                     ",".join("%s{%d}" % i for i in sorted(ds['counts'].items(), key=lambda x: -x[1])),
                 ])
             if len(d) == 0:
+                self.logger.warning("No model found in workspace (%s)" % config['models'])
                 return
             r = [Section("Models (%d)" % len(d)),
                  Table(d, column_headers=["Name", "Algorithm", "Description", "Dataset", "Size", "Categories",
@@ -182,30 +200,61 @@ class Model:
         a, ds = self._metadata['algorithm'], self._metadata['dataset']
         c = List(["**Path**:                  %s" % self.path,
                   "**Algorithm**:             %s (%s)" % (a['description'], a['name']),
-                  "**Parameters**: \n\n\t- %s" % "\n\t- ".join("%s = %s" % (k, v) for k, v in a['parameters'].items())])
+                  "**Parameters**: \n\n\t- %s\n\n" % "\n\t- ".join("%s = %s" % p for p in a['parameters'].items()),
+                  "**Size**:                  %s" % human_readable_size(self.path.joinpath("dump.joblib").size)])
         print(mdv.main(Report(Section("Model characteristics"), c).md()))
-        c = List(["**Path**:                  %s" % config['workspace'].joinpath("datasets", ds['name']),
+        c = List(["**Path**:                  %s" % config['datasets'].joinpath(ds['name']),
                   "**Number of executables**: %d" % ds['executables'],
                   "**Categories**:            %s" % ", ".join(ds['categories']),
                   "**Packers**:               %s" % ", ".join(ds['counts'].keys())])
         print(mdv.main(Report(Section("Reference dataset"), c).md()))
     
-    @file_or_folder_or_dataset
-    def test(self, executable, **kw):
-        """ Test method. """
-        # metrics(executable, logger=self.logger)
-        # data = [["", "Model", "Accuracy", "Precision", "Recall", "F-Measure", "MCC", "AUC"]]
-        # table = Table(highlight_best(table_data), "Results ([CRESCI] - {})".format(c))
-        # print(table.table)
-        # return self.classifier.predict(data)
+    def test(self, executable, labels=None, **kw):
+        """ Test a single executable or a set of executables and evaluate metrics if labels are provided. """
+        if self.classifier is None:
+            self.logger.warning("Model shall be trained before testing")
+            return
+        i, target = -1, []
+        for i, exe in enumerate(self._iter(executable)):
+            try:
+                t = labels[e.hash]
+                if self._metadata['algorithm']['multiclass']:
+                    t = int(t is not None)
+            except KeyError:
+                self.logger.warning("%s not found in input labels" % e.hash)
+                continue
+            if i == 0:
+                feature_names = [_ for _ in feature_names if _ in e.features]
+                if len(feature_names) == 0:
+                    self.logger.warning("No selectable feature ; this may be due to a model unrelated to the input")
+                    return
+                data = pd.DataFrame(column=feature_names)
+            data.append({k: e.features[k] for k in feature_names}, ignore_index=True)
+            target.append(t)
+        if i < 0:
+            self.logger.warning("No data")
+            return
+        data = pd.DataFrame(data, columns=feature_names)
+        target = pd.DataFrame(target, colums=["label"])
+        prediction, dt = benchmark(self.classifier.predict(data))
+        proba = self.classifier.predict_proba(data)[:, 1]
+        d = [["Accuracy", "Precision", "Recall", "F-Measure", "MCC", "AUC"]]
+        m = metrics(target, prediction, proba, logger=self.logger)
+        print(Table(d + [m]).table)
+        if i > 0:
+            row = {k: v for k, v in zip(d[0], m)}
+            row['Dataset'] = exe.dataset or str(exe)
+            row['Processing Time'] = dt
+            self._performance.update(pd.DataFrame(row, index=[0]))
+            self._save()
     
-    def train(self, dataset=None, algorithm=None, cv=3, n_jobs=4, **kw):
+    def train(self, dataset=None, algorithm=None, cv=3, n_jobs=4, multiclass=False, **kw):
         """ Training method handling cross-validation. """
-        if not self._prepare(dataset, *kw):
+        if not self._prepare(dataset, **kw):
             return
         l = self.logger
         try:
-            cls = CLASSIFIERS['classes'][algorithm]
+            cls = Algorithm.get(algorithm)
             if isinstance(cls, WekaClassifier):
                 params['model'] = self
         except KeyError:
@@ -247,9 +296,25 @@ class Model:
         self.classifier = c
         self._metadata.setdefault('algorithm', {})
         self._metadata['algorithm']['name'] = algorithm
-        self._metadata['algorithm']['description'] = CLASSIFIERS['descriptions'][algorithm]
+        self._metadata['algorithm']['description'] = cls.description
         self._metadata['algorithm']['parameters'] = params
+        self._metadata['algorithm']['multiclass'] = multiclass
         self._save()
+    
+    def visualize(self, export=False, output_dir=".", **kw):
+        """ Plot the model for visualization. """
+        if self.classifier is None:
+            self.logger.warning("Model shall be trained before visualizing")
+            return
+        f = getattr(cls, "visualizations", {}).get(self._metadata['algorithm']['name'], {}) \
+                                              .get(["text", "export"][export])
+        if f is None:
+            self.logger.warning("Visualization not available for this algorithm")
+            return
+        params = {'feature_names': sorted(self._features.keys())}
+        if export: #FIXME
+            params['?'] = str(Path(output_dir).joinpath("%s.png" % self.name))
+        print(f(self.classifier, **params))
     
     @staticmethod
     def check(folder):

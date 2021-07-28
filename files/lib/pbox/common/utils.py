@@ -1,19 +1,17 @@
 # -*- coding: UTF-8 -*-
+import yaml
 from functools import wraps
 from time import time
-from tinyscript.helpers import is_executable, is_file, is_folder, ConfigPath, Path
-try:
-    from ConfigParser import ConfigParser
-except ImportError:
-    from configparser import ConfigParser
+from tinyscript import inspect
+from tinyscript.helpers import is_executable, is_file, is_folder, Path
 try:  # from Python3.9
     import mdv3 as mdv
 except ImportError:
     import mdv
 
 
-__all__ = ["benchmark", "config", "class_or_instance_method", "collapse_categories", "expand_categories",
-           "file_or_folder_or_dataset", "highlight_best", "mdv"]
+__all__ = ["backup", "benchmark", "class_or_instance_method", "collapse_categories", "expand_categories",
+           "file_or_folder_or_dataset", "highlight_best", "make_registry", "mdv"]
 
 
 CATEGORIES = {
@@ -27,27 +25,30 @@ CATEGORIES = {
 bold = lambda text: "\033[1m{}\033[0m".format(text)
 
 
+def backup(f):
+    """ Simple method decorator for making a backup of the dataset. """
+    def _wrapper(s, *a, **kw):
+        s.backup = s
+        return f(s, *a, **kw)
+    return _wrapper
+
+
 def benchmark(f):
     """ Decorator for benchmarking function executions. """
     def _wrapper(*args, **kwargs):
-        logger = kwargs.get("logger")
-        info = kwargs.pop("info", None)
-        perf = kwargs.pop("perf", True)
+        logger, perf = kwargs.get("logger"), kwargs.pop("perf", True)
         t = perf_counter if perf else time
         start = t()
         r = f(*args, **kwargs)
         dt = t() - start
-        message = "{}{}: {} seconds".format(f.__name__, "" if info is None else "[{}]".format(info), dt)
-        if logger is None:
-            print(message)
-        else:
-            logger.debug(message)
-        return r
+        return r, dt
     return _wrapper
 
 
 def collapse_categories(*categories, **kw):
     """ 2-depth dictionary-based collapsing function for getting a short list of executable categories. """
+    if len(categories) == 1 and isinstance(categories[0], (tuple, list)):
+        categories = categories[0]
     selected = [x for x in categories]
     for c in [k for k in CATEGORIES.keys() if k != "All"]:
         if all(x in selected for x in CATEGORIES[c]):
@@ -56,7 +57,7 @@ def collapse_categories(*categories, **kw):
             selected.append(c)
     if all(x in selected for x in CATEGORIES['All']):
         selected = ["All"]
-    return selected
+    return list(set(selected))
 
 
 def expand_categories(*categories, **kw):
@@ -83,19 +84,22 @@ def file_or_folder_or_dataset(method):
         # exe list extension function
         def _extend_e(i):
             if is_file(i) and is_executable(i) and i not in e:
+                i = Path(i)
+                i.dataset = None
                 e.append(i)
             elif is_folder(i):
-                i = Path(i)
+                i, dataset = Path(i), None
                 # check if it is a dataset
                 if i.joinpath("files").is_dir() and \
                    all(i.joinpath(f).is_file() for f in ["data.csv", "features.json", "labels.json", "names.json"]):
                     with i.joinpath("labels.json").open() as f:
                         l.update(json.load(f))
+                    dataset = i.basename
                     # if so, move to the dataset's "files" folder
                     i = i.joinpath("files")
                 for f in i.listdir(is_executable):
-                    f = str(f)
-                    if f not in e:
+                    f.dataset = dataset
+                    if str(f) not in e:
                         e.append(f)
             else:
                 return False
@@ -111,12 +115,12 @@ def file_or_folder_or_dataset(method):
         for a in kwargs.pop('file', []):
             _extend_e(a)
         # then handle the list
-        r, kwargs['silent'] = [], False
+        kwargs['silent'] = False
         for exe in e:
+            # this is useful for a decorated method that handles the difference between the computed and actual labels
             kwargs['label'] = l.get(Path(exe).stem, -1)
-            r.append(method(self, exe, *args, **kwargs))
+            yield method(self, exe, *args, **kwargs)
             kwargs['silent'] = True
-        return r[0] if len(r) == 1 else r
     return _wrapper
 
 
@@ -137,81 +141,29 @@ def highlight_best(table_data, from_col=2):
     return new_data
 
 
+def make_registry(cls):
+    """ Make class' registry of child classes and fill the __all__ list in. """
+    cls.registry = []
+    glob = inspect.getparentframe().f_back.f_globals
+    with Path("/opt/%ss.yml" % cls.__name__.lower()).open() as f:
+        items = yaml.load(f, Loader=yaml.Loader)
+    for item, data in items.items():
+        if item not in glob:
+            i = glob[item] = type(item, (cls, ), dict(cls.__dict__))
+        else:
+            i = glob[item]
+        for k, v in data.items():
+            if k == "exclude":
+                v = {c: sv for sk, sv in v.items() for c in expand_categories(sk)}
+            elif k == "status":
+                k = "_" + k
+            setattr(i, k, v)
+        glob['__all__'].append(item)
+        cls.registry.append(i())
+
+
 # based on: https://stackoverflow.com/questions/28237955/same-name-for-classmethod-and-instancemethod
 class class_or_instance_method(classmethod):
     def __get__(self, ins, typ):
         return (super().__get__ if ins is None else self.__func__.__get__)(ins, typ)
-
-
-class Config(ConfigParser):
-    """ Simple Config class for handling some packing-box settings. """
-    DEFAULTS = {
-        'main': {
-            'workspace': ("~/.packing-box", lambda v: Path(v, create=True, expand=True).absolute()),
-        }
-    }
-    
-    def __init__(self):
-        super(Config, self).__init__()
-        self.path = ConfigPath("packing-box", file=True)
-        if not self.path.exists():
-            self.path.touch()
-        # get options from the target file
-        self.read(str(self.path))
-        # complete with default option-values
-        try:
-            sections = list(self.sections())
-        except AttributeError:
-            sections = []
-        for section, options in self.DEFAULTS.items():
-            if section not in sections:
-                self.add_section(section)
-            for opt, val in options.items():
-                try:
-                    val, func = val
-                except ValueError:
-                    pass
-                s = super().__getitem__(section)
-                if opt not in s:
-                    s[opt] = val
-    
-    def __getitem__(self, option):
-        for name in self.sections():
-            sec = super().__getitem__(name)
-            if option in sec:
-                o = Config.DEFAULTS[name][option]
-                return (o[1] if isinstance(o, tuple) and len(o) > 1 else str)(sec[option])
-        raise KeyError(option)
-    
-    def __iter__(self):
-        for section in self.sections():
-            for option in super().__getitem__(section).keys():
-                yield option
-    
-    def __setitem__(self, option, value):
-        for section in self.sections():
-            s = super().__getitem__(section)
-            if option in s:
-                s[option] = str(value)
-                return
-        raise KeyError(option)
-    
-    def items(self):
-        for opt in sorted(x for x in self):
-            yield opt, self[opt]
-    
-    def iteroptions(self):
-        opts = []
-        for name in self.sections():
-            sec = super().__getitem__(name)
-            for opt, val in sec.items():
-                o = Config.DEFAULTS[name][opt]
-                opts.append((opt, o[1] if isinstance(o, tuple) and len(o) > 1 else str, val))
-        for o, v, f in sorted(opts, key=lambda x: x[0]):
-            yield o, v, f
-    
-    def save(self):
-        with self.path.open('w') as f:
-            self.write(f)
-config = Config()
 

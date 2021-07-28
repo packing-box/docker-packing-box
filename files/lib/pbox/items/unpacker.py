@@ -2,7 +2,8 @@
 from tinyscript import hashlib
 
 from .__common__ import *
-from .executable import Executable
+from ..common.executable import Executable
+from ..common.utils import make_registry
 
 
 # this list is filled in with subclasses at the end of this module

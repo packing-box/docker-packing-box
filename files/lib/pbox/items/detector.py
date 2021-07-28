@@ -1,7 +1,7 @@
 # -*- coding: UTF-8 -*-
 from .__common__ import *
-from .executable import Executable
-from ..utils import class_or_instance_method, file_or_folder_or_dataset
+from ..common.executable import Executable
+from ..common.utils import class_or_instance_method, file_or_folder_or_dataset, make_registry
 
 
 # this list is filled in with subclasses at the end of this module

@@ -135,7 +135,7 @@ __d['number_resources'] = "number of resources the PE holds"
 
 def pefeats(executable):
     """ This uses pefeats to extract 119 features from PE files. """
-    out, err, retc = run("pefeats %s" % executable)
+    out, err, retc = run("pefeats \"%s\"" % executable)
     if retc == 0:
         return {f: literal_eval(v) for f, v in zip(PEFEATS.keys(), out.decode().strip().split(",")[1:])}
 

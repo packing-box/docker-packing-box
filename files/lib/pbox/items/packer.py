@@ -3,7 +3,8 @@ from tinyscript import b, ensure_str, hashlib, random, re, subprocess
 from tinyscript.helpers import execute_and_log as run
 
 from .__common__ import *
-from .executable import Executable
+from ..common.executable import Executable
+from ..common.utils import make_registry
 
 
 # this list is filled in with subclasses at the end of this module

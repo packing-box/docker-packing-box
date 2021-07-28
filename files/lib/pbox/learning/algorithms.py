@@ -1,127 +1,19 @@
 # -*- coding: UTF-8 -*-
 import pandas as pd
-from sklearn.ensemble import AdaBoostClassifier as ABC, RandomForestClassifier as RFC
-from sklearn.naive_bayes import BernoulliNB as BNB, GaussianNB as GNB, MultinomialNB as MNB
-from sklearn.neighbors import KNeighborsClassifier as KNC
-from sklearn.neural_network import MLPClassifier as MLPC
-from sklearn.svm import LinearSVC as LSVC, SVC
-from sklearn.tree import DecisionTreeClassifier as DTC
 from tinyscript.helpers import Path
 from weka.classifiers import Classifier
 
-from ..utils import benchmark
+from ..common.item import Item
+from ..common.utils import make_registry
+
+__all__ = ["Algorithm", "WekaClassifier"]
 
 
-__all__ = ["WekaClassifier", "CLASSIFIERS", "CV_PARAM", "STATIC_PARAM"]
+class Algorithm(Item):
+    """ Algorithm abstraction. """
+    pass
 
 
-# static test parameters
-RSTATE = 42
-STATIC_PARAM = {
-    'AB': {'random_state': RSTATE},
-    #  defaults:
-    #   base_estimator = DecisionTreeClassifier
-    #   n_estimators   = 50
-    #   learning_rate  = 1
-    #   algorithm      = ’SAMME.R’
-
-    'BN': {},
-    #  defaults:
-    #   -E    weka.classifiers.bayes.net.estimate.SimpleEstimator   Estimator algorithm.
-    #   -Q    weka.classifiers.bayes.net.search.SearchAlgorithm     Search algorithm.
-    
-    'BNB': {},
-    #  defaults:
-    #   alpha       = 1.0
-    #   binarize    = 0.0
-    #   fit_prior   = True
-    #   class_prior = None
-
-    'D': {'-S': RSTATE},
-    #  defaults:
-    #   -E    15                          Desired size of ensemble.
-    #   -R    1.0                         Factor that determines number of artificial examples to generate.
-    #   -S    1                           Random number seed.
-    #   -I    50                          Number of iterations.
-    #   -W    weka.classifiers.trees.J48  Full name of base classifier.
-
-    'DT': {'random_state': RSTATE},
-    #  defaults:
-    #   splitter  = 'best'
-    #   max_depth = None
-    #   other: see Ref
-
-    'J48': {'-Q': RSTATE},
-    #  defaults:
-    #   -C    0.25                  Set confidence threshold for pruning.
-    #   -M    2       Set minimum number of instances per leaf.
-    #   -N    3       Set number of folds for reduced error pruning. One fold is used as pruning set.
-
-    'GNB': {},
-    #  defaults:
-    #   priors = None
-
-    'LR': {},
-    #  defaults:
-    #   -M    -1      Set maximum number of iterations (-1: until convergence)
-
-    'LSVM': {'random_state': RSTATE},
-    #  defaults:
-    #   penalty = 'l2'
-    #   loss    = 'squared_hinge'
-    #   dual    = True
-    #   tol     = 1e-4
-    #   others: see Ref
-
-    'kNN': {'weights': "uniform"},
-    #  defaults:
-    #   n_neighbors = 5
-    #   leaf_size   = 30
-    #   p           = 2 (euclidian distance)
-    #   metric      = 'minkowski'
-    #   others: see Ref
-
-    'MLP': {'hidden_layer_sizes': (10, 2), 'random_state': RSTATE},
-    #  defaults:
-    #   hidden_layer_sizes = (100,)
-    #   activation         = 'relu'
-    #   solver             = 'adam'
-    #   alpha              = 1e-4
-    #   others: see Ref
-
-    'MNB': {},
-    #  defaults:
-    #   alpha       = 1.0
-    #   fit_prior   = True
-    #   class_prior = None
-
-    'RF': {'random_state': RSTATE},
-    #  defaults:
-    #   n_estimators = 10
-    #   max_features = 'auto'
-    #   max_depth    = None
-    #   others: see Ref
-
-    'SVM': {'probability': True, 'random_state': RSTATE},
-    #  defaults:
-    #   C      = 1.0
-    #   kernel = 'rbf'
-    #   degree = 3
-    #   gamma  = 'auto'
-    #   others: see Ref
-}
-
-# test parameter ranges for grid search cross-validation
-CV_PARAM = {
-    'DT':   {'criterion': ["entropy", "gini"], 'max_depth': range(3, 11)},
-    'kNN':  {'n_neighbors': range(1, 6, 2)},
-    'LSVM': {'C': pd.np.logspace(1, 6, 6)},
-    'RF':   {'criterion': ["entropy", "gini"], 'max_depth': range(6, 21)},
-    'SVM':  {'C': pd.np.logspace(4, 6, 3), 'gamma': pd.np.logspace(-3, -1, 3)},
-}
-
-
-# ---------------------------------------------- WEKA ALGORITHM BINDINGS -----------------------------------------------
 class WekaClassifier(Classifier):
     """ This class implements a binding for using the Decorate algorithm from the Weka framework the same way as SkLearn
          algorithms. """
@@ -133,6 +25,7 @@ class WekaClassifier(Classifier):
         if m:
             self.train_file = m.path.joinpath("train.arff")
             self.test_file = m.path.joinpath("test.arff")
+        kwargs = {("-" + k if not k.startswith("-") else k): v for k, v in kwargs}
         super(WekaClassifier, self).__init__(name=self.name, ckargs=kwargs)
     
     def fit(self, train_data, train_target):
@@ -189,12 +82,12 @@ class WekaClassifier(Classifier):
                                                 cls="{%s}" % ",".join(classes), data=d))
 
 
-class BN(WekaClassifier):
+class BayesNet(WekaClassifier):
     """ This class implements the Bayes Network algorithm from Weka. """
     name = "weka.classifiers.bayes.BayesNet"
 
 
-class DEC(WekaClassifier):
+class Decorate(WekaClassifier):
     """ This class implements the DECORATE algorithm from Weka. """
     name = "weka.classifiers.meta.Decorate"
 
@@ -204,46 +97,10 @@ class J48(WekaClassifier):
     name = "weka.classifiers.trees.J48"
 
 
-class LR(WekaClassifier):
+class Logistic(WekaClassifier):
     """ This class implements the Multinomial Ridge Logistic Regression algorithm from Weka. """
     name = "weka.classifiers.functions.Logistic"
 
 
-# list of implemneted classifiers
-CLASSIFIERS = {
-    'classes': {
-        # Weka algorithms (https://weka.sourceforge.io/doc.stable/weka/classifiers)
-        'D':    DEC,    # /meta/Decorate.html
-        'J48':  J48,    # /trees/J48.html
-        'BN':   BN,     # /bayes/BayesNet.html
-        'LR':   LR,     # /functions/Logistic.html
-        # SkLearn algorithms (http://scikit-learn.org/stable/modules/generated)
-        'AB':   ABC,    # /sklearn.ensemble.AdaBoostClassifier.html
-        'RF':   RFC,    # /sklearn.ensemble.RandomForestClassifier.html
-        'BNB':  BNB,    # /sklearn.naive_bayes.BernoulliNB.html
-        'GNB':  GNB,    # /sklearn.naive_bayes.GaussianNB.html
-        'MNB':  MNB,    # /sklearn.naive_bayes.MultinomialNB.html
-        'kNN':  KNC,    # /sklearn.neighbors.KNeighborsClassifier.html
-        'MLP':  MLPC,   # /sklearn.neural_network.MLPClassifier.html
-        'SVM':  SVC,    # /sklearn.svm.SVC.html
-        'LSVM': LSVC,   # /sklearn.svm.LinearSVC.html
-        'DT':   DTC,    # /sklearn.tree.DecisionTreeClassifier.html
-    },
-    'descriptions': {
-        'AB':   "Adaptive Boosting",
-        'BN':   "Bayesian Network",
-        'BNB':  "Bernoulli Naive Bayes",
-        'D':    "Decorate",
-        'DT':   "Decision Tree",
-        'GNB':  "Gaussian Naive Bayes",
-        'J48':  "Decision Tree",
-        'kNN':  "k-Nearest Neighbors",
-        'LR':   "Logistic Regression",
-        'LSVM': "Linear Support Vector Machine",
-        'MLP':  "Multi-Layer Perceptron",
-        'MNB':  "Multinomial Naive Bayes",
-        'RF':   "Random Forest",
-        'SVM':  "Support Vector Machine",
-    }
-}
+make_registry(Algorithm)
 

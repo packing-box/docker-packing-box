@@ -1,18 +1,19 @@
 # -*- coding: UTF-8 -*-
-from tinyscript import b, colored as _c, ensure_str, inspect, json, logging, os, random, re, shlex, subprocess, ts
-from tinyscript.helpers import execute_and_log as run, is_executable, is_file, is_folder, yaml_config, Path
+from tinyscript import b, colored as _c, ensure_str, json, logging, os, random, re, shlex, subprocess, ts
+from tinyscript.helpers import execute_and_log as run, is_executable, is_file, is_folder, Path
 from tinyscript.report import *
 
-from .executable import Executable
-from ..utils import expand_categories
+from ..common.executable import Executable
+from ..common.item import Item
+from ..common.utils import expand_categories
 
 
-__all__ = ["make_registry", "Base"]
+__all__ = ["Base"]
 
 
 OS_COMMANDS = subprocess.check_output("compgen -c", shell=True, executable="/bin/bash").splitlines()
 PARAM_PATTERN = r"{{(.*?)(?:\[(.*?)\])?}}"
-STATUS = [_c("✗", "magenta"), _c("✗", "red"), _c("?", "grey"), _c("✓", "yellow"), _c("✓", "green")]
+STATUS = [_c("ⓘ", "grey"), _c("☒", "magenta"), _c("☒", "red"), _c("☐", "grey"), _c("☑", "yellow"), _c("☑", "green")]
 TEST_FILES = {
     'ELF32': [
         "/usr/bin/perl5.30-i386-linux-gnu",
@@ -53,36 +54,17 @@ TEST_FILES = {
 }
 
 
-def make_registry(cls):
-    """ Make class' registry of child classes and fill the __all__ list in. """
-    cls.registry = []
-    itype = cls.__name__.lower()
-    glob = inspect.getparentframe().f_back.f_globals
-    for item, data in yaml_config(str(Path("/opt/%ss.yml" % itype))).items():
-        if item not in glob:
-            i = glob[item] = type(item, (cls, ), dict(cls.__dict__))
-        else:
-            i = glob[item]
-        for k, v in data.items():
-            if k == "exclude":
-                v = {c: sv for sk, sv in v.items() for c in expand_categories(sk)}
-            elif k == "status":
-                k = "_" + k
-            setattr(i, k, v)
-        glob['__all__'].append(item)
-        cls.registry.append(i())
-
-
-class Base:
-    """ Item abstraction, for defining the common machinery for Detector, Packer and Unpacker.
+class Base(Item):
+    """ Base item abstraction, for defining the common machinery for Detector, Packer and Unpacker.
     
     Attributes:
       status [int]
-        0: broken
-        1: not installed
-        2: gui|todo
-        3: installed
-        4: tested
+        0: info|useless
+        1: broken
+        2: not installed
+        3: gui|todo
+        4: installed
+        5: tested
       use_output [bool]
     
     Instance methods:
@@ -97,9 +79,7 @@ class Base:
       .summary()
     """
     def __init__(self):
-        self.name = self.__class__.__name__.lower()
-        self.type = self.__class__.__base__.__name__.lower()
-        self.logger = logging.getLogger(self.name)
+        super(Base, self).__init__()
         self._categories_exp = expand_categories(*self.categories)
         self._bad = False
         self._error = False
@@ -115,15 +95,16 @@ class Base:
                 logging.setLogger(self.name)
                 self.__init = True
             # check: is this item operational ?
-            if self.status <= 2:
-                self.logger.debug("Status: %s" % ["broken", "not installed", "todo"][self.status])
+            if self.status <= 3:
+                self.logger.debug("Status: %s" % ["info|useless", "broken", "not installed", "todo"][self.status])
                 return lambda *a, **kw: False
         return super(Base, self).__getattribute__(name)
     
     def _test(self, silent=False):
         """ Preamble to the .test(...) method. """
-        if self.status < 2:
-            self.logger.warning("%s %s" % (self.__class__.__name__, ["broken", "not installed"][self.status]))
+        if self.status < 3:
+            st = ["info|useless", "broken", "not installed"][self.status]
+            self.logger.warning("%s %s" % (self.__class__.__name__, st))
             return False
         logging.setLogger(self.name)
         if not silent:
@@ -215,8 +196,8 @@ class Base:
     def setup(self, **kw):
         """ Sets the item up according to its install instructions. """
         logging.setLogger(self.name)
-        if self.status == 0:
-            self.logger.debug("Status: broken or useless ; this item won't be installed")
+        if self.status < 2:
+            self.logger.debug("Status: broken|info|useless ; this item won't be installed")
             return
         self.logger.info("Setting up %s..." % self.__class__.__name__)
         tmp, obin, ubin = Path("/tmp"), Path("/opt/bin"), Path("/usr/bin")
@@ -264,6 +245,7 @@ class Base:
             # make a symbolink link in /usr/bin (if relative path) relatively to the previous considered location
             elif cmd == "ln":
                 r = ubin.joinpath(self.name)
+                r.remove(False)
                 run("ln -s %s %s" % ((result or tmp).joinpath(arg), r), **kw)
                 result = r
             elif cmd == "lsh":
@@ -327,13 +309,17 @@ class Base:
             elif cmd == "setp":
                 result = tmp.joinpath(arg)
             # create a shell script to execute Bash code and make it executable
-            elif cmd in ["sh", "wine"]:
+            elif cmd in ["java", "sh", "wine"]:
                 r = ubin.joinpath(self.name)
-                arg = "\n".join(arg.split("\\n"))
-                arg = "#!/bin/bash\n%s" % (arg if cmd == "sh" else "wine %s \"$@\"" % result.joinpath(arg))
-                self.logger.debug("echo -en '%s' > %s" % (arg, r))
+                if cmd == "java":
+                    txt = "java -jar %s \"$@\"" % result.joinpath(arg)
+                elif cmd == "sh":
+                    txt = "#!/bin/bash\n%s" % "\n".join(arg.split("\\n"))
+                elif cmd == "wine":
+                    txt = "wine %s \"$@\"" % result.joinpath(arg)
+                self.logger.debug("echo -en '%s' > %s" % (txt, r))
                 try:
-                    r.write_text(arg)
+                    r.write_text(txt)
                     run("chmod +x %s" % r, **kw)
                 except PermissionError:
                     self.logger.error("bash: %s: Permission denied" % r)
@@ -429,16 +415,18 @@ class Base:
     def status(self):
         """ Get the status of item's binary. """
         st = getattr(self, "_status", None)
-        if st in ["broken", "useless"]:  # manually set in [item].yml ; for items that cannot be installed/run or that
-            return 0          #  are useless (e.g. because it relies on another already existing item)
-        elif st in ["gui", "todo"]:  # item to be automated yet
-            return 2
-        elif st == "ok":  # the item runs, works correctly and was tested
-            return 4
-        elif b(self.name) not in OS_COMMANDS:  # when the setup failed or is incomplete
+        if st == "ok":  # the item runs, works correctly and was tested
+            return 5
+        elif st in ["info", "useless"]:
+            return 0
+        if st == "broken":
             return 1
+        elif st in ["gui", "todo"]:  # item to be automated yet
+            return 3
+        elif b(self.name) not in OS_COMMANDS:  # when the setup failed or is incomplete
+            return 2
         # in this case, the binary/symlink exists but running the item was not tested yet
-        return 3
+        return 4
     
     @classmethod
     def get(cls, item):
@@ -452,12 +440,12 @@ class Base:
         items = []
         pheaders = ["Name", "Targets", "Status", "Source"]
         pfooters = [" ", " ", " "]
-        descr = ["broken", "not installed", "todo", "installed", "functional"]
-        pfooters.append(" ; ".join("%s: %s" % (s, d) for s, d in \
-                        zip(STATUS if show else STATUS[1:], descr if show else descr[1:])))
+        descr = ["info", "broken", "not installed", "todo", "installed", "functional"]
+        pfooters.append(" ; ".join("%s %s" % (s, d) for s, d in \
+                        zip(STATUS if show else STATUS[2:], descr if show else descr[2:])))
         n = 0
         for item in cls.registry:
-            if not show and item.status == 0:
+            if not show and item.status < 2:
                 continue
             n += 1
             items.append([

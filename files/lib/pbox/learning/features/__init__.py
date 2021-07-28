@@ -3,7 +3,7 @@ from tinyscript.helpers import entropy
 
 from .elf import *
 from .pe import *
-from ...utils import expand_categories
+from ...common.utils import expand_categories
 
 
 __all__ = ["Features", "FEATURE_DESCRIPTIONS"]
@@ -17,6 +17,9 @@ FEATURES = {
     },
     'ELF': {
         'elfeats': lambda exe: elfeats(exe),
+    },
+    'MSDOS': {
+        'pefeats': lambda exe: pefeats(exe),
     },
     'PE': {
         'pefeats': lambda exe: pefeats(exe),
