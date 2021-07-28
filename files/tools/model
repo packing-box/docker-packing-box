@@ -54,11 +54,11 @@ if __name__ == '__main__':
     train = sparsers.add_parser("train", help="train a model on the given dataset")
     train.add_argument("dataset", type=Dataset.validate, help="dataset for training the model")
     __add_name(train, True)
-    train.add_argument("-a", "--algorithm", choices=CLASSIFIERS['classes'].keys(), default="DT",
+    train.add_argument("-a", "--algorithm", choices=[a.name for a in Algorithm.registry], default="dt",
                        help="machine learning algorithm to be used\n- %s\n * supports Grid Search cross-validation\n" %\
-                            "\n- ".join("%s: %s%s" % (k.ljust(4), v, ["", "*"][k in CV_PARAM]) for k, v in \
-                            sorted(CLASSIFIERS['descriptions'].items(), key=lambda x: x[0])))
-    train.add_argument("-s", "--scaler", default="min-max", choices=SCALERS.keys(),
+                            "\n- ".join("%s: %s%s" % (a.name.ljust(4), a.description, ["", "*"][a.parameters.get('cv') \
+                            is not None]) for a in Algorithm.registry))
+    train.add_argument("-s", "--scaler", default="MM", choices=SCALERS.keys(),
                        help="scaler for shaping the data\n- %s\n" % \
                             "\n- ".join("%s: %s" % (k.ljust(10), "none" if v is None else v.__name__ \
                                         if not isinstance(v, tuple) else "%s with %s" % \
@@ -66,6 +66,10 @@ if __name__ == '__main__':
                             for k, v in sorted(SCALERS.items(), key=lambda x: x[0])))
     train.add_argument("--cv", default=3, help="number of Cross-Validation folds")
     train.add_argument("--n-jobs", default=4, help="number of jobs to be run in parallel")
+    visualize = sparsers.add_parser("visualize", help="visualize the model")
+    __add_name(visualize)
+    visualize.add_argument("-e", "--export", action="store_true", help="export to PNG")
+    visualize.add_argument("-o", "--output-dir", default=".", help="output directory")
     initialize(noargs_action="help")
     args.load = args.command != "list"
     getattr(Model(**vars(args)), args.command)(**vars(args))

@@ -59,8 +59,11 @@ if __name__ == '__main__':
         for item in reg:
             if item.name in (selected or [x.name for x in reg if x.status > 0]):
                 try:
-                    getattr(item, args.command)(**vars(args))
+                    r = getattr(item, args.command)(**vars(args))
                 except:
                     logger.critical("%s %s failed: %s" % (cls, args.command, item.__class__.__name__))
                     raise
+                if ts.is_generator(r):
+                    for i in r:
+                        pass
 

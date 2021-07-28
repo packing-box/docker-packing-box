@@ -5,7 +5,7 @@ from pbox.__info__ import *
 from tinyscript import *
 
 
-__version__     = "2.0.0"
+__version__     = "2.0.1"
 __doc__         = """
 This tool aims to manipulate a dataset in multiple ways by:
 - adding new executables from the packing-box Docker image or from a user-defined source, packed or not with the
@@ -29,10 +29,10 @@ __description__ = "Make datasets of packed and not packed executables for use wi
 
 def __add_path(parser, force=False):
     def dataset_exists(string):
-        p = config['workspace'].joinpath("datasets", string)
+        p = config['datasets'].joinpath(string)
         (ts.folder_exists_or_create if force else ts.folder_exists)(str(p))
-        if not force:
-            Dataset.validate(p)
+        if not force and not Dataset.check(p) and not FilelessDataset.check(p):
+            raise ValueError("Bad dataset")
         return p
     parser.add_argument("name", type=dataset_exists, help="name of the dataset")
     return parser
@@ -40,6 +40,10 @@ def __add_path(parser, force=False):
 
 if __name__ == '__main__':
     sparsers = parser.add_subparsers(dest="command", help="command to be executed")
+    convert = sparsers.add_parser("convert", help="convert the target dataset to a fileless one")
+    cgroup = convert.add_mutually_exclusive_group()
+    cgroup.add_argument("-f", "--feature", action="extend", nargs="*", help="list of features to be selected")
+    cgroup.add_argument("-p", "--pattern", help="pattern of features to be selected")
     fix = __add_path(sparsers.add_parser("fix", help="fix a corrupted dataset"))
     fgroup = fix.add_mutually_exclusive_group()
     fgroup.add_argument("-d", "--detect", action="store_true", help="detect used packer with installed detectors")
@@ -60,20 +64,20 @@ if __name__ == '__main__':
     make.add_argument("-s", "--source-dir", action="extend", nargs="*", type=lambda p: ts.Path(p, expand=True),
                       help="executables source directory to be included")
     merge = __add_path(sparsers.add_parser("merge", help="merge two datasets"))
-    merge.add_argument("path2", type=ts.folder_exists, help="path to the second dataset")
+    merge.add_argument("name2", type=ts.folder_exists, help="name of the dataset to merge")
+    __add_path(sparsers.add_parser("purge", help="purge a dataset"), True)
     remove = __add_path(sparsers.add_parser("remove", help="remove executables from a dataset"))
-    remove.add_argument("--query", help="query for selecting records to be removed")
+    remove.add_argument("-q", "--query", help="query for selecting records to be removed")
     rename = __add_path(sparsers.add_parser("rename", help="rename a dataset"))
-    rename.add_argument("path2", type=ts.folder_does_not_exist, help="path to rename the dataset to")
-    __add_path(sparsers.add_parser("reset", help="reset a dataset"))
+    rename.add_argument("name2", type=ts.folder_does_not_exist, help="new name of the dataset")
     __add_path(sparsers.add_parser("revert", help="revert a dataset to its previous state"))
     select = __add_path(sparsers.add_parser("select", help="select a subset of the dataset"))
-    select.add_argument("path2", type=ts.folder_does_not_exist, help="path of the new dataset")
-    select.add_argument("--query", help="query for selecting records to be selected")
+    select.add_argument("name2", type=ts.folder_does_not_exist, help="name of the new dataset")
+    select.add_argument("-q", "--query", help="query for selecting records to be selected")
     show = __add_path(sparsers.add_parser("show", help="get an overview of the dataset"))
     show.add_argument("-l", "--limit", default=10, type=int, help="number of executables to be displayed per category")
     show.add_argument("--per-category", action="store_true", help="display statistics per category")
-    update = __add_path(sparsers.add_parser("update", help="update a dataset with new executables"))
+    update = __add_path(sparsers.add_parser("update", help="update a dataset with new executables"), True)
     ugroup = update.add_mutually_exclusive_group()
     ugroup.add_argument("-d", "--detect", action="store_true", help="detect used packer with installed detectors")
     ugroup.add_argument("-l", "--labels", type=ts.json_config, help="set labels from a JSON file")
@@ -81,8 +85,10 @@ if __name__ == '__main__':
     update.add_argument("-s", "--source-dir", action="extend", nargs="*", type=lambda p: ts.Path(p, expand=True),
                         help="executables source directory to be included")
     view = __add_path(sparsers.add_parser("view", help="view executables filtered from a dataset"))
-    view.add_argument("--query", help="query for selecting records to be viewed")
+    view.add_argument("-q", "--query", help="query for selecting records to be viewed")
     initialize(noargs_action="help")
     args.load = args.command != "list"
-    getattr(Dataset(**vars(args)), args.command)(**vars(args))
+    ds = Dataset(**vars(args))
+    if args.command != "new":
+        getattr(ds, args.command)(**vars(args))
 

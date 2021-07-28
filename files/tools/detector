@@ -21,20 +21,20 @@ if __name__ == '__main__':
     kw = {'debug': args.verbose > 0, 'verbose': args.verbose > 1}
     if args.detector:
         for name in args.detector:
-            r = Detector.get(name).detect(args.executable, **kw)
+            for r in Detector.get(name).detect(args.executable, **kw):
+                if r:
+                    print(r)
+    else:
+        for r in Detector.detect(args.executable, **kw):
+            try:
+                r, details = r
+            except:
+                details = {}
+            mlen = 0
+            for name in details.keys():
+                mlen = max(mlen, len(name))
+            for name, label in details.items():
+                logger.warning(("{: <%d}: {}" % mlen).format(name, label or "-"))
             if r:
                 print(r)
-    else:
-        r = Detector.detect(args.executable, **kw)
-        try:
-            r, details = r
-        except:
-            details = {}
-        mlen = 0
-        for name in details.keys():
-            mlen = max(mlen, len(name))
-        for name, label in details.items():
-            logger.warning(("{: <%d}: {}" % mlen).format(name, label or "-"))
-        if r:
-            print(r)
 
