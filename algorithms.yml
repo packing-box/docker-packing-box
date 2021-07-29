@@ -52,14 +52,14 @@ DT:
       max_depth:         null
       max_features:      null
       max_leaf_nodes:    null
-      min_samples_split: 2.
+      min_samples_split: 2
       splitter:          best
       random_state:      42
     cv:
       criterion:
         - entropy
         - gini
-      max_depth: !!python/object/new:range [1, 10]
+      max_depth: !!python/object/new:range [3, 10]
   visualization:
     text:   sklearn.tree.export_text
     export: null

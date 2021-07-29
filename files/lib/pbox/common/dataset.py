@@ -2,6 +2,7 @@
 import pandas as pd
 import re
 from datetime import datetime, timedelta
+from textwrap import wrap
 from tinyscript import b, colored, hashlib, json, logging, random, time, ts
 from tinyscript.report import *
 from tqdm import tqdm
@@ -49,6 +50,7 @@ class Dataset:
         self.categories = getattr(self, "_metadata", {}).get('categories', [])
         self.__change = False
         self.__limit = 20
+        self.__per_category = False
     
     def __delitem__(self, executable):
         """ Remove an executable (by its real name or hash) from the dataset. """
@@ -114,7 +116,8 @@ class Dataset:
         :param label:      either the text label of the given executable or its dictionary of data
         """
         self.__change = True
-        e = Executable(executable, dataset=self)
+        e = executable
+        e = e if isinstance(e, Executable) else Executable(e, dataset=self)
         # consider the case when 'label' is a dictionary with the executable's attribute, i.e. from another dataset
         if isinstance(label, dict):
             d = label
@@ -173,7 +176,6 @@ class Dataset:
             else:
                 setattr(self, "_" + n, {})
                 p.write_text("{}")
-        return self
     
     def _remove(self):
         """ Remove the current dataset. """
@@ -182,14 +184,16 @@ class Dataset:
     def _save(self):
         """ Save dataset's state to JSON files. """
         if not self.__change:
-            return self
+            return
         self._metadata['categories'] = collapse_categories(*self._metadata['categories'])
         self._metadata['counts'] = self._data.label.value_counts().to_dict()
         self._metadata['executables'] = len(self)
         for n in ["data", "metadata"] + [["features"], []][self._files]:
             if n == "data":
                 self._data = self._data.sort_values("hash")
-                c = ["hash"] + Executable.FIELDS + ["label"]
+                fields = ["hash"] + Executable.FIELDS + ["label"]
+                fnames = [h for h in self._data.columns if h not in fields]
+                c = fields[:-1] + sorted(fnames) + [fields[-1]]
                 self._data.to_csv(str(self.path.joinpath("data.csv")), sep=";", columns=c, index=False, header=True)
             else:
                 with self.path.joinpath(n + ".json").open('w+') as f:
@@ -393,7 +397,8 @@ class Dataset:
         if len(self) > 0:
             c = List(["**Number of executables**: %d" % self._metadata['executables'],
                       "**Categories**:            %s" % ", ".join(self._metadata['categories']),
-                      "**Packers**:               %s" % ", ".join(self._metadata['counts'].keys())])
+                      "**Packers**:               %s" % ", ".join(self._metadata['counts'].keys()),
+                      "**With files**:            %s" % ["no", "yes"][self._files]])
             r = Report(Section("Dataset characteristics"), c)
             r.extend(self.overview)
             print(mdv.main(r.md()))
@@ -511,20 +516,15 @@ class Dataset:
         for category in categories:
             d = {c: [0, 0] for c in CAT}
             for e in self:
-                h, label = e.hash, e.label
-                exe = Executable(dataset=self, hash=h)
-                if category != "All" and exe.category != category:
+                if category != "All" and e.category != category:
                     continue
-                s = size_cat(exe.size)
+                l, s = "" if str(e.label) in ["", "nan", "None"] else e.label, size_cat(e.size)
                 d[s][0] += 1
-                if str(label) not in ["", "nan", "None"]:
+                if l != "":
                     d[s][1] += 1
                 data2.setdefault(category, [])
                 if len(data2[category]) < self.__limit:
-                    row = [v if isinstance(v, str) else "" for k, v in self[h, True].items() if k in ["hash", "label"]]
-                    row.insert(1, exe.mtime.strftime("%d/%m/%y"))
-                    row.insert(1, exe.ctime.strftime("%d/%m/%y"))
-                    row.insert(1, exe.realpath)
+                    row = [e.hash, e.realpath, e.ctime.strftime("%d/%m/%y"), e.mtime.strftime("%d/%m/%y"), l]
                     data2[category].append(row)
                 elif len(data2[category]) == self.__limit:
                     data2[category].append(["...", "...", "...", "...", "..."])
@@ -599,7 +599,7 @@ class Dataset:
     @staticmethod
     def summarize(path=None, show=False):
         datasets = []
-        headers = ["Name", "Size", "Categories", "Packers"]
+        headers = ["Name", "#Executables", "Size", "Files", "Categories", "Packers"]
         for dset in ts.Path(config['datasets']).listdir(lambda x: x.joinpath("metadata.json").exists()):
             with dset.joinpath("metadata.json").open() as meta:
                 metadata = json.load(meta)
@@ -607,6 +607,8 @@ class Dataset:
                 datasets.append([
                     dset.basename,
                     str(metadata['executables']),
+                    ts.human_readable_size(dset.size),
+                    ["no", "yes"][dset.joinpath("files").exists()],
                     ",".join(sorted(metadata['categories'])),
                     ",".join("%s{%d}" % i for i in sorted(metadata['counts'].items(), key=lambda x: -x[1])),
                 ])

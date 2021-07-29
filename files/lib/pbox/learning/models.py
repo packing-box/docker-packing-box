@@ -83,25 +83,45 @@ class Model:
         exe = Executable(executable)
         return exe, self.classifier.predict(pd.DataFrame(exe.features, index=[0]))
     
-    def _prepare(self, dataset, scaler="MM", multiclass=False, **kw):
+    def _prepare(self, dataset, scaler="MM", multiclass=False, feature=None, pattern=None, **kw):
         """ Prepare the Model instance based on the given Dataset instance. """
         ds, l = dataset, self.logger
-        if not getattr(dataset, "is_valid", lambda: False)():
+        if not getattr(ds, "is_valid", lambda: False)():
             l.error("Not a valid input dataset")
             return False
         # copy relevant information from the input dataset
         l.debug("Preparing the dataset...")
-        self._metadata['dataset'] = {k: v for k, v in dataset._metadata.items()}
-        self._metadata['dataset']['path'] = str(dataset.path)
-        self._metadata['dataset']['name'] = dataset.path.stem
-        self._features = {k: {'description': v} for k, v in dataset._features.items()}
+        self._metadata['dataset'] = {k: v for k, v in ds._metadata.items()}
+        self._metadata['dataset']['path'] = str(ds.path)
+        self._metadata['dataset']['name'] = ds.path.stem
+        # first case: Dataset (with files) ; features must be computed
+        try:
+            ds.files  # this triggers an exception if dataset is fileless
+            self._data = pd.DataFrame()
+            for exe in ds:
+                e = Executable(ds.files.joinpath(exe.hash))
+                d = {'label': exe.label}
+                d.update(e.data)
+                self._data = self._data.append(d, ignore_index=True)
+                self._features.update(e.features)
+        # second case: FilelessDataset ; features are retrieved from dataset._data
+        except AttributeError:
+            self._data = ds._data.loc[:, ~ds._data.columns.isin(["hash"] + Executable.FIELDS)]
+            self._features.update(ds._features)
+        # compute the list of selected features
+        self._features_vector = sorted(self._features.keys()) if feature is None and pattern is None else \
+                                sorted(feature) if isinstance(feature, (tuple, list)) else \
+                                sorted(x for x in self._features.keys() if re.search(pattern, x))
+        self._features = {k: {'description': self._features[k]} for k in self._features_vector if k in self._features}
+        if len(self._features) == 0:
+            self.logger.warning("No feature selected")
+            return False
+        self._target = self._data.loc[:, self._data.columns == "label"]
+        self._data = self._data.loc[:, self._data.columns.isin(self._features_vector)]
         # compute and attach sets from dataset._data and bind them to the instance.
         ds.logger.debug("> Split dataset to data and target vectors")
-        self._data = ds._data.loc[:, ~ds._data.columns.isin(ds.FIELDS)]
-        self._features_vector = self._data.columns
-        self._target = ds._data.loc[:, ds._data.columns == "label"]
         if not multiclass:  # convert to binary class
-            self._target = self._target.fillna(0).where(pd.isnull(self._target), 1)
+            self._target = self._target.fillna(0).where(pd.isnull(self._target), 1).astype('int')
         else:
             self._target = self._target.fillna("")
         # replace string features to numerical values
@@ -137,7 +157,8 @@ class Model:
         l = self.logger
         if self.name is None:
             c = "-".join(map(lambda x: x.lower(), collapse_categories(*self._metadata['dataset']['categories'])))
-            self.name = "%s_%s_%d" % (self._metadata['dataset']['name'], c, self._metadata['dataset']['executables'])
+            self.name = "%s_%s_%d_%s" % (self._metadata['dataset']['name'], c, self._metadata['dataset']['executables'],
+                                         self.algorithm.name)
         self.path = Path(config['models'].joinpath(self.name)).absolute()
         self.path.mkdir(exist_ok=True)
         l.debug("Saving model %s..." % str(self.path))
@@ -169,7 +190,7 @@ class Model:
                 alg, ds = metadata['algorithm'], metadata['dataset']
                 d.append([
                     model.stem,
-                    alg['name'],
+                    alg['name'].upper(),
                     alg['description'],
                     ds['name'],
                     str(ds['executables']),
@@ -209,7 +230,7 @@ class Model:
                   "**Packers**:               %s" % ", ".join(ds['counts'].keys())])
         print(mdv.main(Report(Section("Reference dataset"), c).md()))
     
-    def test(self, executable, labels=None, **kw):
+    def test(self, executable, labels=None, feature=None, pattern=None, **kw):
         """ Test a single executable or a set of executables and evaluate metrics if labels are provided. """
         if self.classifier is None:
             self.logger.warning("Model shall be trained before testing")
@@ -248,13 +269,13 @@ class Model:
             self._performance.update(pd.DataFrame(row, index=[0]))
             self._save()
     
-    def train(self, dataset=None, algorithm=None, cv=3, n_jobs=4, multiclass=False, **kw):
+    def train(self, dataset=None, algorithm=None, cv=5, n_jobs=4, multiclass=False, feature=None, pattern=None, **kw):
         """ Training method handling cross-validation. """
         if not self._prepare(dataset, **kw):
             return
         l = self.logger
         try:
-            cls = Algorithm.get(algorithm)
+            cls = self.algorithm = Algorithm.get(algorithm)
             if isinstance(cls, WekaClassifier):
                 params['model'] = self
         except KeyError:
@@ -262,18 +283,12 @@ class Model:
             self.classifier = None
             return
         # get classifer and grid search parameters
-        try:
-            params = STATIC_PARAM[algorithm]
-        except KeyError:
-            params = {}
-        try:
-            param_grid = CV_PARAM[algorithm]
-        except KeyError:
-            param_grid = None
+        params = cls.parameters.get('static')
+        param_grid = {k: list(v) if isinstance(v, range) else v for k, v in cls.parameters.get('cv').items()}
         l.debug("Processing %s..." % algorithm)
-        c = cls(**params)
+        c = cls.base(**params)
         # if a param_grid is input, perform cross-validation and select the best classifier
-        if param_grid is not None:
+        if len(param_grid) > 0:
             l.debug("> Applying Grid Search (CV=%d)..." % cv)
             grid = GridSearchCV(c, param_grid=param_grid, cv=cv, scoring='accuracy', n_jobs=n_jobs)
             grid.fit(self._data, self._target)
@@ -284,9 +299,9 @@ class Model:
                                    grid.cv_results_['params']))
             l.debug(" > Grid scores:\n{}".format(results))
             params.update(grid.best_params_)
-            if isinstance(cls, WekaClassifier):
+            if isinstance(cls.base, WekaClassifier):
                 params['model'] = self
-            c = cls(**params)
+            c = cls.base(**params)
         # now fit the (best) classifier and predict labels
         l.debug("> Fitting the classifier...")
         c.fit(self._train.data, self._train.target)

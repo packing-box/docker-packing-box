@@ -75,8 +75,8 @@ class WekaClassifier(Classifier):
             for name, value in zip(m._features_vector, m._data[0]):
                 attr_type = ["string", "numeric"][isinstance(value, int) or isinstance(value, float)]
                 a.append(("@ATTRIBUTE {: <%s} {}" % l).format(name, attr_type))
-            d = "\n".join(",".join(map(str, row)) + "," + tgt for row, tgt in zip(dss.data, dss.target))
-            classes = list(map(lambda x: "" if str(x) == "nan" else str(x), set(dss.target['label'].tolist())))
+            d = "\n".join(",".join(map(str, list(row) + [tgt])) for row, tgt in zip(dss.data, dss.target))
+            classes = list(map(lambda x: "" if str(x) == "nan" else str(x), set(dss.target['label'])))
             with f.open('w') as arff:
                 arff.write(ARFF_TEMPLATE.format(rel=m._metadata['dataset']['name'], attr="\n".join(a), c="class",
                                                 cls="{%s}" % ",".join(classes), data=d))

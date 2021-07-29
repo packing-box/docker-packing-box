@@ -31,6 +31,6 @@ class Item:
     def get(cls, item):
         """ Simple class method for returning the class of an item based on its name (case-insensitive). """
         for i in cls.registry:
-            if i.name == (item.name if isinstance(item, Base) else item).lower():
+            if i.name == (item.name if isinstance(item, Item) else item).lower():
                 return i
 

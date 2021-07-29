@@ -87,8 +87,8 @@ if __name__ == '__main__':
     view.add_argument("-q", "--query", help="query for selecting records to be viewed")
     initialize(noargs_action="help")
     args.load = args.command != "list"
-    ds = (FilelessDataset if getattr(args, "fileless", False) or FilelessDataset.check(args.name) else Dataset)\
-         (**vars(args))
+    ds = (FilelessDataset if getattr(args, "fileless", False) or \
+          getattr(args, "name", None) and FilelessDataset.check(args.name) else Dataset)(**vars(args))
     if args.command != "new":
         getattr(ds, args.command)(**vars(args))
 
