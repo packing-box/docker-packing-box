@@ -39,6 +39,15 @@ def __add_name(parser, optional=False, force=False):
     return parser
 
 
+def __dataset_exists(string):
+    p = config['datasets'].joinpath(string)
+    if Dataset.check(p):
+        return Dataset(p)
+    if FilelessDataset.check(p):
+        return FilelessDataset(p)
+    raise ValueError("Bad dataset")
+
+
 if __name__ == '__main__':
     sparsers = parser.add_subparsers(dest="command", help="command to be executed")
     listm = sparsers.add_parser("list", help="list all the models from the workspace")
@@ -52,7 +61,7 @@ if __name__ == '__main__':
     __add_name(test)
     test.add_argument("executable", help="executable or folder containing executables or dataset")
     train = sparsers.add_parser("train", help="train a model on the given dataset")
-    train.add_argument("dataset", type=Dataset.validate, help="dataset for training the model")
+    train.add_argument("dataset", type=__dataset_exists, help="dataset for training the model")
     __add_name(train, True)
     train.add_argument("-a", "--algorithm", choices=[a.name for a in Algorithm.registry], default="dt",
                        help="machine learning algorithm to be used\n- %s\n * supports Grid Search cross-validation\n" %\

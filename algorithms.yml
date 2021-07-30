@@ -59,7 +59,7 @@ DT:
       criterion:
         - entropy
         - gini
-      max_depth: !!python/object/new:range [3, 10]
+      max_depth: !!python/object/new:range [3, 12]
   visualization:
     text:   sklearn.tree.export_text
     export: null
@@ -80,7 +80,7 @@ J48:
     static:
       C: 0.25  # confidence threshold for pruning
       M: 2     # minimum number of instances per leaf
-      N: 3     # number of folds for reduced error pruning. One fold is used as pruning set
+      N: 3     # number of folds for reduced error pruning ; one fold is used as pruning set
       Q: 42    # random number seed
   link: https://weka.sourceforge.io/doc.stable/weka/classifiers/trees/J48.html
 

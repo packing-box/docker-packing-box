@@ -32,8 +32,22 @@ class Executable(Path):
     _features = {}
 
     def __new__(cls, *parts, **kwargs):
-        self = parts[0] if len(parts) == 1 and isinstance(parts[0], Executable) else \
-               super(Executable, cls).__new__(cls, *parts, **kwargs)
+        data, fields = None, ["hash", "label"] + Executable.FIELDS
+        # if reinstantiating an Executable instance, simply immediately return it
+        if len(parts) == 1:
+            e = parts[0]
+            if isinstance(e, Executable):
+                return e
+            # this case aries when a series is passed from Pandas' .itertuples()
+            if all(hasattr(e, f) for f in fields):
+                parts = (e.realpath, )
+                data = {n: getattr(e, n) for n in e._fields if n not in ["Index"] + fields}
+        self = super(Executable, cls).__new__(cls, *parts, **kwargs)
+        if data:
+            for f in fields:
+                setattr(self, f, getattr(e, f))
+            self.data = data
+            return self
         try:
             ds, h = kwargs.pop('dataset'), kwargs.pop('hash', self.basename)
             self._dataset = ds

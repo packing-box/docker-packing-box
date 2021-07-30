@@ -1,7 +1,8 @@
 # -*- coding: UTF-8 -*-
+import pandas as pd
 import yaml
 from functools import wraps
-from time import time
+from time import perf_counter, time
 from tinyscript import inspect
 from tinyscript.helpers import is_executable, is_file, is_folder, Path
 try:  # from Python3.9
@@ -83,20 +84,35 @@ def file_or_folder_or_dataset(method):
         n, e, l = -1, [], {}
         # exe list extension function
         def _extend_e(i):
-            if is_file(i) and is_executable(i) and i not in e:
+            # append the (Fileless)Dataset instance itself
+            if getattr(i, "is_valid", lambda: False)():
+                for exe in i._iter_with_features(kwargs.get('feature'), kwargs.get('pattern')):
+                    e.append(exe)
+            # single executable
+            elif is_file(i) and is_executable(i) and i not in e:
                 i = Path(i)
                 i.dataset = None
                 e.append(i)
+            # normal folder or FilelessDataset's path or Dataset's files path
             elif is_folder(i):
                 i, dataset = Path(i), None
-                # check if it is a dataset
-                if i.joinpath("files").is_dir() and \
-                   all(i.joinpath(f).is_file() for f in ["data.csv", "features.json", "labels.json", "names.json"]):
-                    with i.joinpath("labels.json").open() as f:
-                        l.update(json.load(f))
+                # check if it has the structure of a dataset
+                if i.joinpath("files").is_dir() and not i.joinpath("features.json").exists() and \
+                   all(i.joinpath(f).is_file() for f in ["data.csv", "metadata.json"]) or \
+                   not i.joinpath("files").exists() and \
+                   all(i.joinpath(f).is_file() for f in ["data.csv", "features.json", "metadata.json"]):
+                    data = pd.read_csv(str(i.joinpath("data.csv")), sep=";")
+                    l = {e.hash: e.label for e in data.itertuples()}
                     dataset = i.basename
                     # if so, move to the dataset's "files" folder
-                    i = i.joinpath("files")
+                    if not i.joinpath("files").exists():
+                        for h in data.hash.values:
+                            p = i.joinpath(h)
+                            if p not in e:
+                                e.append(p)
+                        return True
+                    else:
+                        i = i.joinpath("files")
                 for f in i.listdir(is_executable):
                     f.dataset = dataset
                     if str(f) not in e:

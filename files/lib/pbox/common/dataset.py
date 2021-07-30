@@ -35,8 +35,7 @@ class Dataset:
     @logging.bindLogger
     def __init__(self, name="dataset", source_dir=None, load=True, **kw):
         self._files = getattr(self.__class__, "_files", True)
-        p = config['datasets']
-        self.path = ts.Path(p.joinpath(name), create=load).absolute()
+        self.path = ts.Path(config['datasets'].joinpath(name), create=load).absolute()
         self.sources = source_dir or PACKING_BOX_SOURCES
         if isinstance(self.sources, list):
             self.sources = {'All': self.sources}
@@ -246,7 +245,7 @@ class Dataset:
     
     def is_valid(self):
         """ Check if this Dataset instance has a valid structure. """
-        return Dataset.check(self.path)
+        return self.__class__.check(self.path)
     
     def list(self, show_all=False, **kw):
         """ List all the datasets from the given path. """

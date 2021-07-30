@@ -1,6 +1,6 @@
 # Datasets
 
-*Datasets* are folders holding samples to be analyzed. It aims to organize input executables according to a [strict structure](#structure), including packing labels, original names, and so forth.
+*Datasets* are folders holding samples to be analyzed. They aim to organize input executables according to a [strict structure](#structure), including packing labels, original names, and so forth.
 
 ## Structure
 
@@ -30,24 +30,26 @@ This tool aims to manipulate a dataset in multiple ways by:
 - updating it with already-packed or not-packed executables given their labels or not (detection can be applied).
 - fixing its content.
 [...]
-                        command to be executed
+    convert             convert the target dataset to a fileless one
     fix                 fix a corrupted dataset
     list                list all the datasets in the given folder
     make                add n randomly chosen executables from input sources to the dataset
     merge               merge two datasets
+    select              select a subset of the dataset
     update              update a dataset with new executables
+    purge               purge a dataset
     remove              remove executables from a dataset
     rename              rename a dataset
-    reset               reset a dataset
     revert              revert a dataset to its previous state
     show                get an overview of the dataset
+[...]
 ```
 
 ## Visualization
 
 The list of datasets in a folder can be viewed by using the command `dataset list [folder]` (`dataset list` will display all the datasets in the current folder).
 
-Among the other commands, we can `show` the metadata of the dataset for describing it.
+Among the other commands, we can `show` the metadata of the dataset for describing it, limiting the number of displayed records if required (`-l`/`--limit` ; default is 10 records) and/or sorting the metadata per category (`-c`/`--categories`).
 
 ```session
 # dataset show test  
@@ -87,10 +89,26 @@ Among the other commands, we can `show` the metadata of the dataset for describi
 
 ```
 
+While the `show` command displays information about a dataset, it is not aimed to filter and observe records according to criteria. This can be done by using the `view` command which uses [Pandas' query method](https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.query.html) through the `--query` option.
+
 ## Manipulation
 
-The rest of the other commands are aimed to manipulate datasets in different ways:
+The rest of the other commands are aimed to manipulate datasets in different ways. The most trivial commands are:
 
-- `reset`: this trivial command truncates the target dataset.
-- `rename`: this other trivial command renames the target dataset ; it differs from a simple '`mv [...]`' as it also adapts backup copies of the dataset.
+- `purge`: this trivial command purges the target dataset of all its records and files.
+- `rename`: this other trivial command renames the target dataset ; it differs from a simple '`mv [...]`' in that it also adapts backup copies of the dataset.
+
+For adding/removing executables to/from the dataset, a few commands are available:
+
+- `make`: this adds a given number (`-n`/`--number-excutables`) of new executables to the dataset, eventually only from some given categories (`-c`/`--categories`), randomly packing some of them such that the dataset is balanced (using the `-b`/`--balance` option will balance between packer labels, not simply between packed and not packed) and with every applicable packer or only the given ones (`-p`/`--packer`).
+- `merge`: this merges the second input dataset into the first one.
+- `remove`: this allows to remove executables from the dataset according to criteria relying on [Pandas' query method](https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.query.html) through the `--query` option.
+- `select`: this creates a new dataset with a selected subset of the target dataset, using criteria relying on [Pandas' query method](https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.query.html) through the `--query` option.
+- `update`: this updates the current dataset with executables from the target folders (`-s`/`--source-dir`), either packed or not, labelling them with an input JSON (`-l`/`--labels`) or enabling detection with the integrated detectors (`-d`/`--detect`).
+
+It is also possible to apply corrective/evolutive measures on a dataset:
+
+- `convert`: this makes possible to convert a dataset with files (which offers the possibility to select features multiple times from the same dataset) to a dataset without files (that is, with its features computed once and for all, not keeping the related files and then possibly saving a large amount of disk space).
+- `fix`: this allows to fix a corrupted dataset, especially when JSON files do not match the content of the `files` folder anymore, which can be fixed either by relying on the content of this folder (with the `-f`/`--files` option) or on hashes contained in the labels JSON, eventually applying detection (`-d`/`--detect`) to fix labels.
+- `revert`: this allows to revert the dataset to its state before the previous operation, with a maximum of 3 
 
