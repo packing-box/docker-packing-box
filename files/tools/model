@@ -67,14 +67,21 @@ if __name__ == '__main__':
                        help="machine learning algorithm to be used\n- %s\n * supports Grid Search cross-validation\n" %\
                             "\n- ".join("%s: %s%s" % (a.name.ljust(4), a.description, ["", "*"][a.parameters.get('cv') \
                             is not None]) for a in Algorithm.registry))
-    train.add_argument("-s", "--scaler", default="MM", choices=SCALERS.keys(),
+    train.add_argument("-m", "--multiclass", action="store_true", help="train the model using multiple label classes")
+    train.add_argument("-p", "--param", type=lambda x: x.split(","),
+                       help="comma-separated list of parameters for the algorithm",
+                       note="fixing a parameter with this option disables it in the cross-validation")
+    train.add_argument("-s", "--scaler", choices=SCALERS.keys(),
                        help="scaler for shaping the data\n- %s\n" % \
                             "\n- ".join("%s: %s" % (k.ljust(10), "none" if v is None else v.__name__ \
                                         if not isinstance(v, tuple) else "%s with %s" % \
                                         (v[0].__name__, ", ".join("{}={}".format(*i) for i in v[1].items()))) \
-                            for k, v in sorted(SCALERS.items(), key=lambda x: x[0])))
+                            for k, v in sorted(SCALERS.items(), key=lambda x: x[0] or "none") if k is not None))
     train.add_argument("--cv", default=3, help="number of Cross-Validation folds")
+    tgroup = train.add_mutually_exclusive_group()
+    tgroup.add_argument("--feature", action="extend", nargs="*", help="list of features to be selected")
     train.add_argument("--n-jobs", default=4, help="number of jobs to be run in parallel")
+    tgroup.add_argument("--pattern", help="pattern of features to be selected")
     visualize = sparsers.add_parser("visualize", help="visualize the model")
     __add_name(visualize)
     visualize.add_argument("-e", "--export", action="store_true", help="export to PNG")

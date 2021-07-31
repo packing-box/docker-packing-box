@@ -457,7 +457,7 @@ class Dataset:
             d.append([e.hash, p, ts.human_readable_size(e.size), e.ctime.strftime("%d/%m/%y"),
                       e.mtime.strftime("%d/%m/%y"), "" if str(e.label) in ["nan", "None"] else e.label])
         r = [Text("Sources:\n %s" % "\n ".join("[%d] %s" % (i, s) for i, s in enumerate(src))),
-             Table(d, title="Filered records", column_headers=h)]
+             Table(d, title="Filtered records", column_headers=h)]
         print(mdv.main(Report(*r).md()))
     
     @property

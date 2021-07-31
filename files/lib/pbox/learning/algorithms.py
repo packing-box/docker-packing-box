@@ -32,14 +32,12 @@ class WekaClassifier(Classifier):
         super(WekaClassifier, self).train(self.train_file)
     
     def predict(self, *args, **kwargs):
-        if not hasattr(self, "labels"):
-            self.labels = [0, 1]
         self.predictions = []
         self.probabilities = []
         for result in super(WekaClassifier, self).predict(self.test_file):
             idx = self.labels.index(result.predicted)
             self.predictions.append(idx)
-            proba = [0, 0]
+            proba = [0] * len(self.labels)
             proba[idx] = result.probability
             proba[(idx + 1) % 2] = 1 - result.probability
             self.probabilities.append(proba)
@@ -53,8 +51,6 @@ class WekaClassifier(Classifier):
     def score(self, test_data, test_target):
         if not hasattr(self, "predictions"):
             self.predict()
-        if not hasattr(self, "labels"):
-            self.labels = [0, 1]
         total = len(test_target)
         correct = 0
         for target, prediction in zip(test_target, self.predictions):
@@ -72,7 +68,7 @@ class WekaClassifier(Classifier):
             f = Path(f)
             Path(f.dirname, create=True)
             a = []
-            for name, value in zip(m._features_vector, m._data[0]):
+            for name, value in zip(m._features_vector, m._data.iloc[0]):
                 attr_type = ["string", "numeric"][isinstance(value, int) or isinstance(value, float)]
                 a.append(("@ATTRIBUTE {: <%s} {}" % l).format(name, attr_type))
             d = "\n".join(",".join(map(str, list(row) + [tgt])) for row, tgt in zip(dss.data, dss.target))

@@ -2,9 +2,10 @@
 import joblib
 import pandas as pd
 from sklearn.base import is_classifier
+from sklearn.metrics import confusion_matrix, matthews_corrcoef, roc_auc_score
 from sklearn.model_selection import train_test_split, GridSearchCV
 from sklearn.preprocessing import *
-from tinyscript import json, logging
+from tinyscript import ast, json, logging
 from tinyscript.helpers import human_readable_size, Path
 from tinyscript.report import *
 
@@ -21,9 +22,10 @@ __all__ = ["Model", "SCALERS"]
 
 PERF_HEADERS = ["Accuracy", "Precision", "Recall", "F-Measure", "MCC", "AUC", "Processing Time"]
 SCALERS = {
+    None:         None,
     'MA':         MaxAbsScaler,
     'MM':         MinMaxScaler,
-    'No':         None,
+    'none':       None,
     'PT-bc':      (PowerTransformer, {'method': "box-box"}),
     'PT-yj':      (PowerTransformer, {'method': "yeo-johnson"}),
     'QT-normal':  (QuantileTransformer, {'output_distribution': "normal"}),
@@ -46,6 +48,7 @@ class Model:
     def __init__(self, name=None, load=True, **kw):
         self.__read_only = False
         self.name = name.stem if isinstance(name, Path) else name
+        self.classifier = None
         if load:
             self._load()
     
@@ -55,7 +58,7 @@ class Model:
             self.classifier = model
         elif Path(str(model)).exists():
             joblib.load(str(model))
-        
+        #TODO
     
     @file_or_folder_or_dataset
     def _iter(self, executable, **kw):
@@ -65,13 +68,13 @@ class Model:
     def _load(self):
         """ Load model's associated files if relevant or create instance's attributes. """
         if self.name is None:
-            self.classifier = None
             self._features = {}
             self._metadata = {}
             self._performance = pd.DataFrame(columns=PERF_HEADERS)
         else:
             self.path = Path(config['models'].joinpath(self.name)).absolute()
-            Model.validate(self.path)
+            if not Model.check(self.path):
+                return
             for n in ["dump", "features", "metadata", "performance"]:
                 p = self.path.joinpath(n + (".joblib" if n == "dump" else ".csv" if n == "performance" else ".json"))
                 self.logger.debug("Loading %s..." % str(p))
@@ -83,8 +86,22 @@ class Model:
                 else:
                     with p.open() as f:
                         setattr(self, "_" + n, json.load(f))
-        return self
     
+    def _metrics(self, target, prediction, proba):
+        """ Metrics computation method. """
+        self.logger.debug("> Computing metrics...")
+        # compute indicators
+        tn, fp, fn, tp = confusion_matrix(target, prediction).ravel() # FIXME
+        # compute evaluation metrics:
+        accuracy = float(tp + tn) / (tp + tn + fp + fn)
+        precision = float(tp) / (tp + fp)
+        recall = float(tp) / (tp + fn)  # or also sensitivity
+        f_measure = float(2 * precision * recall) / (precision + recall)
+        mcc = matthews_corrcoef(target, prediction)
+        auc = roc_auc_score(target.label, proba)
+        # return metrics for further display
+        return list(map(lambda x: "%.3f" % x, [accuracy, precision, recall, f_measure, mcc, auc]))
+        
     @file_or_folder_or_dataset
     def _predict(self, executable, **kw):
         """ Predict the label of an executable or executables from a folder or for a complete dataset. """
@@ -132,6 +149,7 @@ class Model:
             self._target = self._target.fillna(0).where(pd.isnull(self._target), 1).astype('int')
         else:
             self._target = self._target.fillna("")
+        self.labels = set(self._target.label.values)
         # replace string features to numerical values
         ds.logger.debug("> Fit the data to numerical values")
         for column in self._data:
@@ -141,15 +159,7 @@ class Model:
                 self._data = self._data.replace({column: {v: float(i) for i, v in enumerate(values)}})
                 self._features[column]['values'] = list(values)
         self._data = self._data.reindex(sorted(self._data.columns), axis=1)
-        # scale the data
-        scaler = SCALERS[scaler]
-        if scaler is not None:
-            n, params = scaler.__name__, {}
-            if isinstance(scaler, tuple):
-                scaler, params = scaler
-                n = "%s with %s" % (scaler.__name__, ", ".join("{}={}".format(*i) for i in params.items()))
-            ds.logger.debug("> Scale the data (%s)" % n)
-            self._data = scaler(**params).fit_transform(self._data)
+        self._scale(scaler)
         # prepare for sklearn
         class Dummy: pass
         self._train, self._test = Dummy(), Dummy()
@@ -181,6 +191,17 @@ class Model:
                         json.dump(getattr(self, "_" + n), f, indent=2)
                 p.chmod(0o444)
             self.__read_only = True
+    
+    def _scale(self, scaler):
+        """ Scale the bound _data. """
+        scaler = SCALERS[scaler]
+        if scaler is not None:
+            n, params = scaler.__name__, {}
+            if isinstance(scaler, tuple):
+                scaler, params = scaler
+                n = "%s with %s" % (scaler.__name__, ", ".join("{}={}".format(*i) for i in params.items()))
+            ds.logger.debug("> Scale the data (%s)" % n)
+            self._data = scaler(**params).fit_transform(self._data)
     
     def list(self, algorithms=False, **kw):
         """ List all the models from the given path or all available algorithms. """
@@ -253,43 +274,47 @@ class Model:
         if config['datasets'].joinpath(e).exists():
             e = open_dataset(e)
             labels.update({x.hash: x.label for x in e._data.itertuples()})
-        data = pd.DataFrame()
-        for i, e in enumerate(self._iter(e)):
-            e.selection = feature or pattern
+        self._data = pd.DataFrame()
+        for i, exe in enumerate(self._iter(e)):
+            exe.selection = feature or pattern
             try:
-                t = labels[e.hash]
-                if self._metadata['algorithm']['multiclass']:
-                    t = int(t is not None)
+                t = labels[exe.hash]
+                if not self._metadata['algorithm']['multiclass']:
+                    t = int(str(t) not in ["", "nan", "None"])
             except KeyError:
-                self.logger.warning("%s not found in input labels" % e.hash)
+                self.logger.warning("%s not found in input labels" % exe.hash)
                 continue
             if i == 0:
-                feature_names = sorted(e.features.keys())
+                feature_names = sorted(exe.features.keys())
                 if len(feature_names) == 0:
                     self.logger.warning("No selectable feature ; this may be due to a model unrelated to the input")
                     return
-            data = data.append(e.data, ignore_index=True)
+            self._data = self._data.append(exe.data, ignore_index=True)
             target.append(t)
         if i < 0:
             self.logger.warning("No data")
             return
-        data = data.reindex(sorted(data.columns), axis=1)
+        self._data = self._data.reindex(sorted(self._data.columns), axis=1)
+        self._scale(self._metadata['algorithm']['scaler'])
         target = pd.DataFrame(target, columns=["label"])
-        prediction, dt = benchmark(self.classifier.predict)(data)
-        proba = self.classifier.predict_proba(data)[:, 1]
-        d = [["Accuracy", "Precision", "Recall", "F-Measure", "MCC", "AUC"]]
-        m = metrics(target, prediction, proba, logger=self.logger)
-        print(Table(d + [m]).table)
+        prediction, dt = benchmark(self.classifier.predict)(self._data)
+        proba = self.classifier.predict_proba(self._data)[:, 1]
+        n = getattr(e, "name", str(exe))
+        h = ["Accuracy", "Precision", "Recall", "F-Measure", "MCC", "AUC"]
+        m = self._metrics(target, prediction, proba)
+        t = Table([m], title="Test results for: " + n, column_headers=h)
+        print(mdv.main(t.md()))
         if i > 0:
-            row = {k: v for k, v in zip(d[0], m)}
-            row['Dataset'] = exe.dataset or str(exe)
+            row = {k: v for k, v in zip(h, m)}
+            row['Dataset'] = n
             row['Processing Time'] = dt
             self._performance.update(pd.DataFrame(row, index=[0]))
             self._save()
     
-    def train(self, dataset=None, algorithm=None, cv=5, n_jobs=4, multiclass=False, feature=None, pattern=None, **kw):
+    def train(self, dataset=None, algorithm=None, cv=5, n_jobs=4, multiclass=False, feature=None, pattern=None,
+              param=None, scaler=None, **kw):
         """ Training method handling cross-validation. """
-        if not self._prepare(dataset, **kw):
+        if not self._prepare(dataset, scaler, multiclass, feature, pattern):
             return
         if self.name is None:
             c = sorted(collapse_categories(*self._metadata['dataset']['categories']))
@@ -297,21 +322,36 @@ class Model:
                                              self._metadata['dataset']['executables'],
                                              algorithm.lower(), len(self._features))
         self._load()
-        if self.__read_only:
-            self.logger.warning("Cannot retrain a model")
-            return
         l = self.logger
+        if self.__read_only:
+            l.warning("Cannot retrain a model")
+            return
         try:
             cls = self.algorithm = Algorithm.get(algorithm)
-            if isinstance(cls, WekaClassifier):
-                params['model'] = self
         except KeyError:
             l.error("%s not available" % algorithm)
-            self.classifier = None
+            return
+        if not cls.parameters.get('multiclass') and multiclass:
+            l.error("%s does not support multiclass" % algorithm)
             return
         # get classifer and grid search parameters
         params = cls.parameters.get('static')
+        if isinstance(cls, WekaClassifier):
+            params['model'] = self
         param_grid = {k: list(v) if isinstance(v, range) else v for k, v in cls.parameters.get('cv').items()}
+        # apply user-defined parameters
+        if param is not None:
+            for p in param:
+                n, v = p.split("=")
+                try:
+                    v = ast.literal_eval(v)
+                except ValueError:
+                    pass
+                params[n] = v
+                try:
+                    del param_grid[n]
+                except KeyError:
+                    pass
         l.debug("Processing %s..." % algorithm)
         c = cls.base(**params)
         # if a param_grid is input, perform cross-validation and select the best classifier
@@ -319,12 +359,12 @@ class Model:
             l.debug("> Applying Grid Search (CV=%d)..." % cv)
             grid = GridSearchCV(c, param_grid=param_grid, cv=cv, scoring='accuracy', n_jobs=n_jobs)
             grid.fit(self._data, self._target)
-            l.debug("> Best parameters found:\n  {}".format(grid.best_params_))
             results = '\n'.join("  %0.3f (+/-%0.03f) for %r" % (m, s * 2, p) \
                 for m, s, p in zip(grid.cv_results_['mean_test_score'],
                                    grid.cv_results_['std_test_score'],
                                    grid.cv_results_['params']))
             l.debug(" > Grid scores:\n{}".format(results))
+            l.debug("> Best parameters found:\n  {}".format(grid.best_params_))
             params.update(grid.best_params_)
             if isinstance(cls.base, WekaClassifier):
                 params['model'] = self
@@ -333,14 +373,22 @@ class Model:
         l.debug("> Fitting the classifier...")
         c.fit(self._train.data, self._train.target)
         l.debug("> Making predictions...")
-        self._test.prediction = c.predict(self._test.data)
-        self._test.proba = c.predict_proba(self._test.data)[:, 1]
+        d = []
+        d.append(["Train"] + self._metrics(self._train.target,
+                                           c.predict(self._train.data),
+                                           c.predict_proba(self._train.data)[:, 1]))
+        d.append(["Test"] + self._metrics(self._test.target,
+                                          c.predict(self._test.data),
+                                          c.predict_proba(self._test.data)[:, 1]))
+        h = [".", "Accuracy", "Precision", "Recall", "F-Measure", "MCC", "AUC"]
+        print(mdv.main(Table(d, column_headers=h).md()))
         self.classifier = c
         self._metadata.setdefault('algorithm', {})
         self._metadata['algorithm']['name'] = algorithm
         self._metadata['algorithm']['description'] = cls.description
         self._metadata['algorithm']['parameters'] = params
         self._metadata['algorithm']['multiclass'] = multiclass
+        self._metadata['algorithm']['scaler'] = scaler
         self._save()
     
     def visualize(self, export=False, output_dir=".", **kw):

@@ -49,7 +49,6 @@ DT:
     static:
       class_weight:      null
       criterion:         gini
-      max_depth:         null
       max_features:      null
       max_leaf_nodes:    null
       min_samples_split: 2
