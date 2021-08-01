@@ -42,6 +42,19 @@ D:
       W: weka.classifiers.trees.J48  # full name of base classifier
   link: https://weka.sourceforge.io/doc.stable/weka/classifiers/meta/Decorate.html
 
+DL8.5:
+  base:        !!python/name:dl85.DL85Classifier
+  description: DL8.5 (optimal decision tree)
+  parameters:
+    static:
+      iterative: true
+    cv:
+      max_depth: !!python/object/new:range [3, 12]
+  visualization:
+    text:   sklearn.tree.export_text
+    export: null
+  link: https://dl85.readthedocs.io/en/latest/
+
 DT:
   base:        !!python/name:sklearn.tree.DecisionTreeClassifier
   description: Decision Tree

@@ -22,7 +22,7 @@ RUN (apt -qq -y install apt-transport-https apt-utils \
                        libfreetype6-dev libfuse-dev libgif-dev libgirepository1.0-dev libgl1-mesa-dev libglib2.0-dev \
                        libglu1-mesa-dev libjpeg-dev libpulse-dev libssl-dev libsvm-java libtiff5-dev libudev-dev \
                        libxcursor-dev libxkbfile-dev libxml2-dev libxrandr-dev  \
- && apt -qq -y install colordiff colortail dosbox git golang less ltrace tree strace sudo tmate tmux vim xterm \
+ && apt -qq -y install colordiff colortail cython3 dosbox git golang less ltrace tree strace sudo tmate tmux vim xterm \
  && apt -qq -y install iproute2 nodejs npm python3-setuptools python3-pip swig weka x11-apps xvfb yarnpkg zstd \
  && apt -qq -y install curl jq unrar unzip wget) 2>&1 > /dev/null \
  || echo -e "\033[1;31m DEPENDENCIES INSTALL FAILED \033[0m"
@@ -35,7 +35,7 @@ RUN (dpkg --add-architecture i386 \
  && apt -qq -y install --install-recommends winehq-stable wine32 \
  && wineboot) 2>&1 > /dev/null \
  || echo -e "\033[1;31m WINE INSTALL FAILED \033[0m"
- #TODO: install .NET Framework 3.5 + 4.5
+#TODO: install .NET Framework 3.5 + 4.5
 # install mono (for running .NET apps on Linux)
 RUN (apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys 3FA7E0328081BFF6A14DA29AA6A19B38D3D831EF \
  && apt-add-repository 'deb https://download.mono-project.com/repo/ubuntu stable-focal main' \
@@ -49,7 +49,7 @@ RUN (apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys 3FA7E0328
 # && make lkm && make lkm_install) 2>&1 > /dev/null \
 # || echo -e "\033[1;31m DARLING INSTALL FAILED \033[0m"
 # install/update Python packages
-RUN (pip3 install angr pandas pefile poetry pyelftools sklearn tinyscript weka \
+RUN (pip3 install angr dl8.5 pandas pefile poetry pyelftools sklearn tinyscript weka \
  && pip3 freeze - local | grep -v "^\-e" | cut -d = -f 1 | xargs -n1 pip3 install -qU) 2>&1 > /dev/null \
  || echo -e "\033[1;31m PIP PACKAGES UPDATE FAILED \033[0m"
 # +--------------------------------------------------------------------------------------------------------------------+
