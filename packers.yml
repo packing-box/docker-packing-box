@@ -83,6 +83,27 @@ ELFuck:
   source: https://github.com/timhsutw/elfuck
   status: broken
 
+Eronana-Packer:
+  categories:
+    - PE32
+  comment: This relies on a compression library (see Ref) using LZ77 and Huffman.
+  description: This is a packer for exe under win32. You can use it to pack any 32-bit exe file.
+  exclude:
+    PE:
+      - dll
+      - ds
+  install:
+    wget:  https://github.com/Eronana/packer/releases/download/packer/packer.zip
+    unzip: /opt/packers/eronana-packer
+    wine: packer.exe
+  references:
+    - https://github.com/Eronana/compressor/tree/d6f5d893d8296823bb265830f8f451e5cd43b285
+  steps:
+    - eronana-packer {{executable}}
+    - mv -f {{executable.stem}}.packed{{executable.extension}} {{executable}}
+  source: https://github.com/Eronana/packer
+  status: ok
+
 EXEPacker:
   categories:
     - PE
@@ -139,13 +160,36 @@ FSG:
   source: https://in4k.github.io/wiki/exe-packers-tweakers-and-linkers
   status: gui
 
+hXOR-Packer:
+  categories:
+    - PE
+  description: A PE (Portable Executable) packer with Huffman Compression and Xor encryption.
+  exclude:
+    PE:
+      - dll
+      - ds
+  install:
+    wget:  https://github.com/rurararura/hXOR-Packer/releases/download/0.1/hXOR-Packer.v0.1.zip
+    unzip: /opt/packers
+    exec:
+     - mv "/opt/packers/hXOR-Packer v0.1" /opt/packers/hxor-packer
+     - rm -rf "/opt/packers/hXOR-Packer v0.1"
+     - chmod +x /opt/packers/hxor-packer/packer.exe
+    lwine: packer.exe
+  references:
+    - https://github.com/rurararura/hXOR-Packer
+  steps:
+    - hxor-packer {{executable}} {{executable}}
+  source: https://github.com/rurararura/hXOR-Packer/releases/tag/0.1
+  status: ok
+
 Kkrunchy:
   categories:
     - PE
   description: Kkrunchy is a small exe packer primarily meant for 64k intros.
   install:
     wget:  http://www.farbrausch.de/~fg/kkrunchy/kkrunchy_023a2.zip
-    unzip: /opt/packers/
+    unzip: /opt/packers
     wine:  kkrunchy_k7.exe
   references:
     - https://github.com/fireeye/capa-rules/blob/master/anti-analysis/packer/kkrunchy/packed-with-kkrunchy.yml
@@ -163,7 +207,9 @@ M0dern_P4cker:
     apt:   libcapstone-dev
     wget:  https://github.com/n4sm/m0dern_p4cker/archive/e24a1d47dae1acb0cc3dc4d2fb42a61662bc210c.zip
     unzip: /opt/packers
-    exec:  mv /opt/packers/m0dern_p4cker-e24a1d47dae1acb0cc3dc4d2fb42a61662bc210c/packer@git /opt/packers/m0dern_p4cker
+    exec:
+      - mv /opt/packers/m0dern_p4cker-e24a1d47dae1acb0cc3dc4d2fb42a61662bc210c/packer@git /opt/packers/m0dern_p4cker
+      - rm -f /opt/packers/m0dern_p4cker-e24a1d47dae1acb0cc3dc4d2fb42a61662bc210c
     cd:    /opt/packers/m0dern_p4cker
     make:  main
     lsh:   main
@@ -204,7 +250,6 @@ MidgetPack:
 MPRESS:
   categories:
     - PE
-    - .NET
     - Mach-O
   description: MPRESS is a free, high-performance executable packer for PE32/PE32+/.NET/MAC-DARWIN executable formats.
   install:
@@ -220,6 +265,7 @@ MPRESS:
     - https://storage.ey.md/Technology%%20Related/Programming%%20%%26%%20Reversing/Tuts4You%%20Collection/UnPackMe%%20Collection/PE64/MPress%%201.07%%20x64.rar
     - https://storage.ey.md/Technology%%20Related/Programming%%20%%26%%20Reversing/Tuts4You%%20Collection/UnPackMe%%20Collection/PE64/MPress%%202.12%%20x64.rar
   source: https://www.softpedia.com/get/Programming/Packers-Crypters-Protectors/MPRESS.shtml
+  status: ok
 
 Muncho:
   categories:
