@@ -7,6 +7,8 @@ LABEL version="1.0.1"
 LABEL source="https://github.com/dhondta/packing-box"
 ENV DEBIAN_FRONTEND noninteractive
 ENV TERM xterm-256color
+# add a test user (for apps that require a non-privileged user)
+RUN useradd test -p test
 # apply upgrade
 RUN (apt -qq update \
  && apt -qq -y upgrade \
@@ -35,12 +37,17 @@ RUN (dpkg --add-architecture i386 \
  && apt -qq -y install --install-recommends winehq-stable wine32 \
  && wineboot) 2>&1 > /dev/null \
  || echo -e "\033[1;31m WINE INSTALL FAILED \033[0m"
+# install dosemu (for emulating DOS programs on Linux)
+RUN apt-key adv --recv-keys --keyserver keyserver.ubuntu.com 6D9CD73B401A130336ED0A56EBE1B5DED2AD45D6 \
+ && add-apt-repository ppa:dosemu2/ppa -y \
+ && apt -qq update \
+ && apt -qq -y install dosemu2
 #TODO: install .NET Framework 3.5 + 4.5
 # install mono (for running .NET apps on Linux)
 RUN (apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys 3FA7E0328081BFF6A14DA29AA6A19B38D3D831EF \
  && apt-add-repository 'deb https://download.mono-project.com/repo/ubuntu stable-focal main' \
  && apt -qq update \
- && apt -qq -y install mono-complete) 2>&1 > /dev/null \
+ && apt -qq -y install mono-complete mono-vbnc) 2>&1 > /dev/null \
  || echo -e "\033[1;31m MONO INSTALL FAILED \033[0m"
 # install darling (for running MacOS software on Linux)
 #RUN (apt -qq -y install cmake clang bison flex pkg-config linux-headers-generic gcc-multilib \
