@@ -17,16 +17,17 @@ from ..common.config import config
 from ..common.utils import *
 
 
-__all__ = ["Model", "SCALERS"]
+__all__ = ["DumpedModel", "Model", "PREPROCESSORS"]
 
 
-PERF_HEADERS = ["Accuracy", "Precision", "Recall", "F-Measure", "MCC", "AUC", "Processing Time"]
-SCALERS = {
-    None:         None,
+PERF_HEADERS = ["Dataset", "Accuracy", "Precision", "Recall", "F-Measure", "MCC", "AUC", "Processing Time"]
+PREPROCESSORS = {
     'MA':         MaxAbsScaler,
     'MM':         MinMaxScaler,
-    'none':       None,
-    'PT-bc':      (PowerTransformer, {'method': "box-box"}),
+    'Norm':       Normalizer,
+    'OneHot':     (OneHotEncoder, {'drop': "if_binary", 'handle_unknown': "ignore"}),
+    'Ord':        OrdinalEncoder,
+    'PT-bc':      (PowerTransformer, {'method': "box-cox"}),
     'PT-yj':      (PowerTransformer, {'method': "yeo-johnson"}),
     'QT-normal':  (QuantileTransformer, {'output_distribution': "normal"}),
     'QT-uniform': (QuantileTransformer, {'output_distribution': "uniform"}),
@@ -108,7 +109,7 @@ class Model:
         exe = Executable(executable)
         return exe, self.classifier.predict(pd.DataFrame(exe.features, index=[0]))
     
-    def _prepare(self, dataset, scaler="MM", multiclass=False, feature=None, pattern=None, **kw):
+    def _prepare(self, dataset, preprocessor=None, multiclass=False, feature=None, pattern=None, **kw):
         """ Prepare the Model instance based on the given Dataset instance. """
         ds, l = dataset, self.logger
         if not getattr(ds, "is_valid", lambda: False)():
@@ -137,7 +138,7 @@ class Model:
         self._features_vector = sorted(self._features.keys()) if feature is None and pattern is None else \
                                 sorted(feature) if isinstance(feature, (tuple, list)) else \
                                 sorted(x for x in self._features.keys() if re.search(pattern, x))
-        self._features = {k: {'description': self._features[k]} for k in self._features_vector if k in self._features}
+        self._features = {k: self._features[k] for k in self._features_vector if k in self._features}
         if len(self._features) == 0:
             self.logger.warning("No feature selected")
             return False
@@ -150,16 +151,8 @@ class Model:
         else:
             self._target = self._target.fillna("")
         self.labels = set(self._target.label.values)
-        # replace string features to numerical values
-        ds.logger.debug("> Fit the data to numerical values")
-        for column in self._data:
-            values = set(self._data[column].values)
-            # remap strings with custom values
-            if any(isinstance(v, str) for v in values):
-                self._data = self._data.replace({column: {v: float(i) for i, v in enumerate(values)}})
-                self._features[column]['values'] = list(values)
         self._data = self._data.reindex(sorted(self._data.columns), axis=1)
-        self._scale(scaler)
+        self._preprocess(*preprocessor)
         # prepare for sklearn
         class Dummy: pass
         self._train, self._test = Dummy(), Dummy()
@@ -170,6 +163,23 @@ class Model:
         l.debug("> Create ARFF train and test files (for Weka)")
         WekaClassifier.to_arff(self)
         return True
+    
+    def _preprocess(self, *preprocessors):
+        """ Preprocess the bound _data with an input list of preprocessors. """
+        for p in preprocessors:
+            p = PREPROCESSORS[p]
+            if isinstance(p, tuple):
+                p, params = p
+                m = "%s with %s" % (p.__name__, ", ".join("{}={}".format(*i) for i in params.items()))
+            else:
+                m = p.__name__
+            n = p.__name__
+            v = "Transform" if n.endswith("Transformer") else "Encode" if n.endswith("Encoder") else \
+                "Scale" if n.endswith("Scaler") else "Normalize" if n.endswith("Normalizer") else \
+                "Discretize" if n.endswith("Discretizer") else "Preprocess"
+            self.logger.debug("> %s the data (%s)" % (v, m))
+            preprocessed = p(**params).fit_transform(self._data)
+        self._data = pd.DataFrame(preprocessed, index=self._data.index, columns=self._data.columns)
     
     def _save(self):
         """ Save model's state to the related files. """
@@ -191,17 +201,6 @@ class Model:
                         json.dump(getattr(self, "_" + n), f, indent=2)
                 p.chmod(0o444)
             self.__read_only = True
-    
-    def _scale(self, scaler):
-        """ Scale the bound _data. """
-        scaler = SCALERS[scaler]
-        if scaler is not None:
-            n, params = scaler.__name__, {}
-            if isinstance(scaler, tuple):
-                scaler, params = scaler
-                n = "%s with %s" % (scaler.__name__, ", ".join("{}={}".format(*i) for i in params.items()))
-            ds.logger.debug("> Scale the data (%s)" % n)
-            self._data = scaler(**params).fit_transform(self._data)
     
     def list(self, algorithms=False, **kw):
         """ List all the models from the given path or all available algorithms. """
@@ -248,7 +247,8 @@ class Model:
         best_feat = [n for i, n in sorted(zip(self.classifier.feature_importances_, self._features.keys()),
                                           key=lambda x: -x[0]) if i > 0.]
         l = max(map(len, best_feat))
-        best_feat = [("{: <%s}: {}" % l).format(n, self._features[n]['description']) for n in best_feat]
+        best_feat = [("{: <%s}: {}" % (l + 1) if l >= 10 and n < 10 else l).format(n, self._features[n]) \
+                     for n in best_feat]
         params = a['parameters'].keys()
         l = max(map(len, params))
         params = [("{: <%s} = {}" % l).format(*p) for p in a['parameters'].items()]
@@ -264,7 +264,7 @@ class Model:
                   "**Packers**:      %s" % ", ".join(ds['counts'].keys())])
         print(mdv.main(Report(Section("Reference dataset"), c).md()))
     
-    def test(self, executable, labels=None, feature=None, pattern=None, **kw):
+    def test(self, executable, labels=None, preprocessor=None, feature=None, pattern=None, **kw):
         """ Test a single executable or a set of executables and evaluate metrics if labels are provided. """
         labels = labels or {}
         if self.classifier is None:
@@ -295,14 +295,14 @@ class Model:
             self.logger.warning("No data")
             return
         self._data = self._data.reindex(sorted(self._data.columns), axis=1)
-        self._scale(self._metadata['algorithm']['scaler'])
+        self._preprocess(*(preprocessor or self._metadata['algorithm']['preprocessors']))
         target = pd.DataFrame(target, columns=["label"])
         prediction, dt = benchmark(self.classifier.predict)(self._data)
         proba = self.classifier.predict_proba(self._data)[:, 1]
         n = getattr(e, "name", str(exe))
-        h = ["Accuracy", "Precision", "Recall", "F-Measure", "MCC", "AUC"]
+        h = ["Accuracy", "Precision", "Recall", "F-Measure", "MCC", "AUC", "Processing Time"]
         m = self._metrics(target, prediction, proba)
-        t = Table([m], title="Test results for: " + n, column_headers=h)
+        t = Table([m + [dt]], title="Test results for: " + n, column_headers=h)
         print(mdv.main(t.md()))
         if i > 0:
             row = {k: v for k, v in zip(h, m)}
@@ -312,15 +312,17 @@ class Model:
             self._save()
     
     def train(self, dataset=None, algorithm=None, cv=5, n_jobs=4, multiclass=False, feature=None, pattern=None,
-              param=None, scaler=None, **kw):
+              param=None, preprocessor=None, reset=False, **kw):
         """ Training method handling cross-validation. """
-        if not self._prepare(dataset, scaler, multiclass, feature, pattern):
+        if reset:
+            self._remove()
+        if not self._prepare(dataset, preprocessor, multiclass, feature, pattern):
             return
         if self.name is None:
             c = sorted(collapse_categories(*self._metadata['dataset']['categories']))
             self.name = "%s_%s_%d_%s_f%d" % (self._metadata['dataset']['name'], "-".join(map(lambda x: x.lower(), c)),
                                              self._metadata['dataset']['executables'],
-                                             algorithm.lower(), len(self._features))
+                                             algorithm.lower().replace(".", ""), len(self._features))
         self._load()
         l = self.logger
         if self.__read_only:
@@ -388,7 +390,7 @@ class Model:
         self._metadata['algorithm']['description'] = cls.description
         self._metadata['algorithm']['parameters'] = params
         self._metadata['algorithm']['multiclass'] = multiclass
-        self._metadata['algorithm']['scaler'] = scaler
+        self._metadata['algorithm']['preprocessors'] = list(preprocessor or [])
         self._save()
     
     def visualize(self, export=False, output_dir=".", **kw):
@@ -425,4 +427,8 @@ class Model:
             if not f.joinpath(fn).exists():
                 raise ValueError("Folder does not have %s" % fn)
         return f
+
+
+class DumpedModel(Model):
+    pass
 

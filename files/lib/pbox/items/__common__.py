@@ -5,7 +5,7 @@ from tinyscript.report import *
 
 from ..common.executable import Executable
 from ..common.item import Item
-from ..common.utils import expand_categories
+from ..common.utils import *
 
 
 __all__ = ["Base"]
@@ -174,7 +174,11 @@ class Base(Item):
                 if verbose:
                     attempt += " -v"
                 kw['shell'] = ">" in attempt
-                output, _, retc = run(attempt, **kw)
+                try:
+                    output, _, retc = run(attempt, **kw)
+                except:
+                    self.logger.error("Command: %s" % attempt)
+                    raise
                 output = ensure_str(output)
                 if self.name in attempt and benchmark:
                     output, dt = shlex.split(output)
@@ -248,14 +252,15 @@ class Base(Item):
                 r.remove(False)
                 run("ln -s %s %s" % ((result or tmp).joinpath(arg), r), **kw)
                 result = r
-            elif cmd == "lsh":
+            elif cmd in ["lsh", "lwine"]:
                 try:
                     arg1, arg2 = shlex.split(arg)
                 except ValueError:
                     arg1, arg2 = "/opt/%ss/%s" % (self.type, self.name), arg
+                arg2 = "wine \"%s\" \"$@\"" % arg2 if cmd == "lwine" else "./%s" % arg2
                 result = ubin.joinpath(self.name)
                 arg = "#!/bin/bash\nPWD=`pwd`\nif [[ \"$1\" = /* ]]; then TARGET=\"$1\"; else TARGET=\"$PWD/$1\"; fi" \
-                      "\ncd %s\n./%s $TARGET $2\ncd $PWD" % (arg1, arg2)
+                      "\ncd %s\n%s $TARGET $2\ncd $PWD" % (arg1, arg2)
                 self.logger.debug("echo -en '%s' > %s" % (arg, result))
                 try:
                     result.write_text(arg)
@@ -310,13 +315,13 @@ class Base(Item):
                 result = tmp.joinpath(arg)
             # create a shell script to execute Bash code and make it executable
             elif cmd in ["java", "sh", "wine"]:
-                r = ubin.joinpath(self.name)
+                r, txt = ubin.joinpath(self.name), "#!/bin/bash\n"
                 if cmd == "java":
-                    txt = "java -jar %s \"$@\"" % result.joinpath(arg)
+                    txt += "java -jar \"%s\" \"$@\"" % result.joinpath(arg)
                 elif cmd == "sh":
-                    txt = "#!/bin/bash\n%s" % "\n".join(arg.split("\\n"))
+                    txt += "\n".join(arg.split("\\n"))
                 elif cmd == "wine":
-                    txt = "wine %s \"$@\"" % result.joinpath(arg)
+                    txt += "wine \"%s\" \"$@\"" % result.joinpath(arg)
                 self.logger.debug("echo -en '%s' > %s" % (txt, r))
                 try:
                     r.write_text(txt)
@@ -450,7 +455,7 @@ class Base(Item):
             n += 1
             items.append([
                 item.__class__.__name__,
-                ",".join(item.categories),
+                ",".join(collapse_categories(*expand_categories(*item.categories))),
                 STATUS[item.status],
                 "<%s>" % item.source,
             ])

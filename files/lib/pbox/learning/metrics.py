@@ -9,7 +9,7 @@ def metrics(target, prediction, proba, logger=None):
     """ Metrics computation method. """
     logger.debug("> Computing metrics...")
     # compute indicators
-    tn, fp, fn, tp = confusion_matrix(target, prediction).ravel() # FIXME
+    tn, fp, fn, tp = confusion_matrix(target, prediction).ravel()
     # compute evaluation metrics:
     accuracy = float(tp + tn) / (tp + tn + fp + fn)
     precision = float(tp) / (tp + fp)

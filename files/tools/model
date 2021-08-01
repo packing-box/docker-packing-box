@@ -52,7 +52,7 @@ if __name__ == '__main__':
     sparsers = parser.add_subparsers(dest="command", help="command to be executed")
     listm = sparsers.add_parser("list", help="list all the models from the workspace")
     listm.add_argument("--algorithms", action="store_true", help="show available algorithms instead of models")
-    __add_name(sparsers.add_parser("remove", help="remove the selected model"))
+    __add_name(sparsers.add_parser("remove", help="remove the selected model"), force=True)
     rename = sparsers.add_parser("rename", help="rename the selected model")
     __add_name(rename)
     rename.add_argument("name2", type=ts.folder_does_not_exist, help="new name of the model")
@@ -68,19 +68,20 @@ if __name__ == '__main__':
                             "\n- ".join("%s: %s%s" % (a.name.ljust(4), a.description, ["", "*"][a.parameters.get('cv') \
                             is not None]) for a in Algorithm.registry))
     train.add_argument("-m", "--multiclass", action="store_true", help="train the model using multiple label classes")
-    train.add_argument("-p", "--param", type=lambda x: x.split(","),
-                       help="comma-separated list of parameters for the algorithm",
-                       note="fixing a parameter with this option disables it in the cross-validation")
-    train.add_argument("-s", "--scaler", choices=SCALERS.keys(),
-                       help="scaler for shaping the data\n- %s\n" % \
+    train.add_argument("-p", "--preprocessor", action="extend", nargs="*", choices=PREPROCESSORS.keys(),
+                       help="preprocessor for shaping the data\n- %s\n" % \
                             "\n- ".join("%s: %s" % (k.ljust(10), "none" if v is None else v.__name__ \
                                         if not isinstance(v, tuple) else "%s with %s" % \
                                         (v[0].__name__, ", ".join("{}={}".format(*i) for i in v[1].items()))) \
-                            for k, v in sorted(SCALERS.items(), key=lambda x: x[0] or "none") if k is not None))
+                            for k, v in sorted(PREPROCESSORS.items(), key=lambda x: x[0] or "none") if k is not None))
+    train.add_argument("-r", "--reset", action="store_true", help="reset the model before (re)training")
     train.add_argument("--cv", default=3, help="number of Cross-Validation folds")
     tgroup = train.add_mutually_exclusive_group()
     tgroup.add_argument("--feature", action="extend", nargs="*", help="list of features to be selected")
     train.add_argument("--n-jobs", default=4, help="number of jobs to be run in parallel")
+    train.add_argument("--param", action="extend", nargs="*", type=lambda x: x.split(","),
+                       help="comma-separated list of parameters for the algorithm",
+                       note="fixing a parameter with this option disables it from the cross-validation")
     tgroup.add_argument("--pattern", help="pattern of features to be selected")
     visualize = sparsers.add_parser("visualize", help="visualize the model")
     __add_name(visualize)
