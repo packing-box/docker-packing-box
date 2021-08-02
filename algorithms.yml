@@ -45,6 +45,7 @@ D:
 DL8.5:
   base:        !!python/name:dl85.DL85Classifier
   description: DL8.5 (optimal decision tree)
+  multiclass: false
   parameters:
     static:
       iterative: true

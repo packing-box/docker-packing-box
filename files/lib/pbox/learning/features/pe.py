@@ -1,6 +1,5 @@
 # -*- coding: UTF-8 -*-
 from ast import literal_eval
-from collections import OrderedDict
 from tinyscript.helpers import execute_and_log as run
 
 
@@ -8,7 +7,7 @@ __all__ = ["pefeats", "PEFEATS"]
 
 
 # features are in order of appearance in pefeats' output
-PEFEATS = __d = OrderedDict()
+PEFEATS = __d = {}
 __d['dll_characteristics_1'] = "DLLs characteristics 1"
 __d['dll_characteristics_2'] = "DLLs characteristics 2"
 __d['dll_characteristics_3'] = "DLLs characteristics 3"

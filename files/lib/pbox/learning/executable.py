@@ -56,7 +56,7 @@ class Executable(Base):
     @selection.setter
     def selection(self, features):
         if isinstance(features, (list, tuple)):
-            self._selection = sorted(features)
+            self._selection = features
         elif isinstance(features, str):
-            self._selection = sorted(x for x in self.features.keys() if re.search(features, x))
+            self._selection = [x for x in self.features.keys() if re.search(features, x)]
 
