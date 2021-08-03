@@ -12,7 +12,6 @@ from tinyscript.report import *
 from .algorithms import Algorithm, WekaClassifier
 from .dataset import *
 from .executable import Executable
-from .metrics import *
 from ..common.config import config
 from ..common.utils import *
 
@@ -93,7 +92,7 @@ class Model:
         mcc = matthews_corrcoef(target, prediction)
         auc = roc_auc_score(target.label, proba)
         # return metrics for further display
-        return list(map(lambda x: "%.3f" % x, [accuracy, precision, recall, f_measure, mcc, auc]))
+        return [accuracy, precision, recall, f_measure, mcc, auc]
     
     def _prepare(self, dataset, preprocessor=None, multiclass=False, feature=None, pattern=None, sort=False, **kw):
         """ Prepare the Model instance based on the given Dataset instance. """
@@ -263,7 +262,7 @@ class Model:
             return
         e, i = executable, -1
         try:
-            d, n = pd.read_csv(str(e), sep=sep), Path(e).filename
+            d, n, i = pd.read_csv(str(e), sep=sep), Path(e).filename, 1
             self._data, target = d.loc[:, d.columns != "label"], d.loc[:, d.columns == "label"]
         except AttributeError:  # 'DataFrame' object has no attribute 'label'
             l.error(d.columns)
@@ -301,15 +300,16 @@ class Model:
         l.debug("Testing %s on %s..." % (self.name, n))
         self._preprocess(*(preprocessor or self._metadata.get('algorithm', {}).get('preprocessors', [])))
         prediction, dt = benchmark(self.classifier.predict)(self._data)
+        dt = 1000 * dt
         proba = self.classifier.predict_proba(self._data)[:, 1]
-        h = ["Accuracy", "Precision", "Recall", "F-Measure", "MCC", "AUC", "Processing Time"]
-        m = self._metrics(target, prediction, proba)
-        print(mdv.main(Report(Section("Test results for: " + n), Table([m + [dt]], column_headers=h)).md()))
+        h, m = PERF_HEADERS[1:], self._metrics(target, prediction, proba)
+        r = Section("Test results for: " + n), Table([m + ["%.3fms" % dt]], column_headers=h, flt_fmt="%.3f")
+        print(mdv.main(Report(*r).md()))
         if i > 0:
             row = {k: v for k, v in zip(h, m)}
             row['Dataset'] = n
             row['Processing Time'] = dt
-            self._performance.update(pd.DataFrame(row, index=[0]))
+            self._performance = self._performance.append(row, ignore_index=True)
             self._save()
     
     def train(self, dataset=None, algorithm=None, cv=5, n_jobs=4, multiclass=False, feature=None, pattern=None,
@@ -383,8 +383,8 @@ class Model:
         d.append(["Test"] + self._metrics(self._test.target,
                                           c.predict(self._test.data),
                                           c.predict_proba(self._test.data)[:, 1]))
-        h = [".", "Accuracy", "Precision", "Recall", "F-Measure", "MCC", "AUC"]
-        print(mdv.main(Table(d, column_headers=h).md()))
+        h = ["."] + PERF_HEADERS[1:-1]
+        print(mdv.main(Table(d, column_headers=h, flt_fmt="%.3f").md()))
         self.classifier = c
         self._metadata.setdefault('algorithm', {})
         self._metadata['algorithm']['name'] = algorithm
@@ -437,10 +437,17 @@ class DumpedModel:
         self.name         = Path(name).stem
         self._features    = {}
         self._metadata    = {}
-        self._performance = pd.DataFrame(columns=PERF_HEADERS)
+        self.__p = config['models'].joinpath(".performances.csv")    
+        try:
+            self._performance = pd.read_csv(str(self.__p), sep=";")
+        except OSError:
+            self._performance = pd.DataFrame(columns=PERF_HEADERS)
     
     def _save(self):
-        pass
+        self.logger.debug("> Saving metrics to %s..." % str(self.__p))
+        p = self._performance
+        p = p.loc[p.round(3).drop_duplicates(subset=PERF_HEADERS[:-2]).index]
+        p.to_csv(str(self.__p), sep=";", columns=PERF_HEADERS, index=False, header=True, float_format="%.3f")
     
     _metrics    = Model._metrics
     _preprocess = Model._preprocess
