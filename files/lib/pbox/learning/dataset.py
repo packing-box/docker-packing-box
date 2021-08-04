@@ -29,19 +29,23 @@ class FilelessDataset(Dataset):
     """
     _files = False
     
+    def __iter__(self):
+        """ Iterate over the dataset. """
+        for row in self._data.itertuples():
+            yield Executable(row, dataset=self)
+    Dataset.__iter__ = __iter__
+    
     def _iter_with_features(self, feature=None, pattern=None):
         """ Convenience generator supplementing __iter__ for ensuring that feaures are also included. """
         if self._files:
-            for exe in self.files.listdir(is_executable):
-                exe = Executable(dataset=self, hash=exe.basename)
+            for exe in self:
                 exe.selection = feature or pattern
                 if not hasattr(self, "_features"):
                     self._features = {}
                 self._features.update(exe.features)
                 yield exe
         else:
-            for exe in self._data.itertuples():
-                exe = Executable(dataset=self, hash=exe.hash)
+            for exe in self:
                 exe.selection = feature or pattern
                 yield exe
     Dataset._iter_with_features = _iter_with_features
@@ -71,9 +75,10 @@ class FilelessDataset(Dataset):
             d.update(exe.data)
             self[exe.hash] = d
             pbar.update()
+        self.logger.debug("removing files...")
+        self.backup.purge()
         self.files.remove(error=False)
         self._save()
-        self.logger.debug("removing files...")
     Dataset.convert = convert
     
     @backup
@@ -88,7 +93,7 @@ class FilelessDataset(Dataset):
         self.logger.debug("merging rows from %s..." % ds2.path)
         pbar = tqdm(total=ds2._metadata['executables'], unit="executable")
         for row in ds2:
-            self[ds2.files.joinpath(row.hash)] = row._asdict()
+            self[Executable(hash=row.hash, dataset=ds2, dataset2=self)] = row._asdict()
             pbar.update()
         # as the previous operation does not update categories and features, do it manually
         self._metadata.setdefault('categories', [])

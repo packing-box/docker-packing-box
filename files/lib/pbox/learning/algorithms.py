@@ -25,7 +25,7 @@ class WekaClassifier(Classifier):
         if m:
             self.train_file = m.path.joinpath("train.arff")
             self.test_file = m.path.joinpath("test.arff")
-        kwargs = {("-" + k if not k.startswith("-") else k): v for k, v in kwargs}
+        kwargs = {("-" + k if not k.startswith("-") else k): v for k, v in kwargs.items()}
         super(WekaClassifier, self).__init__(name=self.name, ckargs=kwargs)
     
     def fit(self, train_data, train_target):
@@ -68,7 +68,7 @@ class WekaClassifier(Classifier):
             f = Path(f)
             Path(f.dirname, create=True)
             a = []
-            for name, value in zip(m._features_vector, m._data.iloc[0]):
+            for name, value in zip(m._features.keys(), m._data.iloc[0]):
                 attr_type = ["string", "numeric"][isinstance(value, int) or isinstance(value, float)]
                 a.append(("@ATTRIBUTE {: <%s} {}" % l).format(name, attr_type))
             d = "\n".join(",".join(map(str, list(row) + [tgt])) for row, tgt in zip(dss.data, dss.target))
