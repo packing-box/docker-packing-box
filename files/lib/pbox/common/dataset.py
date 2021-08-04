@@ -3,7 +3,7 @@ import pandas as pd
 import re
 from datetime import datetime, timedelta
 from textwrap import wrap
-from tinyscript import b, colored, hashlib, json, logging, random, time, ts
+from tinyscript import b, colored, hashlib, json, logging, random, subprocess, time, ts
 from tinyscript.report import *
 from tqdm import tqdm
 
@@ -90,11 +90,6 @@ class Dataset:
         """ Custom object hashing function. """
         return int.from_bytes(hashlib.md5(b(self.name)).digest(), "little")
     
-    def __iter__(self):
-        """ Iterate over the dataset. """
-        for row in self._data.itertuples():
-            yield row
-    
     def __len__(self):
         """ Get dataset's length. """
         return len(self._data)
@@ -174,7 +169,6 @@ class Dataset:
                     setattr(self, "_" + n, json.load(f))
             else:
                 setattr(self, "_" + n, {})
-                p.write_text("{}")
     
     def _remove(self):
         """ Remove the current dataset. """
@@ -190,9 +184,9 @@ class Dataset:
         for n in ["data", "metadata"] + [["features"], []][self._files]:
             if n == "data":
                 self._data = self._data.sort_values("hash")
-                fields = ["hash"] + Executable.FIELDS + ["Index", "label"]
-                fnames = [h for h in self._data.columns if h not in fields]
-                c = fields[:-2] + sorted(fnames) + [fields[-1]]
+                fields = ["hash"] + Executable.FIELDS + ["label"]
+                fnames = [h for h in self._data.columns if h not in fields + ["Index"]]
+                c = fields[:-1] + fnames + [fields[-1]]
                 self._data.to_csv(str(self.path.joinpath("data.csv")), sep=";", columns=c, index=False, header=True)
             else:
                 with self.path.joinpath(n + ".json").open('w+') as f:
@@ -223,6 +217,11 @@ class Dataset:
             random.shuffle(candidates)
             for c in candidates:
                 yield c
+    
+    def edit(self, **kw):
+        """ Edit the data CSV file. """
+        subprocess.call(["vd", str(self.path.joinpath("data.csv").absolute()), "--csv-delimiter", "\";\""],
+                        stderr=subprocess.PIPE)
     
     @backup
     def fix(self, **kw):
@@ -317,8 +316,6 @@ class Dataset:
         """ Truncate and recreate a blank dataset. """
         self.logger.debug("purging %s..." % self.path)
         self._remove()
-        ts.Path(self.path, create=True)
-        self._load()
         # also recursively purge the backups
         try:
             self.backup.purge()
@@ -367,10 +364,11 @@ class Dataset:
         self.__limit = limit if limit > 0 else len(self)
         self.__per_category = per_category
         if len(self) > 0:
-            c = List(["**Number of executables**: %d" % self._metadata['executables'],
-                      "**Categories**:            %s" % ", ".join(self._metadata['categories']),
-                      "**Packers**:               %s" % ", ".join(self._metadata['counts'].keys()),
-                      "**With files**:            %s" % ["no", "yes"][self._files]])
+            c = List(["**#Executables**: %d" % self._metadata['executables'],
+                      "**Categories**:   %s" % ", ".join(self._metadata['categories']),
+                      "**Packers**:      %s" % ", ".join(self._metadata['counts'].keys()),
+                      "**Size**:         %s" % ts.human_readable_size(self.path.size),
+                      "**With files**:   %s" % ["no", "yes"][self._files]])
             r = Report(Section("Dataset characteristics"), c)
             r.extend(self.overview)
             print(mdv.main(r.md()))
@@ -471,7 +469,7 @@ class Dataset:
     @property
     def name(self):
         """ Get the name of the dataset composed with its list of categories. """
-        return "%s(%s)" % (self.path.basename, ",".join(collapse_categories(*self.categories))) \
+        return "%s(%s)" % (self.path.basename, ",".join(sorted(collapse_categories(*self.categories)))) \
                if len(self.categories) > 0 else self.path.basename
     
     @property

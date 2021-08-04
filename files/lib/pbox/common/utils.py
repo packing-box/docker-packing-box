@@ -140,21 +140,23 @@ def file_or_folder_or_dataset(method):
     return _wrapper
 
 
-def highlight_best(table_data, from_col=2):
+def highlight_best(data, headers=None, exclude_cols=[0, -1], formats=None):
     """ Highlight the highest values in the given table. """
-    new_data = [table_data[0]]
-    maxs = len(new_data[0][from_col:]) * [0]
+    if len(data[0]) != len(headers):
+        raise ValueError("headers and row lengths mismatch")
+    ndata, exc_cols = [], [x % len(headers) for x in exclude_cols]
+    maxs = [None if i in exc_cols else 0 for i, _ in enumerate(headers)]
     # search for best values
-    for data in table_data[1:]:
-        for i, value in enumerate(data[from_col:]):
-            maxs[i] = max(maxs[i], float(value))
+    for d in data:
+        for i, v in enumerate(d):
+            if maxs[i] is None:
+                continue
+            maxs[i] = max(maxs[i], float(v))
     # reformat the table, setting bold text for best values
-    for data in table_data[1:]:
-        new_row = [x for x in data[:from_col]]
-        for i, value in enumerate(data[from_col:]):
-            new_row.append(bold(value) if float(value) == maxs[i] else value)
-        new_data.append(new_row)
-    return new_data
+    for d in data:
+        ndata.append([bold((formats or {}).get(k, lambda x: x)(v)) if maxs[i] and float(v) == maxs[i] else \
+                     (formats or {}).get(k, lambda x: x)(v) for i, (k, v) in enumerate(zip(headers, d))])
+    return ndata
 
 
 def make_registry(cls):
