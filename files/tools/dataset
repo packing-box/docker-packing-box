@@ -46,6 +46,7 @@ if __name__ == '__main__':
     convert.add_argument("-n", "--new-name", help="name for the new converted dataset",
                          note="if None, the original dataset is overwritten")
     cgroup.add_argument("-p", "--pattern", help="pattern of features to be selected")
+    __add_name(sparsers.add_parser("edit", help="edit the data file"))
     fix = __add_name(sparsers.add_parser("fix", help="fix a corrupted dataset"))
     fgroup = fix.add_mutually_exclusive_group()
     fgroup.add_argument("-d", "--detect", action="store_true", help="detect used packer with installed detectors")

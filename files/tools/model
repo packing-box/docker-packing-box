@@ -73,6 +73,7 @@ if __name__ == '__main__':
     compare.add_argument("-i", "--include", action="store_true", help="include unformatted models")
     compare.add_argument("-m", "--model", type=__valid_model, action="extend", nargs="*",
                          help="model to be added in the comparison")
+    __add_name(sparsers.add_parser("edit", help="edit the performance log file"), True)
     listm = sparsers.add_parser("list", help="list all the models from the workspace")
     listm.add_argument("--algorithms", action="store_true", help="show available algorithms instead of models")
     __add_name(sparsers.add_parser("remove", help="remove the selected model"), force=True)
@@ -84,8 +85,9 @@ if __name__ == '__main__':
     __add_name(test, joblib=True)
     test.add_argument("executable", help="executable or folder containing executables or dataset or data CSV file")
     tgroup1 = test.add_mutually_exclusive_group()
-    tgroup1.add_argument("--feature", action="extend", nargs="*", help="list of features to be selected")
+    test.add_argument("-m", "--multiclass", action="store_true", help="test the model using multiple label classes")
     test.add_argument("-p", "--preprocessor", action="extend", nargs="*", choices=PREPROCESSORS.keys(), help=pp_help)
+    tgroup1.add_argument("--feature", action="extend", nargs="*", help="list of features to be selected")
     tgroup1.add_argument("--pattern", help="pattern of features to be selected")
     test.add_argument("--sep", default=",", choices=",;|\t", help="set the CSV separtor")
     train = sparsers.add_parser("train", help="train a model on the given dataset")
