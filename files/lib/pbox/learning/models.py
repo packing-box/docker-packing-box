@@ -192,6 +192,34 @@ class Model:
                 p.chmod(0o444)
             self.__read_only = True
     
+    def compare(self, dataset=None, model=None, include=False, **kw):
+        """ Compare the last performance of this model on the given dataset with other ones. """
+        data = []
+        models = [self]
+        if isinstance(model, (list, tuple)):
+            models.extend(model)
+        elif model is not None:
+            models.append(model)
+        if include:
+            class Dummy: pass
+            m = Dummy()
+            m._performance = pd.read_csv(config['models'].joinpath(".performances.csv"), sep=";")
+            models.append(m)
+        for m in models:
+            p = m._performance
+            for i in range(p.shape[0] - 1, -1, -1):
+                r = p.iloc[i]
+                d = r['Dataset']
+                if dataset is None:
+                    data.append(r.values)
+                elif d in dataset and isinstance(dataset, (list, tuple)) or dataset == d:
+                    data.append(r.values)
+                    break
+        if len(data) == 0:
+            self.logger.warning("No model selected" if dataset is None else "%s not found" % dataset)
+            return
+        print(mdv.main(Table(highlight_best(data), column_headers=PERF_HEADERS, flt_fmt="%.3f").md()))
+    
     def list(self, algorithms=False, **kw):
         """ List all the models from the given path or all available algorithms. """
         if algorithms:
@@ -224,12 +252,11 @@ class Model:
         """ Remove the current model. """
         self.path.remove(error=False)
     
-    def rename(self, path2=None, **kw):
+    def rename(self, name2=None, **kw):
         """ Rename the current model. """
-        if not Path(path2).exists():
-            self.path = self.path.rename(path2)
-        else:
-            self.logger.warning("%s already exists" % path2)
+        self.path = p = config['models'].joinpath(name2)
+        if p.exists():
+            self.logger.warning("%s already exists" % p)
     
     def show(self, **kw):
         """ Show an overview of the model. """

@@ -43,6 +43,8 @@ if __name__ == '__main__':
     convert = __add_name(sparsers.add_parser("convert", help="convert the target dataset to a fileless one"))
     cgroup = convert.add_mutually_exclusive_group()
     cgroup.add_argument("-f", "--feature", action="extend", nargs="*", help="list of features to be selected")
+    convert.add_argument("-n", "--new-name", help="name for the new converted dataset",
+                         note="if None, the original dataset is overwritten")
     cgroup.add_argument("-p", "--pattern", help="pattern of features to be selected")
     fix = __add_name(sparsers.add_parser("fix", help="fix a corrupted dataset"))
     fgroup = fix.add_mutually_exclusive_group()
@@ -89,6 +91,5 @@ if __name__ == '__main__':
     args.load = args.command != "list"
     ds = (FilelessDataset if getattr(args, "fileless", False) or \
           getattr(args, "name", None) and FilelessDataset.check(args.name) else Dataset)(**vars(args))
-    if args.command != "new":
-        getattr(ds, args.command)(**vars(args))
+    getattr(ds, args.command)(**vars(args))
 

@@ -150,7 +150,7 @@ def highlight_best(table_data, from_col=2):
             maxs[i] = max(maxs[i], float(value))
     # reformat the table, setting bold text for best values
     for data in table_data[1:]:
-        new_row = data[:from_col]
+        new_row = [x for x in data[:from_col]]
         for i, value in enumerate(data[from_col:]):
             new_row.append(bold(value) if float(value) == maxs[i] else value)
         new_data.append(new_row)

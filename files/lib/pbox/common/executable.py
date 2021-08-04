@@ -32,10 +32,10 @@ class Executable(Path):
     _features = {}
 
     def __new__(cls, *parts, **kwargs):
-        data, fields = None, ["hash", "label"] + Executable.FIELDS
-        # if reinstantiating an Executable instance, simply immediately return it
+        ds, data, fields = kwargs.pop('dataset', None), None, ["hash", "label"] + Executable.FIELDS
         if len(parts) == 1:
             e = parts[0]
+            # if reinstantiating an Executable instance, simply immediately return it
             if isinstance(e, Executable):
                 return e
             # this case aries when a series is passed from Pandas' .itertuples()
@@ -47,17 +47,18 @@ class Executable(Path):
             for f in fields:
                 setattr(self, f, getattr(e, f))
             self.data = data
+            if ds:
+                self._dataset = ds
             return self
-        try:
-            ds, h = kwargs.pop('dataset'), kwargs.pop('hash', self.basename)
-            self._dataset = ds
+        # other case: the executable is instantiated with a dataset bound ; then copy attributes from its data
+        if ds:
+            h = kwargs.pop('hash', self.basename)
             d = ds._data[ds._data.hash == h].iloc[0].to_dict()
             self = super(Executable, cls).__new__(cls, ds.files.joinpath(h), **kwargs)
+            self._dataset = ds
             for a, v in d.items():
                 if a in Executable.FIELDS + ["hash", "label"]:
                     setattr(self, a, v)
-        except (AttributeError, IndexError, KeyError):
-            pass
         self.label = kwargs.pop('label', getattr(self, "label", None))
         return self
     

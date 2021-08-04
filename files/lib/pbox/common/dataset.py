@@ -184,15 +184,15 @@ class Dataset:
         """ Save dataset's state to JSON files. """
         if not self.__change:
             return
-        self._metadata['categories'] = collapse_categories(*self._metadata['categories'])
+        self._metadata['categories'] = sorted(collapse_categories(*self._metadata['categories']))
         self._metadata['counts'] = self._data.label.value_counts().to_dict()
         self._metadata['executables'] = len(self)
         for n in ["data", "metadata"] + [["features"], []][self._files]:
             if n == "data":
                 self._data = self._data.sort_values("hash")
-                fields = ["hash"] + Executable.FIELDS + ["label"]
+                fields = ["hash"] + Executable.FIELDS + ["Index", "label"]
                 fnames = [h for h in self._data.columns if h not in fields]
-                c = fields[:-1] + sorted(fnames) + [fields[-1]]
+                c = fields[:-2] + sorted(fnames) + [fields[-1]]
                 self._data.to_csv(str(self.path.joinpath("data.csv")), sep=";", columns=c, index=False, header=True)
             else:
                 with self.path.joinpath(n + ".json").open('w+') as f:
@@ -271,7 +271,7 @@ class Dataset:
         self.logger.info("Considered categories: %s" % ",".join(categories))
         self.logger.info("Selected packers:      %s" % ",".join(["All"] if packer is None else \
                                                                 [p.__class__.__name__ for p in packer]))
-        self._metadata['sources'] = list(set(self._metadata.get('sources', []) + sources))
+        self._metadata['sources'] = list(set(map(str, self._metadata.get('sources', []) + sources)))
         # get executables to be randomly packed or not
         i = 0
         for exe in self._walk(n <= 0):
@@ -311,33 +311,6 @@ class Dataset:
             p = sorted(list(set([l for l in self._data.label.values if isinstance(l, str)])))
             self.logger.info("Used packers: %s" % ", ".join(p))
             self.logger.info("#Executables: %d" % l)
-        self._save()
-    
-    @backup
-    def merge(self, name2=None, **kw):
-        """ Merge another dataset with the current one. """
-        ds2 = Dataset(name2) if Dataset.check(name2) else FilelessDataset(name2)
-        cls1, cls2 = self.__class__.__name__, ds2.__class__.__name__
-        if cls1 != cls2:
-            self.logger.error("Cannot merge %s and %s" % (cls1, cls2))
-            return
-        # add rows from the input dataset
-        self.logger.debug("merging rows from %s..." % ds2.path)
-        for row, name in ds2:
-            self[name, False] = row
-        # as the previous operation does not update categories and features, do it manually
-        self._metadata.setdefault('categories', [])
-        for category in ds2._metadata.get('categories', []):
-            if category not in self._metadata['categories']:
-                self._metadata['categories'].append(category)
-        if hasattr(self, "_features") and hasattr(ds2, "_features"):
-            d = {k: v for k, v in ds2._features.items()}
-            d.update(self._features)
-            self._features = d
-        # now copy files from the input dataset
-        for f in ds2.files.listdir():
-            e = Executable(f, dataset=self)
-            self[e, True] = e.label
         self._save()
     
     def purge(self, **kw):
@@ -416,7 +389,7 @@ class Dataset:
         if not isinstance(source_dir, list):
             source_dir = [source_dir]
         self._metadata.setdefault('categories', [])
-        self._metadata['sources'] = list(set(self._metadata.get('sources', []) + source_dir))
+        self._metadata['sources'] = list(set(map(str, self._metadata.get('sources', []) + source_dir)))
         n = 0
         for e in self._walk(True, {'All': source_dir}, True):
             n += 1

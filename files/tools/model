@@ -51,6 +51,15 @@ def __dataset_exists(string):
     raise ValueError("Bad dataset")
 
 
+def __valid_model(s):
+    try:
+        DumpedModel(s)
+        return s
+    except (KeyError, OSError):
+        Model(s)
+        return s
+
+
 if __name__ == '__main__':
     pp_help = "preprocessor for shaping the data\n- %s\n" % \
               "\n- ".join("%s: %s" % (k.ljust(10), "none" if v is None else v.__name__ \
@@ -58,6 +67,12 @@ if __name__ == '__main__':
               (v[0].__name__, ", ".join("{}={}".format(*i) for i in v[1].items()))) \
               for k, v in sorted(PREPROCESSORS.items(), key=lambda x: x[0] or "none") if k is not None)
     sparsers = parser.add_subparsers(dest="command", help="command to be executed")
+    compare = __add_name(sparsers.add_parser("compare", help="compare the selected model with others"), True)
+    compare.add_argument("-d", "--dataset", type=__dataset_exists, action="extend", nargs="*",
+                         help="dataset to be selected for the comparison")
+    compare.add_argument("-i", "--include", action="store_true", help="include unformatted models")
+    compare.add_argument("-m", "--model", type=__valid_model, action="extend", nargs="*",
+                         help="model to be added in the comparison")
     listm = sparsers.add_parser("list", help="list all the models from the workspace")
     listm.add_argument("--algorithms", action="store_true", help="show available algorithms instead of models")
     __add_name(sparsers.add_parser("remove", help="remove the selected model"), force=True)
