@@ -12,9 +12,10 @@ __all__ = ["Executable"]
 class Executable(Path):
     """ Executable abstraction.
     
-    Can be initialized in two different ways:
-    (1) orphan (not dataset-bound)
+    Can be initialized in many different ways:
+    (1) orphan executable (not coming from a dataset)
     (2) dataset-bound (its data is used to populate attributes based on the executable's hash)
+    (3) dataset-bound, with a new destination dataset
     """
     FIELDS = ["realpath", "category", "filetype", "size", "ctime", "mtime"]
     # NB: the best signature matched is the longest
@@ -32,33 +33,48 @@ class Executable(Path):
     _features = {}
 
     def __new__(cls, *parts, **kwargs):
-        ds, data, fields = kwargs.pop('dataset', None), None, ["hash", "label"] + Executable.FIELDS
+        data, fields = None, ["hash", "label"] + Executable.FIELDS
+        ds1, ds2 = kwargs.pop('dataset', None), kwargs.pop('dataset2', None)
         if len(parts) == 1:
             e = parts[0]
             # if reinstantiating an Executable instance, simply immediately return it
             if isinstance(e, Executable):
                 return e
-            # this case aries when a series is passed from Pandas' .itertuples()
-            if all(hasattr(e, f) for f in fields):
-                parts = (e.realpath, )
-                data = {n: getattr(e, n) for n in e._fields if n not in ["Index"] + fields}
+            # this case aries when a series is passed from Pandas' .itertuples() ; this produces an orphan executable
+            if all(hasattr(e, f) for f in fields) and hasattr(e, "_fields"):
+                try:
+                    dest = ds1.files.joinpath(e.hash)
+                except AttributeError:  # 'NoneType|FilelessDataset' object has no attribute 'files'
+                    dest = e.realpath
+                self = super(Executable, cls).__new__(cls, dest, **kwargs)
+                for f in fields:
+                    setattr(self, f, getattr(e, f))
+                if ds1:
+                    self._dataset = ds1
+                    try:
+                        self.destination = self._dataset.files.joinpath(self.hash)
+                    except AttributeError:  # 'FilelessDataset' object has no attribute 'files'
+                        pass
+                return self
         self = super(Executable, cls).__new__(cls, *parts, **kwargs)
-        if data:
-            for f in fields:
-                setattr(self, f, getattr(e, f))
-            self.data = data
-            if ds:
-                self._dataset = ds
-            return self
-        # other case: the executable is instantiated with a dataset bound ; then copy attributes from its data
-        if ds:
+        if ds1 is not None:
+            # case (2)
             h = kwargs.pop('hash', self.basename)
-            d = ds._data[ds._data.hash == h].iloc[0].to_dict()
-            self = super(Executable, cls).__new__(cls, ds.files.joinpath(h), **kwargs)
-            self._dataset = ds
-            for a, v in d.items():
-                if a in Executable.FIELDS + ["hash", "label"]:
-                    setattr(self, a, v)
+            exe = ds1.files.joinpath(h)
+            if exe.is_file():
+                self = super(Executable, cls).__new__(cls, str(exe), **kwargs)
+                self.hash = h  # avoid hash recomputation
+            self._dataset = ds1
+            self.destination = ds1.files.joinpath(self.hash)
+            try:
+                for a, v in ds1._data[ds1._data.hash == h].iloc[0].to_dict().items():
+                    if a in Executable.FIELDS + ["hash", "label"]:
+                        setattr(self, a, v)
+            except AttributeError:
+                pass
+            # case (3)
+            if ds2 is not None:
+                self.destination = ds2.files.joinpath(h)
         self.label = kwargs.pop('label', getattr(self, "label", None))
         return self
     
@@ -85,13 +101,6 @@ class Executable(Path):
     @cached_property
     def ctime(self):
         return datetime.fromtimestamp(self.stat().st_ctime)
-    
-    @cached_property
-    def destination(self):
-        try:
-            return self._dataset.files.joinpath(self.hash)
-        except (AttributeError, TypeError):
-            raise ValueError("No 'Dataset' instance bound")
     
     @cached_property
     def filetype(self):

@@ -14,12 +14,12 @@ class Executable(Base):
     _features = {}
     
     def __new__(cls, *parts, **kwargs):
+        fields = Executable.FIELDS + ["hash", "label", "Index"]
         self = super(Executable, cls).__new__(cls, *parts, **kwargs)
         self._selection = None
         if hasattr(self, "_dataset"):
-            h = kwargs.pop('hash', self.basename)
-            d = self._dataset._data[self._dataset._data.hash == h].iloc[0].to_dict()
-            f = {a: v for a, v in d.items() if a not in Executable.FIELDS + ["hash", "label"]}
+            d = self._dataset._data[self._dataset._data.hash == self.hash].iloc[0].to_dict()
+            f = {a: v for a, v in d.items() if a not in fields if str(v) != "nan"}
             if len(f) > 0:
                 setattr(self, "data", f)
                 self.selection = list(f.keys())
