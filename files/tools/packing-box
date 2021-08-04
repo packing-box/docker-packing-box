@@ -17,6 +17,8 @@ __examples__ = [
     "setup detector peid",
     "test packer upx ezuri midgetpack",
     "test -b unpacker upx",
+    "workspace view",
+    "workspace edit MyDataset/data.csv",
 ]
 
 
@@ -52,10 +54,10 @@ if __name__ == '__main__':
         p._name = n
         _set_subparsers(p, "detector", "packer", "unpacker")
     p = sparsers.add_parser("workspace", help="inspect the workspace")
-    sp = p.add_subparsers(dest="command", help="command to be executed")
+    sp = p.add_subparsers(dest="subcommand", help="subcommand to be executed")
     edt = sp.add_parser("edit", help="edit something from the workspace")
     edt.add_argument("item", type=__item_exists, help="item to be edited")
-    lst = sp.add_parser("list", help="list the folders and subfolders in the workspace")
+    view = sp.add_parser("view", help="view the folders and subfolders tree of the workspace")
     initialize(noargs_action="help", ext_logging=True)
     if args.command == "config":
         change = False
@@ -68,16 +70,17 @@ if __name__ == '__main__':
         if change:
             config.save()
             logger.debug("Saved config to %s" % str(config.path))
-    elif args.command == "edit":
-        p = args.item
-        if p.is_file() and p.extension == ".csv":
-            _call(["vd", str(p), "--csv-delimiter", ";"])
-        elif p.is_file() and p.extension == ".json":
-            _call(["vim", str(p)])
-        elif p.is_dir() and p.joinpath("metadata.json").exists():
-            _call(["vim", str(p.joinpath("metadata.json"))])
-    elif args.command == "list":
-        _call(["tree", config['workspace'], "-d"])
+    elif args.command == "workspace":
+        if args.subcommand == "edit":
+            p = args.item
+            if p.is_file() and p.extension == ".csv":
+                _call(["vd", str(p), "--csv-delimiter", ";"])
+            elif p.is_file() and p.extension == ".json":
+                _call(["vim", str(p)])
+            elif p.is_dir() and p.joinpath("metadata.json").exists():
+                _call(["vim", str(p.joinpath("metadata.json"))])
+        elif args.subcommand == "view":
+            _call(["tree", config['workspace'], "-d"])
     else:
         cls = args.type.capitalize()
         reg = globals()[cls].registry

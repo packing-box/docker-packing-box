@@ -112,8 +112,8 @@ class Model:
         # compute evaluation metrics:
         accuracy  = float(tp + tn) / (tp + tn + fp + fn)
         precision = float(tp) / (tp + fp)
-        recall    = float(tp) / (tp + fn)  # or also sensitivity
-        f_measure = float(2 * precision * recall) / (precision + recall)
+        recall    = float(tp) / (tp + fn)                           # or also sensitivity
+        f_measure = 2. * precision * recall / (precision + recall)  # or F1 score or F-score
         mcc       = matthews_corrcoef(target, prediction)
         try:
             auc = roc_auc_score(target.label, proba)

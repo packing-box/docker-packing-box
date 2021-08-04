@@ -49,8 +49,6 @@ DL8.5:
   parameters:
     static:
       iterative: true
-    cv:
-      max_depth: !!python/object/new:range [3, 12]
   visualization:
     text:   sklearn.tree.export_text
     export: null
@@ -168,7 +166,7 @@ RF:
       criterion:
         - entropy
         - gini
-      max_depth: !!python/object/new:range [6, 11]
+      max_depth: !!python/object/new:range [4, 11]
   link: http://scikit-learn.org/stable/modules/generated/sklearn.ensemble.RandomForestClassifier.html
 
 SVM:

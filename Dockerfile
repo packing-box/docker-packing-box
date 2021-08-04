@@ -25,8 +25,8 @@ RUN (apt -qq -y install apt-transport-https apt-utils \
                        libglu1-mesa-dev libjpeg-dev libpulse-dev libssl-dev libsvm-java libtiff5-dev libudev-dev \
                        libxcursor-dev libxkbfile-dev libxml2-dev libxrandr-dev  \
  && apt -qq -y install colordiff colortail cython3 dosbox git golang less ltrace tree strace sudo tmate tmux vim xterm \
- && apt -qq -y install iproute2 nodejs npm python3-setuptools python3-pip swig weka x11-apps xvfb yarnpkg zstd \
- && apt -qq -y install curl jq unrar unzip wget) 2>&1 > /dev/null \
+ && apt -qq -y install iproute2 nodejs npm python3-setuptools python3-pip swig visidata weka x11-apps yarnpkg zstd \
+ && apt -qq -y install curl jq unrar unzip wget xvfb) 2>&1 > /dev/null \
  || echo -e "\033[1;31m DEPENDENCIES INSTALL FAILED \033[0m"
 # install wine (for running Windows software on Linux)
 RUN (dpkg --add-architecture i386 \
