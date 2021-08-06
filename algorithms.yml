@@ -59,18 +59,22 @@ DT:
   description: Decision Tree
   parameters:
     static:
-      class_weight:      null
-      criterion:         gini
-      max_features:      null
-      max_leaf_nodes:    null
-      min_samples_split: 2
-      splitter:          best
-      random_state:      42
+      class_weight:   null
+      max_features:   null
+      max_leaf_nodes: null
+      splitter:       best
+      random_state:   42
     cv:
       criterion:
         - entropy
         - gini
-      max_depth: !!python/object/new:range [3, 12]
+      max_depth:         !!python/object/new:range [3, 12]
+      max_features:
+        - null
+        - sqrt
+        - log2
+      min_samples_leaf:  !!python/object/new:range [1, 9]
+      min_samples_split: !!python/object/new:range [2, 11]
   visualization:
     text:   sklearn.tree.export_text
     export: null
@@ -106,7 +110,7 @@ kNN:
       p:           2          # euclidian distance
       weights:     uniform
     cv:
-      n_neighbors: !!python/object/new:range [1, 6, 2]
+      n_neighbors: !!python/object/new:range [1, 8, 2]
   link: http://scikit-learn.org/stable/modules/generated/sklearn.neighbors.KNeighborsClassifier.html
 
 LR:
