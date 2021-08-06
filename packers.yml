@@ -415,6 +415,8 @@ UPX:
   install:
     apt: upx
   silent:
+    - AlreadyPackedException
+    - CantPackException
     - NotCompressibleException
   references:
     - https://linux.die.net/man/1/upx
