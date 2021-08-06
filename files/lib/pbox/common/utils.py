@@ -12,7 +12,7 @@ except ImportError:
 
 
 __all__ = ["backup", "benchmark", "class_or_instance_method", "collapse_categories", "expand_categories",
-           "file_or_folder_or_dataset", "highlight_best", "make_registry", "mdv"]
+           "file_or_folder_or_dataset", "highlight_best", "make_registry", "mdv", "shorten_str", "CATEGORIES"]
 
 
 CATEGORIES = {
@@ -178,6 +178,25 @@ def make_registry(cls):
             setattr(i, k, v)
         glob['__all__'].append(item)
         cls.registry.append(i())
+
+
+def shorten_str(string, l=80):
+    """ Shorten a string, possibly represented as a comma-separated list. """
+    i = 0
+    if len(string) <= l:
+        return string
+    s = ",".join(string.split(",")[:-1])
+    if len(s) == 0:
+        return string[:l-3] + "..."
+    while 1:
+        t = s.split(",")
+        if len(t) > 1:
+            s = ",".join(t[:-1])
+            if len(s) < l-3:
+                return s + "..."
+        else:
+            return s[:l-3] + "..."
+    return s + "..."
 
 
 # based on: https://stackoverflow.com/questions/28237955/same-name-for-classmethod-and-instancemethod

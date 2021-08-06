@@ -71,7 +71,9 @@ class Executable(Path):
                     if a in Executable.FIELDS + ["hash", "label"]:
                         setattr(self, a, v)
             except AttributeError:
-                pass
+                pass  # this occurs when the dataset is still empty, therefore holding no 'hash' column
+            except IndexError:
+                pass  # this occurs when the executable did not exist in the dataset yet
             # case (3)
             if ds2 is not None:
                 self.destination = ds2.files.joinpath(h)
@@ -80,8 +82,8 @@ class Executable(Path):
     
     def copy(self):
         if str(self) != str(self.destination) and not self.destination.exists():
-            try:
-                shutil.copy(str(self), str(self.destination))
+            try:  # copy file with its attributes and metadata
+                shutil.copy2(str(self), str(self.destination))
             except:
                 raise
             self.destination.chmod(0o777)

@@ -256,10 +256,9 @@ class Dataset:
             self.logger.warning("No dataset found in workspace (%s)" % config['datasets'])
     
     @backup
-    def make(self, n=100, categories=["All"], balance=False, packer=None, refresh=False, **kw):
+    def make(self, n=0, categories=["All"], balance=False, packer=None, **kw):
         """ Make n new samples in the current dataset among the given binary categories, balanced or not according to
              the number of distinct packers. """
-        pbar = tqdm(total=n, unit="executable")
         self.categories = categories
         sources = []
         for cat, src in self.sources.items():
@@ -273,24 +272,23 @@ class Dataset:
         self._metadata['sources'] = list(set(map(str, self._metadata.get('sources', []) + sources)))
         # get executables to be randomly packed or not
         i = 0
+        pbar = tqdm(total=n, unit="executable")
         for exe in self._walk(n <= 0):
             if i >= n > 0:
                 break
             self.logger.debug("handling %s..." % exe)
-            packers = [p for p in (packer or Packer.registry) if p in self.packers]
-            if exe.destination.exists():
-                if refresh:
-                    self[exe, True] = None  # this won't overwrite the label
-                continue
             i += 1
             label = short_label = None
+            packers = [p for p in (packer or Packer.registry) if p in self.packers]
             if random.randint(0, len(packers) if balance else 1):
                 if len(packers) == 0:
                     self.logger.critical("No packer left")
                     return
                 random.shuffle(packers)
+                exe.copy()
+                old_h = exe.destination.absolute()
                 for p in packers:
-                    label = p.pack(str(exe.absolute()))
+                    exe.hash, label = p.pack(str(old_h), include_hash=True)
                     if not label or p._bad:
                         if label is False or p._bad:
                             self.logger.warning("Disabling %s..." % p.__class__.__name__)
@@ -299,9 +297,12 @@ class Dataset:
                         continue
                     else:  # consider short label (e.g. "midgetpack", not "midgetpack[<password>]")
                         short_label = label.split("[")[0]
+                        exe.destination = self.files.joinpath(exe.hash)
+                        old_h.rename(exe.destination)
                     break
             self[exe] = short_label
             pbar.update()
+        pbar.close()
         if i < n - 1:
             self.logger.warning("Found too few candidate executables")
         l = len(self)
@@ -312,10 +313,11 @@ class Dataset:
             self.logger.info("#Executables: %d" % l)
         self._save()
     
-    def purge(self, **kw):
+    def purge(self, backup=False, **kw):
         """ Truncate and recreate a blank dataset. """
-        self.logger.debug("purging %s..." % self.path)
-        self._remove()
+        self.logger.debug("purging %s%s..." % (self.path, ["", "'s backups"][backup]))
+        if not backup:
+            self._remove()
         # also recursively purge the backups
         try:
             self.backup.purge()
@@ -405,6 +407,7 @@ class Dataset:
                 else:
                     del self[e]  # ensure there is no trace of this executable to be discarded
             pbar.update()
+        pbar.close()
         if i < 0:
             self.logger.warning("No executable found")
         self._save()
@@ -483,6 +486,14 @@ class Dataset:
                              CAT[4] if 500 * 1024 <= s < 1024 * 1024 else CAT[5]
         data1, data2 = {}, {}
         categories = expand_categories("All") if self.__per_category else ["All"]
+        src = self._metadata.get('sources', [])
+        r = [Text("Sources:\n %s" % "\n ".join("[%d] %s" % (i, s) for i, s in enumerate(src)))]
+        def _shorten(path):
+            p = ts.Path(path)
+            for i, s in enumerate(src):
+                if p.is_under(s):
+                    return i, str(p.relative_to(s))
+            return -1, path
         for category in categories:
             d = {c: [0, 0] for c in CAT}
             for e in self:
@@ -494,7 +505,10 @@ class Dataset:
                     d[s][1] += 1
                 data2.setdefault(category, [])
                 if len(data2[category]) < self.__limit:
-                    row = [e.hash, e.realpath, e.ctime.strftime("%d/%m/%y"), e.mtime.strftime("%d/%m/%y"), l]
+                    i, p = _shorten(e.realpath)
+                    if i >= 0:
+                        p = "[%d]/%s" % (i, p)
+                    row = [e.hash, p, e.ctime.strftime("%d/%m/%y"), e.mtime.strftime("%d/%m/%y"), l]
                     data2[category].append(row)
                 elif len(data2[category]) == self.__limit:
                     data2[category].append(["...", "...", "...", "...", "..."])
@@ -507,16 +521,18 @@ class Dataset:
                                         d[c][1], "%.2f" % (100 * (float(d[c][1]) / totalp)) if totalp > 0 else 0])
             data1[category].append(["Total", str(total), "", str(totalp), ""])
         if len(data1) > 0:
-            headers = ["Size Range", "Total", "%", "Packed", "%"]
+            h = ["Size Range", "Total", "%", "Packed", "%"]
             r.append(Section("Executables per size and category"))
             for c in categories:
                 c = c if self.__per_category else "All"
                 if c in data1:
                     if c != "All":
                         r.append(Subsection(c))
-                    r += [Table(data1[c], title=c, column_headers=headers)]
+                    r += [Table(data1[c], title=c, column_headers=h)]
                 if c == "All":
                     break
+        r.append(Rule())
+        r.append(Text("**Sources**:\n\n %s" % "\n ".join("[%d] %s" % (i, s) for i, s in enumerate(src))))
         if len(data2) > 0:
             r.append(Section("Executables per label and category"))
             for c in categories:
@@ -580,7 +596,8 @@ class Dataset:
                     ts.human_readable_size(dset.size),
                     ["no", "yes"][dset.joinpath("files").exists()],
                     ",".join(sorted(metadata['categories'])),
-                    ",".join("%s{%d}" % i for i in sorted(metadata['counts'].items(), key=lambda x: -x[1])),
+                    shorten_str(",".join("%s{%d}" % i \
+                                for i in sorted(metadata['counts'].items(), key=lambda x: (-x[1], x[0])))),
                 ])
             except KeyError:
                 if show:
