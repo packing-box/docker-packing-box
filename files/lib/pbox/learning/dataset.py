@@ -3,6 +3,7 @@ from tinyscript.helpers import is_executable
 from tqdm import tqdm
 
 from .executable import Executable
+from ..common.config import config
 from ..common.dataset import Dataset
 from ..common.utils import backup
 
@@ -12,11 +13,16 @@ __all__ = ["open_dataset", "Dataset", "FilelessDataset"]
 
 def open_dataset(folder):
     """ Open the target dataset with the right class. """
+    p = config['datasets'].joinpath(folder)
     if Dataset.check(folder):
         return Dataset(folder)
-    elif FilelessDataset.check(folder):
-        return FilelessDataset(folder)
-    raise ValueError("Not a valid dataset")
+    if FilelessDataset.check(folder):
+        return Dataset(folder)
+    elif Dataset.check(p):
+        return Dataset(p)
+    elif FilelessDataset.check(p):
+        return FilelessDataset(p)
+    raise ValueError("%s is not a valid dataset" % folder)
 
 
 class FilelessDataset(Dataset):
@@ -32,7 +38,9 @@ class FilelessDataset(Dataset):
     def __iter__(self):
         """ Iterate over the dataset. """
         for row in self._data.itertuples():
-            yield Executable(row, dataset=self)
+            e = Executable(row, dataset=self)
+            e._row = row
+            yield e
     Dataset.__iter__ = __iter__
     
     def _iter_with_features(self, feature=None, pattern=None):
@@ -92,8 +100,8 @@ class FilelessDataset(Dataset):
         # add rows from the input dataset
         self.logger.debug("merging rows from %s..." % ds2.path)
         pbar = tqdm(total=ds2._metadata['executables'], unit="executable")
-        for row in ds2:
-            self[Executable(hash=row.hash, dataset=ds2, dataset2=self)] = row._asdict()
+        for r in ds2:
+            self[Executable(hash=r.hash, dataset=ds2, dataset2=self)] = r._row._asdict()
             pbar.update()
         # as the previous operation does not update categories and features, do it manually
         self._metadata.setdefault('categories', [])

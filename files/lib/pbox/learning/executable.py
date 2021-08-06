@@ -16,13 +16,18 @@ class Executable(Base):
     def __new__(cls, *parts, **kwargs):
         fields = Executable.FIELDS + ["hash", "label", "Index"]
         self = super(Executable, cls).__new__(cls, *parts, **kwargs)
-        self._selection = None
+        self._selection = {'pre': [], 'post': []}
         if hasattr(self, "_dataset"):
-            d = self._dataset._data[self._dataset._data.hash == self.hash].iloc[0].to_dict()
-            f = {a: v for a, v in d.items() if a not in fields if str(v) != "nan"}
-            if len(f) > 0:
-                setattr(self, "data", f)
-                self.selection = list(f.keys())
+            try:
+                d = self._dataset._data[self._dataset._data.hash == self.hash].iloc[0].to_dict()
+                f = {a: v for a, v in d.items() if a not in fields if str(v) != "nan"}
+                if len(f) > 0:
+                    setattr(self, "data", f)
+                    self.selection = list(f.keys())
+            except AttributeError:
+                pass  # this occurs when the dataset is still empty, therefore holding no 'hash' column
+            except IndexError:
+                pass  # this occurs when the executable did not exist in the dataset yet
         return self
     
     def __getattribute__(self, name):
@@ -43,7 +48,8 @@ class Executable(Base):
                 data.update(r)
             else:
                 data[name] = r
-        return data
+        l = self._selection['post']
+        return data if len(l) == 0 else {n: f for n, f in data.items() if n in l}
     
     @property
     def features(self):
@@ -51,12 +57,25 @@ class Executable(Base):
     
     @property
     def selection(self):
-        return {n: f for n, f in self._features.items() if n in (self._selection or self._features.keys())}
+        l = self._selection['pre']
+        return self._features.copy() if len(l) == 0 else {n: f for n, f in self._features.items() if n in l}
     
     @selection.setter
     def selection(self, features):
+        if features is None:
+            return
+        if not isinstance(features, (list, tuple)):
+            features = [features]
         if isinstance(features, (list, tuple)):
-            self._selection = features
-        elif isinstance(features, str):
-            self._selection = [x for x in self.features.keys() if re.search(features, x)]
+            for f in features:
+                # this will filter groups of features before computation (e.g. "pefeats")
+                if re.match(r"\{.*\}$", f):
+                    self._selection['pre'].append(f[1:-1])
+                # this will filter features ones computed (e.g. "dll_characteristics_...", part of the "pefeats" group)
+                else:
+                    self._selection['post'].append(f)
+        try:
+            del self.data
+        except AttributeError:
+            pass
 

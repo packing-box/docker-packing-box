@@ -7,7 +7,7 @@ from sklearn.metrics import confusion_matrix, matthews_corrcoef, roc_auc_score
 from sklearn.model_selection import train_test_split, GridSearchCV
 from sklearn.preprocessing import *
 from tinyscript import ast, json, logging, subprocess
-from tinyscript.helpers import human_readable_size, is_generator, Path
+from tinyscript.helpers import human_readable_size, is_executable, is_generator, Path
 from tinyscript.report import *
 
 from .algorithms import Algorithm, WekaClassifier
@@ -17,7 +17,7 @@ from ..common.config import config
 from ..common.utils import *
 
 
-__all__ = ["DumpedModel", "Model", "PREPROCESSORS"]
+__all__ = ["DumpedModel", "Model", "N_JOBS", "PREPROCESSORS"]
 
 
 FLOAT_FORMAT = "%.6f"
@@ -45,24 +45,6 @@ PREPROCESSORS = {
     'Rob':        (RobustScaler, {'quantile_range': (25, 75)}),
     'Std':        StandardScaler,
 }
-
-
-def _shorten(string, l=80):
-    i = 0
-    if len(string) <= l:
-        return string
-    s = ",".join(string.split(",")[:-1])
-    if len(s) == 0:
-        return string[:l-3] + "..."
-    while 1:
-        t = s.split(",")
-        if len(t) > 1:
-            s = ",".join(t[:-1])
-            if len(s) < l-3:
-                return s + "..."
-        else:
-            return s[:l-3] + "..."
-    return s + "..."
 
 
 class Model:
@@ -116,18 +98,19 @@ class Model:
         f_measure = 2. * precision * recall / (precision + recall)  # or F1 score or F-score
         mcc       = matthews_corrcoef(target, prediction)
         try:
-            auc = roc_auc_score(target.label, proba)
+            auc = roc_auc_score(target, proba)
         except ValueError:
             auc = -1
         # return metrics for further display
         return [accuracy, precision, recall, f_measure, mcc, auc]
     
-    def _prepare(self, dataset, preprocessor=None, multiclass=False, feature=None, pattern=None, data_only=False, **kw):
+    def _prepare(self, dataset=None, preprocessor=None, multiclass=False, labels=None, feature=None, pattern=None,
+                 data_only=False, **kw):
         """ Prepare the Model instance based on the given Dataset instance. """
-        ds, l, labels = dataset, self.logger, kw.get('labels', {})
+        ds, l, labels = dataset, self.logger, labels or {}
         if not data_only:
             if not getattr(ds, "is_valid", lambda: False)():
-                l.error("Not a valid input dataset")
+                l.error("%s is not a valid input dataset" % dataset)
                 return False
             # copy relevant information from the input dataset
             l.debug("Preparing the dataset...")
@@ -135,48 +118,51 @@ class Model:
             self._metadata['dataset']['path'] = str(ds.path)
             self._metadata['dataset']['name'] = ds.path.stem
         self._data, self._target = pd.DataFrame(), pd.DataFrame(columns=["label"])
-        # case 1: CSV file
-        try:
-            d, n = pd.read_csv(str(ds), sep=kw.pop('sep', ",")), Path(ds).filename
-            self._data, self._target = d.loc[:, d.columns != "label"], d.loc[:, d.columns == "label"]
-            self._features = {k: "" for k in self._data.columns}
-        except AttributeError:  # 'DataFrame' object has no attribute 'label'
-            l.error(d.columns)
-            l.warning("This error may be caused by a bad CSV separator ; you can set it with --sep")
-            raise
-        except (KeyError, FileNotFoundError, TypeError):
-            def __parse(exes):
-                if not isinstance(exes, list) and not is_generator(exes):
-                    exes = [exes]
-                for exe in exes:
-                    if not isinstance(exe, Executable):
-                        exe = Executable(str(exe))
-                    exe.selection = feature or pattern
-                    self._features.update(exe.features)
-                    self._data.append(exe.data, ignore_index=True)
-                    self._target.append(labels.get(exe.hash, exe.label))
-            # handle individual executables, folders of executables or both types of dataset instances
-            if config['datasets'].joinpath(str(ds)).exists():
-                ds = open_dataset(ds)
-            # case 2: handle a fileless dataset (where features are already computed)
-            if isinstance(ds, FilelessDataset):
-                for exe in ds:
-                    break
-                exe = Executable(exe)
+        # start input dataset parsing
+        def __parse(exes, label=True):
+            if not isinstance(exes, list) and not is_generator(exes):
+                exes = [exes]
+            for exe in exes:
+                if not isinstance(exe, Executable):
+                    exe = Executable(str(exe))
                 exe.selection = feature or pattern
                 self._features.update(exe.features)
-                self._data = ds._data[list(exe.features.keys())]
-                self._target = [x for x in ds._data.label.values]
-            # case 3: handle a normal dataset (features shall still be computed)
-            elif isinstance(ds, Dataset):
-                __parse(ds.files.listdir(is_executable))
-            # case 4: handle a single executable
-            elif is_executable(str(ds)):
-                __parse(ds)
-            # case 5: handle the executables within a folder
-            elif ds.is_folder():
-                __parse(ds.listdir(is_executable))
-            self._target = pd.DataFrame(self._target, columns=["label"])
+                self._data = self._data.append(exe.data, ignore_index=True)
+                if label:
+                    self._target = self._target.append({'label': labels.get(exe.hash)}, ignore_index=True)
+        # handle individual executables, folders of executables or both types of dataset instances
+        if config['datasets'].joinpath(str(ds)).exists():
+            ds = open_dataset(ds)
+        # case 1: handle a fileless dataset (where features are already computed)
+        if isinstance(ds, FilelessDataset):
+            for exe in ds:
+                break
+            exe = Executable(exe)
+            exe.selection = feature or pattern
+            self._features.update(exe.features)
+            self._data = ds._data[list(exe.features.keys())]
+            self._target = ds._data.loc[:, ds._data.columns == "label"]
+        # case 2: handle a normal dataset (features shall still be computed)
+        elif isinstance(ds, Dataset):
+            __parse(ds.files.listdir(is_executable), False)
+            self._target = ds._data.loc[:, ds._data.columns == "label"]
+        else:
+            # case 3: CSV file
+            try:
+                d, n = pd.read_csv(str(ds), sep=kw.pop('sep', ",")), Path(ds).filename
+                self._data, self._target = d.loc[:, d.columns != "label"], d.loc[:, d.columns == "label"]
+                self._features = {k: "" for k in self._data.columns}
+            except AttributeError:  # 'DataFrame' object has no attribute 'label'
+                l.error(d.columns)
+                l.warning("This error may be caused by a bad CSV separator ; you can set it with --sep")
+                raise
+            except (KeyError, FileNotFoundError, TypeError):
+                # case 4: handle a single executable
+                if is_executable(str(ds)):
+                    __parse(ds)
+                # case 5: handle the executables within a folder
+                elif ds.is_folder():
+                    __parse(ds.listdir(is_executable))
         if len(self._data) == 0:
             l.warning("No data")
             return
@@ -184,15 +170,12 @@ class Model:
             l.warning("No selectable feature ; this may be due to a model unrelated to the input")
             raise ValueError("No feature to extract")
         n = getattr(ds, "name", str(ds))
+        self._target = self._target.fillna("")
         if not multiclass:  # convert to binary class
-            self._target = self._target.fillna(0)
+            self._target.loc[self._target.label == "", "label"] = 0
             self._target.loc[self._target.label != 0, "label"] = 1
-        else:
-            self._target = self._target.fillna("")
+            self._target = self._target.astype('int')
         self.labels = set(self._target.label.values)
-        if multiclass is None:
-            multiclass = len(self.labels) > 2
-        self._taget = self._target.values.ravel()
         self._preprocess(*(preprocessor or ()))
         if data_only:
             return True
@@ -208,29 +191,39 @@ class Model:
         return True
     
     def _preprocess(self, *preprocessors):
-        """ Preprocess the bound _data with an input list of preprocessors. """
+        """ Preprocess the bound _data with an input list of preprocessors.
+        
+        NB: we prefer controlling preprocessing ourselves instead of using sklearn.pipeline.Pipeline(...).
+        """
         c = False
         for p in preprocessors:
-            p, params = PREPROCESSORS[p], {}
+            p, params = PREPROCESSORS.get(p, p), {}
             if isinstance(p, tuple):
-                p, params = p
+                try:
+                    p, params = p
+                except:
+                    self.logger.error("Bad preprocessor format: %s" % p)
+                    raise
                 m = "%s with %s" % (p.__name__, ", ".join("{}={}".format(*i) for i in params.items()))
             else:
                 m = p.__name__
             n = p.__name__
             v = "Transform" if n.endswith("Transformer") else "Encode" if n.endswith("Encoder") else \
-                "Standardize" if n.endswith("Scaler") else "Normalize" if n.endswith("Normalizer") else \
+                "Standardize" if n.endswith("Scaler") else "Normalize" if n.endswith("Normalizer") or n == "PCA" else \
                 "Discretize" if n.endswith("Discretizer") else "Preprocess"
             self.logger.debug("> %s the data (%s)" % (v, m))
             preprocessed = p(**params).fit_transform(self._data)
             c = True
-        if c:
+        if c:  # ensure self._data remains a DataFrame
             self._data = pd.DataFrame(preprocessed, index=self._data.index, columns=self._data.columns)
     
     def _save(self):
         """ Save model's state to the related files. """
         l = self.logger
         self.path = Path(config['models'].joinpath(self.name)).absolute()
+        if not self.__read_only and self.path.exists():
+            l.warning("Cannot retrain a model")
+            return
         self.path.mkdir(exist_ok=True)
         l.debug("%s model %s..." % (["Saving", "Updating"][self.__read_only], str(self.path)))
         p = self.path.joinpath("performance.csv")
@@ -311,7 +304,8 @@ class Model:
                     ds['name'],
                     str(ds['executables']),
                     ",".join(sorted(ds['categories'])),
-                    _shorten(",".join("%s{%d}" % i for i in sorted(ds['counts'].items(), key=lambda x: (-x[1],x[0])))),
+                    shorten_str(",".join("%s{%d}" % i \
+                                for i in sorted(ds['counts'].items(), key=lambda x: (-x[1], x[0])))),
                 ])
             if len(d) == 0:
                 self.logger.warning("No model found in workspace (%s)" % config['models'])
@@ -356,13 +350,15 @@ class Model:
                   "**Packers**:      %s" % ", ".join(ds['counts'].keys())])
         print(mdv.main(Report(Section("Reference dataset"), c).md()))
     
-    def test(self, executable, labels=None, preprocessor=None, multiclass=False, feature=None, pattern=None, **kw):
-        """ Test a single executable or a set of executables and evaluate metrics if labels are provided. """
-        l, n, labels = self.logger, executable, labels or {}
+    def test(self, **kw):
+        """ Test a single executable or a set of executables and evaluate metrics. """
+        l, n = self.logger, kw.get('executable')
         if self.classifier is None:
             l.warning("Model shall be trained before testing")
             return
-        if not self._prepare(executable, preprocessor, multiclass, feature, pattern, True, **kw):
+        kw['dataset'] = n
+        kw['data_only'] = True
+        if not self._prepare(**kw):
             return
         l.debug("Testing %s on %s..." % (self.name, n))
         prediction, dt = benchmark(self.classifier.predict)(self._data)
@@ -385,20 +381,19 @@ class Model:
             self._performance = self._performance.append(row, ignore_index=True)
             self._save()
     
-    def train(self, dataset=None, algorithm=None, cv=5, n_jobs=N_JOBS, multiclass=False, feature=None, pattern=None,
-              param=None, preprocessor=None, reset=False, **kw):
+    def train(self, algorithm=None, cv=5, n_jobs=N_JOBS, param=None, reset=False, **kw):
         """ Training method handling cross-validation. """
-        l, n_cpu = self.logger, mp.cpu_count()
+        l, n_cpu, name = self.logger, mp.cpu_count(), kw['dataset'].name
         try:
             cls = self.algorithm = Algorithm.get(algorithm)
-            algo = cls.__name__
+            algo = cls.__class__.__name__
         except KeyError:
             l.error("%s not available" % algorithm)
             return
         if n_jobs > n_cpu:
             self.logger.warning("Maximum n_jobs is %d" % n_cpu)
             n_jobs = n_cpu
-        if not self._prepare(dataset, preprocessor, multiclass, feature, pattern, **kw):
+        if not self._prepare(**kw):
             return
         if self.name is None:
             c = sorted(collapse_categories(*self._metadata['dataset']['categories']))
@@ -411,7 +406,7 @@ class Model:
         if self.__read_only:
             l.warning("Cannot retrain a model")
             return
-        if not getattr(cls, "multiclass", True) and multiclass:
+        if not getattr(cls, "multiclass", True) and kw.get('multiclass', False):
             l.error("%s does not support multiclass" % algo)
             return
         # get classifer and grid search parameters
@@ -432,13 +427,13 @@ class Model:
                     del param_grid[n]
                 except KeyError:
                     pass
-        l.debug("Training %s on %s..." % (algo, dataset.name))
+        l.debug("Training %s on %s..." % (algo, name))
         c = cls.base(**params)
         # if a param_grid is input, perform cross-validation and select the best classifier
         if len(param_grid) > 0:
             l.debug("> Applying Grid Search (CV=%d)..." % cv)
             grid = GridSearchCV(c, param_grid=param_grid, cv=cv, scoring='accuracy', n_jobs=n_jobs)
-            grid.fit(self._data, self._target.values.ravel())
+            grid.fit(self._data, self._target)
             results = '\n'.join("  %0.3f (+/-%0.03f) for %r" % (m, s * 2, p) \
                 for m, s, p in zip(grid.cv_results_['mean_test_score'],
                                    grid.cv_results_['std_test_score'],
@@ -469,6 +464,11 @@ class Model:
         d.append(["Test"] + m2)
         h = ["."] + h
         print(mdv.main(Table(d, column_headers=h).md()))
+        try:
+            del params['model']
+        except KeyError:
+            pass
+        self.name += "_" + str(hash(tuple(",".join("{}={}".format(k, v) for k, v in params.items()))))
         self.classifier = c
         self._metadata.setdefault('algorithm', {})
         self._metadata['algorithm']['name'] = algo
