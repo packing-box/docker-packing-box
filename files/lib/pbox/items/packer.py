@@ -18,26 +18,27 @@ class Packer(Base):
       .pack(executable, **kwargs) [str]
       .run(executable, **kwargs) [str|(str,time)]
     """
-    def pack(self, executable, **kwargs):
+    def pack(self, executable, include_hash=False, **kwargs):
         """ Runs the packer according to its command line format and checks if the executable has been changed by this
              execution. """
         # check: is this packer able to process the input executable ?
-        exe = Executable(executable)
+        if not isinstance(executable, Executable):
+            exe = Executable(executable)
         if exe.category not in self._categories_exp or \
            exe.extension[1:] in getattr(self, "exclude", {}).get(exe.category, []):
             return False
         # now pack the input executable, taking its SHA256 in order to check for changes
-        h, self._error = exe.hash, False
+        h, self._error = hashlib.sha256_file(str(exe)), False
         label = self.run(exe, **kwargs)
         if self._error:
-            return
-        elif h == hashlib.sha256_file(str(exe)):
+            return (h, None) if include_hash else None
+        elif h == exe.hash:
             self.logger.debug("%s's content was not changed by %s" % (exe.filename, self.name))
             self._bad = True
-            return
+            return (h, None) if include_hash else None
         # if packing succeeded, we can return packer's label
         self.logger.debug("%s packed with %s" % (exe.filename, self.name))
-        return label
+        return (exe.hash, label) if include_hash else label
     
     def run(self, executable, **kwargs):
         """ Customizable method for shaping the command line to run the packer on an input executable. """

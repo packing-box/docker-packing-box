@@ -174,6 +174,7 @@ class Base(Item):
                 if verbose:
                     attempt += " -v"
                 kw['shell'] = ">" in attempt
+                kw['silent'] = getattr(self, "silent", None)
                 try:
                     output, _, retc = run(attempt, **kw)
                 except:
