@@ -16,7 +16,7 @@ RUN (apt -qq update \
  && apt -qq autoclean) 2>&1 > /dev/null \
  || echo -e "\033[1;31m SYSTEM UPGRADE FAILED \033[0m"
 # install common dependencies, libraries and tools
-RUN (apt -qq -y install apt-transport-https apt-utils \
+RUN (apt -qq -y install apt-transport-https apt-utils locales \
  && apt -qq -y install bash-completion build-essential clang cmake software-properties-common \
  && apt -qq -y install libavcodec-dev libavformat-dev libavresample-dev libavutil-dev libbsd-dev libboost-regex-dev \
                        libboost-program-options-dev libboost-system-dev libboost-filesystem-dev libc6-dev-i386 \
@@ -28,6 +28,11 @@ RUN (apt -qq -y install apt-transport-https apt-utils \
  && apt -qq -y install iproute2 nodejs npm python3-setuptools python3-pip swig visidata weka x11-apps yarnpkg zstd \
  && apt -qq -y install curl jq unrar unzip wget xvfb) 2>&1 > /dev/null \
  || echo -e "\033[1;31m DEPENDENCIES INSTALL FAILED \033[0m"
+# configure the locale
+RUN sed -i '/en_US.UTF-8/s/^# //g' /etc/locale.gen && locale-gen
+ENV LANG en_US.UTF-8
+ENV LANGUAGE en_US:en
+ENV LC_ALL en_US.UTF-8
 # install wine (for running Windows software on Linux)
 RUN (dpkg --add-architecture i386 \
  && wget -nc https://dl.winehq.org/wine-builds/winehq.key \
