@@ -103,7 +103,7 @@ if __name__ == '__main__':
     train.add_argument("--cv", default=3, help="number of Cross-Validation folds")
     tgroup2 = train.add_mutually_exclusive_group()
     tgroup2.add_argument("--feature", action="extend", nargs="*", help="list of features to be selected")
-    train.add_argument("--n-jobs", default=4, help="number of jobs to be run in parallel")
+    train.add_argument("--n-jobs", default=N_JOBS, help="number of jobs to be run in parallel")
     train.add_argument("--param", action="extend", nargs="*", type=lambda x: x.split(","),
                        help="comma-separated list of parameters for the algorithm",
                        note="fixing a parameter with this option disables it from the cross-validation")
