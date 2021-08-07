@@ -1,3 +1,10 @@
+ACProtect:
+  categories:
+    - PE
+  description: ACProtect is an application that allows you to protect Windows executable files against piracy,using public keys encryption algorithms (RSA) to create and verify the registration keys and unlock some RSA key locked code,it has embedded cryptor against dump and unpacker.it also has many anti debug tricks. And you can use it to create evaluation and trial application versions. with specialized API system, mutual communication between loader and application is also can be achieved.
+  source: https://www.yaldex.com/Bestsoft/Utilities/acprotect.htm
+  status: commercial
+
 Amber:
   categories:
     - PE
@@ -98,6 +105,8 @@ Eronana-Packer:
     wine: packer.exe
   references:
     - https://github.com/Eronana/compressor/tree/d6f5d893d8296823bb265830f8f451e5cd43b285
+  silent:
+    - __telemetry_main_return_trigger
   steps:
     - eronana-packer {{executable}}
     - mv -f {{executable.stem}}.packed{{executable.extension}} {{executable}}
@@ -252,9 +261,14 @@ MPRESS:
     - PE
     - Mach-O
   description: MPRESS is a free, high-performance executable packer for PE32/PE32+/.NET/MAC-DARWIN executable formats.
+  exclude:
+    PE:
+      - ds
   install:
     unzip: /opt/packers/mpress
     wine:  mpress.exe
+  silent:
+    - Warning!
   steps:
     - mpress {{executable}}{{compressed[| -r]}}{{lzmat[| -m]}}
   references:
@@ -304,28 +318,49 @@ Pakkero:
 
 PELock:
   categories:
-    - PE
+    - PE32
   comment: Demo version.
-  description: Software copy protection against cracking & reverse engineering with anti-cracking & anti-debugging techniques. Software license key system with time trial options.
+  description: PELock is a software security solution designed for protection of any 32 bit Windows applications against cracking, tampering and reverse engineering analysis.
+  exclude:
+    PE32:
+      - dll
+      - ds
+  gui:
+    # click on "OK" when the intro window is displayed
+    - mousemove 630 570 click 1 (.5) [x3]
+    # click on "Remove all" to reset the list of files to be protected
+    - mousemove 610 620 click 1 (.2)
+    # click on "Add file" to open the file dialog box
+    - mousemove 280 590 click 1 (.3)
+    # type the path to the executable
+    - type "$FILE"
+    # click "Open"
+    - mousemove 580 380 click 1 (2)
+    # click "Protect file"
+    - mousemove 380 590 click 1 (2)
   install:
-    copy: pelock.exe /opt/packers/pelock.exe
-    setp: /opt/packers/
-    wine: pelock.exe
+    unzip: /root/.wine/drive_c/Program Files (x86)/pelock
+    lwine: PELock.exe
   references:
     - https://github.com/PELock/PELock-Software-Protection-and-Licensing-SDK
   source: https://www.pelock.com/products/pelock
-  status: gui
+  status: ok
 
 PEPacker:
   categories:
     - PE32
   description: Simple packer for Windows 32-bits PE files. The new PE file after packing can obstruct the process of reverse engineering. It will transform the original import table, encrypt sections, clear section names and installing the shell-entry. When running a packed PE file, the shell-entry will decrypt and load the original program by decrypting sections, initializing the original import table and relocation.
+  exclude:
+    PE32:
+      - dll
+      - ds
   install:
     wget:  https://github.com/czs108/PE-Packer/releases/download/v1.0.0-beta/PE-Packer-1.0.0-beta-win-x86.zip
     unzip: /opt/packers/pepacker
     wine:  PE-Packer.exe
   steps:
-    - pepacker {{executable}} {{executable}}
+    - pepacker {{executable}} {{executable.stem}}_new{{executable.extension}}
+    - mv -f {{executable.stem}}_new{{executable.extension}} {{executable}}
   references:
     - https://zenodo.org/record/4698355
   source: https://github.com/czs108/PE-Packer
@@ -449,11 +484,25 @@ Yoda_Crypter:
   categories:
     - PE32
   description: This is a small PE crypter with some nice protection options.
+  exclude:
+    PE32:
+      - ds
+  gui:
+    # click on "..." to open a target executable
+    - mousemove 580 330 click 1 (.1)
+    # type the path to the target executable (C:)
+    - type "$FILE"
+    # click on "Open" (this requires a bit of time to return to the main window)
+    - mousemove 720 500 click 1 (2)
+    # click on "Protect!"
+    - mousemove 630 330 click 1 (.5)
+    # FIXME: .5 second may surely be too few for bigger executables
+    - key Return (.1) [x3]
   install:
     unzip: /opt/packers/yoda_crypter
     wine:  yC.exe
   source: https://sourceforge.net/projects/yodap/files/Yoda%20Crypter/
-  status: gui
+  status: ok
 
 Yoda_Protector:
   categories:
