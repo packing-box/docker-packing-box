@@ -300,3 +300,19 @@ pip-upgrade() {
     | cut -d = -f 1 \
     | xargs -n1 sudo pip3 install -U
 }
+
+# screenshots for Xvfb
+xvfb-screenshot() {
+  local PNG="$1"
+  if [ -z "$PNG" ]; then
+    PNG="screenshot.png"
+  fi
+  xwd -display $DISPLAY -root -silent | convert xwd:- png:$PNG
+}
+
+# run Xvfb (if not already started)
+ps -eaf | grep -v grep | grep Xvfb >/dev/null
+if [ $? -eq 1 ]; then
+  export DISPLAY=":42"
+  Xvfb $DISPLAY -screen 0 1024x768x16 &
+fi

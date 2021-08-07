@@ -11,6 +11,22 @@ from ..common.utils import *
 __all__ = ["Base"]
 
 
+# for a screenshot: "xwd -display $DISPLAY -root -silent | convert xwd:- png:screenshot.png"
+GUI_SCRIPT = """#!/bin/bash
+PWD=`pwd`
+{{preamble}}
+SRC="$1"
+DST="/root/.wine/drive_c/users/root/Temp/${1##*/}"
+FILE="c:\\\\users\\\\root\\\\Temp\\\\${1##*/}"
+cp -f "$SRC" "$DST"
+wine "$EXE" "$@" &
+sleep .5
+{{actions}}
+ps -eaf | grep -v grep | grep $EXE | awk {'print $2'} > .pid-to-kill && kill `cat .pid-to-kill` && rm -f .pid-to-kill
+sleep .1
+mv -f "$DST" "$SRC"
+cd $PWD
+"""
 OS_COMMANDS = subprocess.check_output("compgen -c", shell=True, executable="/bin/bash").splitlines()
 PARAM_PATTERN = r"{{(.*?)(?:\[(.*?)\])?}}"
 STATUS = [_c("ⓘ", "grey"), _c("☒", "magenta"), _c("☒", "red"), _c("☐", "grey"), _c("☑", "yellow"), _c("☑", "green")]
@@ -59,7 +75,7 @@ class Base(Item):
     
     Attributes:
       status [int]
-        0: info|useless
+        0: commercial|info|useless
         1: broken
         2: not installed
         3: gui|todo
@@ -96,14 +112,32 @@ class Base(Item):
                 self.__init = True
             # check: is this item operational ?
             if self.status <= 3:
-                self.logger.debug("Status: %s" % ["info|useless", "broken", "not installed", "todo"][self.status])
+                self.logger.debug("Status: %s" % ["commercial|info|useless", "broken", "not installed", "todo"]\
+                                                 [self.status])
                 return lambda *a, **kw: False
         return super(Base, self).__getattribute__(name)
+    
+    def _gui(self, target, local=False):
+        """ Prepare GUI script. """
+        preamble = "cd \"%s\"\nEXE=\"%s\"" % (target.dirname, target.filename) if local else "EXE=\"%s\"" % target
+        script = GUI_SCRIPT.replace("{{preamble}}", preamble)
+        cmd = re.compile(r"(.*?)(?:\s\((\d*\.\d*|\d+)\)(?:|\s\[x(\d+)\])?)?$")
+        actions = []
+        for action in self.gui:
+            m = cmd.match(action)
+            if m is None:
+                raise ValueError("Bad GUI command (%s)" % action)
+            c, delay, repeat = m.groups()
+            for i in range(int(repeat or 1)):
+                actions.append("xdotool %s" % c)
+                if delay:
+                    actions.append("sleep %s" % delay)
+        return script.replace("{{actions}}", "\n".join(actions))
     
     def _test(self, silent=False):
         """ Preamble to the .test(...) method. """
         if self.status < 3:
-            st = ["info|useless", "broken", "not installed"][self.status]
+            st = ["commercial|info|useless", "broken", "not installed"][self.status]
             self.logger.warning("%s %s" % (self.__class__.__name__, st))
             return False
         logging.setLogger(self.name)
@@ -202,7 +236,7 @@ class Base(Item):
         """ Sets the item up according to its install instructions. """
         logging.setLogger(self.name)
         if self.status < 2:
-            self.logger.debug("Status: broken|info|useless ; this item won't be installed")
+            self.logger.warning("Status: broken|commercial|info|useless ; this item won't be installed")
             return
         self.logger.info("Setting up %s..." % self.__class__.__name__)
         tmp, obin, ubin = Path("/tmp"), Path("/opt/bin"), Path("/usr/bin")
@@ -218,9 +252,9 @@ class Base(Item):
             elif cmd == "cd":
                 result = (result or tmp).joinpath(arg)
                 if not result.exists():
-                    self.logger.debug("mkdir %s" % result)
+                    self.logger.debug("mkdir \"%s\"" % result)
                     result.mkdir()
-                self.logger.debug("cd %s" % result)
+                self.logger.debug("cd \"%s\"" % result)
                 os.chdir(str(result))
             # copy a file from the previous location (or /tmp if not defined) to /opt/bin, making the destination file
             #  executable
@@ -233,8 +267,8 @@ class Base(Item):
                 # if /usr/bin/... exists, then save it to /opt/bin/... to superseed it
                 if dst.is_samepath(ubin.joinpath(arg2)) and dst.exists():
                     dst = obin.joinpath(arg2)
-                if run("cp %s%s %s" % (["", "-r"][src.is_dir()], src, dst), **kw)[-1] == 0 and dst.is_file():
-                    run("chmod +x %s" % dst, **kw)
+                if run("cp %s\"%s\" \"%s\"" % (["", "-r"][src.is_dir()], src, dst), **kw)[-1] == 0 and dst.is_file():
+                    run("chmod +x \"%s\"" % dst, **kw)
             # execute the given command as is, with no pre-/post-condition, not altering the result state variable
             #  (if a list of commands is given, execute them all
             elif cmd == "exec":
@@ -246,26 +280,48 @@ class Base(Item):
             # git clone a project
             elif cmd in ["git", "gitr"]:
                 result = (result or tmp).joinpath(Path(ts.urlparse(arg).path).stem)
-                run("git clone -q %s%s %s" % (["", "--recursive "][cmd == "gitr"], arg, result), **kw)
+                run("git clone -q %s%s \"%s\"" % (["", "--recursive "][cmd == "gitr"], arg, result), **kw)
+            # create a shell script to execute Bash code and make it executable
+            elif cmd in ["java", "sh", "wine"]:
+                r, txt, tgt = ubin.joinpath(self.name), "#!/bin/bash\n", result.joinpath(arg)
+                if cmd == "java":
+                    txt += "java -jar \"%s\" \"$@\"" % tgt
+                elif cmd == "sh":
+                    txt += "\n".join(arg.split("\\n"))
+                elif cmd == "wine":
+                    if hasattr(self, "gui"):
+                        txt = self._gui(tgt)
+                    else:
+                        txt += "wine \"%s\" \"$@\"" % tgt
+                self.logger.debug("echo -en '%s' > \"%s\"" % (txt, r))
+                try:
+                    r.write_text(txt)
+                    run("chmod +x \"%s\"" % r, **kw)
+                except PermissionError:
+                    self.logger.error("bash: %s: Permission denied" % r)
+                result = r
             # make a symbolink link in /usr/bin (if relative path) relatively to the previous considered location
             elif cmd == "ln":
                 r = ubin.joinpath(self.name)
                 r.remove(False)
-                run("ln -s %s %s" % ((result or tmp).joinpath(arg), r), **kw)
+                run("ln -s \"%s\" \"%s\"" % ((result or tmp).joinpath(arg), r), **kw)
                 result = r
             elif cmd in ["lsh", "lwine"]:
-                try:
-                    arg1, arg2 = shlex.split(arg)
-                except ValueError:
-                    arg1, arg2 = "/opt/%ss/%s" % (self.type, self.name), arg
-                arg2 = "wine \"%s\" \"$@\"" % arg2 if cmd == "lwine" else "./%s" % arg2
+                if cmd == "lwine" and hasattr(self, "gui"):
+                    arg = self._gui(result.joinpath(arg), True)
+                else:
+                    try:
+                        arg1, arg2 = shlex.split(arg)
+                    except ValueError:
+                        arg1, arg2 = "/opt/%ss/%s" % (self.type, self.name), arg
+                    arg2 = "wine \"%s\" \"$@\"" % arg2 if cmd == "lwine" else "./%s" % arg2
+                    arg = "#!/bin/bash\nPWD=`pwd`\nif [[ \"$1\" = /* ]]; then TARGET=\"$1\"; else TARGET=\"$PWD/$1\";" \
+                          " fi\ncd \"%s\"\n%s \"$TARGET\" \"$2\"\ncd \"$PWD\"" % (arg1, arg2)
                 result = ubin.joinpath(self.name)
-                arg = "#!/bin/bash\nPWD=`pwd`\nif [[ \"$1\" = /* ]]; then TARGET=\"$1\"; else TARGET=\"$PWD/$1\"; fi" \
-                      "\ncd %s\n%s $TARGET $2\ncd $PWD" % (arg1, arg2)
-                self.logger.debug("echo -en '%s' > %s" % (arg, result))
+                self.logger.debug("echo -en '%s' > \"%s\"" % (arg, result))
                 try:
                     result.write_text(arg)
-                    run("chmod +x %s" % result, **kw)
+                    run("chmod +x \"%s\"" % result, **kw)
                 except PermissionError:
                     self.logger.error("bash: %s: Permission denied" % result)
             # compile a C project
@@ -298,15 +354,15 @@ class Base(Item):
                 # if /usr/bin/... exists, then save it to /opt/bin/... to superseed it
                 if r.is_samepath(ubin.joinpath(self.name)) and r.exists():
                     r = obin.joinpath(self.name)
-                if run("mv %s %s" % (result, r), **kw)[-1] == 0 and r.is_file():
-                    run("chmod +x %s" % r, **kw)
+                if run("mv -f \"%s\" \"%s\"" % (result, r), **kw)[-1] == 0 and r.is_file():
+                    run("chmod +x \"%s\"" % r, **kw)
                 result = r
             # simple install through PIP
             elif cmd == "pip":
                 run("pip3 -q install %s" % arg, **kw)
             # remove a given directory (then bypassing the default removal at the end of all commands)
             elif cmd == "rm":
-                run("rm -rf %s" % Path(arg).absolute(), **kw)
+                run("rm -rf \"%s\"" % Path(arg).absolute(), **kw)
                 rm = False
             # manually set the result to be used in the next command
             elif cmd == "set":
@@ -314,22 +370,6 @@ class Base(Item):
             # manually set the result as a path object to be used in the next command
             elif cmd == "setp":
                 result = tmp.joinpath(arg)
-            # create a shell script to execute Bash code and make it executable
-            elif cmd in ["java", "sh", "wine"]:
-                r, txt = ubin.joinpath(self.name), "#!/bin/bash\n"
-                if cmd == "java":
-                    txt += "java -jar \"%s\" \"$@\"" % result.joinpath(arg)
-                elif cmd == "sh":
-                    txt += "\n".join(arg.split("\\n"))
-                elif cmd == "wine":
-                    txt += "wine \"%s\" \"$@\"" % result.joinpath(arg)
-                self.logger.debug("echo -en '%s' > %s" % (txt, r))
-                try:
-                    r.write_text(txt)
-                    run("chmod +x %s" % r, **kw)
-                except PermissionError:
-                    self.logger.error("bash: %s: Permission denied" % r)
-                result = r
             # decompress a RAR/ZIP archive to the given location (absolute or relative to /tmp)
             elif cmd in ["unrar", "untar", "unzip"]:
                 ext = "." + cmd[-3:]
@@ -342,15 +382,16 @@ class Base(Item):
                     ext, result = ".tar.xz", result2
                 if result.extension == ext:
                     r = tmp.joinpath(arg)
+                    if r.exists():
+                        r.remove()
                     if ext == ".zip":
-                        run("unzip -qqo %s -d %s" % (result, r), **kw)
+                        run("unzip -qqo \"%s\" -d \"%s\"" % (result, r), **kw)
                     elif ext == ".rar":
-                        if not r.exists():
-                            r.mkdir()
-                        run("unrar x %s %s" % (result, r), **kw)
+                        r.mkdir()
+                        run("unrar x \"%s\" \"%s\"" % (result, r), **kw)
                     else:
-                        run("mkdir -p %s" % r, **kw)
-                        run("tar x%sf %s -C %s" % (["", "z"][ext == ".tar.gz"], result, r), **kw)
+                        r.mkdir(parents=True, exist_ok=True)
+                        run("tar x%sf \"%s\" -C \"%s\"" % (["", "z"][ext == ".tar.gz"], result, r), **kw)
                     result.remove()
                     result = r
                 else:
@@ -423,7 +464,7 @@ class Base(Item):
         st = getattr(self, "_status", None)
         if st == "ok":  # the item runs, works correctly and was tested
             return 5
-        elif st in ["info", "useless"]:
+        elif st in ["commercial", "info", "useless"]:
             return 0
         if st == "broken":
             return 1
