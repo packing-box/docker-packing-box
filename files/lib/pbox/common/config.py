@@ -14,7 +14,10 @@ class Config(ConfigParser):
     DEFAULTS = {
         'main': {
             'workspace': ("~/.packing-box", lambda v: Path(v, create=True, expand=True).absolute()),
-        }
+        },
+        'logging': {
+            'wine_errors': ("false", lambda v: v.lower() in ["1", "true", "y", "yes"]),
+        },
     }
     HIDDEN = {
         'datasets': ("datasets", _ws),
@@ -39,7 +42,7 @@ class Config(ConfigParser):
             for opt, val in options.items():
                 try:
                     val, func = val
-                except ValueError:
+                except TypeError:
                     pass
                 s = super().__getitem__(section)
                 if opt not in s:

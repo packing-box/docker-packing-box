@@ -3,6 +3,7 @@ from tinyscript import b, colored as _c, ensure_str, json, logging, os, random, 
 from tinyscript.helpers import execute_and_log as run, is_executable, is_file, is_folder, Path
 from tinyscript.report import *
 
+from ..common.config import config
 from ..common.executable import Executable
 from ..common.item import Item
 from ..common.utils import *
@@ -208,7 +209,9 @@ class Base(Item):
                 if verbose:
                     attempt += " -v"
                 kw['shell'] = ">" in attempt
-                kw['silent'] = getattr(self, "silent", None)
+                kw['silent'] = getattr(self, "silent", [])
+                if not config['wine_errors']:
+                    kw['silent'].append(r"^[0-9a-f]{4}:(err|fixme):")
                 try:
                     output, _, retc = run(attempt, **kw)
                 except:
