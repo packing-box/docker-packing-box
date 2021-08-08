@@ -26,7 +26,7 @@ RUN (apt -qq -y install apt-transport-https apt-utils locales \
                        libxcursor-dev libxkbfile-dev libxml2-dev libxrandr-dev  \
  && apt -qq -y install colordiff colortail cython3 dosbox git golang less ltrace tree strace sudo tmate tmux vim xterm \
  && apt -qq -y install iproute2 nodejs npm python3-setuptools python3-pip swig visidata weka x11-apps yarnpkg zstd \
- && apt -qq -y install curl iptables jq psmisc thefuck unrar unzip wget xdotool xvfb \
+ && apt -qq -y install curl imagemagick iptables jq psmisc thefuck unrar unzip wget xdotool xvfb \
  && wget -qO /tmp/bat.deb https://github.com/sharkdp/bat/releases/download/v0.18.2/bat-musl_0.18.2_amd64.deb \
  && dpkg -i /tmp/bat.deb && rm -f /tmp/bat.deb) 2>&1 > /dev/null \
  || echo -e "\033[1;31m DEPENDENCIES INSTALL FAILED \033[0m"
@@ -36,9 +36,9 @@ ENV LANG en_US.UTF-8
 ENV LANGUAGE en_US:en
 ENV LC_ALL en_US.UTF-8
 # configure iptables
-RUN addgroup no-internet \
- && iptables -I OUTPUT 1 -m owner --gid-owner no-internet -j DROP \
- && ip6tables -I OUTPUT 1 -m owner --gid-owner no-internet -j DROP
+#RUN addgroup no-internet \
+# && iptables -I OUTPUT 1 -m owner --gid-owner no-internet -j DROP \
+# && ip6tables -I OUTPUT 1 -m owner --gid-owner no-internet -j DROP
 # install wine (for running Windows software on Linux)
 RUN (dpkg --add-architecture i386 \
  && wget -nc https://dl.winehq.org/wine-builds/winehq.key \
