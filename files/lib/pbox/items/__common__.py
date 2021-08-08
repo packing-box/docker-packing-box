@@ -14,19 +14,17 @@ __all__ = ["Base"]
 
 # for a screenshot: "xwd -display $DISPLAY -root -silent | convert xwd:- png:screenshot.png"
 GUI_SCRIPT = """#!/bin/bash
-PWD=`pwd`
 {{preamble}}
 SRC="$1"
 DST="/root/.wine/drive_c/users/root/Temp/${1##*/}"
 FILE="c:\\\\users\\\\root\\\\Temp\\\\${1##*/}"
 cp -f "$SRC" "$DST"
-wine "$EXE" "$@" &
+wine "$EXE" &
 sleep .5
 {{actions}}
 ps -eaf | grep -v grep | grep $EXE | awk {'print $2'} > .pid-to-kill && kill `cat .pid-to-kill` && rm -f .pid-to-kill
 sleep .1
-mv -f "$DST" "$SRC"
-cd $PWD
+mv -f "$DST" "$SRC"{{postamble}}
 """
 OS_COMMANDS = subprocess.check_output("compgen -c", shell=True, executable="/bin/bash").splitlines()
 PARAM_PATTERN = r"{{(.*?)(?:\[(.*?)\])?}}"
@@ -120,17 +118,18 @@ class Base(Item):
     
     def _gui(self, target, local=False):
         """ Prepare GUI script. """
-        preamble = "cd \"%s\"\nEXE=\"%s\"" % (target.dirname, target.filename) if local else "EXE=\"%s\"" % target
-        script = GUI_SCRIPT.replace("{{preamble}}", preamble)
-        cmd = re.compile(r"(.*?)(?:\s\((\d*\.\d*|\d+)\)(?:|\s\[x(\d+)\])?)?$")
+        preamble = "PWD=\"`pwd`\"\ncd \"%s\"\nEXE=\"%s\"" % (target.dirname, target.filename) if local else \
+                   "EXE=\"%s\"" % target
+        postamble = ["", "\ncd \"$PWD\""][local]
+        script = GUI_SCRIPT.replace("{{preamble}}", preamble).replace("{{postamble}}", postamble)
+        cmd = re.compile(r"^(.*?)(?:\s\((\d*\.\d*|\d+)\)(?:|\s\[x(\d+)\])?)?$")
         actions = []
         for action in self.gui:
-            m = cmd.match(action)
-            if m is None:
-                raise ValueError("Bad GUI command (%s)" % action)
-            c, delay, repeat = m.groups()
+            c, delay, repeat = cmd.match(action).groups()
             for i in range(int(repeat or 1)):
-                actions.append("xdotool %s" % c)
+                actions.append("xdotool %s" % c if re.match("(behave|click|get(_|mouselocation)|key(down|up)?|"
+                                                            "mouse(down|move(_relative)?|up)|search|set_|type|"
+                                                            "(get|select)?window)", c) else c)
                 if delay:
                     actions.append("sleep %s" % delay)
         return script.replace("{{actions}}", "\n".join(actions))
@@ -238,18 +237,22 @@ class Base(Item):
     def setup(self, **kw):
         """ Sets the item up according to its install instructions. """
         logging.setLogger(self.name)
+        c = self.__class__.__name__
         if self.status < 2:
-            self.logger.warning("Status: broken|commercial|info|useless ; this item won't be installed")
+            self.logger.info("Skipping %s..." % c)
+            self.logger.debug("Status: broken|commercial|info|useless ; this means that it won't be installed")
             return
-        self.logger.info("Setting up %s..." % self.__class__.__name__)
+        self.logger.info("Setting up %s..." % c)
         tmp, obin, ubin = Path("/tmp"), Path("/opt/bin"), Path("/usr/bin")
         result, rm, kw = None, True, {'logger': self.logger}
         cwd = os.getcwd()
         for cmd, arg in self.install.items():
             if isinstance(result, Path) and not result.exists():
-                raise ValueError("Last command's result does not exist (%s) ; current: %s" % (result, cmd))
+                self.logger.critical("Last command's result does not exist (%s) ; current: %s" % (result, cmd))
+                return
             # simple install through APT
             if cmd == "apt":
+                kw['silent'] = kw.get('silent', []) + ["apt does not have a stable CLI interface"]
                 run("apt -qy install %s" % arg, **kw)
             # change to the given dir (starting from the reference /tmp directory if no command was run before)
             elif cmd == "cd":
@@ -345,7 +348,14 @@ class Base(Item):
                         if run("chmod +x configure.sh", **kw)[-1] == 0:
                             run("./configure.sh", **kw)
                     if run("make %s" % opt if opt else "make", **kw)[-1] == 0:
-                        run("make install", **kw)
+                        ok = False
+                        with result.joinpath("Makefile").open() as f:
+                            for l in f:
+                                if l.startswith("install:"):
+                                    ok = True
+                                    break
+                        if ok:
+                            run("make install", **kw)
                 elif "make.sh" in files:
                     if run("chmod +x make.sh", **kw)[-1] == 0:
                         run("sh -c './make.sh'", **kw)
@@ -385,12 +395,10 @@ class Base(Item):
                     ext, result = ".tar.xz", result2
                 if result.extension == ext:
                     r = tmp.joinpath(arg)
-                    if r.exists():
-                        r.remove()
                     if ext == ".zip":
                         run("unzip -qqo \"%s\" -d \"%s\"" % (result, r), **kw)
                     elif ext == ".rar":
-                        r.mkdir()
+                        r.mkdir(parents=True, exist_ok=True)
                         run("unrar x \"%s\" \"%s\"" % (result, r), **kw)
                     else:
                         r.mkdir(parents=True, exist_ok=True)

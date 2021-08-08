@@ -222,7 +222,7 @@ class Model:
         l = self.logger
         self.path = Path(config['models'].joinpath(self.name)).absolute()
         if not self.__read_only and self.path.exists():
-            l.warning("Cannot retrain a model")
+            l.warning("This model already exists !")
             return
         self.path.mkdir(exist_ok=True)
         l.debug("%s model %s..." % (["Saving", "Updating"][self.__read_only], str(self.path)))
