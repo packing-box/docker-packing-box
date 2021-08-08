@@ -492,7 +492,8 @@ Ward:
   install:
     wget:  https://github.com/ex0dus-0x/ward/archive/refs/heads/master.zip
     unzip: /opt/packers/
-    make:  ward
+    cd:    ward-master
+    make:  ward cli
     ln:    /opt/packers/ward-master/ward
   steps:
     - cd {{executable.dirname}}
@@ -500,6 +501,7 @@ Ward:
     - rm -f {{executable.filename}}
     - mv {{executable.filename}}.packed {{executable.filename}}
   source: https://github.com/ex0dus-0x/ward
+  status: ok
 
 Yoda_Crypter:
   categories:
