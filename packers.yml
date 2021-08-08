@@ -194,8 +194,11 @@ hXOR-Packer:
 
 Kkrunchy:
   categories:
-    - PE
+    - PE32
   description: Kkrunchy is a small exe packer primarily meant for 64k intros.
+  exclude:
+    PE32:
+      - dll
   install:
     wget:  http://www.farbrausch.de/~fg/kkrunchy/kkrunchy_023a2.zip
     unzip: /opt/packers
@@ -203,7 +206,9 @@ Kkrunchy:
   references:
     - https://github.com/fireeye/capa-rules/blob/master/anti-analysis/packer/kkrunchy/packed-with-kkrunchy.yml
   source: http://www.farbrausch.de/~fg/kkrunchy
-  status: gui
+  steps:
+    - kkrunchy --good {{executable}} --out {{executable}}
+  status: ok
 
 M0dern_P4cker:
   categories:
@@ -218,7 +223,7 @@ M0dern_P4cker:
     unzip: /opt/packers
     exec:
       - mv /opt/packers/m0dern_p4cker-e24a1d47dae1acb0cc3dc4d2fb42a61662bc210c/packer@git /opt/packers/m0dern_p4cker
-      - rm -f /opt/packers/m0dern_p4cker-e24a1d47dae1acb0cc3dc4d2fb42a61662bc210c
+      - rm -rf /opt/packers/m0dern_p4cker-e24a1d47dae1acb0cc3dc4d2fb42a61662bc210c
     cd:    /opt/packers/m0dern_p4cker
     make:  main
     lsh:   main
@@ -229,15 +234,31 @@ M0dern_P4cker:
 
 MEW:
   categories:
-    - PE
+    - PE32
   description: MEW is an EXE compression tool that was specifically designed to handle small files, but does a pretty good job when working with larger files too.
+  exclude:
+    PE32:
+      - dll
+      - ds
+  gui:
+    # click on "..." to open a target executable
+    - mousemove 675 425 click 1 (.1)
+    # type the path to the target executable (C:)
+    - type "$FILE"
+    # click on "Open" (this requires a bit of time to return to the main window)
+    - mousemove 700 450 click 1 (2)
+    # click on "DO IT!"
+    - mousemove 550 520 click 1 (.5)
+    # wait for the packing process to finish
+    - export DST
+    - timeout 60s bash -c 'while [ -f "${DST%/*}/temp" ]; do sleep .1; done'
   install:
     unzip: /opt/packers/mew
     wine:  mew11.exe
   references:
     - https://webscene.ir/tools/show/Mew-packer-11-SE-1.2
   source: https://in4k.github.io/wiki/exe-packers-tweakers-and-linkers
-  status: gui
+  status: ok
 
 MidgetPack:
   categories:
@@ -292,7 +313,7 @@ Muncho:
   references:
     - https://www.pouet.net/prod.php?which=51324
   source: https://demozoo.org/productions/175774/
-  status: todo
+  status: info
 
 NetCrypt:
   categories:
@@ -315,6 +336,7 @@ Pakkero:
   steps:
     - pakkero --file {{executable}} -o {{executable}}{{compressed[| -c]}}
   source: https://github.com/89luca89/pakkero
+  status: ok
 
 PELock:
   categories:
@@ -470,7 +492,6 @@ Ward:
   install:
     wget:  https://github.com/ex0dus-0x/ward/archive/refs/heads/master.zip
     unzip: /opt/packers/
-    cd:    ward-master
     make:  ward
     ln:    /opt/packers/ward-master/ward
   steps:
