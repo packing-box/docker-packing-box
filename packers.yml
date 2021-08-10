@@ -31,26 +31,27 @@ APack:
     wget:  https://www.ibsensoftware.com/files/apack-1.00.zip
     unzip: /opt/packers/apack
     wine:  apackw.exe
+  steps:
+    - cp -f {{executable}} /root/.wine/drive_c/users/root/Temp/
+    - apack "c:\\users\\root\\Temp\\{{executable.filename}}"
+    - mv -f /root/.wine/drive_c/users/root/Temp/{{executable.filename}} {{executable}}
   source: https://www.ibsensoftware.com/download.html
+  status: broken
 
 ASPack:
   categories:
     - PE32
   comment: Cannot run inside a virtualized environment unless cracked.
   description: ASPack is an advanced solution created to provide Win32 EXE file packing and to protect them against non-professional reverse engineering.
-  install:
-    exec: echo "TODO"
   references:
     - https://github.com/fireeye/capa-rules/blob/master/anti-analysis/packer/aspack/packed-with-aspack.yml
   source: http://www.aspack.com/aspack.html
-  status: todo
+  status: broken
 
 BurnEye:
   categories:
     - ELF32
   description: Burneye is an executeable encryption program, which is suited to protect ELF binaries on the Intel x86 Linux operating system. It supports a variety of options to wrap an arbitrary executeable with multiple encryption layers.
-  install:
-    exec: echo "LEFT FOR INFORMATION"
   references:
     - https://docplayer.net/86668430-Modern-linux-malware-exposed.html
   source: https://packetstormsecurity.com/files/29691/burneye-1.0-linux-static.tar.gz.html
@@ -59,12 +60,10 @@ BurnEye:
 Crinkler:
   categories:
     - PE
+  comment: This tool is used for working with Visual Studio projects.
   description: Crinkler is an executable file compressor (or rather, a compressing linker) for Windows for compressing small demoscene executables. As of 2020, it is the most widely used tool for compressing 1k/4k/8k intros.
-  install:
-    wget:  http://www.crinkler.net/crinkler20.zip
-    unzip: /opt/packers
-    wine:  crinkler20/crinkler.exe
-  source:  https://github.com/runestubbe/Crinkler
+  source: https://github.com/runestubbe/Crinkler
+  status: info
 
 DotNetZ:
   categories:
@@ -78,13 +77,12 @@ DotNetZ:
     - https://mindlocksite.wordpress.com/2017/01/22/netz-packer-unpack-avec-windbg/
     - https://ltops9.wordpress.com/2012/12/02/191/
   source: https://www.softpedia.com/get/Programming/Packers-Crypters-Protectors/NETZ.shtml
+  status: todo
 
 ELFuck:
   categories:
     - ELF32
   description: ELF packer for i386 origial version from sk2 by sd.
-  install:
-    copy: elfuck
   references:
     - https://docplayer.net/86668430-Modern-linux-malware-exposed.html
   source: https://github.com/timhsutw/elfuck
@@ -126,6 +124,7 @@ EXEPacker:
 EXEStealth:
   categories:
     - PE
+  comment: Trial version ; does not allow to protect executables.
   description: EXE Stealth can protect most of the executable files that are compatible with PE format. However, not every executable file is compatible with EXEStealth and other PE protectors. A problem can enter the compiler or if it uses a loader with data submitted after the loader.
   install:
     copy: exestealth.exe /opt/packers/exestealth.exe
@@ -135,7 +134,7 @@ EXEStealth:
     - http://www.webtoolmaster.com/exestealth-tutorial.htm
     - http://www.webtoolmaster.com/download/ExeStealth.exe
   source: http://www.webtoolmaster.com/index.htm#ExeStealth
-  status: gui
+  status: commercial
 
 Ezuri:
   categories:

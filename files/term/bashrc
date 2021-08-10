@@ -316,3 +316,19 @@ if [ $? -eq 1 ]; then
   export DISPLAY=":42"
   Xvfb $DISPLAY -screen 0 1024x768x16 &
 fi
+
+# run .NET 3.5
+ps -eaf | grep -v grep | grep "/usr/bin/winetricks dotnet35" >/dev/null
+if [ $? -eq 1 ]; then
+  winetricks dotnet35 >/dev/null &
+fi
+# run .NET 4.0
+ps -eaf | grep -v grep | grep "/usr/bin/winetricks dotnet40" >/dev/null
+if [ $? -eq 1 ]; then
+  winetricks dotnet40 >/dev/null &
+fi
+# run .NET 4.5.2
+ps -eaf | grep -v grep | grep "/usr/bin/winetricks dotnet452" >/dev/null
+if [ $? -eq 1 ]; then
+  winetricks dotnet452 >/dev/null &
+fi

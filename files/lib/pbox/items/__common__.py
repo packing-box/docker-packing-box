@@ -333,7 +333,8 @@ class Base(Item):
             # compile a C project
             elif cmd == "make":
                 if not result.is_dir():
-                    raise ValueError("Got a file ; should have a folder")
+                    self.logger.error("Got a file ; should have a folder")
+                    return
                 try:
                     arg, opt = shlex.split(arg)
                 except ValueError:
