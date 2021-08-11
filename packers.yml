@@ -10,9 +10,8 @@ Amber:
     - PE
   description: Amber is a position-independent(reflective) PE loader that enables in-memory execution of native PE files(EXE, DLL, SYS...). It enables stealthy in-memory payload deployment that can be used to bypass anti-virus, firewall, IDS, IPS products, and application white-listing mitigations.
   exclude:
-    PE:
-      - dll
-      - ds
+    - dll
+    - ds
   install:
     wget:  https://github.com/EgeBalci/amber/releases/download/v3.0/amber_linux_amd64_3.0.zip
     unzip: /opt/packers/
@@ -77,7 +76,6 @@ DotNetZ:
     - https://mindlocksite.wordpress.com/2017/01/22/netz-packer-unpack-avec-windbg/
     - https://ltops9.wordpress.com/2012/12/02/191/
   source: https://www.softpedia.com/get/Programming/Packers-Crypters-Protectors/NETZ.shtml
-  status: todo
 
 ELFuck:
   categories:
@@ -94,9 +92,8 @@ Eronana-Packer:
   comment: This relies on a compression library (see Ref) using LZ77 and Huffman.
   description: This is a packer for exe under win32. You can use it to pack any 32-bit exe file.
   exclude:
-    PE:
-      - dll
-      - ds
+    - dll
+    - ds
   install:
     wget:  https://github.com/Eronana/packer/releases/download/packer/packer.zip
     unzip: /opt/packers/eronana-packer
@@ -154,28 +151,32 @@ Ezuri:
 
 FSG:
   categories:
-    - PE
+    - PE32
   description: FSG states for Fast Small Good and is a Windows executable packer.
+  gui:
+    # be sure to focus on the input text box
+    - mousemove 110 215 click 1 (.5)
+    # type the path to the target executable (C:)
+    - type "$FILE"
+    # click on "Open" (this starts packing)
+    - mousemove 380 210 click 1 (3)
   install:
-    wget:  http://in4k.untergrund.net/packers%%20droppers%%20etc/xt_fsg20.zip
-    unzip: fsg
-    setp:  fsg/fsg.rar
-    unrar: /opt/packers/fsg
-    wine:  fsg.exe
+    copy: fsg.exe /opt/packers/fsg.exe
+    setp: /opt/packers/
+    wine: fsg.exe
   references:
     - https://www.aldeid.com/wiki/Category:Digital-Forensics/Computer-Forensics/Anti-Reverse-Engineering/Packers/FSG
     - http://beatrix2004.free.fr/FSG.pdf
   source: https://in4k.github.io/wiki/exe-packers-tweakers-and-linkers
-  status: gui
+  status: broken
 
 hXOR-Packer:
   categories:
     - PE
   description: A PE (Portable Executable) packer with Huffman Compression and Xor encryption.
   exclude:
-    PE:
-      - dll
-      - ds
+    - dll
+    - ds
   install:
     wget:  https://github.com/rurararura/hXOR-Packer/releases/download/0.1/hXOR-Packer.v0.1.zip
     unzip: /opt/packers
@@ -196,8 +197,7 @@ Kkrunchy:
     - PE32
   description: Kkrunchy is a small exe packer primarily meant for 64k intros.
   exclude:
-    PE32:
-      - dll
+    - dll
   install:
     wget:  http://www.farbrausch.de/~fg/kkrunchy/kkrunchy_023a2.zip
     unzip: /opt/packers
@@ -214,8 +214,7 @@ M0dern_P4cker:
     - ELF64
   description: Just a modern packer for Elf binaries.
   exclude:
-    ELF:
-      - o
+    - o
   install:
     apt:   libcapstone-dev
     wget:  https://github.com/n4sm/m0dern_p4cker/archive/e24a1d47dae1acb0cc3dc4d2fb42a61662bc210c.zip
@@ -236,9 +235,8 @@ MEW:
     - PE32
   description: MEW is an EXE compression tool that was specifically designed to handle small files, but does a pretty good job when working with larger files too.
   exclude:
-    PE32:
-      - dll
-      - ds
+    - dll
+    - ds
   gui:
     # click on "..." to open a target executable
     - mousemove 675 425 click 1 (.1)
@@ -323,7 +321,7 @@ NetCrypt:
     unzip: /opt/packers/netcrypt
     wine:  SimplePacker.exe
   source: https://github.com/friedkiwi/netcrypt
-  status: gui
+  status: todo
 
 Pakkero:
   categories:
@@ -343,9 +341,8 @@ PELock:
   comment: Demo version.
   description: PELock is a software security solution designed for protection of any 32 bit Windows applications against cracking, tampering and reverse engineering analysis.
   exclude:
-    PE32:
-      - dll
-      - ds
+    - dll
+    - ds
   gui:
     # click on "OK" when the intro window is displayed
     - mousemove 630 570 click 1 (.5) [x3]
@@ -372,9 +369,8 @@ PEPacker:
     - PE32
   description: Simple packer for Windows 32-bits PE files. The new PE file after packing can obstruct the process of reverse engineering. It will transform the original import table, encrypt sections, clear section names and installing the shell-entry. When running a packed PE file, the shell-entry will decrypt and load the original program by decrypting sections, initializing the original import table and relocation.
   exclude:
-    PE32:
-      - dll
-      - ds
+    - dll
+    - ds
   install:
     wget:  https://github.com/czs108/PE-Packer/releases/download/v1.0.0-beta/PE-Packer-1.0.0-beta-win-x86.zip
     unzip: /opt/packers/pepacker
@@ -405,8 +401,7 @@ PEtite:
     - PE32
   description: Petite is a free Win32 (Windows 95/98/2000/NT/XP/Vista/7/etc) executable (EXE/DLL/etc) compressor.
   exclude:
-    PE32:
-      - ds
+    - ds
   install:
     wget:  https://www.un4seen.com/files/petite24.zip
     unzip: /opt/packers/petite
@@ -423,13 +418,28 @@ RLPack:
   categories:
     - PE
   description: RLPack is a tiny application which compresses executable files but still allows you to run them under normal conditions. Its features can be seamlessly figured out.
+  exclude:
+    - dll
+  gui:
+    # click on checkbox "Make Backup" (to prevent it from copying the binary)
+    - mousemove 285 580 click 1
+    # click on "Browse"
+    - mousemove 700 265 click 1 (.1)
+    # type the path to the target executable (C:)
+    - type "$FILE"
+    # click on "Open" (this requires a bit of time to return to the main window)
+    - mousemove 375 215 click 1 (2)
+    # click on "Pack"
+    - mousemove 480 580 click 1 (.1)
+    # click on "OK" if a dialog box is displayed telling that the security certificate will be stripped
+    - mousemove 510 420 click 1 (3)
   install:
     unzip: /opt/packers/rlpack
     wine:  RLPack.exe
   references:
     - https://storage.ey.md/Technology%%20Related/Programming%%20%%26%%20Reversing/Tuts4You%%20Collection/Unpacking%%20Tutorials/RLPack%%201.21%%20%%28Unpacking%%29.rar
   source: https://www.softpedia.com/get/Programming/Packers-Crypters-Protectors/RLPack-Basic-Edition.shtml
-  status: gui
+  status: ok
 
 Shiva:
   categories:
@@ -471,8 +481,8 @@ UPX:
   install:
     apt: upx
   silent:
-    - AlreadyPackedException
     - CantPackException
+    - IOException
     - NotCompressibleException
   references:
     - https://linux.die.net/man/1/upx
@@ -507,8 +517,7 @@ Yoda_Crypter:
     - PE32
   description: This is a small PE crypter with some nice protection options.
   exclude:
-    PE32:
-      - ds
+    - ds
   gui:
     # click on "..." to open a target executable
     - mousemove 580 330 click 1 (.1)
@@ -531,8 +540,7 @@ Yoda_Protector:
     - PE32
   description: Yoda's Protector is a free, open source, Windows 32-bit software protector. It performs string & resource encryption, resource compression, uses Microsoft Crypto API, program compression, program optimization, polymorphic encryption, API redirection, anti-debugging tricks, removes debug information and relocation table, optimizes and removes DOS header.
   exclude:
-    PE:
-      - ds
+    - ds
   install:
     unzip: /opt/packers/yoda_protector
     wine:  yP.exe
