@@ -171,9 +171,7 @@ def make_registry(cls):
         else:
             i = glob[item]
         for k, v in data.items():
-            if k == "exclude":
-                v = {c: sv for sk, sv in v.items() for c in expand_categories(sk)}
-            elif k == "status":
+            if k == "status":
                 k = "_" + k
             setattr(i, k, v)
         glob['__all__'].append(item)

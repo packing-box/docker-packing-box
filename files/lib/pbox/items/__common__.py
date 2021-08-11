@@ -116,6 +116,26 @@ class Base(Item):
                 return lambda *a, **kw: False
         return super(Base, self).__getattribute__(name)
     
+    def _check(self, exe):
+        """ Check if the given executable can be processed by this item. """
+        c = exe.category
+        exe = Executable(exe)
+        ext = exe.extension[1:]
+        exc = getattr(self, "exclude", [])
+        if isinstance(exc, dict):
+            l = []
+            for k, v in exc.items():
+                if c in expand_categories(k):
+                    l.extend(v)
+            exc = list(set(l))
+        if c not in self._categories_exp:
+            self.logger.debug("%s does not handle %s executables" % (self.cname, c))
+            return False
+        if ext in exc:
+            self.logger.debug("%s does not handle .%s files" % (self.cname, ext))
+            return False
+        return True
+    
     def _gui(self, target, local=False):
         """ Prepare GUI script. """
         preamble = "PWD=\"`pwd`\"\ncd \"%s\"\nEXE=\"%s\"" % (target.dirname, target.filename) if local else \
@@ -138,11 +158,11 @@ class Base(Item):
         """ Preamble to the .test(...) method. """
         if self.status < 3:
             st = ["commercial|info|useless", "broken", "not installed"][self.status]
-            self.logger.warning("%s %s" % (self.__class__.__name__, st))
+            self.logger.warning("%s %s" % (self.cname, st))
             return False
         logging.setLogger(self.name)
         if not silent:
-            self.logger.info("Testing %s..." % self.__class__.__name__)
+            self.logger.info("Testing %s..." % self.cname)
         return True
     
     def check(self, *categories):
@@ -237,12 +257,11 @@ class Base(Item):
     def setup(self, **kw):
         """ Sets the item up according to its install instructions. """
         logging.setLogger(self.name)
-        c = self.__class__.__name__
         if self.status < 2:
-            self.logger.info("Skipping %s..." % c)
+            self.logger.info("Skipping %s..." % self.cname)
             self.logger.debug("Status: broken|commercial|info|useless ; this means that it won't be installed")
             return
-        self.logger.info("Setting up %s..." % c)
+        self.logger.info("Setting up %s..." % self.cname)
         tmp, obin, ubin = Path("/tmp"), Path("/opt/bin"), Path("/usr/bin")
         result, rm, kw = None, True, {'logger': self.logger}
         cwd = os.getcwd()
@@ -456,9 +475,7 @@ class Base(Item):
             self.logger.info(category)
             for exe in l:
                 exe = Executable(exe)
-                ext = exe.extension[1:]
-                if exe.category not in self._categories_exp or \
-                   ext in getattr(self, "exclude", {}).get(exe.category, []):
+                if not self._check(exe):
                     continue
                 tmp = d.joinpath(exe.filename)
                 self.logger.debug(exe.filetype)
@@ -508,7 +525,7 @@ class Base(Item):
                 continue
             n += 1
             items.append([
-                item.__class__.__name__,
+                item.cname,
                 ",".join(collapse_categories(*expand_categories(*item.categories))),
                 STATUS[item.status],
                 "<%s>" % item.source,

@@ -22,10 +22,8 @@ class Packer(Base):
         """ Runs the packer according to its command line format and checks if the executable has been changed by this
              execution. """
         # check: is this packer able to process the input executable ?
-        if not isinstance(executable, Executable):
-            exe = Executable(executable)
-        if exe.category not in self._categories_exp or \
-           exe.extension[1:] in getattr(self, "exclude", {}).get(exe.category, []):
+        exe = Executable(executable)
+        if not self._check(exe):
             return False
         # now pack the input executable, taking its SHA256 in order to check for changes
         h, self._error = hashlib.sha256_file(str(exe)), False

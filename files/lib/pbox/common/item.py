@@ -10,7 +10,8 @@ __all__ = ["Item"]
 class Item:
     """ Item abstraction. """
     def __init__(self):
-        self.name = self.__class__.__name__.lower()
+        self.cname = self.__class__.__name__
+        self.name = self.__class__.__name__.lower().replace("_", "-")
         self.type = self.__class__.__base__.__name__.lower()
         self.logger = logging.getLogger(self.name)
     
