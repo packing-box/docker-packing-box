@@ -14,6 +14,7 @@ __all__ = ["Base"]
 
 # for a screenshot: "xwd -display $DISPLAY -root -silent | convert xwd:- png:screenshot.png"
 GUI_SCRIPT = """#!/bin/bash
+source /root/.bash_xvfb
 {{preamble}}
 SRC="$1"
 DST="/root/.wine/drive_c/users/root/Temp/${1##*/}"
@@ -263,7 +264,7 @@ class Base(Item):
             return
         self.logger.info("Setting up %s..." % self.cname)
         tmp, obin, ubin = Path("/tmp"), Path("/opt/bin"), Path("/usr/bin")
-        result, rm, kw = None, True, {'logger': self.logger}
+        result, rm, kw = None, True, {'logger': self.logger, 'silent': getattr(self, "silent", [])}
         cwd = os.getcwd()
         for cmd, arg in self.install.items():
             if isinstance(result, Path) and not result.exists():
@@ -271,7 +272,7 @@ class Base(Item):
                 return
             # simple install through APT
             if cmd == "apt":
-                kw['silent'] = kw.get('silent', []) + ["apt does not have a stable CLI interface"]
+                kw['silent'] += ["apt does not have a stable CLI interface"]
                 run("apt -qy install %s" % arg, **kw)
             # change to the given dir (starting from the reference /tmp directory if no command was run before)
             elif cmd == "cd":
@@ -305,6 +306,7 @@ class Base(Item):
             # git clone a project
             elif cmd in ["git", "gitr"]:
                 result = (result or tmp).joinpath(Path(ts.urlparse(arg).path).stem)
+                result.remove(False)
                 run("git clone -q %s%s \"%s\"" % (["", "--recursive "][cmd == "gitr"], arg, result), **kw)
             # create a shell script to execute Bash code and make it executable
             elif cmd in ["java", "sh", "wine"]:
@@ -361,7 +363,8 @@ class Base(Item):
                 os.chdir(str(result))
                 files = [x.filename for x in result.listdir()]
                 if "CMakeLists.txt" in files:
-                    if run("cmake .", silent=["Checking out ", "Cloning into ", "Updating "], **kw)[-1] == 0:
+                    kw['silent'] += ["Checking out ", "Cloning into ", "Updating "]
+                    if run("cmake .", **kw)[-1] == 0:
                         run("make %s" % opt if opt else "make", **kw)
                 elif "Makefile" in files:
                     if "configure.sh" in files:
@@ -462,7 +465,7 @@ class Base(Item):
     
     def test(self, files=None, **kw):
         """ Tests the item on some executable files. """
-        if not self._test(kw.get('silent', False)):
+        if not self._test(kw.pop('silent', False)):
             return
         d = ts.TempPath(prefix="%s-tests-" % self.type, length=8)
         for category in self._categories_exp:

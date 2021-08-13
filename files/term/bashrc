@@ -1,12 +1,4 @@
 #!/bin/bash
-# If not running interactively, don't do anything
-[ -z "$PS1" ] && return
-
-# set variable identifying the chroot you work in (used in the prompt below)
-if [ -z "${debian_chroot:-}" ] && [ -r /etc/debian_chroot ]; then
-    debian_chroot=$(cat /etc/debian_chroot)
-fi
-
 # enable bash completion in interactive shells
 if ! shopt -oq posix; then
   if [ -f /usr/share/bash-completion/bash_completion ]; then
@@ -34,7 +26,7 @@ if [ -x /usr/lib/command-not-found -o -x /usr/share/command-not-found/command-no
 fi
 
 # source colors definition and other useful additions
-for f in .bash_colors .bash_gitprompt .bash_aliases; do
+for f in .bash_colors .bash_gitprompt .bash_aliases .bash_xvfb; do
   ok=0
   for p in /etc/bash ~/ ./; do
     if [ $ok -eq 0 ] && [ -f $p$f ];  then
@@ -299,45 +291,5 @@ pip-upgrade() {
     | grep -v "^\-e" \
     | cut -d = -f 1 \
     | xargs -n1 sudo pip3 install -U
-}
-
-# screenshots for Xvfb
-xvfb-screenshot() {
-  local PNG="$1"
-  if [ -z "$PNG" ]; then
-    PNG="screenshot.png"
-  fi
-  xwd -display $DISPLAY -root -silent | convert xwd:- png:$PNG
-}
-
-# run Xvfb (if not already started)
-ps -eaf | grep -v grep | grep Xvfb >/dev/null
-if [ $? -eq 1 ]; then
-  export DISPLAY=":42"
-  Xvfb $DISPLAY -screen 0 1024x768x16 &
-fi
-
-# aliases for .NET
-kill-dotnet() {
-  ps -eaf | grep -v grep | grep -i "dotnet" | awk {'print $2'} \
-    > .pid-to-kill && kill `cat .pid-to-kill` && rm -f .pid-to-kill
-}
-start-dotnet35() {
-  ps -eaf | grep -v grep | grep "/usr/bin/winetricks dotnet35" >/dev/null
-  if [ $? -eq 1 ]; then
-    winetricks dotnet35 >/dev/null &
-  fi
-}
-start-dotnet40() {
-  ps -eaf | grep -v grep | grep "/usr/bin/winetricks dotnet40" >/dev/null
-  if [ $? -eq 1 ]; then
-    winetricks dotnet40 >/dev/null &
-  fi
-}
-start-dotnet45() {
-  ps -eaf | grep -v grep | grep "/usr/bin/winetricks dotnet452" >/dev/null
-  if [ $? -eq 1 ]; then
-    winetricks dotnet452 >/dev/null &
-  fi
 }
 

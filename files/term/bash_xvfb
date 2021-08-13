@@ -1,0 +1,72 @@
+#!/bin/bash
+# functions for interacting with Xvfb
+xvfb-screenshot() {
+  local PNG="$1"
+  if [ -z "$PNG" ]; then
+    PNG="screenshot.png"
+  fi
+  ffmpeg -y -f x11grab -s $SCREENSIZE -i $DISPLAY -frames:v 1 $PNG 2>/dev/null
+  if [ $? -eq 1 ]; then
+    >&2 echo "[ERROR] Screenshot failed"
+  fi
+}
+xvfb-gettxt() {
+  local F="/tmp/xvfb-screenshot.png"
+  xvfb-screenshot $F
+  if [ $? -eq 0 ]; then
+    convert $F -crop $1 $F
+    if [ $? -eq 1 ]; then
+      >&2 echo "[ERROR] Text capture failed"
+    else
+      tesseract $F $F 2>/dev/null
+      if [ $? -eq 1 ]; then
+        >&2 echo "[ERROR] Could not extract text with OCR"
+      else
+        strings $F.txt
+        rm -f $F $F.txt
+      fi
+    fi
+  fi
+}
+xvfb-chktxt() {
+  xvfb-gettxt $1 | grep -i "$2" >/dev/null
+  if [ $? -eq 1 ]; then
+    >&2 echo "[ERROR] String not found"
+    exit 1
+  fi
+}
+
+# functions for .NET
+dotnet-kill() {
+  local F=/tmp/.pid-to-kill
+  ps -eaf | grep -v grep | grep -i "dotnet${1}" | awk {'print $2'} > $F && kill `cat $F` 2>/dev/null && rm -f $F
+}
+dotnet-start() {
+  local VER="$1"
+  if [ -z "$VER" ]; then
+    VER=452
+  fi
+  ps -eaf | grep -v grep | grep "/usr/bin/winetricks dotnet$VER" >/dev/null
+  if [ $? -eq 1 ]; then
+    winetricks dotnet$VER >/dev/null &
+  fi
+}
+
+# other functions
+kill-exe () {
+  local F=/tmp/.pid-to-kill
+  ps -eaf | grep -v grep | grep "\.exe" | awk {'print $2'} > $F && kill `cat $F` 2>/dev/null && rm -f $F
+}
+
+# run Xvfb (if not already started)
+ps -eaf | grep -v grep | grep Xvfb >/dev/null
+if [ $? -eq 1 ]; then
+  export DISPLAY=":42"
+  export SCREENSIZE="1024x768"
+  grep -qF 'DISPLAY=' /etc/environment || echo 'DISPLAY=' >> /etc/environment
+  grep -qF 'SCREENSIZE=' /etc/environment || echo 'SCREENSIZE=' >> /etc/environment
+  sed -i "s/DISPLAY=.*/DISPLAY=\"$DISPLAY\"/g" /etc/environment
+  sed -i "s/SCREENSIZE=.*/SCREENSIZE=\"$SCREENSIZE\"/g" /etc/environment
+  Xvfb "${DISPLAY}" -screen 0 "${SCREENSIZE}x16" &
+fi
+
