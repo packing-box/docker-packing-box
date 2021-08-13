@@ -458,6 +458,15 @@ Telock:
   categories:
     - PE
   description: Telock is a practical tool that intends to help developers who want to protect their work and reduce the size of the executable files. The application is designed to encode your files in order to make them impossible or at least hard to reverse engineer.
+  gui:
+    # click on the "File" menu
+    - mousemove 220 220 click 1 (.1)
+    # click on "Open"
+    - mousemove 245 270 click 1 (.1)
+    # type the path to the target executable (C:)
+    - type "$FILE"
+    # click on "Open" (this requires a bit of time to return to the main window)
+    - mousemove 590 420 click 1 (2)
   install:
     unzip: /opt/packers/telock
     wine:  telock.exe
@@ -504,6 +513,8 @@ Ward:
     cd:    ward-master
     make:  ward cli
     ln:    /opt/packers/ward-master/ward
+  silent:
+    - "go:"
   steps:
     - cd {{executable.dirname}}
     - ward ./{{executable.filename}} 2>/dev/null
