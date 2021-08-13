@@ -24,9 +24,9 @@ Bintropy:
     pip: bintropy
   references:
     - https://ieeexplore.ieee.org/document/4140989
+  multiclass: false
   source: https://github.com/dhondta/docker-packing-box
   status: ok
-  vote:   false
 
 DIE:
   categories:
@@ -34,14 +34,16 @@ DIE:
   command: /opt/detectors/die_lin64_portable/diec.sh {path}
   description: Detect It Easy (DIE) is a program for determining types of files.
   install:
-    rm:   /tmp/DIE-engine
     gitr: https://github.com/horsicq/DIE-engine.git
     cd:   /tmp/DIE-engine
     exec:
       - chmod +x build_lin64.sh
-      - ./build_lin64.sh
+      - ./build_lin64.sh 2>/dev/null
       - find /tmp/DIE-engine/release -type f -exec tar xzf {} -C /opt/detectors \;
       - tar xf /tmp/die.tar.xz -C /opt/detectors/die_lin64_portable
+  silent:
+    - "\\+{1,2} ([a-z]{2,12}|[A-Z]+([-_][A-Z]+)*)"
+    - "[a-z]{2,12}:"
   source: https://github.com/horsicq/Detect-It-Easy
   status: ok
 
