@@ -29,7 +29,18 @@ mv -f "$DST" "$SRC"{{postamble}}
 """
 OS_COMMANDS = subprocess.check_output("compgen -c", shell=True, executable="/bin/bash").splitlines()
 PARAM_PATTERN = r"{{(.*?)(?:\[(.*?)\])?}}"
-STATUS = [_c("ⓘ", "grey"), _c("☒", "magenta"), _c("☒", "red"), _c("☐", "grey"), _c("☑", "yellow"), _c("☑", "green")]
+STATUS = {
+    'broken':        _c("☒", "magenta"),
+    'commercial':    _c("💰", "yellow"),
+    'gui':           _c("🗗", "grey"),
+    'info':          _c("ⓘ", "grey"),
+    'installed':     _c("☑", "orange"),
+    'not installed': _c("☒", "red"),
+    'ok':            _c("☑", "green"),
+    'todo':          _c("☐", "grey"),
+    'useless':       _c("ⓘ", "grey"),
+}
+STATUS_DISABLED = ["broken", "commercial", "info", "useless"]
 TEST_FILES = {
     'ELF32': [
         "/usr/bin/perl5.30-i386-linux-gnu",
@@ -73,16 +84,6 @@ TEST_FILES = {
 class Base(Item):
     """ Base item abstraction, for defining the common machinery for Detector, Packer and Unpacker.
     
-    Attributes:
-      status [int]
-        0: commercial|info|useless
-        1: broken
-        2: not installed
-        3: gui|todo
-        4: installed
-        5: tested
-      use_output [bool]
-    
     Instance methods:
       .check(*categories) [bool]
       .help() [str]
@@ -111,9 +112,8 @@ class Base(Item):
                 logging.setLogger(self.name)
                 self.__init = True
             # check: is this item operational ?
-            if self.status <= 3:
-                self.logger.debug("Status: %s" % ["commercial|info|useless", "broken", "not installed", "todo"]\
-                                                 [self.status])
+            if self.status in STATUS_DISABLED + ["not installed", "todo"]:
+                self.logger.debug("Status: %s" % self.status)
                 return lambda *a, **kw: False
         return super(Base, self).__getattribute__(name)
     
@@ -157,9 +157,8 @@ class Base(Item):
     
     def _test(self, silent=False):
         """ Preamble to the .test(...) method. """
-        if self.status < 3:
-            st = ["commercial|info|useless", "broken", "not installed"][self.status]
-            self.logger.warning("%s %s" % (self.cname, st))
+        if self.status in STATUS_DISABLED + ["not installed"]:
+            self.logger.warning("%s is %s" % (self.cname, self.status))
             return False
         logging.setLogger(self.name)
         if not silent:
@@ -258,9 +257,9 @@ class Base(Item):
     def setup(self, **kw):
         """ Sets the item up according to its install instructions. """
         logging.setLogger(self.name)
-        if self.status < 2:
+        if self.status in STATUS_DISABLED:
             self.logger.info("Skipping %s..." % self.cname)
-            self.logger.debug("Status: broken|commercial|info|useless ; this means that it won't be installed")
+            self.logger.debug("Status: %s ; this means that it won't be installed" % self.status)
             return
         self.logger.info("Setting up %s..." % self.cname)
         tmp, obin, ubin = Path("/tmp"), Path("/opt/bin"), Path("/usr/bin")
@@ -494,18 +493,9 @@ class Base(Item):
     def status(self):
         """ Get the status of item's binary. """
         st = getattr(self, "_status", None)
-        if st == "ok":  # the item runs, works correctly and was tested
-            return 5
-        elif st in ["commercial", "info", "useless"]:
-            return 0
-        if st == "broken":
-            return 1
-        elif st in ["gui", "todo"]:  # item to be automated yet
-            return 3
-        elif b(self.name) not in OS_COMMANDS:  # when the setup failed or is incomplete
-            return 2
-        # in this case, the binary/symlink exists but running the item was not tested yet
-        return 4
+        if st is None:
+            return ["not ", ""][b(self.name) in OS_COMMANDS] + "installed"
+        return st
     
     @classmethod
     def get(cls, item):
@@ -518,14 +508,15 @@ class Base(Item):
     def summary(cls, show=False):
         items = []
         pheaders = ["Name", "Targets", "Status", "Source"]
-        pfooters = [" ", " ", " "]
-        descr = ["info", "broken", "not installed", "todo", "installed", "functional"]
-        pfooters.append(" ; ".join("%s %s" % (s, d) for s, d in \
-                        zip(STATUS if show else STATUS[2:], descr if show else descr[2:])))
-        n = 0
+        n, descr = 0, {}
         for item in cls.registry:
-            if not show and item.status < 2:
+            s = item.status
+            if not show and s in STATUS_DISABLED:
                 continue
+            k = STATUS[s]
+            descr.setdefault(k, [])
+            if s not in descr[k]:
+                descr[k].append(s)
             n += 1
             items.append([
                 item.cname,
@@ -533,6 +524,7 @@ class Base(Item):
                 STATUS[item.status],
                 "<%s>" % item.source,
             ])
-        return [] if n == 0 else [Section("%ss (%d)" % (cls.__name__, n)),
-                                  Table(items, column_headers=pheaders, column_footers=pfooters)]
+        descr = {k: "/".join(sorted(v)) for k, v in descr.items()}
+        return ([] if n == 0 else [Section("%ss (%d)" % (cls.__name__, n)), Table(items, column_headers=pheaders)]), \
+               descr
 

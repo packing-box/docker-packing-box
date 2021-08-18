@@ -39,9 +39,14 @@ def overview(show=False):
         if row[1]:
             tools.append(row)
     report.append(Section("Tools (%d)" % len(tools)), Table(tools, column_headers=tools_headers))
+    descr = {}
     for cls in [Detector, Packer, Unpacker]:
-        report.append(*cls.summary(show))
+        r, d = cls.summary(show)
+        report.append(*r)
+        descr.update(d)
     report.append(*Dataset.summarize(".", args.show_all))
+    report.append(Section("Legend"),
+                  Text(" ; ".join("%s  %s" % (k, v) for k, v in sorted(descr.items(), key=lambda x: x[1]))))
     return report.md()
 
 
