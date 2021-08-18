@@ -143,14 +143,20 @@ class Base(Item):
                    "EXE=\"%s\"" % target
         postamble = ["", "\ncd \"$PWD\""][local]
         script = GUI_SCRIPT.replace("{{preamble}}", preamble).replace("{{postamble}}", postamble)
-        cmd = re.compile(r"^(.*?)(?:\s\((\d*\.\d*|\d+)\)(?:|\s\[x(\d+)\])?)?$")
+        cmd = re.compile(r"^(.*?)(?:\s+\((\d*\.\d*|\d+)\)(?:|\s+\[x(\d+)\])?)?$")
         actions = []
         for action in self.gui:
             c, delay, repeat = cmd.match(action).groups()
             for i in range(int(repeat or 1)):
-                actions.append("xdotool %s" % c if re.match("(behave|click|get(_|mouselocation)|key(down|up)?|"
-                                                            "mouse(down|move(_relative)?|up)|search|set_|type|"
-                                                            "(get|select)?window)", c) else c)
+                if re.match("(behave|click|get(_|mouselocation)|key(down|up)?|mouse(down|move(_relative)?|up)|search|"
+                            "set_|type|(get|select)?window)", c):
+                    m = re.match("click (\d{1,5}) (\d{1,5})$", c)
+                    if m is not None:
+                        c = "mousemove %s %s click" % m.groups()
+                    c = "xdotool %s" % c
+                    if c.endswith(" click") or c == "click":
+                        c += " 1"  # set to left-click
+                actions.append(c)
                 if delay:
                     actions.append("sleep %s" % delay)
         return script.replace("{{actions}}", "\n".join(actions))

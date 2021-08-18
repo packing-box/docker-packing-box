@@ -155,11 +155,11 @@ FSG:
   description: FSG states for Fast Small Good and is a Windows executable packer.
   gui:
     # be sure to focus on the input text box
-    - mousemove 110 215 click 1 (.5)
+    - click 110 215 (.5)
     # type the path to the target executable (C:)
     - type "$FILE"
     # click on "Open" (this starts packing)
-    - mousemove 380 210 click 1 (3)
+    - click 380 210 (3)
   install:
     copy: fsg.exe /opt/packers/fsg.exe
     setp: /opt/packers/
@@ -239,13 +239,13 @@ MEW:
     - ds
   gui:
     # click on "..." to open a target executable
-    - mousemove 675 425 click 1 (.1)
+    - click 675 425 (.1)
     # type the path to the target executable (C:)
     - type "$FILE"
     # click on "Open" (this requires a bit of time to return to the main window)
-    - mousemove 700 450 click 1 (2)
+    - click 700 450 (2)
     # click on "DO IT!"
-    - mousemove 550 520 click 1 (.5)
+    - click 550 520 (.5)
     # wait for the packing process to finish
     - export DST
     - timeout 60s bash -c 'while [ -f "${DST%/*}/temp" ]; do sleep .1; done'
@@ -345,17 +345,17 @@ PELock:
     - ds
   gui:
     # click on "OK" when the intro window is displayed
-    - mousemove 630 570 click 1 (.5) [x3]
+    - click 630 570 (.5) [x3]
     # click on "Remove all" to reset the list of files to be protected
-    - mousemove 610 620 click 1 (.2)
+    - click 610 620 (.2)
     # click on "Add file" to open the file dialog box
-    - mousemove 280 590 click 1 (.3)
+    - click 280 590 (.3)
     # type the path to the executable
     - type "$FILE"
     # click "Open"
-    - mousemove 580 380 click 1 (2)
+    - click 580 380 (2)
     # click "Protect file"
-    - mousemove 380 590 click 1 (2)
+    - click 380 590 (2)
   install:
     unzip: /root/.wine/drive_c/Program Files (x86)/pelock
     lwine: PELock.exe
@@ -422,17 +422,17 @@ RLPack:
     - dll
   gui:
     # click on checkbox "Make Backup" (to prevent it from copying the binary)
-    - mousemove 285 580 click 1
+    - click 285 580
     # click on "Browse"
-    - mousemove 700 265 click 1 (.1)
+    - click 700 265 (.1)
     # type the path to the target executable (C:)
     - type "$FILE"
     # click on "Open" (this requires a bit of time to return to the main window)
-    - mousemove 375 215 click 1 (2)
+    - click 375 215 (2)
     # click on "Pack"
-    - mousemove 480 580 click 1 (.1)
+    - click 480 580 (.1)
     # click on "OK" if a dialog box is displayed telling that the security certificate will be stripped
-    - mousemove 510 420 click 1 (3)
+    - click 510 420 (3)
   install:
     unzip: /opt/packers/rlpack
     wine:  RLPack.exe
@@ -460,13 +460,13 @@ Telock:
   description: Telock is a practical tool that intends to help developers who want to protect their work and reduce the size of the executable files. The application is designed to encode your files in order to make them impossible or at least hard to reverse engineer.
   gui:
     # click on the "File" menu
-    - mousemove 220 220 click 1 (.1)
+    - click 220 220 (.1)
     # click on "Open"
-    - mousemove 245 270 click 1 (.1)
+    - click 245 270 (.1)
     # type the path to the target executable (C:)
     - type "$FILE"
     # click on "Open" (this requires a bit of time to return to the main window)
-    - mousemove 590 420 click 1 (2)
+    - click 590 420 (2)
   install:
     unzip: /opt/packers/telock
     wine:  telock.exe
@@ -531,13 +531,13 @@ Yoda_Crypter:
     - ds
   gui:
     # click on "..." to open a target executable
-    - mousemove 580 330 click 1 (.1)
+    - click 580 330 (.1)
     # type the path to the target executable (C:)
     - type "$FILE"
     # click on "Open" (this requires a bit of time to return to the main window)
-    - mousemove 720 500 click 1 (2)
+    - click 720 500 (2)
     # click on "Protect!"
-    - mousemove 630 330 click 1 (.5)
+    - click 630 330 (.5)
     # FIXME: .5 second may surely be too few for bigger executables
     - key Return (.1) [x3]
   install:
