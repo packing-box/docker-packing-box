@@ -1,3 +1,16 @@
+GZEXE:
+  categories:
+    - ELF
+  description: The gzexe utility allows you to compress executables in place and have them automatically uncompress and execute when you run them (at a penalty in performance). Note that the compressed executable is a shell script. This may create some security holes. In particular, the compressed executable relies on the PATH environment variable to find gzip and some standard utilities (basename, chmod, ln, mkdir, mktemp, rm, sleep, and tail).
+  install:
+    apt: gzip
+  steps:
+    - gzexe -d {{executable}}
+  references:
+    - https://linux.die.net/man/1/gzexe
+  source: https://www.gnu.org/software/gzip
+  status: ok
+
 UPX:
   categories:
     - All

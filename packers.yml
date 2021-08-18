@@ -1,6 +1,6 @@
 ACProtect:
   categories:
-    - PE
+    - PE32
   description: ACProtect is an application that allows you to protect Windows executable files against piracy,using public keys encryption algorithms (RSA) to create and verify the registration keys and unlock some RSA key locked code,it has embedded cryptor against dump and unpacker.it also has many anti debug tricks. And you can use it to create evaluation and trial application versions. with specialized API system, mutual communication between loader and application is also can be achieved.
   source: https://www.yaldex.com/Bestsoft/Utilities/acprotect.htm
   status: commercial
@@ -169,6 +169,22 @@ FSG:
     - http://beatrix2004.free.fr/FSG.pdf
   source: https://in4k.github.io/wiki/exe-packers-tweakers-and-linkers
   status: broken
+
+GZEXE:
+  categories:
+    - ELF
+  description: The gzexe utility allows you to compress executables in place and have them automatically uncompress and execute when you run them (at a penalty in performance). Note that the compressed executable is a shell script. This may create some security holes. In particular, the compressed executable relies on the PATH environment variable to find gzip and some standard utilities (basename, chmod, ln, mkdir, mktemp, rm, sleep, and tail).
+  install:
+    apt: gzip
+  references:
+    - https://linux.die.net/man/1/gzexe
+  silent:
+    - "{{executable}}"
+  steps:
+    - gzexe {{executable}}
+    - rm -f {{executable}}~
+  source: https://www.gnu.org/software/gzip
+  status: ok
 
 hXOR-Packer:
   categories:
