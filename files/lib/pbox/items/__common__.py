@@ -31,8 +31,8 @@ OS_COMMANDS = subprocess.check_output("compgen -c", shell=True, executable="/bin
 PARAM_PATTERN = r"{{(.*?)(?:\[(.*?)\])?}}"
 STATUS = {
     'broken':        _c("☒", "magenta"),
-    'commercial':    _c("💰", "yellow"),
-    'gui':           _c("🗗", "grey"),
+    'commercial':    "💰",
+    'gui':           _c("🗗", "cyan"),
     'info':          _c("ⓘ", "grey"),
     'installed':     _c("☑", "orange"),
     'not installed': _c("☒", "red"),
@@ -50,6 +50,7 @@ TEST_FILES = {
         "/usr/libx32/libpcprofile.so",
     ],
     'ELF64': [
+        "/usr/bin/cat",
         "/usr/bin/ls",
         "/usr/lib/man-db/manconv",
         "/usr/lib/openssh/ssh-keysign",
@@ -192,7 +193,15 @@ class Base(Item):
         """ Customizable method for shaping the command line to run the item on an input executable. """
         retval = self.name
         use_output, benchmark, verbose = False, kwargs.get('benchmark', False), kwargs.get('verbose', False)
-        kw = {'logger': self.logger}
+        kw = {'logger': self.logger, 'silent': []}
+        if not config['wine_errors']:
+            kw['silent'].append(r"^[0-9a-f]{4}:(err|fixme):")
+        _repl = lambda s: s.replace("{{executable}}", str(executable)) \
+                           .replace("{{executable.dirname}}", str(executable.dirname)) \
+                           .replace("{{executable.filename}}", executable.filename) \
+                           .replace("{{executable.extension}}", executable.extension) \
+                           .replace("{{executable.stem}}", str(executable.dirname.joinpath(executable.stem)))
+        kw['silent'].extend(list(map(_repl, getattr(self, "silent", []))))
         output = None
         cwd = os.getcwd()
         for step in getattr(self, "steps", ["%s %s" % (self.name, executable)]):
@@ -201,11 +210,7 @@ class Base(Item):
                 step = step[:i] + self.name + " -b" + step[i+len(self.name):]
             attempts = []
             # first, replace generic patterns
-            step = step.replace("{{executable}}", str(executable)) \
-                       .replace("{{executable.dirname}}", str(executable.dirname)) \
-                       .replace("{{executable.filename}}", executable.filename) \
-                       .replace("{{executable.extension}}", executable.extension) \
-                       .replace("{{executable.stem}}", str(executable.dirname.joinpath(executable.stem)))
+            step = _repl(step)
             # now, replace a previous output and handle it as the return value
             if "{{output}}" in step:
                 step = step.replace("{{output}}", ensure_str(output or ""))
@@ -234,9 +239,6 @@ class Base(Item):
                 if verbose:
                     attempt += " -v"
                 kw['shell'] = ">" in attempt
-                kw['silent'] = getattr(self, "silent", [])
-                if not config['wine_errors']:
-                    kw['silent'].append(r"^[0-9a-f]{4}:(err|fixme):")
                 try:
                     output, _, retc = run(attempt, **kw)
                 except:
@@ -502,13 +504,6 @@ class Base(Item):
         if st is None:
             return ["not ", ""][b(self.name) in OS_COMMANDS] + "installed"
         return st
-    
-    @classmethod
-    def get(cls, item):
-        """ Simple class method for returning the class of an item based on its name (case-insensitive). """
-        for i in cls.registry:
-            if i.name == (item.name if isinstance(item, Base) else item).lower():
-                return i
     
     @classmethod
     def summary(cls, show=False):

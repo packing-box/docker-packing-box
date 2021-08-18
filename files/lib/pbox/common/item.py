@@ -7,11 +7,14 @@ from tinyscript.report import *
 __all__ = ["Item"]
 
 
+_fmt_name = lambda x: x.lower().replace("_", "-")
+
+
 class Item:
     """ Item abstraction. """
     def __init__(self):
         self.cname = self.__class__.__name__
-        self.name = self.__class__.__name__.lower().replace("_", "-")
+        self.name = _fmt_name(self.__class__.__name__)
         self.type = self.__class__.__base__.__name__.lower()
         self.logger = logging.getLogger(self.name)
     
@@ -32,6 +35,6 @@ class Item:
     def get(cls, item):
         """ Simple class method for returning the class of an item based on its name (case-insensitive). """
         for i in cls.registry:
-            if i.name == (item.name if isinstance(item, Item) else item).lower():
+            if i.name == (item.name if isinstance(item, Item) else _fmt_name(item)):
                 return i
 
