@@ -506,13 +506,13 @@ class Base(Item):
         return st
     
     @classmethod
-    def summary(cls, show=False):
+    def summary(cls, show=False, category="All"):
         items = []
         pheaders = ["Name", "Targets", "Status", "Source"]
         n, descr = 0, {}
         for item in cls.registry:
-            s = item.status
-            if not show and s in STATUS_DISABLED:
+            s, ic = item.status, expand_categories(*getattr(item, "categories", ["All"]))
+            if not show and s in STATUS_DISABLED or all(c not in expand_categories(category) for c in ic):
                 continue
             k = STATUS[s]
             descr.setdefault(k, [])

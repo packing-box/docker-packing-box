@@ -23,7 +23,7 @@ This Docker image is a ready-to-use platform for making datasets of packed and n
 """
 
 
-def overview(show=False):
+def overview(show=False, category=None):
     """ Display an overview of tools, detectors, packers, unpackers and datasets. """
     report, n = Report(Text(TEMPLATE)), 0
     tools = []
@@ -41,7 +41,7 @@ def overview(show=False):
     report.append(Section("Tools (%d)" % len(tools)), Table(tools, column_headers=tools_headers))
     descr = {}
     for cls in [Detector, Packer, Unpacker]:
-        r, d = cls.summary(show)
+        r, d = cls.summary(show, category)
         report.append(*r)
         descr.update(d)
     report.append(*Dataset.summarize(".", args.show_all))
@@ -51,11 +51,13 @@ def overview(show=False):
 
 
 if __name__ == '__main__':
-    parser.add_argument("-i", "--item", help="get help for a particular detector, packer or unpacker")
+    meg = parser.add_mutually_exclusive_group(required=True)
+    meg.add_argument("--category", default="All", help="filter on a category of executables")
+    meg.add_argument("--item", help="get help for a particular detector, packer or unpacker")
     parser.add_argument("--show-all", action="store_true", help="show all packers, even those that are broken")
     initialize()
     if args.item is None:
-        print(mdv.main(overview(args.show_all)))
+        print(mdv.main(overview(args.show_all, args.category)))
     else:
         subcls = None
         for cls in [Detector, Packer, Unpacker]:
