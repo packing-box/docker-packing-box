@@ -18,7 +18,7 @@ class Detector(Base):
     
     @class_or_instance_method
     @file_or_folder_or_dataset
-    def detect(self, executable, **kwargs):
+    def detect(self, executable, multiclass=True, **kwargs):
         """ If called from the class:
             Runs every known detector on the given executable and decides the label through voting (with a penalty on
              cases where the executable is considered not packed).
@@ -26,18 +26,20 @@ class Detector(Base):
             Runs the detector according to its command line format and checks if the executable has been changed by this
              execution. """
         if isinstance(self, type):
-            results, details = {None: -len(Detector.registry)}, {}
-            for detector in Detector.registry:
-                if not getattr(detector, "vote", True):
+            registry = [d for d in Detector.registry if d.check(Executable(executable).category) and \
+                                                        getattr(d, "vote", True)]
+            results, details = {None: -len(registry) + kwargs.get('threshold', 3)}, {}
+            for detector in registry:
+                if multiclass and not getattr(detector, "multiclass", True):
                     continue
-                label = detector.detect(executable, **kwargs)
+                label = list(detector.detect(executable, **kwargs))[0][1]
                 if label is False:
                     continue
                 results.setdefault(label, 0)
                 results[label] += 1
                 details[detector.name] = label
             label = max(results, key=results.get)
-            return (label, details) if kwargs.get("debug", False) else label
+            return (executable, label, details) if kwargs.get("debug", False) else (executable, label)
         else:
             # check: is this detector able to process the input executable ?
             e = executable if isinstance(executable, Executable) else Executable(executable)
@@ -50,26 +52,21 @@ class Detector(Base):
             if label:
                 self.logger.debug("%s detected as packed with %s by %s" % (e.filename, label, self.name))
                 label = label.strip()
-            return label
+            return (e, label if multiclass else label is not None)
     
     @file_or_folder_or_dataset
-    def test(self, executable, **kwargs):
+    def test(self, executable, multiclass=True, **kwargs):
         """ Tests the given item on some executable files. """
-        b = kwargs.get('boolean', False)
         self._test(kwargs.get('silent', False))
-        label = self.detect(executable, **kwargs)
+        label = self.detect(executable, multiclass, **kwargs)
         real = realv = kwargs.get('label', -1)
-        if b and str(label).lower() not in ["true", "false"]:
-            label = label is not None
-        l = str(label).lower()
-        if l in ["true", "false"]:
-            label = l == "true"
-            msg = "{} is {}packed".format(executable, ["not ", ""][label])
-            realv = real is not None
-        elif label is None:
-            msg = "{} is not packed".format(executable)
+        if multiclass:
+            if label is None:
+                msg = "{} is not packed".format(executable)
+            else:
+                msg = "{} is packed with {}".format(executable, label)
         else:
-            msg = "{} is packed with {}".format(executable, label)
+            msg = "{} is {}packed".format(executable, ["not ", ""][label])
         if real != -1:
             msg += " ({})".format("not packed" if realv in [None, False] else "packed" if realv is True else realv)
         (self.logger.warning if real == -1 else [self.logger.failure, self.logger.success][label == realv])(msg)

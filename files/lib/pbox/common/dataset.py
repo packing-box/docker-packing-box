@@ -98,7 +98,7 @@ class Dataset:
         if name == "categories":
             # get the list of packers related to the selected categories
             self._categories_exp = expand_categories(*value)
-            self.packers = [p for p in Packer.registry if p.status > 2 and p.check(*self._categories_exp)]
+            self.packers = [p for p in Packer.registry if p.check(*self._categories_exp)]
             if len(self.packers) == 0:
                 raise ValueError("No packer found for these categories")
         super(Dataset, self).__setattr__(name, value)

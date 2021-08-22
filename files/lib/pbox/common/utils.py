@@ -10,6 +10,8 @@ try:  # from Python3.9
 except ImportError:
     import mdv
 
+from .config import config
+
 
 __all__ = ["backup", "benchmark", "class_or_instance_method", "collapse_categories", "expand_categories",
            "file_or_folder_or_dataset", "highlight_best", "make_registry", "mdv", "shorten_str", "CATEGORIES"]
@@ -95,7 +97,12 @@ def file_or_folder_or_dataset(method):
                 e.append(i)
             # normal folder or FilelessDataset's path or Dataset's files path
             elif is_folder(i):
-                i, dataset = Path(i), None
+                for f in Path(i).listdir(is_executable):
+                    f.dataset = None
+                    if str(f) not in e:
+                        e.append(f)
+            else:
+                i = config['datasets'].joinpath(i)
                 # check if it has the structure of a dataset
                 if i.joinpath("files").is_dir() and not i.joinpath("features.json").exists() and \
                    all(i.joinpath(f).is_file() for f in ["data.csv", "metadata.json"]) or \
@@ -113,12 +120,13 @@ def file_or_folder_or_dataset(method):
                         return True
                     else:
                         i = i.joinpath("files")
-                for f in i.listdir(is_executable):
-                    f.dataset = dataset
-                    if str(f) not in e:
-                        e.append(f)
-            else:
-                return False
+                if is_folder(i):
+                    for f in i.listdir(is_executable):
+                        f.dataset = dataset
+                        if str(f) not in e:
+                            e.append(f)
+                else:
+                    return False
             return True
         # use the extension function to parse:
         # - positional arguments up to the last valid file/folder

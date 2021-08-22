@@ -24,7 +24,7 @@ PACKERS_FILE   = "/opt/packers.yml"
 
 def execute(name, **kwargs):
     """ Run an OS command. """
-    cmd = DETECTORS[name]['command']
+    cmd = DETECTORS[name].get('command', "/usr/bin/%s {path}" % name.lower())
     shell = ">" in cmd
     # prepare the command line and run the tool
     cmd = cmd.format(**kwargs)

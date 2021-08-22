@@ -5,7 +5,7 @@ from tinyscript.report import *
 
 from ..common.config import config
 from ..common.executable import Executable
-from ..common.item import Item
+from ..common.item import *
 from ..common.utils import *
 
 
@@ -174,7 +174,8 @@ class Base(Item):
     
     def check(self, *categories):
         """ Checks if the current item is applicable to the given categories. """
-        return any(c in self._categories_exp for c in expand_categories(*(categories or ["All"])))
+        return self.status == "ok" and \
+               any(c in self._categories_exp for c in expand_categories(*(categories or ["All"])))
     
     def help(self):
         """ Returns a help message in Markdown format. """
