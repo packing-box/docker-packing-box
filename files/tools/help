@@ -51,10 +51,12 @@ def overview(show=False, category=None):
 
 
 if __name__ == '__main__':
-    meg = parser.add_mutually_exclusive_group(required=True)
-    meg.add_argument("--category", default="All", help="filter on a category of executables")
-    meg.add_argument("--item", help="get help for a particular detector, packer or unpacker")
-    parser.add_argument("--show-all", action="store_true", help="show all packers, even those that are broken")
+    meg1 = parser.add_mutually_exclusive_group()
+    meg1.add_argument("--category", default="All", help="filter on a category of executables")
+    meg1.add_argument("--item", help="get help for a particular detector, packer or unpacker")
+    meg2 = parser.add_mutually_exclusive_group()
+    meg2.add_argument("--item", help="get help for a particular detector, packer or unpacker")
+    meg2.add_argument("--show-all", action="store_true", help="show all packers, even those that are broken")
     initialize()
     if args.item is None:
         print(mdv.main(overview(args.show_all, args.category)))
