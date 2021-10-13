@@ -13,10 +13,10 @@ class Config(ConfigParser):
     """ Simple Config class for handling some packing-box settings. """
     DEFAULTS = {
         'main': {
-            'workspace': ("~/.packing-box", lambda v: Path(v, create=True, expand=True).absolute()),
+            'workspace': ("~/.packing-box", lambda v: Path(str(v), create=True, expand=True).absolute()),
         },
         'logging': {
-            'wine_errors': ("false", lambda v: v.lower() in ["1", "true", "y", "yes"]),
+            'wine_errors': ("false", lambda v: str(v).lower() in ["1", "true", "y", "yes"]),
         },
     }
     HIDDEN = {
@@ -90,5 +90,7 @@ class Config(ConfigParser):
     def save(self):
         with self.path.open('w') as f:
             self.write(f)
+
+
 config = Config()
 

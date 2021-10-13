@@ -1,6 +1,6 @@
 # -*- coding: UTF-8 -*-
 from tinyscript import b, colored as _c, ensure_str, json, logging, os, random, re, shlex, subprocess, ts
-from tinyscript.helpers import execute_and_log as run, is_executable, is_file, is_folder, Path
+from tinyscript.helpers import execute_and_log as run, execute as run2, is_executable, is_file, is_folder, Path
 from tinyscript.report import *
 
 from ..common.config import config
@@ -41,6 +41,7 @@ STATUS = {
     'useless':       _c("ⓘ", "grey"),
 }
 STATUS_DISABLED = ["broken", "commercial", "info", "useless"]
+STATUS_ENABLED = [s for s in STATUS.keys() if s not in STATUS_DISABLED + ["not installed"]]
 TEST_FILES = {
     'ELF32': [
         "/usr/bin/perl5.30-i386-linux-gnu",
@@ -96,6 +97,8 @@ class Base(Item):
       .get(item)
       .summary()
     """
+    _enabled = STATUS_ENABLED
+    
     def __init__(self):
         super(Base, self).__init__()
         self._categories_exp = expand_categories(*self.categories)
@@ -220,7 +223,7 @@ class Base(Item):
             m = re.search(PARAM_PATTERN, step)
             if m:
                 name, values = m.groups()
-                values = (values or "").split("|")
+                values = self._params.get(name, (values or "").split("|"))
                 for value in values:
                     disp = "%s=%s" % (name, value)
                     if len(values) == 2 and "" in values:
@@ -272,12 +275,16 @@ class Base(Item):
             return
         self.logger.info("Setting up %s..." % self.cname)
         tmp, obin, ubin = Path("/tmp"), Path("/opt/bin"), Path("/usr/bin")
-        result, rm, kw = None, True, {'logger': self.logger, 'silent': getattr(self, "silent", [])}
+        result, rm, wget, kw = None, True, False, {'logger': self.logger, 'silent': getattr(self, "silent", [])}
         cwd = os.getcwd()
-        for cmd, arg in self.install.items():
+        for cmd in self.install:
             if isinstance(result, Path) and not result.exists():
                 self.logger.critical("Last command's result does not exist (%s) ; current: %s" % (result, cmd))
                 return
+            name = cmd.pop('name', "")
+            if name != "":
+                self.logger.info("> " + name)
+            cmd, arg = list(cmd.items())[0]
             # simple install through APT
             if cmd == "apt":
                 kw['silent'] += ["apt does not have a stable CLI interface"]
@@ -303,6 +310,8 @@ class Base(Item):
                     dst = obin.joinpath(arg2)
                 if run("cp %s\"%s\" \"%s\"" % (["", "-r"][src.is_dir()], src, dst), **kw)[-1] == 0 and dst.is_file():
                     run("chmod +x \"%s\"" % dst, **kw)
+                if arg1 == self.name:
+                    rm = False
             # execute the given command as is, with no pre-/post-condition, not altering the result state variable
             #  (if a list of commands is given, execute them all
             elif cmd == "exec":
@@ -425,24 +434,26 @@ class Base(Item):
                 if cmd[-3:] == "tar" and not result.exists() and result2.exists():
                     ext, result = ".tar.xz", result2
                 if result.extension == ext:
-                    r = tmp.joinpath(arg)
-                    if ext == ".zip":
-                        run("unzip -qqo \"%s\" -d \"%s\"" % (result, r), **kw)
-                    elif ext == ".rar":
-                        r.mkdir(parents=True, exist_ok=True)
-                        run("unrar x \"%s\" \"%s\"" % (result, r), **kw)
-                    else:
-                        r.mkdir(parents=True, exist_ok=True)
-                        run("tar x%sf \"%s\" -C \"%s\"" % (["", "z"][ext == ".tar.gz"], result, r), **kw)
-                    result.remove()
+                    r, t, first = tmp.joinpath(arg), ts.TempPath(prefix="%s-setup-" % self.type, length=8), True
+                    for d in [r, t]:
+                        cmd = "unzip -qqo \"%s\" -d \"%s\"" % (result, d) if ext == ".zip" else \
+                              "unrar x \"%s\" \"%s\"" % (result, d) if ext == ".rar" else \
+                              "tar x%sf \"%s\" -C \"%s\"" % (["", "z"][ext == ".tar.gz"], result, d)
+                        if ext != ".zip":
+                            d.mkdir(parents=True, exist_ok=True)
+                        (run if first else run2)(cmd, **(kw if first else {}))
+                        first = False
+                    if wget:
+                        result.remove()
                     result = r
+                    if result and result.is_dir():
+                        ld = list(t.listdir())
+                        while len(ld) == 1 and ld[0].is_dir():
+                            bn = ld[0].basename
+                            result, t = result.joinpath(bn), t.joinpath(bn)
+                            ld = list(t.listdir())
                 else:
                     raise ValueError("Not a %s file" % ext.lstrip(".").upper())
-                if result and result.is_dir():
-                    ld = list(result.listdir())
-                    while len(ld) == 1 and ld[0].is_dir():
-                        result = ld[0]
-                        ld = list(result.listdir())
             # download a resource, possibly downloading 2-stage generated download links (in this case, the list is
             #  handled by downloading the URL from the first element then matching the second element in the URL's found
             #  in the downloaded Web page
@@ -466,17 +477,19 @@ class Base(Item):
                 else:
                     result = tmp.joinpath(self.name + Path(ts.urlparse(arg).path).extension)
                     run("wget -q -O %s %s" % (result, arg.replace("%%", "%")), **kw)[-1]
+                wget = True
         self.logger.debug("cd %s" % cwd)
         os.chdir(cwd)
         if rm:
             run("rm -rf %s" % tmp.joinpath(self.name), **kw)
     
-    def test(self, files=None, **kw):
+    def test(self, files=None, keep=False, **kw):
         """ Tests the item on some executable files. """
         if not self._test(kw.pop('silent', False)):
             return
         d = ts.TempPath(prefix="%s-tests-" % self.type, length=8)
         for category in self._categories_exp:
+            hl = []
             if files:
                 l = [f for f in files if Executable(f).category in self._categories_exp]
             else:
@@ -493,18 +506,23 @@ class Base(Item):
                 run("cp %s %s" % (exe, tmp))
                 run("chmod +x %s" % tmp)
                 # use the verb corresponding to the item type by shortening it by 2 chars ; 'packer' will give 'pack'
-                label, n = getattr(self, self.type[:-2])(str(tmp)), tmp.filename
+                n = tmp.filename
+                h, label = getattr(self, self.type[:-2])(str(tmp), include_hash=True)
+                if h not in hl:
+                    hl.append(h)
                 getattr(self.logger, "failure" if label is None else "warning" if label is False else "success")(n)
                 self.logger.debug("Label: %s" % label)
-        d.remove()
+            if len(l) > 1 and len(hl) == 1:
+                self.logger.warning("Packing gave the same hash for all the tested files: %s" % hl[0])
+        if not keep:
+            self.logger.debug("rm -f %s" % str(d))
+            d.remove()
     
     @property
     def status(self):
         """ Get the status of item's binary. """
         st = getattr(self, "_status", None)
-        if st is None:
-            return ["not ", ""][b(self.name) in OS_COMMANDS] + "installed"
-        return st
+        return ["not ", ""][b(self.name) in OS_COMMANDS] + "installed" if st is None else st
     
     @classmethod
     def summary(cls, show=False, category="All"):

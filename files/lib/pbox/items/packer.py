@@ -24,10 +24,11 @@ class Packer(Base):
         # check: is this packer able to process the input executable ?
         exe = Executable(executable)
         if not self._check(exe):
-            return False
+            return (None, False) if include_hash else False
         # now pack the input executable, taking its SHA256 in order to check for changes
-        h, self._error = hashlib.sha256_file(str(exe)), False
+        h, self._error = exe.hash, False
         label = self.run(exe, **kwargs)
+        exe.hash = hashlib.sha256_file(str(exe))
         if self._error:
             return (h, None) if include_hash else None
         elif h == exe.hash:
@@ -36,17 +37,17 @@ class Packer(Base):
             return (h, None) if include_hash else None
         # if packing succeeded, we can return packer's label
         self.logger.debug("%s packed with %s" % (exe.filename, self.name))
-        return (exe.hash, label) if include_hash else label
+        return (h, label) if include_hash else label
     
     def run(self, executable, **kwargs):
         """ Customizable method for shaping the command line to run the packer on an input executable. """
         # inspect steps and set custom parameters for non-standard packers
         for step in getattr(self, "steps", ["%s %s" % (self.name, executable)]):
             if "{{password}}" in step and 'password' not in self._params:
-                self._params['password'] = random.randstr()
+                self._params['password'] = [random.randstr()]
             m = re.search(r"{{(.*?)\[(.*?)\]}}", step)
             if m and m.group(1) not in self._params:
-                self._params[m.group(1)] = m.group(2).split("|")
+                self._params[m.group(1)] = [" " + x if x.startswith("-") else x for x in m.group(2).split("|")]
         # then execute parent run() method taking the parameters into account
         return super(Packer, self).run(executable, **kwargs)
 

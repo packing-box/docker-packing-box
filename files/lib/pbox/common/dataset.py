@@ -271,7 +271,7 @@ class Dataset:
                                                                 [p.__class__.__name__ for p in packer]))
         self._metadata['sources'] = list(set(map(str, self._metadata.get('sources', []) + sources)))
         # get executables to be randomly packed or not
-        i = 0
+        i, cbad = 0, n // 3 * 2
         pbar = tqdm(total=n, unit="executable")
         for exe in self._walk(n <= 0):
             if i >= n > 0:
@@ -290,9 +290,12 @@ class Dataset:
                 for p in packers:
                     exe.hash, label = p.pack(str(old_h), include_hash=True)
                     if not label or p._bad:
-                        if label is False or p._bad:
-                            self.logger.warning("Disabling %s..." % p.__class__.__name__)
-                            self.packers.remove(p)
+                        if p._bad:
+                            if cbad <= 0:
+                                self.logger.warning("Disabling %s..." % p.__class__.__name__)
+                                self.packers.remove(p)
+                            else:
+                                cbad -= 1
                             label = None
                         continue
                     else:  # consider short label (e.g. "midgetpack", not "midgetpack[<password>]")
