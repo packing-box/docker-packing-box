@@ -12,7 +12,7 @@ This utility aims to facilitate detectors|packers|unpackers' setup|test accordin
 """
 __description__ = "Setup/test detectors/packers/unpackers (based on the related YAML config)"
 __examples__ = [
-    "config workspace=/home/user/my-workspace",
+    "config --workspace /home/user/my-workspace",
     "setup packer",
     "setup detector peid",
     "test packer upx ezuri midgetpack",
@@ -33,6 +33,7 @@ def _set_subparsers(parent, *items):
         if parent._name == "test":
             p.add_argument("-b", "--benchmark", action="store_true", help="enable benchmarking")
             p.add_argument("-f", "--file", default=[], action="extend", nargs="*", help="file to test the %s on" % i)
+            p.add_argument("-k", "--keep", action="store_true", help="keep test files")
             p.add_argument("--boolean", action="store_true", help="only consider packed or not packed labels")
 
 
@@ -67,6 +68,8 @@ if __name__ == '__main__':
                 config[opt] = v
                 logger.debug("Set %s to '%s'" % (opt, v))
                 change = True
+            else:
+                logger.debug("%s already set to '%s'" % (opt, v))
         if change:
             config.save()
             logger.debug("Saved config to %s" % str(config.path))
@@ -82,17 +85,20 @@ if __name__ == '__main__':
         elif args.subcommand == "view":
             _call(["tree", config['workspace'], "-d"])
     else:
-        cls = args.type.capitalize()
-        reg = globals()[cls].registry
-        selected = list(map(lambda x: x.lower(), getattr(args, args.type)))
-        for item in reg:
-            if item.name in (selected or [x.name for x in reg if x.status > 0]):
-                try:
-                    r = getattr(item, args.command)(**vars(args))
-                except:
-                    logger.critical("%s %s failed: %s" % (cls, args.command, item.__class__.__name__))
-                    raise
-                if ts.is_generator(r):
-                    for i in r:
-                        pass
+        if args.type is None:
+            logger.error("No item specified")
+        else:
+            cls = args.type.capitalize()
+            reg = globals()[cls].registry
+            selected = list(map(lambda x: x.lower(), getattr(args, args.type)))
+            for item in reg:
+                if item.name in (selected or [x.name for x in reg if x.status in item.__class__._enabled]):
+                    try:
+                        r = getattr(item, args.command)(**vars(args))
+                    except:
+                        logger.critical("%s %s failed: %s" % (cls, args.command, item.__class__.__name__))
+                        continue
+                    if ts.is_generator(r):
+                        for i in r:
+                            pass
 

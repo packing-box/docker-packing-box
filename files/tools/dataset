@@ -16,8 +16,8 @@ This tool aims to manipulate a dataset in multiple ways by:
 __examples__    = [
     "fix my-dataset",
     "list --show-all",
-    "make my-dataset -c .net -n 500 --source-dir /path/to/dotnet/exe",
-    "make my-dataset -c pe,.net -n 2000",
+    "make my-dataset -c ELF -n 500 --source-dir /path/to/dotnet/exe",
+    "make my-dataset -c PE,ELF -n 2000",
     "reset my-dataset",
     "show my-dataset",
     "update my-dataset --detect --refresh -s /path1/to/exe -s /path2/to/exe",
