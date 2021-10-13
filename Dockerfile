@@ -67,7 +67,7 @@ RUN (apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys 3FA7E0328
 # && make lkm && make lkm_install) 2>&1 > /dev/null \
 # || echo -e "\033[1;31m DARLING INSTALL FAILED \033[0m"
 # install/update Python packages
-RUN (pip3 install poetry sklearn tinyscript \
+RUN (pip3 install poetry sklearn tinyscript tldr \
  && pip3 install angr dl8.5 pandas pefile pyelftools weka \
  && pip3 freeze - local | grep -v "^\-e" | cut -d = -f 1 | xargs -n1 pip3 install -qU) 2>&1 > /dev/null \
  || echo -e "\033[1;31m PIP PACKAGES UPDATE FAILED \033[0m"
@@ -108,8 +108,8 @@ RUN mv /opt/bin/userdb.txt /opt/detectors/ \
 # |                                                  ADD UNPACKERS                                                     |
 # +--------------------------------------------------------------------------------------------------------------------+
 FROM detectors AS unpackers
-#COPY files/unpackers/* /tmp/
-#RUN /opt/tools/packing-box setup unpacker
+COPY files/unpackers/* /tmp/
+RUN /opt/tools/packing-box setup unpacker
 # +--------------------------------------------------------------------------------------------------------------------+
 # |                                                   ADD PACKERS                                                      |
 # +--------------------------------------------------------------------------------------------------------------------+
