@@ -20,9 +20,9 @@ Amber:
     - dll
     - ds
   install:
-    wget:  https://github.com/EgeBalci/amber/releases/download/v3.0/amber_linux_amd64_3.0.zip
-    unzip: /opt/packers/
-    ln:    amber
+    - wget:  https://github.com/EgeBalci/amber/releases/download/v3.1/amber_linux_amd64_3.1.zip
+    - unzip: /opt/packers/
+    - ln:    amber
   steps:
     - amber -build -f {{executable}}
     - mv -f {{executable.stem}}_packed{{executable.extension}} {{executable}}
@@ -44,9 +44,9 @@ APack:
     - MSDOS
   description: 16-bit DOS executable compressor. aPACK compresses the file while keeping it executable. aPACK uses advanced compression heuristics and tricks to achieve the best compression ratio.
   install:
-    wget:  https://www.ibsensoftware.com/files/apack-1.00.zip
-    unzip: /opt/packers/apack
-    wine:  apackw.exe
+    - wget:  https://www.ibsensoftware.com/files/apack-1.00.zip
+    - unzip: /opt/packers/apack
+    - wine:  apackw.exe
   steps:
     - cp -f {{executable}} /root/.wine/drive_c/users/root/Temp/
     - apack "c:\\users\\root\\Temp\\{{executable.filename}}"
@@ -86,8 +86,8 @@ DotNetZ:
     - .NET
   description: .NETZ is a straightforward and lightweight, command-line piece of software written in C that allows you to compress and pack Microsoft .NET Framework executable files to ensure they consume as little space on your computer's hard drive as possible.
   install:
-    unzip: /opt/packers
-    wine:  netz-bin/netz.exe
+    - unzip: /opt/packers
+    - wine:  netz-bin/netz.exe
   references:
     - https://mindlocksite.wordpress.com/2017/01/19/analyse-netz-packer/
     - https://mindlocksite.wordpress.com/2017/01/22/netz-packer-unpack-avec-windbg/
@@ -128,9 +128,9 @@ Eronana-Packer:
     - dll
     - ds
   install:
-    wget:  https://github.com/Eronana/packer/releases/download/packer/packer.zip
-    unzip: /opt/packers/eronana-packer
-    wine: packer.exe
+    - wget:  https://github.com/Eronana/packer/releases/download/packer/packer.zip
+    - unzip: /opt/packers/eronana-packer
+    - wine: packer.exe
   references:
     - https://github.com/Eronana/compressor/tree/d6f5d893d8296823bb265830f8f451e5cd43b285
   silent:
@@ -157,9 +157,9 @@ EXEStealth:
   comment: Trial version ; does not allow to protect executables.
   description: EXE Stealth can protect most of the executable files that are compatible with PE format. However, not every executable file is compatible with EXEStealth and other PE protectors. A problem can enter the compiler or if it uses a loader with data submitted after the loader.
   install:
-    copy: exestealth.exe /opt/packers/exestealth.exe
-    setp: /opt/packers/
-    wine: exestealth.exe
+    - copy: exestealth.exe /opt/packers/exestealth.exe
+    - setp: /opt/packers/
+    - wine: exestealth.exe
   references:
     - http://www.webtoolmaster.com/exestealth-tutorial.htm
     - http://www.webtoolmaster.com/download/ExeStealth.exe
@@ -171,11 +171,11 @@ Ezuri:
     - ELF
   description: A Simple Linux ELF Runtime Crypter. An unpacker by f0wl can be found at f0wl/ezuri_unpack.
   install:
-    wget:  https://github.com/guitmz/ezuri/archive/master.zip
-    unzip: /opt/packers
-    cd:    ezuri-master
-    exec:  go build -o ezuri .
-    lsh:   /opt/packers/ezuri-master ezuri
+    - wget:  https://github.com/guitmz/ezuri/archive/master.zip
+    - unzip: /opt/packers
+    - cd:    /opt/packers/ezuri-master
+    - exec:  go build -o ezuri .
+    - lsh:   /opt/packers/ezuri-master ezuri
   references:
     - https://www.guitmz.com/linux-elf-runtime-crypter/
     - https://github.com/f0wl/ezuri_unpack
@@ -194,9 +194,9 @@ FSG:
     # click on "Open" (this starts packing)
     - click 380 210 (3)
   install:
-    copy: fsg.exe /opt/packers/fsg.exe
-    setp: /opt/packers/
-    wine: fsg.exe
+    - copy: fsg.exe /opt/packers/fsg.exe
+    - setp: /opt/packers/
+    - wine: fsg.exe
   references:
     - https://www.aldeid.com/wiki/Category:Digital-Forensics/Computer-Forensics/Anti-Reverse-Engineering/Packers/FSG
     - http://beatrix2004.free.fr/FSG.pdf
@@ -208,7 +208,7 @@ GZEXE:
     - ELF
   description: The gzexe utility allows you to compress executables in place and have them automatically uncompress and execute when you run them (at a penalty in performance). Note that the compressed executable is a shell script. This may create some security holes. In particular, the compressed executable relies on the PATH environment variable to find gzip and some standard utilities (basename, chmod, ln, mkdir, mktemp, rm, sleep, and tail).
   install:
-    apt: gzip
+    - apt: gzip
   references:
     - https://linux.die.net/man/1/gzexe
   silent:
@@ -222,24 +222,24 @@ GZEXE:
 hXOR-Packer:
   categories:
     - PE
+  comments: FIXME ; it packs to {{executable}}.exe with hash 1cc82b2855df0c2fb3c30dffe9f02512aebd79d7df8b00ce69aa0790aa60297e
   description: A PE (Portable Executable) packer with Huffman Compression and Xor encryption.
   exclude:
     - dll
     - ds
   install:
-    wget:  https://github.com/rurararura/hXOR-Packer/releases/download/0.1/hXOR-Packer.v0.1.zip
-    unzip: /opt/packers
-    exec:
-     - mv "/opt/packers/hXOR-Packer v0.1" /opt/packers/hxor-packer
-     - rm -rf "/opt/packers/hXOR-Packer v0.1"
-     - chmod +x /opt/packers/hxor-packer/packer.exe
-    lwine: packer.exe
+    - exec:  rm -rf "/opt/packers/hXOR-Packer v0.1" /opt/packers/hxor-packer
+    - wget:  https://github.com/rurararura/hXOR-Packer/releases/download/0.1/hXOR-Packer.v0.1.zip
+    - unzip: /opt/packers
+    - exec:  mv "/opt/packers/hXOR-Packer v0.1" /opt/packers/hxor-packer
+    - exec:  chmod +x /opt/packers/hxor-packer/packer.exe
+    - lwine: packer.exe
   references:
     - https://github.com/rurararura/hXOR-Packer
   steps:
     - hxor-packer {{executable}} {{executable}}
   source: https://github.com/rurararura/hXOR-Packer/releases/tag/0.1
-  status: ok
+  status: todo
 
 Kkrunchy:
   categories:
@@ -248,9 +248,9 @@ Kkrunchy:
   exclude:
     - dll
   install:
-    wget:  http://www.farbrausch.de/~fg/kkrunchy/kkrunchy_023a2.zip
-    unzip: /opt/packers
-    wine:  kkrunchy_k7.exe
+    - wget:  http://www.farbrausch.de/~fg/kkrunchy/kkrunchy_023a2.zip
+    - unzip: /opt/packers
+    - wine:  kkrunchy_k7.exe
   references:
     - https://github.com/fireeye/capa-rules/blob/master/anti-analysis/packer/kkrunchy/packed-with-kkrunchy.yml
   source: http://www.farbrausch.de/~fg/kkrunchy
@@ -272,15 +272,14 @@ M0dern_P4cker:
   exclude:
     - o
   install:
-    apt:   libcapstone-dev
-    wget:  https://github.com/n4sm/m0dern_p4cker/archive/e24a1d47dae1acb0cc3dc4d2fb42a61662bc210c.zip
-    unzip: /opt/packers
-    exec:
-      - mv /opt/packers/m0dern_p4cker-e24a1d47dae1acb0cc3dc4d2fb42a61662bc210c/packer@git /opt/packers/m0dern_p4cker
-      - rm -rf /opt/packers/m0dern_p4cker-e24a1d47dae1acb0cc3dc4d2fb42a61662bc210c
-    cd:    /opt/packers/m0dern_p4cker
-    make:  main
-    lsh:   main
+    - apt:   libcapstone-dev
+    - exec:  rm -rf /opt/packers/m0dern_p4cker-e24a1d47dae1acb0cc3dc4d2fb42a61662bc210c /opt/packers/m0dern_p4cker
+    - wget:  https://github.com/n4sm/m0dern_p4cker/archive/e24a1d47dae1acb0cc3dc4d2fb42a61662bc210c.zip
+    - unzip: /opt/packers
+    - exec:  mv /opt/packers/m0dern_p4cker-e24a1d47dae1acb0cc3dc4d2fb42a61662bc210c/packer@git /opt/packers/m0dern_p4cker
+    - cd:    /opt/packers/m0dern_p4cker
+    - make:  main
+    - lsh:   main
   steps:
     - m0dern_p4cker {{executable}} {{stub[not|xorp]}}
   source: https://github.com/n4sm/m0dern_p4cker
@@ -306,8 +305,8 @@ MEW:
     - export DST
     - timeout 60s bash -c 'while [ -f "${DST%/*}/temp" ]; do sleep .1; done'
   install:
-    unzip: /opt/packers/mew
-    wine:  mew11.exe
+    - unzip: /opt/packers/mew
+    - wine:  mew11.exe
   references:
     - https://webscene.ir/tools/show/Mew-packer-11-SE-1.2
   source: https://in4k.github.io/wiki/exe-packers-tweakers-and-linkers
@@ -322,7 +321,7 @@ MidgetPack:
       - o
       - so
   install:
-    move: midgetpack
+    - copy: midgetpack
   steps:
     - midgetpack -P {{password}} -o {{executable}} {{executable}}
   references:
@@ -339,12 +338,12 @@ MPRESS:
     PE:
       - ds
   install:
-    unzip: /opt/packers/mpress
-    wine:  mpress.exe
+    - unzip: /opt/packers/mpress
+    - wine:  mpress.exe
   silent:
     - Warning!
   steps:
-    - mpress {{executable}}{{compressed[| -r]}}{{lzmat[| -m]}}
+    - mpress {{executable}}{{compressed[|-r]}}{{lzmat[|-m]}}
   references:
     - https://storage.ey.md/Technology%%20Related/Programming%%20%%26%%20Reversing/Tuts4You%%20Collection/UnPackMe%%20Collection/dotNET/MPress%%200.71.rar
     - https://storage.ey.md/Technology%%20Related/Programming%%20%%26%%20Reversing/Tuts4You%%20Collection/UnPackMe%%20Collection/PE32/MPress%%200.77.rar
@@ -361,8 +360,8 @@ Muncho:
   comment: (TODO) this is a Mac OS X executable ; requires Darling installed.
   description: Mac OS X executable packer.
   install:
-    wget:  ftp://ftp.untergrund.net/users/irokos/titan/titan-muncho-0.01b.zip
-    unzip: /opt/packers/muncho
+    - wget:  ftp://ftp.untergrund.net/users/irokos/titan/titan-muncho-0.01b.zip
+    - unzip: /opt/packers/muncho
   references:
     - https://www.pouet.net/prod.php?which=51324
   source: https://demozoo.org/productions/175774/
@@ -373,9 +372,9 @@ NetCrypt:
     - .NET
   description: A proof-of-concept packer for .NET executables, designed to provide a starting point to explain the basic principles of runtime packing.
   install:
-    wget:  https://github.com/friedkiwi/netcrypt/releases/download/v1.1/netcrypt.zip
-    unzip: /opt/packers/netcrypt
-    wine:  SimplePacker.exe
+    - wget:  https://github.com/friedkiwi/netcrypt/releases/download/v1.1/netcrypt.zip
+    - unzip: /opt/packers/netcrypt
+    - wine:  SimplePacker.exe
   source: https://github.com/friedkiwi/netcrypt
   status: todo
 
@@ -384,10 +383,11 @@ Pakkero:
     - ELF
   description: Pakkero is a binary packer written in Go made for fun and educational purpose. Its main goal is to take in input a program file (elf binary, script, even appimage) and compress it, protect it from tampering and intrusion.
   install:
-    wget: https://github.com/89luca89/pakkero/releases/download/0.7.0/pakkero_linux_amd64
-    move: /tmp/pakkero
+    - wget: https://github.com/89luca89/pakkero/releases/download/0.7.0/pakkero_linux_amd64
+    - cd:   /tmp
+    - copy: pakkero
   steps:
-    - pakkero --file {{executable}} -o {{executable}}{{compressed[| -c]}}
+    - pakkero --file {{executable}} -o {{executable}}{{compressed[|-c]}}
   source: https://github.com/89luca89/pakkero
   status: ok
 
@@ -413,8 +413,8 @@ PELock:
     # click "Protect file"
     - click 380 590 (2)
   install:
-    unzip: /root/.wine/drive_c/Program Files (x86)/pelock
-    lwine: PELock.exe
+    - unzip: /root/.wine/drive_c/Program Files (x86)/pelock
+    - lwine: PELock.exe
   references:
     - https://github.com/PELock/PELock-Software-Protection-and-Licensing-SDK
   source: https://www.pelock.com/products/pelock
@@ -428,9 +428,9 @@ PEPacker:
     - dll
     - ds
   install:
-    wget:  https://github.com/czs108/PE-Packer/releases/download/v1.0.0-beta/PE-Packer-1.0.0-beta-win-x86.zip
-    unzip: /opt/packers/pepacker
-    wine:  PE-Packer.exe
+    - wget:  https://github.com/czs108/PE-Packer/releases/download/v1.0.0-beta/PE-Packer-1.0.0-beta-win-x86.zip
+    - unzip: /opt/packers/pepacker
+    - wine:  PE-Packer.exe
   steps:
     - pepacker {{executable}} {{executable.stem}}_new{{executable.extension}}
     - mv -f {{executable.stem}}_new{{executable.extension}} {{executable}}
@@ -445,8 +445,8 @@ PEShield:
   comment: The provided executable does not run.
   description: PE-SHiELD is a program, which encrypts 32-bit Windows EXE files, leaving them still executable. The previous version was over a year in the wild and there is still no unpacker for it.
   install:
-    unzip: /opt/packers/peshield
-    wine:  peshield.exe
+    - unzip: /opt/packers/peshield
+    - wine:  peshield.exe
   references:
     - http://protools.narod.ru/packers.htm
   source: https://webscene.ir/tools/show/PE-SHIELD-0.25
@@ -459,9 +459,9 @@ PEtite:
   exclude:
     - ds
   install:
-    wget:  https://www.un4seen.com/files/petite24.zip
-    unzip: /opt/packers/petite
-    wine:  petite.exe
+    - wget:  https://www.un4seen.com/files/petite24.zip
+    - unzip: /opt/packers/petite
+    - wine:  petite.exe
   steps:
     - petite -5 -o {{executable}} {{executable}}
   references:
@@ -490,8 +490,8 @@ RLPack:
     # click on "OK" if a dialog box is displayed telling that the security certificate will be stripped
     - click 510 420 (3)
   install:
-    unzip: /opt/packers/rlpack
-    wine:  RLPack.exe
+    - unzip: /opt/packers/rlpack
+    - wine:  RLPack.exe
   references:
     - https://storage.ey.md/Technology%%20Related/Programming%%20%%26%%20Reversing/Tuts4You%%20Collection/Unpacking%%20Tutorials/RLPack%%201.21%%20%%28Unpacking%%29.rar
   source: https://www.softpedia.com/get/Programming/Packers-Crypters-Protectors/RLPack-Basic-Edition.shtml
@@ -502,9 +502,9 @@ Shiva:
     - ELF
   description: Shiva is a tool to encrypt ELF executables under Linux. Shiva can be used to wrap an executable in such a way that though it continues to run as it did before it is very difficult to debug or reverse engineer. Shiva can be used to password protect critical programs, including setuid programs, or simply to obfuscate sensitive data stored within programs.
   install:
-    wget:  https://dl.packetstormsecurity.net/crypt/linux/shiva-0.95.tar.gz
-    untar: /opt/packers
-    ln:    shiva
+    - wget:  https://dl.packetstormsecurity.net/crypt/linux/shiva-0.95.tar.gz
+    - untar: /opt/packers
+    - ln:    shiva
   references:
     - https://docplayer.net/86668430-Modern-linux-malware-exposed.html
   source: https://packetstormsecurity.com/files/31087/shiva-0.95.tar.gz.html
@@ -524,8 +524,8 @@ Telock:
     # click on "Open" (this requires a bit of time to return to the main window)
     - click 590 420 (2)
   install:
-    unzip: /opt/packers/telock
-    wine:  telock.exe
+    - unzip: /opt/packers/telock
+    - wine:  telock.exe
   references:
     - http://beatrix2004.free.fr/TELOCK98.pdf
     - http://beatrix2004.free.fr/Comprendre%%20tElock%%200.51.pdf
@@ -544,7 +544,7 @@ UPX:
       - o
       - so
   install:
-    apt: upx
+    - apt: upx
   silent:
     - CantPackException
     - IOException
@@ -564,11 +564,12 @@ Ward:
     - ELF
   description: This is a simple implementation of an ELF packer that creates stealthy droppers for loading malicious ELFs in-memory. Useful for red teamers trying to proliferate a payload while evading detection.
   install:
-    wget:  https://github.com/ex0dus-0x/ward/archive/refs/heads/master.zip
-    unzip: /opt/packers/
-    cd:    ward-master
-    make:  ward cli
-    ln:    /opt/packers/ward-master/ward
+    - exec:  rm -rf /opt/packers/ward-master
+    - wget:  https://github.com/ex0dus-0x/ward/archive/refs/heads/master.zip
+    - unzip: /opt/packers/
+    - cd:    /opt/packers/ward-master
+    - make:  ward cli
+    - ln:    /opt/packers/ward-master/ward
   silent:
     - "go:"
   steps:
@@ -597,8 +598,8 @@ Yoda_Crypter:
     # FIXME: .5 second may surely be too few for bigger executables
     - key Return (.1) [x3]
   install:
-    unzip: /opt/packers/yoda_crypter
-    wine:  yC.exe
+    - unzip: /opt/packers/yoda_crypter
+    - wine:  yC.exe
   source: https://sourceforge.net/projects/yodap/files/Yoda%20Crypter/
   status: ok
 
@@ -609,8 +610,8 @@ Yoda_Protector:
   exclude:
     - ds
   install:
-    unzip: /opt/packers/yoda_protector
-    wine:  yP.exe
+    - unzip: /opt/packers/yoda_protector
+    - wine:  yP.exe
   source: http://yodap.sourceforge.net
   status: gui
 
