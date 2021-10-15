@@ -76,31 +76,31 @@ RUN (pip3 install poetry sklearn tinyscript tldr \
 # +--------------------------------------------------------------------------------------------------------------------+
 FROM base AS customized
 # copy customized files
-COPY files/term /tmp/term
+COPY src/term /tmp/term
 RUN for f in `ls /tmp/term/`; do cp "/tmp/term/$f" "/root/.${f##*/}"; done \
  && rm -rf /tmp/term
 # set the base files and folders for further setup
-COPY *.yml /opt/
+COPY src/conf/*.yml /opt/
 RUN mkdir -p /mnt/share /opt/bin /opt/detectors /opt/packers /opt/tools /opt/unpackers
 # +--------------------------------------------------------------------------------------------------------------------+
 # |                           ADD UTILITIES (that are not packers, unpackers or home-made tools)                       |
 # +--------------------------------------------------------------------------------------------------------------------+
 FROM customized AS utils
 # copy pre-built utils
-COPY files/utils /usr/bin/
+COPY src/files/utils/* /usr/bin/
 # +--------------------------------------------------------------------------------------------------------------------+
 # |                                                    ADD TOOLS                                                       |
 # +--------------------------------------------------------------------------------------------------------------------+
 FROM utils AS tools
-COPY files/tools /opt/tools/
-COPY files/lib /tmp/lib
+COPY src/files/tools/* /opt/tools/
+COPY src/lib /tmp/lib
 RUN pip3 install /tmp/lib/ 2>&1 > /dev/null \
  && mv /opt/tools/help /opt/tools/?
 # +--------------------------------------------------------------------------------------------------------------------+
 # |                                                  ADD DETECTORS                                                     |
 # +--------------------------------------------------------------------------------------------------------------------+
 FROM tools AS detectors
-COPY files/detectors /opt/bin
+COPY src/files/detectors/* /opt/bin/
 RUN mv /opt/bin/userdb.txt /opt/detectors/ \
  && mv /opt/bin/die.tar.xz /tmp/ \
  && /opt/tools/packing-box setup detector
@@ -108,13 +108,13 @@ RUN mv /opt/bin/userdb.txt /opt/detectors/ \
 # |                                                  ADD UNPACKERS                                                     |
 # +--------------------------------------------------------------------------------------------------------------------+
 FROM detectors AS unpackers
-COPY files/unpackers/* /tmp/
+#COPY src/files/unpackers/* /tmp/
 RUN /opt/tools/packing-box setup unpacker
 # +--------------------------------------------------------------------------------------------------------------------+
 # |                                                   ADD PACKERS                                                      |
 # +--------------------------------------------------------------------------------------------------------------------+
 FROM unpackers AS packers
-COPY files/packers /tmp/
+COPY src/files/packers/* /tmp/
 RUN /opt/tools/packing-box setup packer
 # ----------------------------------------------------------------------------------------------------------------------
 RUN find /opt/bin -type f -exec chmod +x {} \;

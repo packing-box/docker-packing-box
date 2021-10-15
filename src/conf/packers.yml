@@ -239,7 +239,7 @@ hXOR-Packer:
   steps:
     - hxor-packer {{executable}} {{executable}}
   source: https://github.com/rurararura/hXOR-Packer/releases/tag/0.1
-  status: todo
+  status: ok
 
 Kkrunchy:
   categories:
@@ -376,7 +376,6 @@ NetCrypt:
     - unzip: /opt/packers/netcrypt
     - wine:  SimplePacker.exe
   source: https://github.com/friedkiwi/netcrypt
-  status: todo
 
 Pakkero:
   categories:
