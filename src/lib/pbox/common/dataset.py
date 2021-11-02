@@ -220,8 +220,9 @@ class Dataset:
     
     def edit(self, **kw):
         """ Edit the data CSV file. """
-        subprocess.call(["vd", str(self.path.joinpath("data.csv").absolute()), "--csv-delimiter", "\";\""],
-                        stderr=subprocess.PIPE)
+        cmd = "vd %s --csv-delimiter \";\"" % self.path.joinpath("data.csv").absolute()
+        self.logger.debug(cmd)
+        subprocess.call(cmd, stderr=subprocess.PIPE, shell=True)
     
     @backup
     def fix(self, **kw):

@@ -283,7 +283,6 @@ M0dern_P4cker:
   steps:
     - m0dern_p4cker {{executable}} {{stub[not|xorp]}}
   source: https://github.com/n4sm/m0dern_p4cker
-  status: ok
 
 MEW:
   categories:
@@ -467,7 +466,6 @@ PEtite:
     - https://www.aldeid.com/wiki/Category:Digital-Forensics/Computer-Forensics/Anti-Reverse-Engineering/Packers/Petite
     - https://github.com/fireeye/capa-rules/blob/master/anti-analysis/packer/petite/packed-with-petite.yml
   source: https://www.un4seen.com/petite
-  status: ok
 
 RLPack:
   categories:
