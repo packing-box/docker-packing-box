@@ -39,7 +39,10 @@ class Detector(Base):
                 results[label] += 1
                 details[detector.name] = label
             label = max(results, key=results.get)
-            return (executable, label, details) if kwargs.get("debug", False) else (executable, label)
+            r = (executable, label) + [(), (kwargs['label'], )]['label' in kwargs]
+            if kwargs.get("debug", False):
+                r += (details, )
+            return r
         else:
             # check: is this detector able to process the input executable ?
             e = executable if isinstance(executable, Executable) else Executable(executable)
@@ -52,7 +55,7 @@ class Detector(Base):
             if label:
                 self.logger.debug("%s detected as packed with %s by %s" % (e.filename, label, self.name))
                 label = label.strip()
-            return (e, label if multiclass else label is not None)
+            return (e, label if multiclass else label is not None) + [(), (kwargs['label'], )]['label' in kwargs]
     
     @file_or_folder_or_dataset
     def test(self, executable, multiclass=True, **kwargs):

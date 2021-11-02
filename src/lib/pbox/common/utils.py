@@ -14,7 +14,8 @@ from .config import config
 
 
 __all__ = ["backup", "benchmark", "class_or_instance_method", "collapse_categories", "expand_categories",
-           "file_or_folder_or_dataset", "highlight_best", "make_registry", "mdv", "shorten_str", "CATEGORIES"]
+           "file_or_folder_or_dataset", "highlight_best", "make_registry", "mdv", "metrics", "shorten_str",
+           "CATEGORIES", "PERF_HEADERS"]
 
 
 CATEGORIES = {
@@ -22,6 +23,16 @@ CATEGORIES = {
     'ELF':    ["ELF32", "ELF64"],
     'Mach-O': ["Mach-O32", "Mach-O64", "Mach-Ou"],
     'PE':     [".NET", "PE32", "PE64"],
+}
+PERF_HEADERS = {
+    'Dataset':         lambda x: x,
+    'Accuracy':        lambda x: "%.2f%%" % (x * 100),
+    'Precision':       lambda x: "%.2f%%" % (x * 100),
+    'Recall':          lambda x: "%.2f%%" % (x * 100),
+    'F-Measure':       lambda x: "%.2f%%" % (x * 100),
+    'MCC':             lambda x: "%.2f%%" % (x * 100),
+    'AUC':             lambda x: "%.2f%%" % (x * 100),
+    'Processing Time': lambda x: "%.3fms" % (x * 1000),
 }
 
 
@@ -86,6 +97,7 @@ def file_or_folder_or_dataset(method):
         n, e, l = -1, [], {}
         # exe list extension function
         def _extend_e(i):
+            nonlocal n, e, l
             # append the (Fileless)Dataset instance itself
             if getattr(i, "is_valid", lambda: False)():
                 for exe in i._iter_with_features(kwargs.get('feature'), kwargs.get('pattern')):
@@ -142,7 +154,8 @@ def file_or_folder_or_dataset(method):
         kwargs['silent'] = False
         for exe in e:
             # this is useful for a decorated method that handles the difference between the computed and actual labels
-            kwargs['label'] = l.get(Path(exe).stem, -1)
+            lbl = l.get(Path(exe).stem, -1)
+            kwargs['label'] = [lbl, None][str(lbl) == "nan"]
             yield method(self, exe, *args, **kwargs)
             kwargs['silent'] = True
     return _wrapper
@@ -184,6 +197,15 @@ def make_registry(cls):
             setattr(i, k, v)
         glob['__all__'].append(item)
         cls.registry.append(i())
+
+
+def metrics(tn=0, fp=0, fn=0, tp=0):
+    """ Compute some metrics related to false/true positives/negatives. """
+    accuracy  = float(tp + tn) / (tp + tn + fp + fn) if tp + tn + fp + fn > 0 else 0
+    precision = float(tp) / (tp + fp) if tp + fp > 0 else 0
+    recall    = float(tp) / (tp + fn) if tp + fn > 0 else 0                                      # or also sensitivity
+    f_measure = 2. * precision * recall / (precision + recall) if precision + recall > 0 else 0  # or F1 score | F-score
+    return accuracy, precision, recall, f_measure
 
 
 def shorten_str(string, l=80):

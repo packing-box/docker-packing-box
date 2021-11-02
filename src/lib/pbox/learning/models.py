@@ -22,16 +22,6 @@ __all__ = ["DumpedModel", "Model", "N_JOBS", "PREPROCESSORS"]
 
 FLOAT_FORMAT = "%.6f"
 N_JOBS = mp.cpu_count() // 2
-PERF_HEADERS = {
-    'Dataset':         lambda x: x,
-    'Accuracy':        lambda x: "%.2f%%" % (x * 100),
-    'Precision':       lambda x: "%.2f%%" % (x * 100),
-    'Recall':          lambda x: "%.2f%%" % (x * 100),
-    'F-Measure':       lambda x: "%.2f%%" % (x * 100),
-    'MCC':             lambda x: "%.2f%%" % (x * 100),
-    'AUC':             lambda x: "%.2f%%" % (x * 100),
-    'Processing Time': lambda x: "%.3fms" % (x * 1000),
-}
 PREPROCESSORS = {
     'MA':         MaxAbsScaler,
     'MM':         MinMaxScaler,
@@ -92,11 +82,8 @@ class Model:
         # compute indicators
         tn, fp, fn, tp = confusion_matrix(target, prediction).ravel()
         # compute evaluation metrics:
-        accuracy  = float(tp + tn) / (tp + tn + fp + fn)
-        precision = float(tp) / (tp + fp)
-        recall    = float(tp) / (tp + fn)                           # or also sensitivity
-        f_measure = 2. * precision * recall / (precision + recall)  # or F1 score or F-score
-        mcc       = matthews_corrcoef(target, prediction)
+        accuracy, precision, recall, f_measure = metrics(tn, fp, fn, tp)
+        mcc = matthews_corrcoef(target, prediction)
         try:
             auc = roc_auc_score(target, proba)
         except ValueError:
@@ -474,8 +461,8 @@ class Model:
         self._metadata['algorithm']['name'] = algo
         self._metadata['algorithm']['description'] = cls.description
         self._metadata['algorithm']['parameters'] = params
-        self._metadata['algorithm']['multiclass'] = multiclass
-        self._metadata['algorithm']['preprocessors'] = list(preprocessor or [])
+        self._metadata['algorithm']['multiclass'] = kw.get('multiclass', False)
+        self._metadata['algorithm']['preprocessors'] = kw.get('preprocessor', False)
         self._save()
     
     def visualize(self, export=False, output_dir=".", **kw):
