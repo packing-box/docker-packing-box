@@ -16,13 +16,12 @@ def parse(output):
         if p == "unknown" and "Unusual section name found:" in l:
             s = l.split(":", 1)[1].strip()
             # observed by trial and error: pattern "/[0-9]+" comes from names of sections of the binary that namely
-            #  generate warnings ; Manalyze consider them as "unusual section names", therefore flagging the binary as
-            #  possibly packed
-            #if re.search(r"^/[0-9]+$", s):
-            #    continue
+            #  generate warnings ; Manalyze consider them as "unusual section names", therefore flagging the binary
+            #  as possibly packed
+            if re.search(r"^/[0-9]+$", s):
+                continue
             if len(s) > 0:
-                patterns.append(s)  # possibly a string of interest for identifying the packer
-                             # e.g.: petite
+                patterns.append(s)  # possibly a string of interest for identifying the packer ; e.g. "petite"
     if len(patterns) == 0 and p == "unknown":
         p = None  # in this case, restore p to None, meaning that the input binary is considered not packed
     return p if len(patterns) == 0 else patterns

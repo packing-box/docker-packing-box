@@ -75,7 +75,7 @@ Language_2000:
 Manalyze:
   categories:
     - PE
-  command: /usr/local/bin/manalyze -p packer {path} 2>/dev/null
+  command: /opt/detectors/manalyze/bin/manalyze -p packer {path} 2>/dev/null
   description: A static analyzer for PE executables.
   install:
     - git:  https://github.com/JusticeRage/Manalyze
