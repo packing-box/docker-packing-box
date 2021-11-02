@@ -17,10 +17,11 @@ __description__ = "Detect the packer used on an input executable/folder/dataset"
 
 if __name__ == '__main__':
     parser.add_argument("executable", help="executable or folder containing executables or dataset")
+    parser.add_argument("-b", "--binary-class", action="store_true", help="only consider if packed or not")
     parser.add_argument("-d", "--detector", action="extend", nargs="*", type=lambda d: Detector.get(d),
                         help="detector(s) to be used")
     initialize(noargs_action="help", multi_level_debug=True)
-    kw = {'debug': args.verbose > 0, 'verbose': args.verbose > 1}
+    kw = {'debug': args.verbose > 0, 'verbose': args.verbose > 1, 'multiclass': not args.binary_class}
     stats = {'fn': 0, 'fp': 0, 'tn': 0, 'tp': 0}
     if args.detector:
         for name in args.detector:
@@ -29,10 +30,11 @@ if __name__ == '__main__':
                     e, r, l = r
                 except ValueError:
                     e, r = r
-                    l = False
-                disp = "not packed" if r is None else r
-                ([logger.failure, logger.success][r == l] if l is not False else logger.info)("{}: {}".format(e, disp))
-                if r is not False:
+                    l = -1
+                mc = kw['multiclass']
+                disp = "not packed" if (r is None and mc) or (r is False and not mc) else r if mc else "packed"
+                ([logger.failure, logger.success][r == l] if l != -1 else logger.info)("{}: {}".format(e, disp))
+                if r != -1:
                     stats[['tp', 'tn'][r is None] if r == l else ['fp', 'fn'][r is None]] += 1
     else:
         for r in Detector.detect(args.executable, **kw):
@@ -47,7 +49,7 @@ if __name__ == '__main__':
             for name, label in details.items():
                 logger.warning(("{: <%d}: {}" % mlen).format(name, label or "-"))
             [logger.failure, logger.success][r == l]("{}: {}".format(e, r))
-            if r is not False:
+            if r != -1:
                 stats[['tp', 'tn'][r is None] if r == l else ['fp', 'fn'][r is None]] += 1
     ph, h, m = PERF_HEADERS, ["Accuracy", "Precision", "Recall", "F-Measure"], metrics(**stats)
     m = [ph[k](v) if v >= 0 else "-" for k, v in zip(h, m)]
