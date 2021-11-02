@@ -116,7 +116,7 @@ PePack:
   command: /usr/bin/pepack -d {db} {path}
   description: Check if a PE file is packed. This tool belongs to pev, an open source, full-featured, multiplatform command line toolkit to work with PE (Portable Executables) binaries.
   install:
-    - apt:  pev
+    - apt: pev
   source: https://github.com/merces/pev
   status: ok
 
