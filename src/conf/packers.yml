@@ -593,6 +593,18 @@ Ward:
   source: https://github.com/ex0dus-0x/ward
   status: ok
 
+Xor_Packer:
+  categories:
+    - PE
+  description: A simple packer working with all PE files which cipher your exe with a XOR implementation.
+  install:
+    - wget: https://github.com/nqntmqmqmb/xorPacker/raw/master/xorPacker/bin/Debug/xorPacker.exe
+    - exec: mv /tmp/xor-packer.exe /opt/packers/
+    - cd:   /opt/packers
+    - mono: xor-packer.exe
+  source: https://github.com/nqntmqmqmb/xorPacker
+  status: broken
+
 Yoda_Crypter:
   categories:
     - PE32
