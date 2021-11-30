@@ -30,7 +30,10 @@ def _set_subparsers(parent, *items):
     for i in items:
         p = sparsers.add_parser(i, help="select %s" % i)
         p.add_argument(i, default=[], action="extend", nargs="*", help="specific %s to %s" % (i, parent._name))
-        if parent._name == "test":
+        if parent._name == "list":
+            p.add_argument("-a", "--all", action="store_true", help="show all items, even those that are disabled")
+            p.add_argument("-n", "--name", action="store_true", help="display console name")
+        elif parent._name == "test":
             p.add_argument("-b", "--benchmark", action="store_true", help="enable benchmarking")
             p.add_argument("-f", "--file", default=[], action="extend", nargs="*", help="file to test the %s on" % i)
             p.add_argument("-k", "--keep", action="store_true", help="keep test files")
@@ -47,18 +50,23 @@ def __item_exists(string):
 
 if __name__ == '__main__':
     sparsers = parser.add_subparsers(dest="command", help="command to be executed")
+    # level 1 subparser for configuring options of pbox
     p = sparsers.add_parser("config", help="set a config option")
     for opt, func, val in config.iteroptions():
         p.add_argument("--" + opt, type=func, default=str(val))
-    for n in ["setup", "test"]:
+    # level 1 subparsers for listing, setting and testing items
+    for n in ["list", "setup", "test"]:
         p = sparsers.add_parser(n, help="%s something" % n)
         p._name = n
         _set_subparsers(p, "detector", "packer", "unpacker")
+    # level 1 subparsers for inspecting the workspace
     p = sparsers.add_parser("workspace", help="inspect the workspace")
+    # level 2 subparsers for actions against the workspace
     sp = p.add_subparsers(dest="subcommand", help="subcommand to be executed")
     edt = sp.add_parser("edit", help="edit something from the workspace")
     edt.add_argument("item", type=__item_exists, help="item to be edited")
     view = sp.add_parser("view", help="view the folders and subfolders tree of the workspace")
+    # now, initialize arguments
     initialize(noargs_action="help", ext_logging=True)
     if args.command == "config":
         change = False
@@ -73,6 +81,10 @@ if __name__ == '__main__':
         if change:
             config.save()
             logger.debug("Saved config to %s" % str(config.path))
+    elif args.command == "list":
+        for x in globals()[args.type.capitalize()].registry:
+            if args.all or x.status in x.__class__._enabled:
+                print(x.name if args.name else x.__class__.__name__)
     elif args.command == "workspace":
         if args.subcommand == "edit":
             p = args.item

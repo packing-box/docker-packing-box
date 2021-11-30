@@ -5,6 +5,7 @@ from pbox.__info__ import *
 from pbox.common.utils import *
 from tinyscript import *
 from tinyscript.report import *
+from tqdm import tqdm
 
 
 __version__     = "1.0.1"
@@ -20,9 +21,10 @@ if __name__ == '__main__':
     parser.add_argument("-b", "--binary-class", action="store_true", help="only consider if packed or not")
     parser.add_argument("-d", "--detector", action="extend", nargs="*", type=lambda d: Detector.get(d),
                         help="detector(s) to be used")
-    initialize(noargs_action="help", multi_level_debug=True)
+    parser.add_argument("-m", "--metrics-only", action="store_true", help="output metrics only")
+    initialize(noargs_action="usage", multi_level_debug=True)
     kw = {'debug': args.verbose > 0, 'verbose': args.verbose > 1, 'multiclass': not args.binary_class}
-    stats = {'fn': 0, 'fp': 0, 'tn': 0, 'tp': 0}
+    stats, pbar = {'fn': 0, 'fp': 0, 'tn': 0, 'tp': 0}, None
     if args.detector:
         for name in args.detector:
             for r in Detector.get(name).detect(args.executable, **kw):
@@ -31,11 +33,16 @@ if __name__ == '__main__':
                 except ValueError:
                     e, r = r
                     l = -1
-                mc = kw['multiclass']
-                disp = "not packed" if (r is None and mc) or (r is False and not mc) else r if mc else "packed"
-                ([logger.failure, logger.success][r == l] if l != -1 else logger.info)("{}: {}".format(e, disp))
+                if pbar is None and hasattr(e, "len"):
+                    pbar = tqdm(total=e.len, unit="executable")
+                if not args.metrics_only:
+                    mc = kw['multiclass']
+                    disp = "not packed" if (r is None and mc) or (r is False and not mc) else r if mc else "packed"
+                    ([logger.failure, logger.success][r == l] if l != -1 else logger.info)("{}: {}".format(e, disp))
                 if r != -1:
                     stats[['tp', 'tn'][r is None] if r == l else ['fp', 'fn'][r is None]] += 1
+                if pbar is not None:
+                    pbar.update()
     else:
         for r in Detector.detect(args.executable, **kw):
             try:
@@ -43,16 +50,26 @@ if __name__ == '__main__':
             except ValueError:
                 e, r, l = r
                 details = {}
-            mlen = 0
-            for name in details.keys():
-                mlen = max(mlen, len(name))
-            for name, label in details.items():
-                logger.warning(("{: <%d}: {}" % mlen).format(name, label or "-"))
-            [logger.failure, logger.success][r == l]("{}: {}".format(e, r))
+            if pbar is None and hasattr(e, "len"):
+                pbar = tqdm(total=e.len, unit="executable")
+            if not args.metrics_only:
+                mlen = 0
+                for name in details.keys():
+                    mlen = max(mlen, len(name))
+                for name, label in details.items():
+                    logger.warning(("{: <%d}: {}" % mlen).format(name, label or "-"))
+                [logger.failure, logger.success][r == l]("{}: {}".format(e, r))
             if r != -1:
                 stats[['tp', 'tn'][r is None] if r == l else ['fp', 'fn'][r is None]] += 1
+            if pbar is not None:
+                pbar.update()
+    if pbar is not None:
+        pbar.close()
     ph, h, m = PERF_HEADERS, ["Accuracy", "Precision", "Recall", "F-Measure"], metrics(**stats)
     m = [ph[k](v) if v >= 0 else "-" for k, v in zip(h, m)]
-    r = Section("Detection results: "), Table([m], column_headers=h)
-    print(mdv.main(Report(*r).md()))
+    if args.metrics_only:
+        print(",".join(m))
+    else:
+        r = Section("Detection results: "), Table([m], column_headers=h)
+        print(mdv.main(Report(*r).md()))
 
