@@ -53,13 +53,28 @@ RUN apt-key adv --recv-keys --keyserver keyserver.ubuntu.com 6D9CD73B401A130336E
  && add-apt-repository ppa:dosemu2/ppa -y \
  && apt -qq update \
  && apt -qq -y install dosemu2
-#TODO: install .NET Framework 3.5 + 4.5
 # install mono (for running .NET apps on Linux)
 RUN (apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys 3FA7E0328081BFF6A14DA29AA6A19B38D3D831EF \
  && apt-add-repository 'deb https://download.mono-project.com/repo/ubuntu stable-focal main' \
  && apt -qq update \
  && apt -qq -y install mono-complete mono-vbnc) 2>&1 > /dev/null \
  || echo -e "\033[1;31m MONO INSTALL FAILED \033[0m"
+# install .NET core
+RUN (wget -qO /tmp/dotnet-install.sh https://dot.net/v1/dotnet-install.sh \
+ && chmod +x /tmp/dotnet-install.sh \
+ && /tmp/dotnet-install.sh -c Current \
+ && rm -f /tmp/dotnet-install.sh \
+ && chmod +x /root/.dotnet/dotnet \
+ && ln -s /root/.dotnet/dotnet /usr/bin/dotnet) 2>&1 > /dev/null \
+ || echo -e "\033[1;31m DOTNET INSTALL FAILED \033[0m"
+# install MingW
+RUN (git clone https://github.com/tpoechtrager/wclang \
+ && cd wclang \
+ && cmake -DCMAKE_INSTALL_PREFIX=_prefix_ . \
+ && make && make install \
+ && mv _prefix_/bin/* /usr/local/bin/ \
+ && cd /tmp && rm -rf wclang) 2>&1 > /dev/null \
+ || echo -e "\033[1;31m MINGW INSTALL FAILED \033[0m"
 # install darling (for running MacOS software on Linux)
 #RUN (apt -qq -y install cmake clang bison flex pkg-config linux-headers-generic gcc-multilib \
 # && cd /tmp/ && git clone --recursive https://github.com/darlinghq/darling.git && cd darling \
