@@ -257,7 +257,13 @@ export LS_OPTIONS='--color=auto --time-style long-iso'
 eval "`dircolors`"
 
 # Add tools' bin folder to PATH
-PATH=/opt/tools:/opt/bin:$PATH
+pathprepend() {
+    if [ -d "$1" ] && [[ ":$PATH:" != *":$1:"* ]]; then
+        PATH="$1${PATH:+":$PATH"}"
+    fi
+}
+pathprepend /opt/bin
+pathprepend /opt/tools
 
 eval 
     function fuck () {
@@ -305,3 +311,6 @@ pbox-update() {
   find /mnt/share/src/files/detectors/ -type f \( ! -iname \"*\.*\" \) -exec cp -f {} /opt/bin/ \;
   pip3 install --upgrade /mnt/share/src/lib/ -q > /dev/null
 }
+
+# .NET core opt-out for telemetry
+export DOTNET_CLI_TELEMETRY_OPTOUT=1
