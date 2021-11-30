@@ -12,6 +12,16 @@ Alienyze:
   source: https://alienyze.com/
   status: commercial
 
+Alternate_EXE_Packer:
+  categories:
+    - PE
+  comment: Relies on UPX 3.96.
+  description: This program is able to compress executable files (type EXE) or DLL-files. Already compressed files may also be decompressed with this program. There exist 12 different levels for file-compression. This program is also able to create backups of the files that shall be compressed.
+  references:
+    - https://www.alternate-tools.com/pages/c_exepacker.php
+  source: https://www.alternate-tools.com/files/EXEPacker.exe
+  status: useless
+
 Amber:
   categories:
     - PE
@@ -119,7 +129,7 @@ Enigma_Virtual_Box:
   source: https://www.enigmaprotector.com/en/aboutvb.html
   status: commercial
 
-Eronana-Packer:
+Eronana_Packer:
   categories:
     - PE32
   comment: This relies on a compression library (see Ref) using LZ77 and Huffman.
@@ -141,17 +151,7 @@ Eronana-Packer:
   source: https://github.com/Eronana/packer
   status: ok
 
-EXEPacker:
-  categories:
-    - PE
-  comment: Relies on UPX 3.96.
-  description: This program is able to compress executable files (type EXE) or DLL-files. Already compressed files may also be decompressed with this program. There exist 12 different levels for file-compression. This program is also able to create backups of the files that shall be compressed.
-  references:
-    - https://www.alternate-tools.com/pages/c_exepacker.php
-  source: https://www.alternate-tools.com/files/EXEPacker.exe
-  status: useless
-
-EXEStealth:
+EXE_Stealth:
   categories:
     - PE
   comment: Trial version ; does not allow to protect executables.
