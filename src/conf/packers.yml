@@ -523,6 +523,17 @@ Shiva:
   source: https://packetstormsecurity.com/files/31087/shiva-0.95.tar.gz.html
   status: broken
 
+Silent_Packer:
+  categories:
+    - ELF
+    - PE
+  description: Silent_Packer is an ELF / PE packer written in pure C. This program can be used to obfuscate a binary. This packer supports PIE binaries. It currently supports XOR and AES-128-ECB as cipher methods.
+  install:
+    - wget: https://github.com/SilentVoid13/Silent_Packer/releases/download/v0.1/Silent_Packer
+    - cd:   /tmp
+    - copy: silent-packer
+  source: https://github.com/SilentVoid13/Silent_Packer
+
 Telock:
   categories:
     - PE
