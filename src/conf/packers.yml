@@ -546,6 +546,16 @@ Telock:
   source: https://www.softpedia.com/get/Programming/Packers-Crypters-Protectors/Telock.shtml
   status: gui
 
+TheArk:
+  categories:
+    - PE32
+  description: Windows x86 PE Packer In C++.
+  install:
+    - wget:  https://github.com/aaaddress1/theArk/releases/download/1.0/Release.zip
+    - unzip: /opt/packers/theark
+    - wine:  theArk.exe
+  source: https://github.com/aaaddress1/theArk
+
 UPX:
   categories:
     - All
