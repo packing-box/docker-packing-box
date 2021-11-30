@@ -153,6 +153,7 @@ def file_or_folder_or_dataset(method):
         # then handle the list
         kwargs['silent'] = False
         for exe in e:
+            kwargs['dslen'] = len(e)
             # this is useful for a decorated method that handles the difference between the computed and actual labels
             lbl = l.get(Path(exe).stem, -1)
             kwargs['label'] = [lbl, None][str(lbl) == "nan"]

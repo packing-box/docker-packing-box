@@ -25,6 +25,9 @@ class Detector(Base):
         If called from an instance:
             Runs the detector according to its command line format and checks if the executable has been changed by this
              execution. """
+        dslen = kwargs.get('dslen')
+        if dslen:
+            executable.len = dslen
         l = kwargs.get('label')
         actual_label = [(), (l if multiclass else l is not None, )]['label' in kwargs]
         if isinstance(self, type):
@@ -44,8 +47,7 @@ class Detector(Base):
                 results.setdefault(label, 0)
                 results[label] += 1
                 details[detector.name] = label
-            label = max(results, key=results.get)
-            r = (executable, label) + actual_label
+            r = (executable, max(results, key=results.get)) + actual_label
             if kwargs.get("debug", False):
                 r += (details, )
             return r
@@ -63,6 +65,8 @@ class Detector(Base):
                 label = label.strip()
             if not multiclass:
                 label = label is not None if getattr(self, "multiclass", True) else label.lower() == "true"
+            if dslen:
+                e.len = dslen
             return (e, label) + actual_label
     
     @file_or_folder_or_dataset

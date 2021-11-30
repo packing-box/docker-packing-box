@@ -326,10 +326,12 @@ class Base(Item):
                 result.remove(False)
                 run("git clone -q %s%s \"%s\"" % (["", "--recursive "][cmd == "gitr"], arg, result), **kw)
             # create a shell script to execute Bash code and make it executable
-            elif cmd in ["java", "sh", "wine"]:
-                r, txt, tgt = ubin.joinpath(self.name), "#!/bin/bash\n", result.joinpath(arg)
+            elif cmd in ["java", "mono", "sh", "wine"]:
+                r, txt, tgt = ubin.joinpath(self.name), "#!/bin/bash\n", (result or opt).joinpath(arg)
                 if cmd == "java":
                     txt += "java -jar \"%s\" \"$@\"" % tgt
+                elif cmd == "mono":
+                    txt += "mono \"%s\" \"$@\"" % tgt
                 elif cmd == "sh":
                     txt += "\n".join(arg.split("\\n"))
                 elif cmd == "wine":
