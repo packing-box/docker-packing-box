@@ -93,6 +93,14 @@ NPEFileAnalyzer:
   source: https://www.novirusthanks.org/products/npe-file-analyzer/
   status: info
 
+PackerID:
+  categories:
+    - PE
+  comment: This relies on an old userdb.txt. This tool does not perform better than PEiD.
+  description: Fork of packerid.py. Used to check PEid databases against files in Python. Additional output types, and formats, digital signature extraction, and disassembly support. Added a userdb.txt that I put together because who doesn't need another one.
+  source: https://github.com/sooshie/packerid
+  status: info
+
 PE-Bear:
   categories:
     - PE
