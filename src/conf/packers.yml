@@ -166,6 +166,20 @@ EXE_Stealth:
   source: http://www.webtoolmaster.com/index.htm#ExeStealth
   status: commercial
 
+eXpressor:
+  categories:
+    - PE32
+    - PE64
+  description: Used as a compressor this tool can compress EXE files to half their normal size. Once compressed, the files execute just like normal. As a protector It is designed to protect applications against crackers ; also can help developers in creation of uncrackable registration keys, and implementation of trial version for protected software.
+  install:
+    - wget: http://www.cgsoftlabs.ro/zip/eXPressor.zip
+    - unzip: /opt/packers/eronana-packer
+    - wine: packer.exe
+  references:
+    - https://github.com/chesvectain/PackingData
+  source: http://www.cgsoftlabs.ro
+  status: commercial
+
 Ezuri:
   categories:
     - ELF
