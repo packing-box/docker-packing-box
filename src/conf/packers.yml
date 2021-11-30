@@ -7,7 +7,7 @@ ACProtect:
 
 Alienyze:
   categories:
-    - PE
+    - PE32
   description: Alienyze is a software packer designed to do just that while offering the additional benefit of helping software developers to also compress the executable files, allowing them to reduce the file size of their software as much as possible.
   source: https://alienyze.com/
   status: commercial
@@ -107,7 +107,7 @@ DotNetZ:
 ELFuck:
   categories:
     - ELF32
-  description: ELF packer for i386 origial version from sk2 by sd.
+  description: ELF packer for i386 original version from sk2 by sd.
   references:
     - https://docplayer.net/86668430-Modern-linux-malware-exposed.html
   source: https://github.com/timhsutw/elfuck
@@ -211,12 +211,14 @@ GZEXE:
     - apt: gzip
   references:
     - https://linux.die.net/man/1/gzexe
+    - https://www.gnu.org/software/gzip
+    - https://savannah.gnu.org/projects/gzip
   silent:
     - "{{executable}}"
   steps:
     - gzexe {{executable}}
     - rm -f {{executable}}~
-  source: https://www.gnu.org/software/gzip
+  source: https://git.savannah.gnu.org/cgit/gzip.git
   status: ok
 
 hXOR-Packer:
@@ -344,6 +346,7 @@ MPRESS:
   steps:
     - mpress {{executable}}{{compressed[|-r]}}{{lzmat[|-m]}}
   references:
+    - https://www.autohotkey.com/mpress/mpress_web.htm
     - https://storage.ey.md/Technology%%20Related/Programming%%20%%26%%20Reversing/Tuts4You%%20Collection/UnPackMe%%20Collection/dotNET/MPress%%200.71.rar
     - https://storage.ey.md/Technology%%20Related/Programming%%20%%26%%20Reversing/Tuts4You%%20Collection/UnPackMe%%20Collection/PE32/MPress%%200.77.rar
     - https://storage.ey.md/Technology%%20Related/Programming%%20%%26%%20Reversing/Tuts4You%%20Collection/UnPackMe%%20Collection/PE32/MPress%%201.27.rar
