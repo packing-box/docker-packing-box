@@ -389,6 +389,25 @@ Pakkero:
   source: https://github.com/89luca89/pakkero
   status: ok
 
+PE-Packer:
+  categories:
+    - PE32
+  description: Simple packer for Windows 32-bits PE files. The new PE file after packing can obstruct the process of reverse engineering. It will transform the original import table, encrypt sections, clear section names and installing the shell-entry. When running a packed PE file, the shell-entry will decrypt and load the original program by decrypting sections, initializing the original import table and relocation.
+  exclude:
+    - dll
+    - ds
+  install:
+    - wget:  https://github.com/czs108/PE-Packer/releases/download/v1.0.0-beta/PE-Packer-1.0.0-beta-win-x86.zip
+    - unzip: /opt/packers/pepacker
+    - wine:  PE-Packer.exe
+  steps:
+    - pepacker {{executable}} {{executable.stem}}_new{{executable.extension}}
+    - mv -f {{executable.stem}}_new{{executable.extension}} {{executable}}
+  references:
+    - https://zenodo.org/record/4698355
+  source: https://github.com/czs108/PE-Packer
+  status: ok
+
 PELock:
   categories:
     - PE32
@@ -416,25 +435,6 @@ PELock:
   references:
     - https://github.com/PELock/PELock-Software-Protection-and-Licensing-SDK
   source: https://www.pelock.com/products/pelock
-  status: ok
-
-PEPacker:
-  categories:
-    - PE32
-  description: Simple packer for Windows 32-bits PE files. The new PE file after packing can obstruct the process of reverse engineering. It will transform the original import table, encrypt sections, clear section names and installing the shell-entry. When running a packed PE file, the shell-entry will decrypt and load the original program by decrypting sections, initializing the original import table and relocation.
-  exclude:
-    - dll
-    - ds
-  install:
-    - wget:  https://github.com/czs108/PE-Packer/releases/download/v1.0.0-beta/PE-Packer-1.0.0-beta-win-x86.zip
-    - unzip: /opt/packers/pepacker
-    - wine:  PE-Packer.exe
-  steps:
-    - pepacker {{executable}} {{executable.stem}}_new{{executable.extension}}
-    - mv -f {{executable.stem}}_new{{executable.extension}} {{executable}}
-  references:
-    - https://zenodo.org/record/4698355
-  source: https://github.com/czs108/PE-Packer
   status: ok
 
 PEShield:
@@ -466,6 +466,22 @@ PEtite:
     - https://www.aldeid.com/wiki/Category:Digital-Forensics/Computer-Forensics/Anti-Reverse-Engineering/Packers/Petite
     - https://github.com/fireeye/capa-rules/blob/master/anti-analysis/packer/petite/packed-with-petite.yml
   source: https://www.un4seen.com/petite
+
+PEzor:
+  categories:
+    - PE
+  description: Open-Source Shellcode & PE Packer.
+  install:
+    - exec: rm -rf /tmp/PEzor
+    - git:  https://github.com/phra/PEzor.git
+    - cd:   /tmp/PEzor
+    - exec: bash install.sh
+  references:
+    - https://iwantmore.pizza/posts/PEzor.html
+    - https://iwantmore.pizza/posts/PEzor2.html
+    - https://iwantmore.pizza/posts/PEzor3.html
+    - https://iwantmore.pizza/posts/PEzor4.html
+  source: https://github.com/phra/PEzor
 
 RLPack:
   categories:
