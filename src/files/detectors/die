@@ -6,7 +6,8 @@ from pboxtools import re, run
 def parse(output):
     for l in output.splitlines():
         try:
-            return re.search(r"^[^:]+:\s+packer:\s+([^([{]+)", l).group(1).lower()
+            return re.search(r"^[^:]+:\s+(?:packer|protector):\s+([^([{]+)", l).group(1).lower() \
+                     .replace("'s", "").replace(" ", "_")
         except AttributeError:
             pass
 

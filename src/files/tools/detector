@@ -30,6 +30,8 @@ if __name__ == '__main__':
             for r in Detector.get(name).detect(args.executable, **kw):
                 try:
                     e, r, l = r
+                except TypeError:
+                    e, r, l = None, -1, -1
                 except ValueError:
                     e, r = r
                     l = -1

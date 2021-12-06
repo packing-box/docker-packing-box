@@ -202,10 +202,10 @@ def make_registry(cls):
 
 def metrics(tn=0, fp=0, fn=0, tp=0):
     """ Compute some metrics related to false/true positives/negatives. """
-    accuracy  = float(tp + tn) / (tp + tn + fp + fn) if tp + tn + fp + fn > 0 else 0
-    precision = float(tp) / (tp + fp) if tp + fp > 0 else 0
-    recall    = float(tp) / (tp + fn) if tp + fn > 0 else 0                                      # or also sensitivity
-    f_measure = 2. * precision * recall / (precision + recall) if precision + recall > 0 else 0  # or F1 score | F-score
+    accuracy  = float(tp + tn) / (tp + tn + fp + fn) if tp + tn + fp + fn > 0 else -1
+    precision = float(tp) / (tp + fp) if tp + fp > 0 else -1
+    recall    = float(tp) / (tp + fn) if tp + fn > 0 else -1                                      # or also sensitivity
+    f_measure = 2. * precision * recall / (precision + recall) if precision + recall > 0 else -1  # or F(1)-score
     return accuracy, precision, recall, f_measure
 
 

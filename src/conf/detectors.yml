@@ -18,6 +18,7 @@ ASL:
 Bintropy:
   categories:
     - ELF
+    - MSDOS
     - PE
   description: Bintropy is an analysis tool that estimates the likelihood that a binary file contains compressed or encrypted bytes.
   install:
@@ -75,6 +76,7 @@ Language_2000:
 
 Manalyze:
   categories:
+    - MSDOS
     - PE
   command: /opt/detectors/manalyze/bin/manalyze -p packer {path} 2>/dev/null
   description: A static analyzer for PE executables.
@@ -111,6 +113,7 @@ PE-Bear:
 
 PeFrame:
   categories:
+    - MSDOS
     - PE
   command: /usr/local/bin/peframe -sj {path}
   description: Open source tool to perform static analysis on Portable Executable malware and malicious MS Office documents.
@@ -121,6 +124,7 @@ PeFrame:
 
 PePack:
   categories:
+    - MSDOS
     - PE
   command: /usr/bin/pepack -d {db} {path}
   description: Check if a PE file is packed. This tool belongs to pev, an open source, full-featured, multiplatform command line toolkit to work with PE (Portable Executables) binaries.
@@ -131,6 +135,7 @@ PePack:
 
 PEiD:
   categories:
+    - MSDOS
     - PE
   description: PEiD detects most common packers, cryptors and compilers for PE files.
   install:
@@ -158,6 +163,7 @@ PortEx:
 
 PyPackerDetect:
   categories:
+    - MSDOS
     - PE
   comment: Relies on PEiD but also uses custom heuristics (e.g. known packer section names, entrypoint in non-standard section, threshhold of non-standard sections reached, low number of imports and overlapping entrypoint sections).
   description: A complete refactoring of the original PyPackerDetect to a Python package with a console script to detect whether an executable is packed.
@@ -168,6 +174,7 @@ PyPackerDetect:
 
 PyPeid:
   categories:
+    - MSDOS
     - PE
   description: Yet another implementation of PEiD with yara-python.
   install:
