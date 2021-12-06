@@ -74,6 +74,16 @@ ASPack:
   source: http://www.aspack.com/aspack.html
   status: broken
 
+BeRo:
+  categories:
+    - PE32
+  description: BeRoEXEPacker, or short BEP, is a executable packer for 32-bit windows executables that can compress win32 EXEs and DLLs and offers LZBRS, LZBRR, LZBRA, LZMA, LZBRCM and CTX1 compression. 
+  install:
+    - copy: bep.exe /opt/packers/beroexepacker.exe
+    - setp: /opt/packers/
+    - wine: beroexepacker.exe
+  source: https://blog.rosseaux.net/page/875fbe6549aa072b5ee0ac9cefff4827/BeRoEXEPacker
+
 BurnEye:
   categories:
     - ELF32
@@ -166,7 +176,17 @@ EXE_Stealth:
   source: http://www.webtoolmaster.com/index.htm#ExeStealth
   status: commercial
 
-eXpressor:
+EXE32Pack:
+  categories:
+    - PE32
+  description: Compresses Win32 EXEs, DLLs, etc and dynamically expands them upon execution.
+  install:
+    - wget: http://www.magicnotes.com/steelbytes/exe32pack.zip
+    - unzip: /opt/packers
+    - wine: exe32pack.exe
+  source: https://exe32pack.apponic.com
+
+eXPressor:
   categories:
     - PE32
     - PE64
@@ -257,6 +277,13 @@ hXOR-Packer:
   source: https://github.com/rurararura/hXOR-Packer/releases/tag/0.1
   status: ok
 
+JDPack:
+  categories:
+    - PE32
+  description: N/A
+  source: http://www.tlzj18.com
+  status: info
+
 Kkrunchy:
   categories:
     - PE32
@@ -344,6 +371,13 @@ MidgetPack:
   source: https://github.com/arisada/midgetpack
   status: ok
 
+MoleBox:
+  categories:
+    - PE
+  description: MoleBox Virtualization Solution (VS) creates a private and secure virtual environment for your software applications, isolating them from the underlying operating system and other software installed and running on the host device.
+  source: https://www.molebox.com/
+  status: commercial
+
 MPRESS:
   categories:
     - PE
@@ -383,6 +417,16 @@ Muncho:
   source: https://demozoo.org/productions/175774/
   status: info
 
+NeoLite:
+  categories:
+    - PE32
+  description: NeoLite compresses Windows 32-bit .EXE files and DLLs. It compresses them in such a manner that they are still executed normally. No additional software is required to run the compressed software, it is completely transparent. There is no speed penalty incurred.
+  references:
+    - http://www.neoworx.com
+    - http://www.neoworx.com/download/NeoLte20.exe
+  source: http://protools.narod.ru/packers.htm
+  status: info
+
 NetCrypt:
   categories:
     - .NET
@@ -392,6 +436,21 @@ NetCrypt:
     - unzip: /opt/packers/netcrypt
     - wine:  SimplePacker.exe
   source: https://github.com/friedkiwi/netcrypt
+
+NSPack:
+  categories:
+    - PE32
+    - PE64
+  description: NsPack is a wonderful tool which can compress 32bits and 64bits exe, dll, ocx, scr files. Application supports also windows programs as well as C#.net program. 
+  source: https://webscene.ir/tools/show/NsPack-and-crack-3.7
+  status: info
+
+Packman:
+  categories:
+    - PE32
+  description: Packman is a Windows EXE/DLL packer. It takes an existing EXE/DLL and compresses it into a form that runs exactly like the original, with detailed control over resource filtering, compression algorithm and packing process.
+  source: https://www.portablefreeware.com/?id=847
+  status: info
 
 Pakkero:
   categories:
@@ -424,6 +483,13 @@ PE-Packer:
     - https://zenodo.org/record/4698355
   source: https://github.com/czs108/PE-Packer
   status: ok
+
+PECompact:
+  categories:
+    - PE32
+  description: PECompact v2 is a next generation win32 portable executable compressor. Runewritten from the ground up, PECompact v2 is designed to be the ultimate solution to executable compression.
+  source: https://bitsum.com/pecompact.htm
+  status: commercial
 
 PELock:
   categories:
@@ -630,6 +696,14 @@ Ward:
     - mv {{executable.filename}}.packed {{executable.filename}}
   source: https://github.com/ex0dus-0x/ward
   status: ok
+
+WinUPack:
+  categories:
+    - MSDOS
+    - PE32
+  description: WinUpack is the frontend version of Upack. Upack is a packer that can compress Windows PE file, which may self-decompress and run normally without any other decompresser. It can pack executable files of Windows PE format files with almost the best compression ratio. Whereas DOS-EXEs(MZ), Win3.x-EXE/DLLs(NE), and any other platform programs are not supported by Upack. Upack is only for compression, not for protection mainly.
+  source: http://downloads.fyxm.net/Portable-WinUpack-13975.html
+  status: info
 
 Xor_Packer:
   categories:

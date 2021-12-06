@@ -28,6 +28,7 @@ $ docker run -it -h packing-box -v `pwd`:/mnt/share dhondta/packing-box
 - Check this [link](https://www.softpedia.com/catList/14,1,3,0,1.html) for new ideas
 - Check this [link](https://storage.ey.md/Technology%20Related/Programming%20%26%20Reversing/Tuts4You%20Collection/Unpacking%20Tutorials/)
 - Check this [link](https://storage.ey.md/Technology%20Related/Programming%20%26%20Reversing/Tuts4You%20Collection/UnPackMe%20Collection/)
+- Check this [link](https://gist.github.com/joenorton8014/bddbbb3c068f7d9e7875d741a8f9b0f6)
 - Install [PoCrypt](https://github.com/picoflamingo/pocrypt)
 - Install [EXE Bundle](https://www.softpedia.com/get/Security/Security-Related/EXE-Stealth-Packer.shtml) (could be the same or a further version of EXE Stealth Packer)
 - Install [EXE Stealth Packer](https://www.webtoolmaster.com/packer.htm)
