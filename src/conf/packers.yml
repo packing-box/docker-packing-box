@@ -75,6 +75,9 @@ ASPack:
   status: broken
 
 BeRo:
+  aliases:
+    - BeRoEXE
+    - BeRoEXEPacker
   categories:
     - PE32
   description: BeRoEXEPacker, or short BEP, is a executable packer for 32-bit windows executables that can compress win32 EXEs and DLLs and offers LZBRS, LZBRR, LZBRA, LZMA, LZBRCM and CTX1 compression. 

@@ -43,10 +43,13 @@ def normalize(*packers):
         return
     d = {'unknown': -1}
     for s in packers:
-        for p in map(lambda x: x.lower(), PACKERS.keys()):
-            if re.search(p, s.lower()):
-                d.setdefault(p, 0)
-                d[p] += 1
+        for packer, details in PACKERS.items():
+            for p in [packer] + details.get('aliases', []):
+                if re.search(p.lower(), s.lower()):
+                    p = packer.lower()
+                    d.setdefault(p, 0)
+                    d[p] += 1
+                    break
     return max(d, key=d.get)
 
 
