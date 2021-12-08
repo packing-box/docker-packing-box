@@ -701,6 +701,8 @@ Ward:
   status: ok
 
 WinUPack:
+  aliases:
+    - Upack
   categories:
     - MSDOS
     - PE32

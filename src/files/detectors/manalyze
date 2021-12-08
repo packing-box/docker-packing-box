@@ -7,7 +7,7 @@ def parse(output):
     p, patterns = None, []
     for l in output.splitlines():
         try:
-            r = re.search(r"^\[ .+? \] The PE is packed with ([^\(\d]+)", l).group(1)
+            r = re.search(r"^\[ .+? \] Th(?:e|is) PE is packed with (.+)", l).group(1)
             return r.strip().replace(" ", "-").lower()
         except (AttributeError, TypeError):
             pass
@@ -22,8 +22,6 @@ def parse(output):
                 continue
             if len(s) > 0:
                 patterns.append(s)  # possibly a string of interest for identifying the packer ; e.g. "petite"
-    if len(patterns) == 0 and p == "unknown":
-        p = None  # in this case, restore p to None, meaning that the input binary is considered not packed
     return p if len(patterns) == 0 else patterns
 
 
