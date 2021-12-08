@@ -21,7 +21,9 @@ if __name__ == '__main__':
     parser.add_argument("-b", "--binary-class", action="store_true", help="only consider if packed or not")
     parser.add_argument("-d", "--detector", action="extend", nargs="*", type=lambda d: Detector.get(d),
                         help="detector(s) to be used")
-    parser.add_argument("-m", "--metrics-only", action="store_true", help="output metrics only")
+    grp = parser.add_mutually_exclusive_group()
+    grp.add_argument("-f", "--failures-only", action="store_true", help="output failures only")
+    grp.add_argument("-m", "--metrics-only", action="store_true", help="output metrics only")
     initialize(noargs_action="usage", multi_level_debug=True)
     kw = {'debug': args.verbose > 0, 'verbose': args.verbose > 1, 'multiclass': not args.binary_class}
     stats, pbar = {'fn': 0, 'fp': 0, 'tn': 0, 'tp': 0}, None
@@ -40,7 +42,8 @@ if __name__ == '__main__':
                 if not args.metrics_only:
                     mc = kw['multiclass']
                     disp = "not packed" if (r is None and mc) or (r is False and not mc) else r if mc else "packed"
-                    ([logger.failure, logger.success][r == l] if l != -1 else logger.info)("{}: {}".format(e, disp))
+                    if not args.failures_only or r != l != -1:
+                        ([logger.failure, logger.success][r == l] if l != -1 else logger.info)("{}: {}".format(e, disp))
                 if r != -1:
                     stats[['tp', 'tn'][r is None] if r == l else ['fp', 'fn'][r is None]] += 1
                 if pbar is not None:
@@ -60,7 +63,8 @@ if __name__ == '__main__':
                     mlen = max(mlen, len(name))
                 for name, label in details.items():
                     logger.warning(("{: <%d}: {}" % mlen).format(name, label or "-"))
-                [logger.failure, logger.success][r == l]("{}: {}".format(e, r))
+                if not args.failures_only or r != l:
+                    [logger.failure, logger.success][r == l]("{}: {}".format(e, r))
             if r != -1:
                 stats[['tp', 'tn'][r is None] if r == l else ['fp', 'fn'][r is None]] += 1
             if pbar is not None:
