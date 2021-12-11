@@ -41,6 +41,16 @@ $ docker run -it -h packing-box -v `pwd`:/mnt/share dhondta/packing-box
 - https://reverseengineering.stackexchange.com/questions/1545/linux-protectors-any-good-one-out-there
 
 
+## :star: Related Projects
+
+You may also like these:
+
+- [Awesome Executable Packing](https://github.com/dhondta/awesome-executable-packing): A curated list of awesome resources related to executable packing.
+- [Bintropy](https://github.com/dhondta/bintropy): Analysis tool for estimating the likelihood that a binary contains compressed or encrypted bytes.
+- [PEiD](https://github.com/dhondta/peid): Python implementation of the Packed Executable iDentifier (PEiD).
+- [PyPackerDetect](https://github.com/dhondta/PyPackerDetect): Packing detection tool for PE files.
+
+
 ## :clap:  Supporters
 
 [![Stargazers repo roster for @dhondta/docker-packing-box](https://reporoster.com/stars/dark/dhondta/docker-packing-box)](https://github.com/dhondta/docker-packing-box/stargazers)
@@ -48,3 +58,4 @@ $ docker run -it -h packing-box -v `pwd`:/mnt/share dhondta/packing-box
 [![Forkers repo roster for @dhondta/docker-packing-box](https://reporoster.com/forks/dark/dhondta/docker-packing-box)](https://github.com/dhondta/docker-packing-box/network/members)
 
 <p align="center"><a href="#"><img src="https://img.shields.io/badge/Back%20to%20top--lightgrey?style=social" alt="Back to top" height="20"/></a></p>
+
