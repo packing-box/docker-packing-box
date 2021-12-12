@@ -44,8 +44,8 @@ def normalize(*packers):
     d = {'unknown': -1}
     for s in packers:
         for packer, details in PACKERS.items():
-            for p in [packer] + details.get('aliases', []):
-                if re.search(p.lower(), s.lower()):
+            for p in ["(?i)" + packer] + details.get('aliases', []):
+                if re.search(p, s):
                     p = packer.lower()
                     d.setdefault(p, 0)
                     d[p] += 1
