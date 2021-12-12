@@ -4,7 +4,13 @@ from pboxtools import json, run
 
 
 def parse(output):
-    packer_strings = json.loads(output).get('peinfo', {}).get('features', {}).get('packer', [])
+    js = json.loads(output)
+    packer_strings = js.get('peinfo', {}).get('features', {}).get('packer', [])
+    if any(d.get('packer_compiler_signatures.yar', "") == "IsPacked" for d in js.get('yara_plugins', [])):
+        packer_strings.append("unknown")
+    for s in js.get('strings', {}).get('dump', []):
+        if "packed" in s.lower():
+            packer_strings.append(s)
     # filter some patterns found by trial and error
     for s in packer_strings[:]:
         if s.startswith("Microsoft_Visual_Cpp_"):
