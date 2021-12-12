@@ -96,6 +96,20 @@ BurnEye:
   source: https://packetstormsecurity.com/files/29691/burneye-1.0-linux-static.tar.gz.html
   status: broken
 
+ConfuserEx:
+  categories:
+    - .NET
+  description: ConfuserEx is a open-source protector for .NET applications. It is the successor of Confuser project.
+  install:
+    - wget:  https://github.com/mkaring/ConfuserEx/releases/download/v1.5.0/ConfuserEx-CLI.zip
+    - unzip: /opt/packers/confuserex
+    - mono:  Confuser.CLI.exe
+  references:
+    - https://github.com/yck1509/ConfuserEx
+    - https://opencollective.com/confuserex
+  source: https://github.com/mkaring/ConfuserEx
+  status: info
+
 Crinkler:
   categories:
     - PE
@@ -723,6 +737,8 @@ Xor_Packer:
   status: broken
 
 Yoda_Crypter:
+  aliases:
+    - yC
   categories:
     - PE32
   description: This is a small PE crypter with some nice protection options.
@@ -746,6 +762,8 @@ Yoda_Crypter:
   status: ok
 
 Yoda_Protector:
+  aliases:
+    - yP
   categories:
     - PE32
   description: Yoda's Protector is a free, open source, Windows 32-bit software protector. It performs string & resource encryption, resource compression, uses Microsoft Crypto API, program compression, program optimization, polymorphic encryption, API redirection, anti-debugging tricks, removes debug information and relocation table, optimizes and removes DOS header.
