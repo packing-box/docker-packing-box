@@ -94,6 +94,10 @@ class Dataset:
         """ Get dataset's length. """
         return len(self._data)
     
+    def __repr__(self):
+        """ Custom string representation. """
+        return "<%s dataset at 0x%x>" % (self.name, id(self))
+    
     def __setattr__(self, name, value):
         if name == "categories":
             # get the list of packers related to the selected categories
@@ -557,6 +561,11 @@ class Dataset:
             return True
         except ValueError as e:
             return False
+    
+    @classmethod
+    def iteritems(cls):
+        for row in cls.summarize(str(config['datasets']), False)[1].data:
+            yield Dataset(row[0])
     
     @classmethod
     def validate(cls, name, load=True):

@@ -18,6 +18,10 @@ class Item:
         self.type = self.__class__.__base__.__name__.lower()
         self.logger = logging.getLogger(self.name)
     
+    def __repr__(self):
+        """ Custom string representation for an item. """
+        return "<%s %s at 0x%x>" % (self.__class__.__name__, self.type, id(self))
+    
     def help(self):
         """ Returns a help message in Markdown format. """
         md = Report()
@@ -37,4 +41,14 @@ class Item:
         for i in cls.registry:
             if i.name == (item.name if isinstance(item, Item) else _fmt_name(item)):
                 return i
+    
+    @classmethod
+    def iteritems(cls):
+        """ Class-level iterator for returning enabled items. """
+        for i in cls.registry:
+            try:
+                if i.status in i.__class__._enabled:
+                    yield i
+            except AttributeError:
+                yield i
 
