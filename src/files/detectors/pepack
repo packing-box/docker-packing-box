@@ -3,8 +3,15 @@
 from pboxtools import re, run
 
 
-def parse(output):
+ARGS = [
+    [("-d", "--db"), {'default': "/opt/detectors/userdb.txt", 'help': "signatures database"}],
+]
+
+
+def parse(output, **kwargs):
     for l in output.splitlines():
+        if "no packer found" in l:
+            return
         # important note: this tool uses the same signature DB format as PEiD, it is therefore expected to produce the
         #                  same kind of output
         try:
@@ -19,5 +26,5 @@ def parse(output):
 
 
 if __name__ == "__main__":
-    run("PePack", parse_func=parse, exe_type="pe", exe_help="path to the PE file", db="/opt/detectors/userdb.txt")
+    run("PePack", parse_func=parse, exe_type="pe", exe_help="path to the PE file", parser_args=ARGS)
 

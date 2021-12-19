@@ -1,20 +1,28 @@
 #!/usr/bin/python3
 # -*- coding: UTF-8 -*-
-from pboxtools import re, run
+from pboxtools import re, run, version
 from peid import identify_packer
+from peid.__info__ import __author__, __license__, __source__, __version__
 
 
+ARGS = [
+    [("-d", "--db"), {'help': "signatures database"}],
+]
+
+
+@version("Packed Executable iDentifier (Python version) %s <%s> by %s\nLicense %s" % \
+         (__version__, __source__, __author__, __license__))
 def execute(name, **kwargs):
     try:
-        return identify_packer(kwargs['path'], db=kwargs['db'], logger=kwargs['logger'])[0][1], None
+        return identify_packer(kwargs['path'], db=kwargs['orig_args']['db'], logger=kwargs['logger'])[0][1], None
     except Exception as e:
         return None, str(e)
 
 
-def parse(output):
+def parse(output, **kwargs):
     return list(map(lambda x: x.split("->")[0].strip(), output))
 
 
 if __name__ == "__main__":
-    run("PEiD", exec_func=execute, parse_func=parse, exe_type="pe", exe_help="path to the PE file", db=None)
+    run("PEiD", exec_func=execute, parse_func=parse, exe_type="pe", exe_help="path to the PE file", parser_args=ARGS)
 

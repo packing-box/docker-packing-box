@@ -3,16 +3,25 @@
 from pboxtools import re, run
 
 
-def parse(output):
+def parse(output, **kwargs):
     r = []
     for l in output.splitlines():
         try:
-            r.append(re.search(r"^\* Section name .+ is typical for ([a-zA-Z0-9_\-\s]+) packer$", l).group(1).lower())
+            r.append(re.search(r"^\* Section name .+ is typical for (.+) packer$", l).group(1).lower())
         except AttributeError:
             pass
+        if kwargs['weak']:
+            for p in [r"^Entry Point is in section \d+ with name (.+)$",
+                      r"^\* Section \d+ with name (.+) has write and execute characteristics\.$",
+                      r"^\* Entry point is in writeable section \d+ with name (.+)$",
+                      r"^\* Section name is unusual: (.+)$"]:
+                try:
+                    r.append(re.search(p, l).group(1).lower())
+                except AttributeError:
+                    pass
     return r
 
 
 if __name__ == "__main__":
-    run("PortEx", parse_func=parse, exe_type="pe", exe_help="path to the PE file")
+    run("PortEx", parse_func=parse, exe_type="pe", exe_help="path to the PE file", weak_assumptions=True)
 

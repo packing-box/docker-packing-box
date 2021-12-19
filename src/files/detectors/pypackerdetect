@@ -1,17 +1,24 @@
 #!/usr/bin/python3
 # -*- coding: UTF-8 -*-
-from pboxtools import run
+from pboxtools import run, version
 from pypackerdetect import PyPackerDetect
-from sys import stderr
+from pypackerdetect.__info__ import __author__, __credits__, __license__, __source__, __version__
 
 
+@version("PyPackerDetect %s <%s> originally by %s, refactored by %s\nLicense %s" % \
+         (__version__, __source__, __author__, __credits__, __license__))
 def execute(name, **kwargs):
     try:
-        return PyPackerDetect(logger=kwargs['logger']).detect(kwargs['path'])['detections'], None
+        return PyPackerDetect(logger=kwargs['logger']).detect(kwargs['path']), None
     except Exception as e:
         return None, str(e)
 
 
+def parse(output, **kwargs):
+    return output['detections'] + [[], output['suspicions']][kwargs['weak']]
+
+
 if __name__ == "__main__":
-    run("PyPackerDetect", exec_func=execute, exe_type="pe", exe_help="path to the PE file")
+    run("PyPackerDetect", exec_func=execute, parse_func=parse, exe_type="pe", exe_help="path to the PE file",
+        weak_assumptions=True)
 

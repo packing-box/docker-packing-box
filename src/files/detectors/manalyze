@@ -3,29 +3,70 @@
 from pboxtools import re, run
 
 
-def parse(output):
+PLUGINS = {
+    'all': "run all the available plugins",
+    'authenticode': "checks if the digital signature of the PE is valid",
+    'clamav': "scans the binary with ClamAV virus definitions",
+    'compiler': "tries to determine which compiler generated the binary",
+    'cryptoaddress': "looks for valid BTC / XMR addresses in the binary",
+    'findcrypt': "detects embedded cryptographic constants",
+    'imports': "looks for suspicious imports",
+    'mitigation': "displays the enabled exploit mitigation techniques (DEP, ASLR, etc.)",
+    'overlay': "analyzes data outside of the PE's boundaries",
+    'packer': "tries to structurally detect packer presence (enabled by default)",
+    'peid': "returns the PEiD signature of the binary",
+    'resources': "analyzes the program's resources",
+    'strings': "looks for suspicious strings (anti-VM, process names...)",
+    'virustotal': "checks existing AV results on VirusTotal",
+}
+ARGS = [
+    [("--hashes", ),
+     {'action': "store_true", 'help': "calculate various hashes of the file (may slow down the analysis!)"}],
+    [("-d", "--dump"),
+     {'action': "append", 'help': "dump PE information\navailable choices are any combination of:\nall, summary, dos "
+                                  "(dos header), pe (pe header), opt (pe optional header), sections,\nimports, exports,"
+                                  " resources, version, debug, tls, config (image load configuration),\ndelay (delay-"
+                                  "load table), rich"}],
+    [("-o", "--output"),
+     {'metavar': "FORMAT", 'choices': ["raw", "json"], 'default': "raw",
+      'help': "output format ('raw' (default) or 'json')"}],
+    [("-p", "--plugin"),
+     {'action': "append", 'metavar': "NAME", 'choices': [x for x in PLUGINS.keys() if x != "packer"],
+      'help': "analyze the binary with additional plugins. (may slow down the analysis!)\navailable plugins:\n%s" % \
+              "\n".join(" - {: <14} {}".format(n + ":", d) for n, d in PLUGINS.items())}],
+]
+
+
+def parse(output, **kwargs):
     p, patterns = None, []
     for l in output.splitlines():
         try:
-            r = re.search(r"^\[ .+? \] Th(?:e|is) PE is packed with (.+)", l).group(1)
-            return r.strip().replace(" ", "-").lower()
+            r = re.search(r"^\[ .+? \] Th(?:e|is) PE is packed with (.+?)$", l).group(1).split(" or ")
+            if len(r) > 1 and not kwargs['weak']:
+                patterns.append("unknown")  # in this case, cannot decide
+                continue
+            for x in r:
+                patterns.append(x.strip().replace(" ", "-").lower())
+            continue
         except (AttributeError, TypeError):
             pass
-        if "The PE is possibly packed." in l:
-            p = "unknown"
-        if p == "unknown" and "Unusual section name found:" in l:
-            s = l.split(":", 1)[1].strip()
-            # observed by trial and error: pattern "/[0-9]+" comes from names of sections of the binary that namely
-            #  generate warnings ; Manalyze consider them as "unusual section names", therefore flagging the binary
-            #  as possibly packed
-            if re.search(r"^/[0-9]+$", s):
-                continue
-            if len(s) > 0:
-                patterns.append(s)  # possibly a string of interest for identifying the packer ; e.g. "petite"
+        if kwargs['weak']:
+            if "The PE is possibly packed." in l:
+                patterns.append("unknown")
+            if "Unusual section name found:" in l:
+                s = l.split(":", 1)[1].strip()
+                # observed by trial and error: pattern "/[0-9]+" comes from names of sections of the binary that namely
+                #  generate warnings ; Manalyze consider them as "unusual section names", therefore flagging the binary
+                #  as possibly packed
+                if re.search(r"^/[0-9]+$", s):
+                    continue
+                if len(s) > 0:
+                    patterns.append(s)  # possibly a string of interest for identifying the packer ; e.g. "petite"
     return p if len(patterns) == 0 else patterns
 
 
 if __name__ == "__main__":
     # https://github.com/JusticeRage/Manalyze/blob/master/plugins/plugin_packer_detection.cpp
-    run("Manalyze", parse_func=parse, exe_type="pe", exe_help="path to the PE file")
+    run("Manalyze", parse_func=parse, exe_type="pe", exe_help="path to the PE file", weak_assumptions=True,
+        parser_args=ARGS)
 

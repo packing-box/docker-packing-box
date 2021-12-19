@@ -43,11 +43,13 @@ DIE:
       - ./build_lin64.sh 2>/dev/null
       - find /tmp/DIE-engine/release -type f -exec tar xzf {} -C /opt/detectors \;
       - tar xf /tmp/die.tar.xz -C /opt/detectors/die_lin64_portable
+      - cp /tmp/DIE-engine/release_version.txt /opt/detectors/die_lin64_portable/
   silent:
     - "\\+{1,2} ([a-z]{2,12}|[A-Z]+([-_][A-Z]+)*)"
     - "[a-z]{2,12}:"
-  source: https://github.com/horsicq/Detect-It-Easy
-  status: ok
+  source:  https://github.com/horsicq/Detect-It-Easy
+  status:  ok
+  version: /opt/detectors/die_lin64_portable/release_version.txt
 
 Exeinfo_PE:
   categories:
@@ -115,7 +117,7 @@ PeFrame:
   categories:
     - MSDOS
     - PE
-  command: /usr/local/bin/peframe -sj {path}
+  command: /usr/local/bin/peframe {path}
   description: Open source tool to perform static analysis on Portable Executable malware and malicious MS Office documents.
   install:
     - pip:  git+https://github.com/digitalsleuth/peframe
@@ -126,7 +128,6 @@ PePack:
   categories:
     - MSDOS
     - PE
-  command: /usr/bin/pepack -d {db} {path}
   description: Check if a PE file is packed. This tool belongs to pev, an open source, full-featured, multiplatform command line toolkit to work with PE (Portable Executables) binaries.
   install:
     - apt: pev
@@ -144,7 +145,8 @@ PEiD:
     - https://www.aldeid.com/wiki/PEiD
     - www.softpedia.com/get/Programming/Packers-Crypters-Protectors/PEiD-updated.shtml
     - https://github.com/ynadji/peid/
-  source: https://github.com/wolfram77web/app-peid
+    - https://github.com/wolfram77web/app-peid
+  source: https://github.com/dhondta/peid
   status: ok
   maintained: false
 

@@ -739,6 +739,7 @@ Xor_Packer:
 Yoda_Crypter:
   aliases:
     - yC
+    - (?i)Yodas[_\s]Crypter
   categories:
     - PE32
   description: This is a small PE crypter with some nice protection options.
@@ -764,6 +765,7 @@ Yoda_Crypter:
 Yoda_Protector:
   aliases:
     - yP
+    - (?i)Yodas[_\s]Protector
   categories:
     - PE32
   description: Yoda's Protector is a free, open source, Windows 32-bit software protector. It performs string & resource encryption, resource compression, uses Microsoft Crypto API, program compression, program optimization, polymorphic encryption, API redirection, anti-debugging tricks, removes debug information and relocation table, optimizes and removes DOS header.

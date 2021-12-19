@@ -3,7 +3,7 @@
 from pboxtools import re, run
 
 
-def parse(output):
+def parse(output, **kwargs):
     r = []
     for l in output.splitlines():
         try:

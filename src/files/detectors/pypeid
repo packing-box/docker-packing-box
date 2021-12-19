@@ -1,10 +1,13 @@
 #!/usr/bin/python3
 # -*- coding: UTF-8 -*-
 from pboxtools import pformat, run
-from pypeid import PEiDScanner
+from pypeid import __version__, PEiDScanner
 
 
 def execute(name, **kwargs):
+    if kwargs.get('version', False):
+        print("PyPEiD %s" % __version__)
+        exit(0)
     try:
         r = PEiDScanner().scan_file(kwargs['path'])
         kwargs['logger'].debug("\n" + pformat(r, indent=4))

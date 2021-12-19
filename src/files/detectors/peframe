@@ -3,14 +3,40 @@
 from pboxtools import json, run
 
 
-def parse(output):
-    js = json.loads(output)
-    packer_strings = js.get('peinfo', {}).get('features', {}).get('packer', [])
-    if any(d.get('packer_compiler_signatures.yar', "") == "IsPacked" for d in js.get('yara_plugins', [])):
-        packer_strings.append("unknown")
-    for s in js.get('strings', {}).get('dump', []):
-        if "packed" in s.lower():
-            packer_strings.append(s)
+ARGS = [
+    [("-j", "--json"), {'action': "store_true", 'help': "export short report in JSON"}],
+    [("-x", "--xorsearch"), {'help': "search xored string"}],
+]
+
+
+def parse(output, **kwargs):
+    js, packer_strings = kwargs['orig_args']['json'], []
+    if js:
+        js = json.loads(output)
+        packer_strings.extend(js.get('peinfo', {}).get('features', {}).get('packer', []))
+        if any(d.get('packer_compiler_signatures.yar', "") == "IsPacked" for d in js.get('yara_plugins', [])):
+            packer_strings.append("unknown")
+        if kwargs['weak']:
+            for s in js.get('strings', {}).get('dump', []):
+                # collect strings explicitly mentioning it is packed or section names
+                if "packed" in s.lower() or s.startswith("."):
+                    packer_strings.append(s)
+    else:
+        sections, sec = ["Yara Plugins", "Packer", "Sections Suspicious"], None
+        for l in output.splitlines():
+            if l in sections:
+                sec = l
+                continue
+            if sec is None or 40 * "-" in l:
+                continue
+            if l == "":
+                sec = None
+            elif sec == "Yara Plugins" and "IsPacked" in l:
+                packer_strings.append("unknown")
+            elif sec == "Packer":
+                packer_strings.append(l)
+            elif sec == "Sections Suspicious" and kwargs['weak']:
+                packer_strings.append(l.split(" ", 1)[0].strip())
     # filter some patterns found by trial and error
     for s in packer_strings[:]:
         if s.startswith("Microsoft_Visual_Cpp_"):
@@ -19,5 +45,6 @@ def parse(output):
 
 
 if __name__ == "__main__":
-    run("PeFrame", parse_func=parse, exe_type="pe", exe_help="path to the PE file")
+    run("PeFrame", parse_func=parse, exe_type="pe", exe_help="path to the PE file", weak_assumptions=True,
+        parser_args=ARGS)
 
