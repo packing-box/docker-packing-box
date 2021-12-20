@@ -1,5 +1,3 @@
-# Quick Start
-
 When running the [Docker image](index.html#run), we are presented with a root shell that starts with a help message like this:
 
 ![](https://raw.githubusercontent.com/dhondta/docker-packing-box/main/docs/screenshot.png)
@@ -67,36 +65,10 @@ Usage examples:
 
 The help message of this tool shows some examples for setting up and testing items.
 
-```session
-00:00:01.259 [INFO] Testing UPX...
-00:00:01.260 [INFO] ELF32
-00:00:02.293 [ERROR] upx: /tmp/packer-tests-c330ab41/perl5.30-i386-linux-gnu: NotCompressibleException
-00:00:02.293 [FAILURE] perl5.30-i386-linux-gnu
-00:00:02.316 [ERROR] upx: /tmp/packer-tests-c330ab41/wine: NotCompressibleException
-00:00:02.316 [FAILURE] wine
-00:00:02.587 [SUCCESS] wineserver32
-00:00:02.590 [INFO] ELF64
-00:00:02.664 [SUCCESS] ls
-00:00:02.696 [SUCCESS] manconv
-00:00:02.064 [SUCCESS] ssh-keysign
-00:00:04.952 [SUCCESS] git
-00:00:04.964 [INFO] MSDOS
-00:00:04.991 [ERROR] upx: /tmp/packer-tests-c330ab41/rundll.exe: IOException: file is too small -- skipped
-00:00:04.991 [FAILURE] rundll.exe
-00:00:04.021 [SUCCESS] gdi.exe
-00:00:04.054 [SUCCESS] user.exe
-00:00:04.085 [ERROR] upx: /tmp/packer-tests-c330ab41/mouse.drv: CantPackException: file is too small
-00:00:04.086 [FAILURE] mouse.drv
-00:00:04.114 [ERROR] upx: /tmp/packer-tests-c330ab41/winaspi.dll: CantPackException: file is too small
-00:00:04.114 [FAILURE] winaspi.dll
-00:00:04.114 [INFO] PE32
-00:00:05.324 [SUCCESS] winhlp32.exe
-00:00:05.393 [SUCCESS] plugplay.exe
-00:00:05.498 [SUCCESS] winemine.exe
-00:00:05.571 [SUCCESS] twain_32.dll
-00:00:05.575 [INFO] PE64
-00:00:05.631 [SUCCESS] hh.exe
-00:00:05.691 [SUCCESS] spoolsv.exe
-00:00:05.843 [SUCCESS] dmscript.dll
-```
+## Specific Tools
 
+From the *Tools* section in the output of the `?` tool, we also see:
+
+- `dataset`: for making datasets of packed and not packed executables ; this can also ingest existing datasets provided their labels
+- `detector`: for testing integrated detectors ; this works on various input formats: single executable | folder of executables | dataset
+- `model`: for training machine learning models and observing model parameters

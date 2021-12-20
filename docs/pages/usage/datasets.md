@@ -4,22 +4,30 @@
 
 ## Structure
 
-A dataset folder holds the following files/folders:
+A (normal) dataset folder holds the following files/folders:
 
 ```
 [name]
   +-- files
   |     +-- {executables, renamed to their SHA256 hashes}
-  +-- data.csv (contains the labels)        # features for an executable, formatted for ML
-  +-- features.json                         # dictionary of feature name/description pairs
-  +-- labels.json                           # dictionary of hashes with their full labels
-  +-- metadata.json                         # simple statistics about the dataset
-  +-- names.json                            # dictionary of hashes and their real filenames
+  +-- data.csv          # metadata and labels of the executable
+  +-- metadata.json     # simple statistics about the dataset
 ```
+
+A fileless dataset has the following structure:
+
+```
+[name]
+  +-- data.csv          # metadata and labels of the executable
+  +-- features.json     # dictionary of selected features and their descriptions
+  +-- metadata.json     # simple statistics about the dataset
+```
+
+Fileless datasets can be used when we are sure of the features set to be computed. It can also save substantial disk space (such a dataset will at most take a few megabytes of data while the executables from the original one could occupy gigabytes).
 
 ## Tool
 
-A [dedicated tool](https://github.com/dhondta/docker-packing-box/blob/main/files/tools/dataset) is provided with the [Packing Box](https://github.com/dhondta/docker-packing-box) to manipulate datasets. Its help message tells everything the user needs to get started.
+A [dedicated tool](https://github.com/dhondta/docker-packing-box/blob/main/files/tools/dataset) called `dataset` is provided with the [*Packing Box*](https://github.com/dhondta/docker-packing-box) to manipulate datasets. Its help message tells everything the user needs to get started.
 
 ```session
 # dataset --help
