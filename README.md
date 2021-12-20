@@ -1,3 +1,4 @@
+<p align="center"><img src="https://github.com/dhondta/docker-packing-box/raw/main/docs/logo.png"></p>
 <h1 align="center">Packing Box <a href="https://twitter.com/intent/tweet?text=Packing%20Box%20-%20A%20Docker%20container%20featuring%20many%20packers,%20unpackers%20and%20detectors%20for%20studying%20executable%20packing,%20including%20machine%20learning%20dataset%20generation%20and%20algorithms.%0D%0Ahttps%3a%2f%2fgithub%2ecom%2fdhondta%2fdocker-packing-box%0D%0A&hashtags=docker,pe,elf,macho,packer,unpacker,packingdetection,peid,upx"><img src="https://img.shields.io/badge/Tweet--lightgrey?logo=twitter&style=social" alt="Tweet" height="20"/></a></h1>
 <h3 align="center">Study executable packing in a dedicated platform.</h3>
 
