@@ -37,3 +37,6 @@ alias ccat='pygmentize -O bg=dark,style=colorful'
 # gksudo gone in Ubuntu 18.04 ; create an alias
 alias gksudo='sudo -H'
 
+# visidata shortcut
+alias csview='visidata --csv-delimiter ";" $@'
+
