@@ -46,7 +46,6 @@ DIE:
       - cp /tmp/DIE-engine/release_version.txt /opt/detectors/die_lin64_portable/
   silent:
     - "\\+{1,2} ([a-z]{2,12}|[A-Z]+([-_][A-Z]+)*)"
-    - "[a-z]{2,12}:"
   source:  https://github.com/horsicq/Detect-It-Easy
   status:  ok
   version: /opt/detectors/die_lin64_portable/release_version.txt

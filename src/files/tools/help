@@ -44,9 +44,9 @@ def overview(show=False, category=None):
         r, d = cls.summary(show, category)
         report.append(*r)
         descr.update(d)
-    report.append(*Dataset.summarize(".", args.show_all))
     report.append(Section("Legend"),
                   Text(" ; ".join("%s  %s" % (k, v) for k, v in sorted(descr.items(), key=lambda x: x[1]))))
+    report.append(*Dataset.summarize(".", args.show_all))
     return report.md()
 
 

@@ -16,18 +16,24 @@ __examples__    = []
 __description__ = "Detect the packer used on an input executable/folder/dataset"
 
 
+def detector_name(d):
+    return Detector.get(d)
+
+
 if __name__ == '__main__':
     parser.add_argument("executable", help="executable or folder containing executables or dataset")
-    parser.add_argument("-b", "--binary-class", action="store_true", help="only consider if packed or not")
-    parser.add_argument("-d", "--detector", action="extend", nargs="*", type=lambda d: Detector.get(d),
+    parser.add_argument("-b", "--binary", action="store_true", help="only consider if packed or not")
+    parser.add_argument("-d", "--detector", action="extend", nargs="*", type=detector_name,
                         help="detector(s) to be used")
     grp = parser.add_mutually_exclusive_group()
     grp.add_argument("-f", "--failures-only", action="store_true", help="output failures only")
     grp.add_argument("-m", "--metrics-only", action="store_true", help="output metrics only")
+    parser.add_argument("-w", "--weak", action="store_true", help="also consider weak assumptions")
     initialize(noargs_action="usage", multi_level_debug=True)
-    kw = {'debug': args.verbose > 0, 'verbose': args.verbose > 1, 'multiclass': not args.binary_class}
+    kw = {'debug': args.verbose > 0, 'verbose': args.verbose > 1, 'multiclass': not args.binary, 'weak': args.weak}
     stats, pbar = {'fn': 0, 'fp': 0, 'tn': 0, 'tp': 0}, None
-    if args.detector:
+    # using a single detector
+    if len(args.detector) == 1:
         for name in args.detector:
             for r in Detector.get(name).detect(args.executable, **kw):
                 try:
@@ -37,34 +43,41 @@ if __name__ == '__main__':
                 except ValueError:
                     e, r = r
                     l = -1
-                if pbar is None and hasattr(e, "len"):
+                if pbar is None and hasattr(e, "len") and e.len > 1:
                     pbar = tqdm(total=e.len, unit="executable")
                 if not args.metrics_only:
                     mc = kw['multiclass']
                     disp = "not packed" if (r is None and mc) or (r is False and not mc) else r if mc else "packed"
-                    if not args.failures_only or r != l != -1:
-                        ([logger.failure, logger.success][r == l] if l != -1 else logger.info)("{}: {}".format(e, disp))
+                    if not args.failures_only or r != l and r != -1:
+                        log = [logger.failure, logger.success][r == l] if l != -1 else logger.warning
+                        log("{}: {}".format(e, disp))
                 if r != -1:
                     stats[['tp', 'tn'][r is None] if r == l else ['fp', 'fn'][r is None]] += 1
                 if pbar is not None:
                     pbar.update()
+    # using part or all of the available detectors
     else:
+        if len(args.detector) != 0:
+            kw['select'] = args.detector
         for r in Detector.detect(args.executable, **kw):
             try:
                 e, r, l, details = r
             except ValueError:
                 e, r, l = r
                 details = {}
-            if pbar is None and hasattr(e, "len"):
+            if pbar is None and hasattr(e, "len") and e.len > 1:
                 pbar = tqdm(total=e.len, unit="executable")
             if not args.metrics_only:
                 mlen = 0
                 for name in details.keys():
                     mlen = max(mlen, len(name))
+                msg = "Decisions:"
                 for name, label in details.items():
-                    logger.warning(("{: <%d}: {}" % mlen).format(name, label or "-"))
+                    msg += ("\n{: <%d}: {}" % mlen).format(name, label or "-")
+                logger.warning(msg)
                 if not args.failures_only or r != l:
-                    [logger.failure, logger.success][r == l]("{}: {}".format(e, r))
+                    log = [logger.failure, logger.success][r == l] if l != -1 else logger.warning
+                    log("{}: {}".format(e, r))
             if r != -1:
                 stats[['tp', 'tn'][r is None] if r == l else ['fp', 'fn'][r is None]] += 1
             if pbar is not None:
@@ -75,6 +88,8 @@ if __name__ == '__main__':
     m = [ph[k](v) if v >= 0 else "-" for k, v in zip(h, m)]
     if args.metrics_only:
         print(",".join(m))
+    elif sum(stats.values()) == 1:
+        print(r)
     else:
         r = Section("Detection results: "), Table([m], column_headers=h)
         print(mdv.main(Report(*r).md()))
