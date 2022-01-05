@@ -7,7 +7,7 @@ from tinyscript.report import *
 __all__ = ["Item"]
 
 
-_fmt_name = lambda x: x.lower().replace("_", "-")
+_fmt_name = lambda x: (x or "").lower().replace("_", "-")
 
 
 class Item:
@@ -36,11 +36,13 @@ class Item:
         return md.md()
     
     @classmethod
-    def get(cls, item):
+    def get(cls, item, error=True):
         """ Simple class method for returning the class of an item based on its name (case-insensitive). """
         for i in cls.registry:
             if i.name == (item.name if isinstance(item, Item) else _fmt_name(item)):
                 return i
+        if error:
+            raise ValueError("'%s' is not defined" % item)
     
     @classmethod
     def iteritems(cls):

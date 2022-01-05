@@ -196,7 +196,11 @@ class Base(Item):
     def run(self, executable, **kwargs):
         """ Customizable method for shaping the command line to run the item on an input executable. """
         retval = self.name
-        use_output, benchmark, verbose = False, kwargs.get('benchmark', False), kwargs.get('verbose', False)
+        use_output = False
+        benchmark = kwargs.get('benchmark', False)
+        binary = kwargs.get('binary', False)
+        verbose = kwargs.get('verbose', False)
+        weak = kwargs.get('weak')
         kw = {'logger': self.logger, 'silent': []}
         if not config['wine_errors']:
             kw['silent'].append(r"^[0-9a-f]{4}:(err|fixme):")
@@ -209,9 +213,15 @@ class Base(Item):
         output = None
         cwd = os.getcwd()
         for step in getattr(self, "steps", ["%s %s" % (self.name, executable)]):
-            if self.name in step and benchmark:
-                i = step.index(self.name)
-                step = step[:i] + self.name + " -b" + step[i+len(self.name):]
+            if self.name in step:
+                i, opt = step.index(self.name), ""
+                if benchmark:
+                    opt += " -b"
+                if binary:
+                    opt += " --binary"
+                if weak is not None and weak:
+                    opt += " --weak"
+                step = step[:i] + self.name + opt + step[i+len(self.name):]
             attempts = []
             # first, replace generic patterns
             step = _repl(step)

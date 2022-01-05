@@ -8,6 +8,9 @@ from ..common.utils import class_or_instance_method, file_or_folder_or_dataset, 
 __all__ = ["Detector"]
 
 
+THRESHOLD = lambda l: round(l / 2. + .5)  # majority vote
+
+
 class Detector(Base):
     """ Detector abstraction.
     
@@ -31,9 +34,10 @@ class Detector(Base):
         l = kwargs.get('label')
         actual_label = [(), (l if multiclass else l is not None, )]['label' in kwargs]
         if isinstance(self, type):
-            registry = [d for d in Detector.registry if d.check(Executable(executable).category) and \
-                                                        getattr(d, "vote", True)]
-            results, details = {None: -len(registry) + kwargs.get('threshold', 3)}, {}
+            registry = [d for d in kwargs.get('select', Detector.registry) \
+                        if d.check(Executable(executable).category) and getattr(d, "vote", True)]
+            t = kwargs.get('threshold', THRESHOLD)
+            results, details = {None: -len(registry) + t(len(registry)) if isinstance(t, type(lambda: 0)) else t}, {}
             for detector in registry:
                 # do not consider Yes|No-detectors if the multiclass option is set
                 if multiclass and not getattr(detector, "multiclass", True):
@@ -59,6 +63,8 @@ class Detector(Base):
                 return -1
             # now try to detect a packer on the input executable
             label = self.run(e, **kwargs)
+            if kwargs.get('verbose', False):
+                print("")
             # if packer detection succeeded, we can return packer's label
             if label:
                 self.logger.debug("%s detected as packed with %s by %s" % (e.filename, label, self.name))
