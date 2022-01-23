@@ -1,0 +1,81 @@
+#!/usr/bin/python3
+# -*- coding: UTF-8 -*-
+import bintropy
+from tinyscript import *
+
+
+__version__     = "1.0.1"
+__doc__         = """
+This tool aims to generate representations of binaries, emphasizing their sections and plotting their entropy,
+ for the sake of comparing them, e.g. an original PE file and its packed versions.
+"""
+__examples__    = [
+    "geek.exe PackingData",
+    "\"PsExec.exe$\" PackingData -l Notpacked -l MEW -l NSPack -l RLPack -l UPX",
+    "\"pskill.exe$\" PackingData -f jpg",
+]
+__description__ = "Generate a figure with representations of input binaries' sections and entropy"
+
+
+LABELS = {
+    'Notpacked':      "Original",
+    'BeRoEXEPacker':  "BeRo",
+}
+
+
+def find(folder, pattern, selected=None):
+    """ Find files matching the given filename pattern withing the specified folder. It uses subfolders' names as labels
+         for categorizing the matching file.
+    
+    For instance:
+        FOLDER
+          +-- Notpacked
+          +-- Others
+                +-- ASPack
+                +-- UPX
+                +-- WinUPack
+        
+        if a file matches in every subfolder, we will have (filename => label):
+            [filename-from-Notpacked] => Notpacked
+            [filename-from-Others/ASPack] => ASPack
+            [...]
+    
+    :param folder:   source folder
+    :param pattern:  pattern for matching files
+    :param selected: list of labels to be filtered (keeps the order)
+    """
+    folder = ts.Path(folder)
+    labels, files = [], []
+    for fp in folder.walk(lambda f: f.is_file()):
+        if re.search(pattern, fp.filename):
+            l = fp.dirname.basename
+            if not selected or l in selected:
+                labels.append(l)
+                files.append(fp)
+    if selected:
+        labels2, files2 = [], []
+        for label in selected:
+            try:
+                files2.append(files[labels.index(label)])
+                labels2.append(label)
+            except ValueError:
+                logger.warning("'%s' not found in labels" % label)
+        return selected, files2
+    return labels, files
+
+
+if __name__ == "__main__":
+    parser.add_argument("filename", help="binary to be represented")
+    parser.add_argument("folder", type=ts.folder_exists, help="source folder for PackingData")
+    parser.add_argument("-f", "--format", default="png", choices=["jpg", "png", "tif", "svg"], help="image format")
+    parser.add_argument("-l", "--label", nargs="*", action="extend", help="select a particular label (keeps order)")
+    initialize()
+    imgn = ts.Path(args.filename).stem
+    logger.info("Collecting files from %s for pattern '%s'..." % (args.folder, args.filename))
+    labels, files = find(args.folder, args.filename, args.label)
+    labels = [LABELS.get(l, l) for l in labels]
+    for f in files:
+        logger.debug("> %s" % f)
+    logger.info("Making plot to %s.%s..." % (imgn, args.format))
+    bintropy.plot(*files, img_name=imgn, labels=labels, sublabel="size-ep-ent")
+
