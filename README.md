@@ -1,4 +1,4 @@
-<p align="center"><img src="https://github.com/dhondta/docker-packing-box/raw/main/docs/logo.png"></p>
+<p align="center"><img src="https://github.com/dhondta/docker-packing-box/raw/main/docs/imgs/logo.png"></p>
 <h1 align="center">Packing Box <a href="https://twitter.com/intent/tweet?text=Packing%20Box%20-%20A%20Docker%20container%20featuring%20many%20packers,%20unpackers%20and%20detectors%20for%20studying%20executable%20packing,%20including%20machine%20learning%20dataset%20generation%20and%20algorithms.%0D%0Ahttps%3a%2f%2fgithub%2ecom%2fdhondta%2fdocker-packing-box%0D%0A&hashtags=docker,pe,elf,macho,packer,unpacker,packingdetection,peid,upx"><img src="https://img.shields.io/badge/Tweet--lightgrey?logo=twitter&style=social" alt="Tweet" height="20"/></a></h1>
 <h3 align="center">Study executable packing easy with this dedicated platform.</h3>
 
@@ -7,7 +7,7 @@
 
 This Docker image aims to regroup multiple common executable packers and make datasets of packed executables.
 
-![](docs/screenshot.png)
+![](docs/imgs/screenshot.png)
 
 ## :fast_forward: Quick Start
 
@@ -48,6 +48,7 @@ You may also like these:
 
 - [Awesome Executable Packing](https://github.com/dhondta/awesome-executable-packing): A curated list of awesome resources related to executable packing.
 - [Bintropy](https://github.com/dhondta/bintropy): Analysis tool for estimating the likelihood that a binary contains compressed or encrypted bytes.
+- [Dataset of packed PE files](https://github.com/dhondta/dataset-packed-pe): Curated dataset of PE samples packed with 19 different packers.
 - [PEiD](https://github.com/dhondta/peid): Python implementation of the Packed Executable iDentifier (PEiD).
 - [PyPackerDetect](https://github.com/dhondta/PyPackerDetect): Packing detection tool for PE files.
 

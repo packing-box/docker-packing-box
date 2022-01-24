@@ -80,7 +80,7 @@ The *status* can be set to (*real_value* - *value_to_be_set_in_YAML*):
 - `3` - [*none*]: this status can be obtained when it was not set explicitly in the YAML, and the command with the name of the tool DOES appear in the system's in-`PATH` binaries
 - `4` - `ok`: this is for tagging the tool as tested and operational
 
-All these statuses are shown with dedicated special colored characters in the help message of the box (see [this screenshot](https://raw.githubusercontent.com/dhondta/docker-packing-box/main/docs/screenshot.png)).
+All these statuses are shown with dedicated special colored characters in the help message of the box (see [this screenshot](https://raw.githubusercontent.com/dhondta/docker-packing-box/main/docs/imgs/screenshot.png)).
 
 ## Installation
 

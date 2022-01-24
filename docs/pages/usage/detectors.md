@@ -29,9 +29,11 @@ extra arguments:
            NB: -vvv is the highest verbosity level
 ```
 
-From the optional options, we can see that it allows to force the detector to work with binary classes (True/False, or packed/not-packed) or also to consider weak assumptions (typically, when detectors output detections and suspicions). It can also compute metrics and output only entries that diverge from the expected result (this is only relevant when using the detector against a dataset, in which expected labels are included).
+From the optional arguments, we can see that it allows to force the detector to work with binary classes (True/False, in other words packed or not packed) and also to consider weak assumptions (typically, when detectors output detections but suspicions as well). It can also compute metrics and output only entries that diverge from the expected result (this is only relevant when using the detector against a dataset, in which expected labels are included).
 
 ## Detection
+
+This tool can be used directly on a dataset or a folder. In this case, every sample from the target dataset is checked with the selected detector against its label and various performance metrics are determined, as shown in the example below.
 
 ```session
 # detector test-upx -d manalyze -f
@@ -43,6 +45,23 @@ From the optional options, we can see that it allows to force the detector to wo
   100.00%   100.00%    100.00%  100.00%
   ────────  ─────────  ───────  ─────────
 
+```
+
+It can also be used on a single file without specifying a detector. In this case, every detector will be run on the target executable and the final decision is simple majority vote. In the following example, we use one level of verbosity ("`-v`") to see the results of each detector. Note that "`-vv`" would also display the output of each detector.
+
+```session
+# detector upx_calc.exe -v
+12:34:56 [WARNING] Decisions:
+die           : upx
+manalyze      : upx
+peframe       : upx
+pepack        : -
+peid          : upx
+portex        : upx
+pypackerdetect: upx
+pypeid        : upx
+22:21:22 [WARNING] upx_calc.exe: upx
+upx
 ```
 
 ## Measurements
