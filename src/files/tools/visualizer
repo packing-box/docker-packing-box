@@ -18,6 +18,7 @@ __description__ = "Generate a figure with representations of input binaries' sec
 
 
 LABELS = {
+    'not-packed':     "Original",
     'Notpacked':      "Original",
     'BeRoEXEPacker':  "BeRo",
 }
@@ -69,6 +70,7 @@ if __name__ == "__main__":
     parser.add_argument("folder", type=ts.folder_exists, help="source folder for PackingData")
     parser.add_argument("-f", "--format", default="png", choices=["jpg", "png", "tif", "svg"], help="image format")
     parser.add_argument("-l", "--label", nargs="*", action="extend", help="select a particular label (keeps order)")
+    parser.add_argument("-s", "--scale", action="store_true", help="scale plots according to the first binary")
     initialize()
     imgn = ts.Path(args.filename).stem
     logger.info("Collecting files from %s for pattern '%s'..." % (args.folder, args.filename))
@@ -77,5 +79,5 @@ if __name__ == "__main__":
     for f in files:
         logger.debug("> %s" % f)
     logger.info("Making plot to %s.%s..." % (imgn, args.format))
-    bintropy.plot(*files, img_name=imgn, labels=labels, sublabel="size-ep-ent")
+    bintropy.plot(*files, img_name=imgn, labels=labels, sublabel="size-ep-ent", scale=args.scale)
 
