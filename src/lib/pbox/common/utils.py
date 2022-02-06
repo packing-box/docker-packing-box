@@ -4,7 +4,7 @@ import yaml
 from functools import wraps
 from time import perf_counter, time
 from tinyscript import inspect
-from tinyscript.helpers import is_executable, is_file, is_folder, Path
+from tinyscript.helpers import is_file, is_folder, Path
 try:  # from Python3.9
     import mdv3 as mdv
 except ImportError:
@@ -103,13 +103,13 @@ def file_or_folder_or_dataset(method):
                 for exe in i._iter_with_features(kwargs.get('feature'), kwargs.get('pattern')):
                     e.append(exe)
             # single executable
-            elif is_file(i) and is_executable(i) and i not in e:
+            elif is_file(i) and i not in e:
                 i = Path(i)
                 i.dataset = None
                 e.append(i)
             # normal folder or FilelessDataset's path or Dataset's files path
             elif is_folder(i):
-                for f in Path(i).listdir(is_executable):
+                for f in Path(i).listdir():
                     f.dataset = None
                     if str(f) not in e:
                         e.append(f)
@@ -133,7 +133,7 @@ def file_or_folder_or_dataset(method):
                     else:
                         i = i.joinpath("files")
                 if is_folder(i):
-                    for f in i.listdir(is_executable):
+                    for f in i.listdir():
                         f.dataset = dataset
                         if str(f) not in e:
                             e.append(f)
