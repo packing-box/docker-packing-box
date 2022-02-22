@@ -18,7 +18,7 @@ __examples__    = [
     "list --show-all",
     "make my-dataset -c ELF -n 500 --source-dir /path/to/dotnet/exe",
     "make my-dataset -c PE,ELF -n 2000",
-    "reset my-dataset",
+    "purge my-dataset",
     "show my-dataset",
     "update my-dataset --detect --refresh -s /path1/to/exe -s /path2/to/exe",
     "update my-dataset --source-dir /path/to/exe --labels /path/to/exe/labels.json",
@@ -47,6 +47,11 @@ if __name__ == '__main__':
                          note="if None, the original dataset is overwritten")
     cgroup.add_argument("-p", "--pattern", help="pattern of features to be selected")
     __add_name(sparsers.add_parser("edit", help="edit the data file"))
+    export = __add_name(sparsers.add_parser("export", help="export the packed executable from a dataset"))
+    export.add_argument("-d", "--destination", default="export", type=ts.folder_does_not_exist,
+                        help="destination folder for the exported executables")
+    export.add_argument("-n", "--number-executables", dest="n", type=ts.pos_int, default=0,
+                        help="number of packed executables to be exported")
     fix = __add_name(sparsers.add_parser("fix", help="fix a corrupted dataset"))
     fgroup = fix.add_mutually_exclusive_group()
     fgroup.add_argument("-d", "--detect", action="store_true", help="detect used packer with installed detectors")
@@ -55,8 +60,10 @@ if __name__ == '__main__':
     listds.add_argument("--show-all", action="store_true", help="show all datasets, even those that are corrupted")
     make = __add_name(sparsers.add_parser("make", help="add n randomly chosen executables from input sources to the "
                                                        "dataset"), True)
-    make.add_argument("-b", "--balance", action="store_true", help="balance the dataset relatively to the number of "
-                                                                   "packers used, not between packed and not packed")
+    make_ = make.add_mutually_exclusive_group()
+    make_.add_argument("-a", "--pack-all", action="store_true", help="pack all executables")
+    make_.add_argument("-b", "--balance", action="store_true", help="balance the dataset relatively to the number of "
+                                                                    "packers used, not between packed and not packed")
     make.add_argument("-c", "--categories", type=ts.values_list, default="All",
                       help="list of categories to be considered")
     make.add_argument("-n", "--number-executables", dest="n", type=ts.pos_int, default=100,

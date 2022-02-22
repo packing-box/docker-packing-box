@@ -38,7 +38,7 @@ class Dataset:
         self.path = ts.Path(config['datasets'].joinpath(name), create=load).absolute()
         self.sources = source_dir or PACKING_BOX_SOURCES
         if isinstance(self.sources, list):
-            self.sources = {'All': self.sources}
+            self.sources = {'All': [str(x) for x in self.sources]}
         for _, sources in self.sources.items():
             for source in sources[:]:
                 s = ts.Path(source, expand=True)
@@ -228,6 +228,27 @@ class Dataset:
         self.logger.debug(cmd)
         subprocess.call(cmd, stderr=subprocess.PIPE, shell=True)
     
+    def export(self, destination="export", n=0, **kw):
+        """ Export packed executables to the given destination folder. """
+        self.logger.debug("exporting packed executables...")
+        l, tmp = [e for e in self if e.label is not None], []
+        n = min(n, len(l))
+        if n > 0:
+            random.shuffle(l)
+        pbar = tqdm(total=n or len(l), unit="packed executable")
+        for i, exe in enumerate(l):
+            if i >= n > 0:
+                break
+            fn = "%s_%s" % (exe.label, ts.Path(exe.realpath).filename)
+            if fn in tmp:
+                self.logger.warning("duplicate '%s'" % fn)
+                n += 1
+                continue
+            exe.destination.copy(ts.Path(destination, create=True).joinpath(fn))
+            tmp.append(fn)
+            pbar.update()
+        pbar.close()
+    
     @backup
     def fix(self, **kw):
         """ Make dataset's structure and files match. """
@@ -261,7 +282,7 @@ class Dataset:
             self.logger.warning("No dataset found in workspace (%s)" % config['datasets'])
     
     @backup
-    def make(self, n=0, categories=["All"], balance=False, packer=None, **kw):
+    def make(self, n=0, categories=["All"], balance=False, packer=None, pack_all=False, **kw):
         """ Make n new samples in the current dataset among the given binary categories, balanced or not according to
              the number of distinct packers. """
         self.categories = categories
@@ -275,6 +296,8 @@ class Dataset:
         self.logger.info("Selected packers:      %s" % ",".join(["All"] if packer is None else \
                                                                 [p.__class__.__name__ for p in packer]))
         self._metadata['sources'] = list(set(map(str, self._metadata.get('sources', []) + sources)))
+        if n == 0:
+            n = len(list(self._walk(n <= 0, silent=True)))
         # get executables to be randomly packed or not
         i, cbad = 0, n // 3 * 2
         pbar = tqdm(total=n, unit="executable")
@@ -285,11 +308,12 @@ class Dataset:
             i += 1
             label = short_label = None
             packers = [p for p in (packer or Packer.registry) if p in self.packers]
-            if random.randint(0, len(packers) if balance else 1):
+            if pack_all or random.randint(0, len(packers) if balance else 1):
                 if len(packers) == 0:
                     self.logger.critical("No packer left")
                     return
-                random.shuffle(packers)
+                elif len(packers) > 1:
+                    random.shuffle(packers)
                 exe.copy()
                 old_h = exe.destination.absolute()
                 for p in packers:
@@ -308,7 +332,8 @@ class Dataset:
                         exe.destination = self.files.joinpath(exe.hash)
                         old_h.rename(exe.destination)
                     break
-            self[exe] = short_label
+            if not pack_all or (pack_all and short_label is not None):
+                self[exe] = short_label
             pbar.update()
         pbar.close()
         if i < n - 1:
