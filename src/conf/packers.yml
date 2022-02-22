@@ -409,7 +409,7 @@ MPRESS:
   silent:
     - Warning!
   steps:
-    - mpress {{executable}}{{compressed[|-r]}}{{lzmat[|-m]}}
+    - mpress {{executable}} {{compressed[|-r]}} {{lzmat[|-m]}}
   references:
     - https://www.autohotkey.com/mpress/mpress_web.htm
     - https://storage.ey.md/Technology%%20Related/Programming%%20%%26%%20Reversing/Tuts4You%%20Collection/UnPackMe%%20Collection/dotNET/MPress%%200.71.rar
@@ -478,7 +478,7 @@ Pakkero:
     - cd:   /tmp
     - copy: pakkero
   steps:
-    - pakkero --file {{executable}} -o {{executable}}{{compressed[|-c]}}
+    - pakkero --file {{executable}} -o {{executable}} {{compressed[|-c]}}
   source: https://github.com/89luca89/pakkero
   status: ok
 
