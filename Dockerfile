@@ -83,7 +83,7 @@ RUN (git clone https://github.com/tpoechtrager/wclang \
 # || echo -e "\033[1;31m DARLING INSTALL FAILED \033[0m"
 # install/update Python packages
 RUN (pip3 install poetry sklearn tinyscript tldr \
- && pip3 install angr dl8.5 pandas pefile pyelftools weka \
+ && pip3 install angr capstone dl8.5 pandas pefile pyelftools weka \
  && pip3 freeze - local | grep -v "^\-e" | cut -d = -f 1 | xargs -n1 pip3 install -qU) 2>&1 > /dev/null \
  || echo -e "\033[1;31m PIP PACKAGES UPDATE FAILED \033[0m"
 # +--------------------------------------------------------------------------------------------------------------------+
