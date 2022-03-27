@@ -23,7 +23,7 @@ def detector_name(d):
 if __name__ == '__main__':
     parser.add_argument("executable", help="executable or folder containing executables or dataset")
     parser.add_argument("-b", "--binary", action="store_true", help="only consider if packed or not")
-    parser.add_argument("-d", "--detector", default=[], action="extend", nargs="*", type=detector_name,
+    parser.add_argument("-d", "--detector", default="all", action="extend", nargs="*", type=detector_name,
                         help="detector(s) to be used")
     grp = parser.add_mutually_exclusive_group()
     grp.add_argument("-f", "--failures-only", action="store_true", help="output failures only")
@@ -33,6 +33,7 @@ if __name__ == '__main__':
     kw = {'debug': args.verbose > 0, 'verbose': args.verbose > 1, 'multiclass': not args.binary, 'weak': args.weak}
     stats, pbar = {'fn': 0, 'fp': 0, 'tn': 0, 'tp': 0}, None
     # using a single detector
+    args.detector = [] if args.detector == "all" else args.detector
     if len(args.detector) == 1:
         for r in Detector.get(args.detector[0]).detect(args.executable, **kw):
             try:
