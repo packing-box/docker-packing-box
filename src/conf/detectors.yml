@@ -66,6 +66,18 @@ Exescan:
   status: info
   maintained: false
 
+GetTyp:
+  categories:
+    - MSDOS
+    - PE32
+  comment: Candidate for integration.
+  description: GetTyp is a file format detection program for DOS. It detects several formats without looking at the filename. It searches the code for special strings and byte code to identify the fileformat.
+  references:
+    - https://www.helger.com/gt/gt.htm
+  source: https://defacto2.net/f/aa2e6ec
+  status: info
+  maintained: false
+
 Language_2000:
   categories:
     - PE
