@@ -5,6 +5,12 @@ ACProtect:
   source: https://www.yaldex.com/Bestsoft/Utilities/acprotect.htm
   status: commercial
 
+AinEXE:
+  categories:
+    - PE32
+  description: DOS executable packer (part of the AIN Archiver suite).
+  status: info
+
 Alienyze:
   categories:
     - PE32
