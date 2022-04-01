@@ -57,7 +57,7 @@ Exeinfo_PE:
   source: https://exeinfo-pe.fr.uptodown.com/windows
   status: info
 
-Exescan:
+ExeScan:
   categories:
     - PE
   comment: Relies on pefile and peutils with a userdb.txt signatures database and also the entropy-based function `peutils.is_probably_packed`.
@@ -70,12 +70,14 @@ GetTyp:
   categories:
     - MSDOS
     - PE32
-  comment: Candidate for integration.
+  command: /opt/detectors/gettyp/gt.sh {path}
   description: GetTyp is a file format detection program for DOS. It detects several formats without looking at the filename. It searches the code for special strings and byte code to identify the fileformat.
+  install:
+    - unzip: /opt/detectors/gettyp
   references:
     - https://www.helger.com/gt/gt.htm
   source: https://defacto2.net/f/aa2e6ec
-  status: info
+  status: ok
   maintained: false
 
 Language_2000:
@@ -83,7 +85,7 @@ Language_2000:
     - PE
   comment: Candidate for integration.
   description: Language 2000 is the ultimate compiler detection utility. Using this program you can determine which compiler used to make your binary file or with which compressor the file is compressed.
-  source: https://farrokhi.net/language/
+  source: https://farrokhi.net/language
   status: info
   maintained: false
 
@@ -160,6 +162,17 @@ PEiD:
   source: https://github.com/dhondta/peid
   status: ok
   maintained: false
+
+PEscan:
+  categories:
+    - MSDOS
+    - PE
+  description: pescan is a command line tool to scan portable executable (PE) files to identify how they were constructed.
+  references:
+    - https://tzworks.com/prototype_page.php?proto_id=15
+    - https://www.aldeid.com/wiki/Pescan
+  source: https://tzworks.com/prototypes/pescan/pescan64.v.0.60.lin.tar.gz
+  status: commercial
 
 PortEx:
   categories:

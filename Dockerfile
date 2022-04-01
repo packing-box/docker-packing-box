@@ -117,7 +117,8 @@ RUN pip3 install /tmp/lib/ 2>&1 > /dev/null \
 FROM tools AS detectors
 COPY src/files/detectors/* /opt/bin/
 RUN mv /opt/bin/userdb.txt /opt/detectors/ \
- && mv /opt/bin/die.tar.xz /tmp/ \
+ && mv /opt/bin/*.zip /tmp/ \
+ && mv /opt/bin/*.tar.xz /tmp/ \
  && /opt/tools/packing-box setup detector
 # +--------------------------------------------------------------------------------------------------------------------+
 # |                                                  ADD UNPACKERS                                                     |
