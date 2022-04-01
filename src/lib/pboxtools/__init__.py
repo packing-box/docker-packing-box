@@ -45,6 +45,7 @@ def execute(name, **kwargs):
     cmd = DETECTORS[name].get('command', "/usr/bin/%s {path}" % name.lower())
     exe, opt = cmd.split(" ", 1)
     cmd = (exe + "%s " + opt) % spec
+    cmd = re.sub("'?\{path\}'?", "'{path}'", cmd)  # this allows to handle input path with whitespaces
     kwargs['logger'].debug("Command format: " + cmd)
     if kwargs.get('version', False):
         call([cmd.split()[0], "--version"])
@@ -68,7 +69,7 @@ def normalize(*packers):
     d = {'unknown': -1}
     for s in packers:
         for packer, details in PACKERS.items():
-            for p in ["(?i)" + packer] + details.get('aliases', []):
+            for p in ["(?i)(?:[^a-z]|^)%s(?:[^a-z]|$)" % packer] + details.get('aliases', []):
                 if re.search(p, s):
                     p = packer.lower()
                     d.setdefault(p, 0)
