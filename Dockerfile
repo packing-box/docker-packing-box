@@ -103,7 +103,9 @@ RUN mkdir -p /mnt/share /opt/bin /opt/detectors /opt/packers /opt/tools /opt/unp
 # +--------------------------------------------------------------------------------------------------------------------+
 FROM customized AS utils
 # copy pre-built utils
+# note: libgtk is required for bytehist, even though it can be used in no-GUI mode
 RUN find src/files/utils/ -type f  ! -name "*.*" -exec cp {} /usr/bin/ \; \
+ && apt -qq -y install libgtk2.0-0:i386 \
  && tridupdate
 # +--------------------------------------------------------------------------------------------------------------------+
 # |                                                    ADD TOOLS                                                       |
