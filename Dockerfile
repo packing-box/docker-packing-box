@@ -68,7 +68,8 @@ RUN (wget -qO /tmp/dotnet-install.sh https://dot.net/v1/dotnet-install.sh \
  && ln -s /root/.dotnet/dotnet /usr/bin/dotnet) 2>&1 > /dev/null \
  || echo -e "\033[1;31m DOTNET INSTALL FAILED \033[0m"
 # install MingW
-RUN (git clone https://github.com/tpoechtrager/wclang \
+RUN (apt -qq -y install --install-recommends clang mingw-w64 \
+ && git clone https://github.com/tpoechtrager/wclang \
  && cd wclang \
  && cmake -DCMAKE_INSTALL_PREFIX=_prefix_ . \
  && make && make install \
@@ -102,7 +103,8 @@ RUN mkdir -p /mnt/share /opt/bin /opt/detectors /opt/packers /opt/tools /opt/unp
 # +--------------------------------------------------------------------------------------------------------------------+
 FROM customized AS utils
 # copy pre-built utils
-COPY src/files/utils/* /usr/bin/
+RUN find src/files/utils/ -type f  ! -name "*.*" -exec cp {} /usr/bin/ \; \
+ && tridupdate
 # +--------------------------------------------------------------------------------------------------------------------+
 # |                                                    ADD TOOLS                                                       |
 # +--------------------------------------------------------------------------------------------------------------------+
