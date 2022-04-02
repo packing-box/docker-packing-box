@@ -40,3 +40,5 @@ alias gksudo='sudo -H'
 # visidata shortcut
 alias csview='visidata --csv-delimiter ";" $@'
 
+# trid alias for setting LC_ALL
+alias trid='LC_ALL=C trid -d:/usr/bin/triddefs.trd'
