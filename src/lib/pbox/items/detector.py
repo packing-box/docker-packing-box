@@ -35,26 +35,33 @@ class Detector(Base):
         actual_label = [(), (l if multiclass else l is not None, )]['label' in kwargs]
         if isinstance(self, type):
             registry = [d for d in kwargs.get('select', Detector.registry) \
-                        if d.check(Executable(executable).category) and getattr(d, "vote", True)]
+                        if d.check(Executable(executable).category) and getattr(d, "vote", True) and \
+                        (multiclass and getattr(d, "multiclass", True) or \
+                         not multiclass and not getattr(d, "multiclass", True))]
             l, t = len(registry), kwargs.get('threshold', THRESHOLD) or THRESHOLD
             t = t(l) if isinstance(t, type(lambda: 0)) else t
             if not 0 < t <= l:
-                raise ValueError("Bad threshold value, not in [0, %d]" % l)
+                raise ValueError("Bad threshold value, not in [1., %d]" % l)
             results, details = {None: -l + t}, {}
             for detector in registry:
+                mc = getattr(detector, "multiclass", True)
                 # do not consider Yes|No-detectors if the multiclass option is set
-                if multiclass and not getattr(detector, "multiclass", True):
+                if multiclass and not mc:
                     continue
                 label = list(detector.detect(executable, **kwargs))[0][1]
-                if label == -1 and getattr(detector, "multiclass", True):
+                if label == -1 and mc:
                     continue
                 # if the multiclass option is unset, convert the result to Yes|No
-                if not multiclass and getattr(detector, "multiclass", True):
+                if not multiclass and mc:
                     label = label is not None
                 results.setdefault(label, 0)
                 results[label] += 1
                 details[detector.name] = label
+            # select the best label
             r = (executable, max(results, key=results.get)) + actual_label
+            # apply thresholding
+            if results[r[1]] < t:
+                r = (executable, None) + actual_label
             if kwargs.get("debug", False):
                 r += (details, )
             return r

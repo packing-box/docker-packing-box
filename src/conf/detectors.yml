@@ -79,6 +79,7 @@ GetTyp:
   source: https://defacto2.net/f/aa2e6ec
   status: ok
   maintained: false
+  vote: false
 
 Language_2000:
   categories:
