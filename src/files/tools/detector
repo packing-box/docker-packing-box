@@ -17,7 +17,7 @@ __description__ = "Detect the packer used on an input executable/folder/dataset"
 
 
 def detector_name(d):
-    return Detector.get(d)
+    return Detector.get(d) if d != "all" else []
 
 
 if __name__ == '__main__':
@@ -28,12 +28,13 @@ if __name__ == '__main__':
     grp = parser.add_mutually_exclusive_group()
     grp.add_argument("-f", "--failures-only", action="store_true", help="output failures only")
     grp.add_argument("-m", "--metrics-only", action="store_true", help="output metrics only")
+    parser.add_argument("-t", "--threshold", help="threshold for voting when using multiple detectors")
     parser.add_argument("-w", "--weak", action="store_true", help="also consider weak assumptions")
     initialize(noargs_action="usage", multi_level_debug=True)
-    kw = {'debug': args.verbose > 0, 'verbose': args.verbose > 1, 'multiclass': not args.binary, 'weak': args.weak}
+    kw = {'debug': args.verbose > 0, 'verbose': args.verbose > 1, 'multiclass': not args.binary,
+          'threshold': args.threshold, 'weak': args.weak}
     stats, pbar = {'fn': 0, 'fp': 0, 'tn': 0, 'tp': 0}, None
     # using a single detector
-    args.detector = [] if args.detector == "all" else args.detector
     if len(args.detector) == 1:
         for r in Detector.get(args.detector[0]).detect(args.executable, **kw):
             try:
@@ -88,7 +89,6 @@ if __name__ == '__main__':
     ph, h, m = PERF_HEADERS, ["Accuracy", "Precision", "Recall", "F-Measure"], metrics(**stats)
     m = [ph[k](v) if v >= 0 else "-" for k, v in zip(h, m)]
     n = sum(stats.values())
-    print(stats)
     if n > 0:
         if args.metrics_only:
             print(",".join(m))

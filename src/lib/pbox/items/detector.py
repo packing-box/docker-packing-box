@@ -36,8 +36,11 @@ class Detector(Base):
         if isinstance(self, type):
             registry = [d for d in kwargs.get('select', Detector.registry) \
                         if d.check(Executable(executable).category) and getattr(d, "vote", True)]
-            t = kwargs.get('threshold', THRESHOLD)
-            results, details = {None: -len(registry) + t(len(registry)) if isinstance(t, type(lambda: 0)) else t}, {}
+            l, t = len(registry), kwargs.get('threshold', THRESHOLD) or THRESHOLD
+            t = t(l) if isinstance(t, type(lambda: 0)) else t
+            if not 0 < t <= l:
+                raise ValueError("Bad threshold value, not in [0, %d]" % l)
+            results, details = {None: -l + t}, {}
             for detector in registry:
                 # do not consider Yes|No-detectors if the multiclass option is set
                 if multiclass and not getattr(detector, "multiclass", True):
