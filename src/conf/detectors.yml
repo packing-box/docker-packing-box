@@ -180,7 +180,7 @@ PortEx:
     - PE
   description: Java library to analyse Portable Executable files with a special focus on malware analysis and PE malformation robustness.
   install:
-    - wget: https://github.com/katjahahn/PortEx/raw/master/portex_2.12-3.0.0_FAT.jar
+    - wget: https://github.com/struppigel/PortEx:latest
     - exec: mv /tmp/portex.jar /opt/detectors/
     - cd:   /opt/detectors
     - java: portex.jar

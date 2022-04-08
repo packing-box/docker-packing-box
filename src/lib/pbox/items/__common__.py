@@ -166,7 +166,7 @@ class Base(Item):
         return script.replace("{{actions}}", "\n".join(actions))
     
     def _test(self, silent=False):
-        """ Preamble to the .test(...) method. """
+        """ Preamble to the .test(...) method for validation and log purpose. """
         if self.status in STATUS_DISABLED + ["not installed"]:
             self.logger.warning("%s is %s" % (self.cname, self.status))
             return False
@@ -485,9 +485,20 @@ class Base(Item):
                     if url != arg[0]:
                         result = tmp.joinpath(p + Path(ts.urlparse(url).path).extension)
                         run("wget -q -O %s %s" % (result, url), **kw)[-1]
-                # normal link
+                # single link
+                #  special case: https://github.com/[username]/[repo]:latest{X} ; get Xth file from latest release
                 else:
-                    result = tmp.joinpath(self.name + Path(ts.urlparse(arg).path).extension)
+                    url = ts.urlparse(arg)
+                    try:
+                        path, qual = url.path.split(":")
+                        qual, idx = re.match(r"(latest)(?:\{(\d)\})?", qual).groups()
+                        if url.netloc == "github.com" and qual == "latest":
+                            resp = json.loads(run("curl -s https://api.github.com/repos%s/releases/latest" % path)[0])
+                            arg = resp['assets'][int(idx or 0)]['browser_download_url']
+                            url = ts.urlparse(arg)
+                    except (AttributeError, ValueError):
+                        pass
+                    result = tmp.joinpath(self.name + Path(url.path).extension)
                     run("wget -q -O %s %s" % (result, arg.replace("%%", "%")), **kw)[-1]
                 wget = True
         self.logger.debug("cd %s" % cwd)
