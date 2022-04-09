@@ -38,12 +38,13 @@ DIE:
     - gitr: https://github.com/horsicq/DIE-engine.git
     - cd:   /tmp/DIE-engine
     - exec:
-      - wget https://raw.githubusercontent.com/horsicq/DIE-engine/5ce44b7a9551804f93b2f9ade6d71f4f1fc6922c/build_lin64.sh
+      - wget -q https://raw.githubusercontent.com/horsicq/DIE-engine/5ce44b7a9551804f93b2f9ade6d71f4f1fc6922c/build_lin64.sh
       - chmod +x build_lin64.sh
       - ./build_lin64.sh 2>/dev/null
       - find /tmp/DIE-engine/release -type f -exec tar xzf {} -C /opt/detectors \;
       - tar xf /tmp/die.tar.xz -C /opt/detectors/die_lin64_portable
       - cp /tmp/DIE-engine/release_version.txt /opt/detectors/die_lin64_portable/
+      - sed -i 's/\"\?\$\*\"\?/\"\$\*\"/g' /opt/detectors/die_lin64_portable/diec.sh
   silent:
     - "\\+{1,2} ([a-z]{2,12}|[A-Z]+([-_][A-Z]+)*)"
   source:  https://github.com/horsicq/Detect-It-Easy
