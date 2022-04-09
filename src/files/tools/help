@@ -42,6 +42,19 @@ def overview(show=False, category=None):
     descr = {}
     for cls in [Detector, Packer, Unpacker]:
         r, d = cls.summary(show, category)
+        if cls is Detector:
+            table = r[1]
+            table.column_headers.insert(-1, "Superdetector")
+            data = []
+            for row in table.data:
+                dcls = Detector.get(row[0])
+                if dcls.status == "ok":
+                    v = [colored("☒", "red"), colored("☑", "green")][getattr(dcls, "vote", True)]
+                else:
+                    v = colored("☒", "grey")
+                row.insert(-1, v)
+                data.append(row)
+            table.data = data
         report.append(*r)
         descr.update(d)
     report.append(Section("Legend"),
