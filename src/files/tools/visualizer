@@ -30,15 +30,15 @@ def find(folder, pattern, selected=None):
     
     For instance:
         FOLDER
-          +-- Notpacked
-          +-- Others
+          +-- not-packed
+          +-- packed
                 +-- ASPack
                 +-- UPX
                 +-- WinUPack
         
         if a file matches in every subfolder, we will have (filename => label):
-            [filename-from-Notpacked] => Notpacked
-            [filename-from-Others/ASPack] => ASPack
+            [filename-from-not-packed] => Original
+            [filename-from-packed/ASPack] => ASPack
             [...]
     
     :param folder:   source folder

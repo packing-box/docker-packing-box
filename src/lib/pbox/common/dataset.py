@@ -152,10 +152,18 @@ class Dataset:
     def _filter(self, query=None, **kw):
         """ Yield executables' hashes from the dataset using Pandas' query language. """
         i = -1
-        for i, row in enumerate(self._data.query(query or "tuple()").itertuples()):
-            yield row
-        if i == -1:
-            self.logger.warning("No data selected")
+        try:
+            for i, row in enumerate(self._data.query(query or "tuple()").itertuples()):
+                yield row
+            if i == -1:
+                self.logger.warning("No data selected")
+        except (AttributeError, KeyError) as e:
+            self.logger.error("Invalid query syntax ; %s" % e)
+        except SyntaxError:
+            self.logger.error("Invalid query syntax ; please checkout Pandas' documentation for more information")
+        except pd.core.computation.ops.UndefinedVariableError as e:
+            self.logger.error(e)
+            self.logger.info("Possible values:\n%s" % "".join("- %s\n" % n for n in self._data.columns))
     
     def _load(self):
         """ Load dataset's associated files or create them. """
@@ -400,8 +408,8 @@ class Dataset:
         self.__per_category = per_category
         if len(self) > 0:
             c = List(["**#Executables**: %d" % self._metadata['executables'],
-                      "**Categories**:   %s" % ", ".join(self._metadata['categories']),
-                      "**Packers**:      %s" % ", ".join(self._metadata['counts'].keys()),
+                      "**Categorie(s)**: %s" % ", ".join(self._metadata['categories']),
+                      "**Packer(s)**:    %s" % ", ".join(self._metadata['counts'].keys()),
                       "**Size**:         %s" % ts.human_readable_size(self.path.size),
                       "**With files**:   %s" % ["no", "yes"][self._files]])
             r = Report(Section("Dataset characteristics"), c)
@@ -463,6 +471,8 @@ class Dataset:
                 p = "[%d]/%s" % (i, p)
             d.append([e.hash, p, ts.human_readable_size(e.size), e.ctime.strftime("%d/%m/%y"),
                       e.mtime.strftime("%d/%m/%y"), "" if str(e.label) in ["nan", "None"] else e.label])
+        if len(d) == 0:
+            return
         r = [Text("Sources:\n %s" % "\n ".join("[%d] %s" % (i, s) for i, s in enumerate(src))),
              Table(d, title="Filtered records", column_headers=h)]
         print(mdv.main(Report(*r).md()))
@@ -520,13 +530,14 @@ class Dataset:
         data1, data2 = {}, {}
         categories = expand_categories("All") if self.__per_category else ["All"]
         src = self._metadata.get('sources', [])
-        r = [Text("Sources:\n %s" % "\n ".join("[%d] %s" % (i, s) for i, s in enumerate(src)))]
+        r = []
         def _shorten(path):
             p = ts.Path(path)
             for i, s in enumerate(src):
                 if p.is_under(s):
                     return i, str(p.relative_to(s))
             return -1, path
+        # parse categories, collect counts per size range and list of files
         for category in categories:
             d = {c: [0, 0] for c in CAT}
             for e in self:
@@ -553,19 +564,32 @@ class Dataset:
                 data1[category].append([c, d[c][0], "%.2f" % (100 * (float(d[c][0]) / total)) if total > 0 else 0,
                                         d[c][1], "%.2f" % (100 * (float(d[c][1]) / totalp)) if totalp > 0 else 0])
             data1[category].append(["Total", str(total), "", str(totalp), ""])
+        # display statistics if any
         if len(data1) > 0:
-            h = ["Size Range", "Total", "%", "Packed", "%"]
             r.append(Section("Executables per size and category"))
             for c in categories:
                 c = c if self.__per_category else "All"
                 if c in data1:
                     if c != "All":
                         r.append(Subsection(c))
-                    r += [Table(data1[c], title=c, column_headers=h)]
+                    # if all packed
+                    if all(x1 == x2 for x1, x2 in [(r[2], r[4]) for r in data1[c]]):
+                        _t, h = "packed", ["Size Range", "Packed", "%"]
+                    # none packed
+                    elif data1[c][-1][3] == "0":
+                        _t, h = "not-packed", ["Size Range", "Total", "%"]
+                    # mix of not packed and packed
+                    else:
+                        _t, h = "mix", ["Size Range", "Total", "%", "Packed", "%"]
+                    d = data1[c] if _t == "mix" else \
+                        [[r[0], r[3], r[4]] for r in data1[c]] if _t == "packed" else \
+                        [r[:3] for r in data1[c]]
+                    r += [Table(d, title=c, column_headers=h)]
                 if c == "All":
                     break
         r.append(Rule())
         r.append(Text("**Sources**:\n\n %s" % "\n ".join("[%d] %s" % (i, s) for i, s in enumerate(src))))
+        # display files if any
         if len(data2) > 0:
             r.append(Section("Executables per label and category"))
             for c in categories:
