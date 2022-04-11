@@ -312,5 +312,15 @@ pbox-update() {
   pip3 install --upgrade /mnt/share/src/lib/ -q > /dev/null
 }
 
+# simple tool for finding files by SHA256
+findsha256() {
+  if [ "$1" = "" ] || [ "$*" = "-h" ] || [ "$*" = "--help" ]; then
+    echo "Usage: findsha256 folder hash"
+  else
+    find $1 -type f -exec sha256sum {} \; | grep $2
+    find $1 -name data.csv -exec grep -i $2 {} \; | cut -d';' -f'1 2' --output-delimiter='  '
+  fi
+}
+
 # .NET core opt-out for telemetry
 export DOTNET_CLI_TELEMETRY_OPTOUT=1
