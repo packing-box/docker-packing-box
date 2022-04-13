@@ -204,11 +204,12 @@ class Base(Item):
         kw = {'logger': self.logger, 'silent': []}
         if not config['wine_errors']:
             kw['silent'].append(r"^[0-9a-f]{4}:(err|fixme):")
-        _repl = lambda s: s.replace("{{executable}}", str(executable)) \
-                           .replace("{{executable.dirname}}", str(executable.dirname)) \
-                           .replace("{{executable.filename}}", executable.filename) \
-                           .replace("{{executable.extension}}", executable.extension) \
-                           .replace("{{executable.stem}}", str(executable.dirname.joinpath(executable.stem)))
+        _str = lambda o: "'" + str(o) + "'"
+        _repl = lambda s: s.replace("{{executable}}", _str(executable)) \
+                           .replace("{{executable.dirname}}", _str(executable.dirname)) \
+                           .replace("{{executable.filename}}", _str(executable.filename)) \
+                           .replace("{{executable.extension}}", _str(executable.extension)) \
+                           .replace("{{executable.stem}}", _str(executable.dirname.joinpath(executable.stem)))
         kw['silent'].extend(list(map(_repl, getattr(self, "silent", []))))
         output = None
         cwd = os.getcwd()
@@ -435,17 +436,19 @@ class Base(Item):
             # manually set the result as a path object to be used in the next command
             elif cmd == "setp":
                 result = tmp.joinpath(arg)
-            # decompress a RAR/ZIP archive to the given location (absolute or relative to /tmp)
+            # decompress a RAR/TAR/ZIP archive to the given location (absolute or relative to /tmp)
             elif cmd in ["unrar", "untar", "unzip"]:
                 ext = "." + cmd[-3:]
                 if ext == ".tar":
                     ext = ".tar.gz"
                 if result is None:
                     result = tmp.joinpath("%s%s" % (self.name, ext))
+                # rectify ext and result if .tar.xz
                 result2 = result.dirname.joinpath("%s.tar.xz" % self.name)
-                if cmd[-3:] == "tar" and not result.exists() and result2.exists():
+                if cmd[-3:] == "tar" and (not result.exists() or result.extension == ".tar.xz") and result2.exists():
                     ext, result = ".tar.xz", result2
                 if result.extension == ext:
+                    # decompress to the target folder but also to a temp folder (for debugging purpose)
                     r, t, first = tmp.joinpath(arg), ts.TempPath(prefix="%s-setup-" % self.type, length=8), True
                     for d in [r, t]:
                         cmd = "unzip -qqo \"%s\" -d \"%s\"" % (result, d) if ext == ".zip" else \
@@ -453,11 +456,15 @@ class Base(Item):
                               "tar x%sf \"%s\" -C \"%s\"" % (["", "z"][ext == ".tar.gz"], result, d)
                         if ext != ".zip":
                             d.mkdir(parents=True, exist_ok=True)
+                        # log execution (run) the first time, not afterwards (run2)
                         (run if first else run2)(cmd, **(kw if first else {}))
                         first = False
+                    # in case of wget, cleanup the archive
                     if wget:
                         result.remove()
                     result = r
+                    # if the result is a dir, cd to subfolder as long as there is only one subfolder in the current one,
+                    #  this makes 'result' point to the most relevant folder within the unpacked archive
                     if result and result.is_dir():
                         ld = list(t.listdir())
                         while len(ld) == 1 and ld[0].is_dir():
@@ -465,7 +472,7 @@ class Base(Item):
                             result, t = result.joinpath(bn), t.joinpath(bn)
                             ld = list(t.listdir())
                 else:
-                    raise ValueError("Not a %s file" % ext.lstrip(".").upper())
+                    raise ValueError("%s is not a %s file" % (result, ext.lstrip(".").upper()))
             # download a resource, possibly downloading 2-stage generated download links (in this case, the list is
             #  handled by downloading the URL from the first element then matching the second element in the URL's found
             #  in the downloaded Web page
@@ -486,18 +493,36 @@ class Base(Item):
                         result = tmp.joinpath(p + Path(ts.urlparse(url).path).extension)
                         run("wget -q -O %s %s" % (result, url), **kw)[-1]
                 # single link
-                #  special case: https://github.com/[username]/[repo]:latest{X} ; get Xth file from latest release
                 else:
-                    url = ts.urlparse(arg)
-                    try:
-                        path, qual = url.path.split(":")
-                        qual, idx = re.match(r"(latest)(?:\{(\d)\})?", qual).groups()
-                        if url.netloc == "github.com" and qual == "latest":
-                            resp = json.loads(run("curl -s https://api.github.com/repos%s/releases/latest" % path)[0])
-                            arg = resp['assets'][int(idx or 0)]['browser_download_url']
-                            url = ts.urlparse(arg)
-                    except (AttributeError, ValueError):
-                        pass
+                    url, tag = ts.urlparse(arg), ""
+                    parts = url.path.split(":")
+                    if len(parts) == 2 and parts[1].startswith("latest"):
+                        arg = None
+                        path, tag = parts
+                        resp = json.loads(run("curl -s https://api.github.com/repos%s/releases/latest" % path)[0])
+                        for pattern in [r"(latest)(?:\[(\d)\])?$", r"(latest)(?:\{(.*?)\})$"]:
+                            try:
+                                tag, idx = re.match(pattern, tag).groups()
+                                # case 1: https://github.com/username/repo:latest ; get the 1st file from latest release
+                                if idx is None:
+                                    idx = "0"
+                                # case 2: https://github.com/username/repo:latest[X] ; get Xth file from latest release
+                                if idx.isdigit():
+                                    arg = resp['assets'][int(idx)]['browser_download_url']
+                                # case 3: https://github.com/username/repo:latest{pattern} ; get file based on pattern
+                                else:
+                                    for asset in resp['assets']:
+                                        link = asset['browser_download_url']
+                                        if re.search(idx, ts.urlparse(link).path.split("/")[-1]):
+                                            arg = link
+                                            break
+                                break
+                            except:
+                                continue
+                        if arg is None:
+                            raise ValueError("Bad tag for latest release URL: %s" % tag)
+                    if url.netloc == "github.com" and tag == "latest":
+                        url = ts.urlparse(arg)
                     result = tmp.joinpath(self.name + Path(url.path).extension)
                     run("wget -q -O %s %s" % (result, arg.replace("%%", "%")), **kw)[-1]
                 wget = True
@@ -549,6 +574,7 @@ class Base(Item):
     
     @classmethod
     def summary(cls, show=False, category="All"):
+        """ Make a summary table for the given class. """
         items = []
         pheaders = ["Name", "Targets", "Status", "Source"]
         n, descr = 0, {}
