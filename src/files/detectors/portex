@@ -6,19 +6,15 @@ from pboxtools import re, run
 def parse(output, **kwargs):
     r = []
     for l in output.splitlines():
-        try:
+        with suppress(AttributeError):
             r.append(re.search(r"^\* Section name .+ is typical for (.+) packer$", l).group(1).lower())
-        except AttributeError:
-            pass
         if kwargs['weak']:
             for p in [r"^Entry Point is in section \d+ with name (.+)$",
                       r"^\* Section \d+ with name (.+) has write and execute characteristics\.$",
                       r"^\* Entry point is in writeable section \d+ with name (.+)$",
                       r"^\* Section name is unusual: (.+)$"]:
-                try:
+                with suppress(AttributeError):
                     r.append(re.search(p, l).group(1).lower())
-                except AttributeError:
-                    pass
     return r
 
 

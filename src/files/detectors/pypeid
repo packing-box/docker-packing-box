@@ -5,9 +5,6 @@ from pypeid import __version__, PEiDScanner
 
 
 def execute(name, **kwargs):
-    if kwargs.get('version', False):
-        print("PyPEiD %s" % __version__)
-        exit(0)
     try:
         r = PEiDScanner().scan_file(kwargs['path'])
         kwargs['logger'].debug("\n" + pformat(r, indent=4))
@@ -17,5 +14,5 @@ def execute(name, **kwargs):
 
 
 if __name__ == "__main__":
-    run("PEiD", exec_func=execute, exe_type="pe", exe_help="path to the PE file")
+    run("PyPeid", exec_func=execute, exe_type="pe", exe_help="path to the PE file")
 

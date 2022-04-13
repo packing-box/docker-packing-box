@@ -5,7 +5,7 @@ from pypackerdetect import PyPackerDetect
 from pypackerdetect.__info__ import __author__, __credits__, __license__, __source__, __version__
 
 
-@version("PyPackerDetect %s <%s> originally by %s, refactored by %s\nLicense %s" % \
+@version("PyPackerDetect %s <%s> originally by %s, refactored by %s\nLicensed under %s" % \
          (__version__, __source__, __author__, __credits__, __license__))
 def execute(name, **kwargs):
     try:

@@ -4,6 +4,7 @@ import logging
 import re
 from argparse import ArgumentParser, RawTextHelpFormatter
 from ast import literal_eval
+from contextlib import suppress
 from os.path import abspath, exists, isfile
 from pprint import pformat
 from shlex import split
@@ -13,13 +14,52 @@ from time import perf_counter
 from yaml import safe_load
 
 
-__all__ = ["json", "literal_eval", "pformat", "re", "run", "PACKERS", "PACKERS_FILE"]
+__all__ = ["json", "literal_eval", "pformat", "re", "run", "suppress", "PACKERS", "PACKERS_FILE"]
 
 
 DETECTORS      = None
 DETECTORS_FILE = "/opt/detectors.yml"
 PACKERS        = None
 PACKERS_FILE   = "/opt/packers.yml"
+
+# source: https://docs.github.com/en/github/creating-cloning-and-archiving-repositories/licensing-a-repository
+LICENSES = {
+    'afl-3.0': "Academic Free License v3.0",
+    'agpl-3.0': "GNU Affero General Public License v3.0",
+    'apache-2.0': "Apache license 2.0",
+    'artistic-2.0': "Artistic license 2.0",
+    'bsd-2-clause': "BSD 2-clause \"Simplified\" license",
+    'bsd-3-clause': "BSD 3-clause \"New\" or \"Revised\" license",
+    'bsd-3-clause-clear': "BSD 3-clause Clear license",
+    'bsl-1.0': "Boost Software License 1.0",
+    'cc': "Creative Commons license family",
+    'cc-by-4.0': "Creative Commons Attribution 4.0",
+    'cc-by-sa-4.0': "Creative Commons Attribution Share Alike 4.0",
+    'cc0-1.0': "Creative Commons Zero v1.0 Universal",
+    'ecl-2.0': "Educational Community License v2.0",
+    'epl-1.0': "Eclipse Public License 1.0",
+    'eupl-1.1': "European Union Public License 1.1",
+    'gpl': "GNU General Public License family",
+    'gpl-2.0': "GNU General Public License v2.0",
+    'gpl-3.0': "GNU General Public License v3.0",
+    'isc': "ISC",
+    'lgpl': "GNU Lesser General Public License family",
+    'lgpl-2.1': "GNU Lesser General Public License v2.1",
+    'lgpl-3.0': "GNU Lesser General Public License v3.0",
+    'lppl-1.3c': "LaTeX Project Public License v1.3c",
+    'mit': "MIT",
+    'mpl-2.0': "Mozilla Public License 2.0",
+    'ms-pl': "Microsoft Public License",
+    'ncsa': "University of Illinois/NCSA Open Source License",
+    'ofl-1.1': "SIL Open Font License 1.1",
+    'osl-3.0': "Open Software License 3.0",
+    'postgresql': "PostgreSQL License",
+    'unlicense': "The Unlicense",
+    'wtfpl': "Do What The F*ck You Want To Public License",
+    'zlib': "zLib License",
+}
+
+VERSION_FORMAT = "{name} {version} {credits}\nLicensed under {lic_full} <https://choosealicense.com/licenses/{license}>"
 
 
 def execute(name, **kwargs):
@@ -48,8 +88,11 @@ def execute(name, **kwargs):
     cmd = re.sub("'?\{path\}'?", "'{path}'", cmd)  # this allows to handle input path with whitespaces
     kwargs['logger'].debug("Command format: " + cmd)
     if kwargs.get('version', False):
-        call([cmd.split()[0], "--version"])
-        exit(0)
+        if kwargs.get('exit', True):
+            call([cmd.split()[0], "--version"])
+            exit(0)
+        else:
+            cmd = "%s --version" % cmd.split()[0]
     shell = ">" in cmd
     # prepare the command line and run the tool
     cmd = cmd.format(**kwargs)
@@ -76,7 +119,7 @@ def normalize(*packers):
                     d[p] += 1
                     break
     m = [k for k, v in d.items() if v == max(d.values())]
-    return m[0] if len(m) == 1 else "unknown"  # cannot decide when multiple maxima
+    return m[0] if len(m) == 1 else "unknown"  # cannot decide when multiple maxima        
 
 
 def run(name, exec_func=execute, parse_func=lambda x, **kw: x, stderr_func=lambda x, **kw: x, parser_args=[],
@@ -105,10 +148,8 @@ def run(name, exec_func=execute, parse_func=lambda x, **kw: x, stderr_func=lambd
     # handle binary-only tools
     if binary_only:
         normalize_output = False
-        try:
+        with suppress(ValueError):
             argv.remove("--binary")
-        except ValueError:
-            pass
     else:
         opt.add_argument("--binary", action="store_true", help="output yes/no instead of packer's name")
     # handle weak assumption, e.g. when a tool can output detections and suspicions ; when setting --weak, it will also
@@ -116,10 +157,8 @@ def run(name, exec_func=execute, parse_func=lambda x, **kw: x, stderr_func=lambd
     if weak_assumptions:
         opt.add_argument("--weak", action="store_true", help="use weak assumptions for processing")
     else:
-        try:
+        with suppress(ValueError):
             argv.remove("--weak")
-        except ValueError:
-            pass
     # handle other specific options
     spec, spec_opt = parser.add_argument_group("original arguments"), []
     for args, kw in parser_args:
@@ -163,13 +202,39 @@ def run(name, exec_func=execute, parse_func=lambda x, **kw: x, stderr_func=lambd
     if a.version:
         v = DETECTORS[name].get('version')
         if v:
-            if isfile(v):
-                with open(v) as f:
-                    print(f.read().strip())
+            # accepted formats:
+            #  - module.submodules:variable ; e.g. peid.__info__:__version__
+            p = v.split(":")
+            if len(p) == 2:
+                with suppress(Exception):
+                    sp = p[0].split(".")
+                    m, i = __import__(sp[0]), 1
+                    while i < len(sp):
+                        m = getattr(m, sp[i])
+                        i += 1
+                    v = getattr(m, p[1])
             else:
-                print(v)
+                #  - <output> => get the version from the output
+                if v == "<output>":
+                    out, err = execute(name, version=True, exit=False, logger=a.logger)
+                    out += err
+                #  - file path ; e.g. /opt/detectors/detector_name/version.txt
+                elif isfile(v):
+                    with open(v) as f:
+                        out = f.read().strip()
+                v = re.search(r"\d{1,2}(?:\.\d+){1,3}", out).group()
+            #  - if not the first or second format, consider a string
+            v = "%s %s" % (name, v.lstrip("v"))
+            with suppress(KeyError):
+                v += " <%s>" % DETECTORS[name]['source']
+            with suppress(KeyError):
+                v += " by " + DETECTORS[name]['author']
+            with suppress(KeyError):
+                l = DETECTORS[name]['license']
+                v += "\nLicensed under %s (https://choosealicense.com/licenses/%s)" % (LICENSES[l], l)
+            print(v)
             exit(0)
-        exec_func(name, version=True, data=DETECTORS[name])
+        exec_func(name, version=True, data=DETECTORS[name], logger=a.logger)
     # execute the tool
     t1 = perf_counter()
     out, err = exec_func(name, **vars(a))

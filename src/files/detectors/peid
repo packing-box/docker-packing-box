@@ -10,7 +10,7 @@ ARGS = [
 ]
 
 
-@version("Packed Executable iDentifier (Python version) %s <%s> by %s\nLicense %s" % \
+@version("Packed Executable iDentifier (Python version) %s <%s> by %s\nLicensed under %s" % \
          (__version__, __source__, __author__, __license__))
 def execute(name, **kwargs):
     try:

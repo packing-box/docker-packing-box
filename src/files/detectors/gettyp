@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 # -*- coding: UTF-8 -*-
-from pboxtools import re, run
+from pboxtools import re, run, suppress
 
 
 def parse(output, **kwargs):
@@ -9,17 +9,13 @@ def parse(output, **kwargs):
         l = l.strip()
         if l == "Found no known modifier or compiler.":
             return []
-        try:
+        with suppress(AttributeError):
             r.append(re.search(r"^Packer:\s+(.+)$", l).group(1).lower() \
                      .replace("'s", "").replace(" ", "_").replace("(", "").replace(")", ""))
-        except AttributeError:
-            pass
         if kwargs['weak']:
             for p in [r"^Probably compressed.*$"]:
-                try:
+                with suppress(AttributeError):
                     r.append(re.search(p, l).group().lower())
-                except AttributeError:
-                    pass
     return r
 
 

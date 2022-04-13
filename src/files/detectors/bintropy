@@ -5,7 +5,7 @@ from bintropy.__info__ import __author__, __license__, __source__, __version__
 from pboxtools import run, version, DETECTORS
 
 
-@version("Bintropy %s <%s> by %s\nLicense %s" % (__version__, __source__, __author__, __license__))
+@version("Bintropy %s <%s> by %s\nLicensed under %s" % (__version__, __source__, __author__, __license__))
 def execute(name, **kwargs):
     try:
         return str(bintropy(kwargs['path'], logger=kwargs['logger'])), None

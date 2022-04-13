@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 # -*- coding: UTF-8 -*-
-from pboxtools import re, run
+from pboxtools import re, run, suppress
 
 
 PLUGINS = {
@@ -40,7 +40,7 @@ ARGS = [
 def parse(output, **kwargs):
     p, patterns = None, []
     for l in output.splitlines():
-        try:
+        with suppress(AttributeError, TypeError):
             r = re.search(r"^\[ .+? \] Th(?:e|is) PE is packed with (.+?)$", l).group(1).split(" or ")
             if len(r) > 1 and not kwargs['weak']:
                 patterns.append("unknown")  # in this case, cannot decide
@@ -48,8 +48,6 @@ def parse(output, **kwargs):
             for x in r:
                 patterns.append(x.strip().replace(" ", "-").lower())
             continue
-        except (AttributeError, TypeError):
-            pass
         if kwargs['weak']:
             if "The PE is possibly packed." in l:
                 patterns.append("unknown")
