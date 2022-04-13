@@ -687,6 +687,7 @@ UPX:
   install:
     - apt: upx
   silent:
+    - AlreadyPackedException
     - CantPackException
     - IOException
     - NotCompressibleException
@@ -723,7 +724,7 @@ Ward:
 
 WinUPack:
   aliases:
-    - Upack
+    - (?i)Upack
   categories:
     - MSDOS
     - PE32

@@ -102,7 +102,7 @@ def execute(name, **kwargs):
     return out.decode(), err.decode()
 
 
-def normalize(*packers):
+def normalize(*packers, **kwargs):
     """ Normalize the output from a list of values based on the PACKERS list.
     
     :param packers: list of packer-related strings
@@ -119,6 +119,7 @@ def normalize(*packers):
                     d[p] += 1
                     break
     m = [k for k, v in d.items() if v == max(d.values())]
+    kwargs['logger'].debug("Matches: %s\n" % d)
     return m[0] if len(m) == 1 else "unknown"  # cannot decide when multiple maxima        
 
 
@@ -252,7 +253,7 @@ def run(name, exec_func=execute, parse_func=lambda x, **kw: x, stderr_func=lambd
         if normalize_output:
             if not isinstance(p, list):
                 p = [p]
-            p = normalize(*p)
+            p = normalize(*p, **vars(a))
             if a.binary:
                 p = str(p is not None)
         if p is not None:
