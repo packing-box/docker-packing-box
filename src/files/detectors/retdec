@@ -4,26 +4,17 @@ from pboxtools import re, run, suppress
 
 
 def parse(output, **kwargs):
-    r = []
+    r, f = [], lambda s: re.sub(r"('s|[()])", "", s).replace(" ", "_")
     for l in output.splitlines():
         with suppress(AttributeError):
-            r.append(re.search(r"^Detected tool\s+:\s+(.+)\s+(?:packer|protector)\s+(?:.+)$", l).group(1).lower() \
-                     .replace("'s", "").replace(" ", "_").replace("(", "").replace(")", ""))
+            r.append(f(re.search(r"^Detected tool\s+:\s+(.+)\s+\(packer\)(?:.+)$", l).group(1).lower()))
             continue
         if kwargs['weak']:
             with suppress(AttributeError):
-                r.append(re.search(r"^Detected tool\s+:\s+(.+)$", l).group(1).lower() \
-                         .replace("'s", "").replace(" ", "_").replace("(", "").replace(")", ""))
+                r.append(f(re.search(r"^Detected tool\s+:\s+(.+)$", l).group(1).lower()))
     return r
 
 
 if __name__ == "__main__":
     run("RetDec", parse_func=parse, weak_assumptions=True)
 
-
-"""
-Detected tool            : Microsoft Linker (9.0) (linker), combined heuristic
-Detected tool            : NeoLite (packer), section table heuristic
-Detected tool            : Microsoft (linker), dos header style
-Detected tool            : NeoLite (2.0) (packer), 16 from 16 significant nibbles (100%)
-"""
