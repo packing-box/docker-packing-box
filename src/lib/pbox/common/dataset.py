@@ -114,7 +114,7 @@ class Dataset:
         :param label:      either the text label of the given executable or its dictionary of data
         """
         self.__change = True
-        e = executable
+        df, e = self._data, executable
         e = e if isinstance(e, Executable) else Executable(e, dataset=self)
         # consider the case when 'label' is a dictionary with the executable's attribute, i.e. from another dataset
         if isinstance(label, dict):
@@ -137,13 +137,13 @@ class Dataset:
         self._metadata.setdefault('categories', [])
         if e.category not in self._metadata['categories']:
             self._metadata['categories'].append(e.category)
-        if len(self._data) > 0 and e.hash in list(self._data.hash):
+        if len(df) > 0 and e.hash in df.hash.values:
             self.logger.debug("updating %s..." % e.hash)
             for n, v in d.items():
-                self._data.at[self._data.hash == e.hash, n] = v
+                df.loc[df['hash'] == e.hash, n] = v
         else:
             self.logger.debug("adding %s..." % e.hash)
-            self._data = self._data.append(d, ignore_index=True)
+            self._data = df.append(d, ignore_index=True)
     
     def _copy(self, path):
         """ Copy the current dataset to a given destination. """
