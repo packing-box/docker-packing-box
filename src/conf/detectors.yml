@@ -3,9 +3,9 @@ Analyze_PE:
     - PE
   comment: Relies on pefile and peutils with a userdb.txt signatures database.
   description: Wraps around various tools and provides some additional checks/information to produce a centralized report of a PE file.
+  maintained: false
   source: https://github.com/hiddenillusion/AnalyzePE
   status: useless
-  maintained: false
 
 ASL:
   categories:
@@ -23,13 +23,14 @@ Bintropy:
   description: Bintropy is an analysis tool that estimates the likelihood that a binary file contains compressed or encrypted bytes.
   install:
     - pip: bintropy
+  multiclass: false
   references:
     - https://ieeexplore.ieee.org/document/4140989
-  multiclass: false
-  source: https://github.com/dhondta/docker-packing-box
+  source: https://github.com/dhondta/bintropy
   status: ok
 
 DIE:
+  author: Hors (horsicq)
   categories:
     - All
   command: /opt/detectors/die_lin64_portable/diec.sh {path}
@@ -45,6 +46,7 @@ DIE:
       - tar xf /tmp/die.tar.xz -C /opt/detectors/die_lin64_portable
       - cp /tmp/DIE-engine/release_version.txt /opt/detectors/die_lin64_portable/
       - sed -i 's/\"\?\$\*\"\?/\"\$\*\"/g' /opt/detectors/die_lin64_portable/diec.sh
+  license: mit
   silent:
     - "\\+{1,2} ([a-z]{2,12}|[A-Z]+([-_][A-Z]+)*)"
   source:  https://github.com/horsicq/Detect-It-Easy
@@ -63,11 +65,12 @@ ExeScan:
     - PE
   comment: Relies on pefile and peutils with a userdb.txt signatures database and also the entropy-based function `peutils.is_probably_packed`.
   description: ExeScan is a console based tool to detect anomalies in PE (Portable Executable) files. It quickly scans given executable file and detect all kind of anomalies in its PE header fields including checksum verifications, size of various header fields, improper size of raw data, non-ascii/empty section names etc.
+  maintained: false
   source: https://github.com/cysinfo/Exescan
   status: info
-  maintained: false
 
 GetTyp:
+  author: PHaX
   categories:
     - MSDOS
     - PE32
@@ -75,12 +78,13 @@ GetTyp:
   description: GetTyp is a file format detection program for DOS. It detects several formats without looking at the filename. It searches the code for special strings and byte code to identify the fileformat.
   install:
     - unzip: /opt/detectors/gettyp
+  maintained: false
   references:
     - https://www.helger.com/gt/gt.htm
-  source: https://defacto2.net/f/aa2e6ec
-  status: ok
-  maintained: false
-  vote: false
+  source:  https://defacto2.net/f/aa2e6ec
+  status:  ok
+  version: <output>
+  vote:    false
 
 Language_2000:
   categories:
@@ -129,6 +133,7 @@ PE-Bear:
   status: info
 
 PeFrame:
+  author: Gianni Amato
   categories:
     - MSDOS
     - PE
@@ -136,8 +141,10 @@ PeFrame:
   description: Open source tool to perform static analysis on Portable Executable malware and malicious MS Office documents.
   install:
     - pip:  git+https://github.com/digitalsleuth/peframe
-  source: https://github.com/guelfoweb/peframe
-  status: ok
+  license: gpl
+  source:  https://github.com/guelfoweb/peframe
+  status:  ok
+  version: <output>
 
 PePack:
   categories:
@@ -148,6 +155,7 @@ PePack:
     - apt: pev
   source: https://github.com/merces/pev
   status: ok
+  vote: false
 
 PEiD:
   categories:
@@ -156,6 +164,7 @@ PEiD:
   description: PEiD detects most common packers, cryptors and compilers for PE files.
   install:
     - pip: peid
+  maintained: false
   references:
     - https://www.aldeid.com/wiki/PEiD
     - www.softpedia.com/get/Programming/Packers-Crypters-Protectors/PEiD-updated.shtml
@@ -163,7 +172,6 @@ PEiD:
     - https://github.com/wolfram77web/app-peid
   source: https://github.com/dhondta/peid
   status: ok
-  maintained: false
 
 PEscan:
   categories:
@@ -177,6 +185,7 @@ PEscan:
   status: commercial
 
 PortEx:
+  author: Karsten Philipp Boris Hahn
   categories:
     - MSDOS
     - PE
@@ -186,8 +195,10 @@ PortEx:
     - exec: mv /tmp/portex.jar /opt/detectors/
     - cd:   /opt/detectors
     - java: portex.jar
-  source: https://github.com/katjahahn/PortEx
-  status: ok
+  license: apache-2.0
+  source:  https://github.com/katjahahn/PortEx
+  status:  ok
+  version: <output>
 
 PyPackerDetect:
   categories:
@@ -201,6 +212,7 @@ PyPackerDetect:
   status: ok
 
 PyPeid:
+  author: Koh M. Nakagawa
   categories:
     - MSDOS
     - PE
@@ -211,22 +223,33 @@ PyPeid:
     - exec:
       - poetry build
       - find dist -iname *.whl -exec pip3 install {} \;
-  source: https://github.com/FFRI/pypeid
-  status: ok
+  license: apache-2.0
   maintained: false
+  source:  https://github.com/FFRI/pypeid
+  status:  ok
+  version: pypeid:__version__
+  vote: false
 
 RDG:
   categories:
     - PE
   description: RDG Packer Detector is a detector for packers, Cryptors, Compilers, Packers Scrambler, Joiners, Installers.
+  maintained: false
   source: http://www.rdgsoft.net
   status: info
-  maintained: false
 
 RetDec:
+  author: Avast
   categories:
     - All
+  command: /opt/detectors/retdec/bin/retdec-fileinfo {path}
   description: RetDec is a retargetable machine-code decompiler based on LLVM.
-  source: https://github.com/avast/retdec
-  status: info
+  install:
+    - wget:  https://github.com/avast/retdec:latest{ubuntu}
+    - untar: /opt/detectors
+    - exec: pathprepend /opt/detectors/retdec/bin
+  license: mit
+  source:  https://github.com/avast/retdec
+  status:  ok
+  version: /opt/detectors/retdec/share/retdec/CHANGELOG.md
 
