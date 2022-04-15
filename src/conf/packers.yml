@@ -40,6 +40,8 @@ Amber:
     - wget:  https://github.com/EgeBalci/amber/releases/download/v3.1/amber_linux_amd64_3.1.zip
     - unzip: /opt/packers/
     - ln:    amber
+  references:
+    - https://pentest.blog/introducing-new-packing-method-first-reflective-pe-packer
   steps:
     - amber -build -f {{executable}}
     - mv -f {{executable.stem}}_packed{{executable.extension}} {{executable}}

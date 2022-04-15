@@ -129,7 +129,7 @@ def normalize(*packers, **kwargs):
                     break
     m = [k for k, v in d.items() if v == max(d.values())]
     kwargs['logger'].debug("Matches: %s\n" % d)
-    return m[0] if len(m) == 1 else "unknown"  # cannot decide when multiple maxima        
+    return m[0] if len(m) == 1 else "unknown"  # cannot decide when multiple maxima
 
 
 def run(name, exec_func=execute, parse_func=lambda x, **kw: x, stderr_func=lambda x, **kw: x, parser_args=[],
