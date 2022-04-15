@@ -76,7 +76,7 @@ if __name__ == '__main__':
     else:
         subcls = None
         for cls in [Detector, Packer, Unpacker]:
-            subcls = cls.get(args.item)
+            subcls = cls.get(args.item, error=False)
             if subcls:
                 print(mdv.main(subcls.help()))
                 break
