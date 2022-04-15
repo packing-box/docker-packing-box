@@ -2,15 +2,13 @@
 # -*- coding: UTF-8 -*-
 from bintropy import bintropy
 from bintropy.__info__ import __author__, __license__, __source__, __version__
-from pboxtools import run, version, DETECTORS
+from pboxtools import *
 
 
 @version("Bintropy %s <%s> by %s\nLicensed under %s" % (__version__, __source__, __author__, __license__))
+@catch_exception
 def execute(name, **kwargs):
-    try:
-        return str(bintropy(kwargs['path'], logger=kwargs['logger'])), None
-    except Exception as e:
-        return None, str(e)
+    return str(bintropy(kwargs['path'], logger=kwargs['logger']))
 
 
 if __name__ == "__main__":

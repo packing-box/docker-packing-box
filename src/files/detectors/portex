@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 # -*- coding: UTF-8 -*-
-from pboxtools import re, run
+from pboxtools import *
 
 
 def parse(output, **kwargs):
@@ -8,6 +8,7 @@ def parse(output, **kwargs):
     for l in output.splitlines():
         with suppress(AttributeError):
             r.append(re.search(r"^\* Section name .+ is typical for (.+) packer$", l).group(1).lower())
+            continue
         if kwargs['weak']:
             for p in [r"^Entry Point is in section \d+ with name (.+)$",
                       r"^\* Section \d+ with name (.+) has write and execute characteristics\.$",

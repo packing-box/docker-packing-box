@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 # -*- coding: UTF-8 -*-
-from pboxtools import re, run, suppress
+from pboxtools import *
 
 
 def parse(output, **kwargs):
@@ -8,13 +8,9 @@ def parse(output, **kwargs):
     for l in output.splitlines():
         with suppress(AttributeError):
             r.append(f(re.search(r"^Detected tool\s+:\s+(.+)\s+\(packer\)(?:.+)$", l).group(1).lower()))
-            continue
-        if kwargs['weak']:
-            with suppress(AttributeError):
-                r.append(f(re.search(r"^Detected tool\s+:\s+(.+)$", l).group(1).lower()))
     return r
 
 
 if __name__ == "__main__":
-    run("RetDec", parse_func=parse, weak_assumptions=True)
+    run("RetDec", parse_func=parse)
 

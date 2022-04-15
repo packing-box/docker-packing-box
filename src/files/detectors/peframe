@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 # -*- coding: UTF-8 -*-
-from pboxtools import json, run
+from pboxtools import *
 
 
 ARGS = [

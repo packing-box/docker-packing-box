@@ -1,16 +1,14 @@
 #!/usr/bin/python3
 # -*- coding: UTF-8 -*-
-from pboxtools import pformat, run
-from pypeid import __version__, PEiDScanner
+from pboxtools import *
+from pypeid import PEiDScanner
 
 
+@catch_exception
 def execute(name, **kwargs):
-    try:
-        r = PEiDScanner().scan_file(kwargs['path'])
-        kwargs['logger'].debug("\n" + pformat(r, indent=4))
-        return r['PEiD'] or "", None
-    except Exception as e:
-        return None, str(e)
+    r = PEiDScanner().scan_file(kwargs['path'])
+    kwargs['logger'].debug("\n" + pformat(r, indent=4))
+    return r['PEiD'] or ""
 
 
 if __name__ == "__main__":

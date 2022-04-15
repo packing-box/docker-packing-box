@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 # -*- coding: UTF-8 -*-
-from pboxtools import re, run, suppress
+from pboxtools import *
 
 
 def parse(output, **kwargs):
@@ -12,6 +12,7 @@ def parse(output, **kwargs):
         with suppress(AttributeError):
             r.append(re.search(r"^Packer:\s+(.+)$", l).group(1).lower() \
                      .replace("'s", "").replace(" ", "_").replace("(", "").replace(")", ""))
+            continue
         if kwargs['weak']:
             for p in [r"^Probably compressed.*$"]:
                 with suppress(AttributeError):

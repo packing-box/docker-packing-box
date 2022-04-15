@@ -14,7 +14,8 @@ from time import perf_counter
 from yaml import safe_load
 
 
-__all__ = ["json", "literal_eval", "pformat", "re", "run", "suppress", "PACKERS", "PACKERS_FILE"]
+__all__ = ["catch_exception", "json", "literal_eval", "pformat", "re", "run", "suppress", "version",
+           "DETECTORS", "PACKERS"]
 
 
 DETECTORS      = None
@@ -59,7 +60,15 @@ LICENSES = {
     'zlib': "zLib License",
 }
 
-VERSION_FORMAT = "{name} {version} {credits}\nLicensed under {lic_full} <https://choosealicense.com/licenses/{license}>"
+
+def catch_exception(f):
+    """ Decorator for returning function's result and an exception if relevant. """
+    def _wrapper(*args, **kwargs):
+        try:
+            return f(*args, **kwargs), None
+        except Exception as e:
+            return None, str(e)
+    return _wrapper
 
 
 def execute(name, **kwargs):
@@ -263,6 +272,7 @@ def run(name, exec_func=execute, parse_func=lambda x, **kw: x, stderr_func=lambd
 
 
 def version(string):
+    """ Decorator for handling a version string. """
     def _wrapper(f):
         def _subwrapper(*args, **kwargs):
             if kwargs.get('version', False):

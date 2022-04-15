@@ -1,17 +1,15 @@
 #!/usr/bin/python3
 # -*- coding: UTF-8 -*-
-from pboxtools import run, version
+from pboxtools import *
 from pypackerdetect import PyPackerDetect
 from pypackerdetect.__info__ import __author__, __credits__, __license__, __source__, __version__
 
 
 @version("PyPackerDetect %s <%s> originally by %s, refactored by %s\nLicensed under %s" % \
          (__version__, __source__, __author__, __credits__, __license__))
+@catch_exception
 def execute(name, **kwargs):
-    try:
-        return PyPackerDetect(logger=kwargs['logger']).detect(kwargs['path']), None
-    except Exception as e:
-        return None, str(e)
+    return PyPackerDetect(logger=kwargs['logger']).detect(kwargs['path'])
 
 
 def parse(output, **kwargs):
