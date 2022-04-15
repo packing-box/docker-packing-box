@@ -113,6 +113,15 @@ kNN:
       n_neighbors: !!python/object/new:range [1, 8, 2]
   link: http://scikit-learn.org/stable/modules/generated/sklearn.neighbors.KNeighborsClassifier.html
 
+LP:
+  base:        !!python/name:sklearn.linear_model.Perceptron
+  description: Linear Perceptron
+  parameters:
+    static:
+      max_iter:     1000
+      random_state: 42
+  link: https://scikit-learn.org/stable/modules/generated/sklearn.linear_model.Perceptron.html
+
 LR:
   base:        !!python/name:pbox.learning.algorithms.Logistic  # based on weka.classifiers.functions.Logistic
   description: Logistic Regression
