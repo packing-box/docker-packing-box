@@ -26,7 +26,7 @@ if [ -x /usr/lib/command-not-found -o -x /usr/share/command-not-found/command-no
 fi
 
 # source colors definition and other useful additions
-for f in .bash_colors .bash_gitprompt .bash_aliases .bash_xvfb; do
+for f in .bash_colors .bash_gitprompt .bash_aliases .bash_tools .bash_update .bash_xvfb; do
   ok=0
   for p in /etc/bash ~/ ./; do
     if [ $ok -eq 0 ] && [ -f $p$f ];  then
@@ -94,11 +94,6 @@ format_exit_status() {
     ;;
   esac
 }
-
-bashrc-reload() {
-  builtin exec bash
-}
-
 
 # If return codes !=0, print it
 function last_cmd_errcode() {
@@ -256,71 +251,14 @@ export LESS_TERMCAP_zz=$'\E[0m'               # Underline end
 export LS_OPTIONS='--color=auto --time-style long-iso'
 eval "`dircolors`"
 
-# Add tools' bin folder to PATH
-pathprepend() {
-    if [ -d "$1" ] && [[ ":$PATH:" != *":$1:"* ]]; then
-        PATH="$1${PATH:+":$PATH"}"
-    fi
-}
-pathprepend /opt/bin
-pathprepend /opt/tools
-
-eval 
-    function fuck () {
-        TF_PREVIOUS=$(fc -ln -1);
-        TF_PYTHONIOENCODING=$PYTHONIOENCODING;
-        export TF_ALIAS=fuck;
-        export TF_SHELL_ALIASES=$(alias);
-        export PYTHONIOENCODING=utf-8;
-        TF_CMD=$(
-            thefuck $TF_PREVIOUS THEFUCK_ARGUMENT_PLACEHOLDER $@
-        ) && eval $TF_CMD;
-        export PYTHONIOENCODING=$TF_PYTHONIOENCODING;
-        history -s $TF_CMD;
-    }
-
-# Proxy environment variables
+# proxy environment variables
 export HTTP_PROXY=$http_proxy
 export HTTPS_PROXY=$https_proxy
 
-# Custom system update function
-system-update() {
-  sudo apt-get update
-  sudo apt-get upgrade -y
-  sudo apt-get autoremove -y
-  sudo apt-get autoclean
-}
-
-# pip-update
-pip-upgrade() {
-  sudo pip3 freeze - local \
-    | grep -v "^\-e" \
-    | cut -d = -f 1 \
-    | xargs -n1 sudo pip3 install -U
-}
-
-# packing-box update command (development)
-pbox-update() {
-  cp -f /mnt/share/src/files/tools/* /opt/tools/
-  mv -f /opt/tools/help /opt/tools/?
-  cp -f /mnt/share/src/conf/*.yml /opt/
-  for F in /mnt/share/src/term/*; do
-    cp -f "$F" "/root/.${F##*/}"
-  done
-  source /root/.bashrc
-  find /mnt/share/src/files/detectors/ -type f \( ! -iname \"*\.*\" \) -exec cp -f {} /opt/bin/ \;
-  pip3 install --upgrade /mnt/share/src/lib/ -q > /dev/null
-}
-
-# simple tool for finding files by SHA256
-findsha256() {
-  if [ "$1" = "" ] || [ "$*" = "-h" ] || [ "$*" = "--help" ]; then
-    echo "Usage: findsha256 folder hash"
-  else
-    find $1 -type f -exec sha256sum {} \; | grep $2
-    find $1 -name data.csv -exec grep -i $2 {} \; | cut -d';' -f'1 2' --output-delimiter='  '
-  fi
-}
-
 # .NET core opt-out for telemetry
 export DOTNET_CLI_TELEMETRY_OPTOUT=1
+
+# add relevant folders to PATH
+pathprepend /opt/bin
+pathprepend /opt/tools
+pathprepend /opt/utils

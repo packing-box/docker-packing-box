@@ -1,0 +1,23 @@
+#!/bin/bash
+
+bashrc-reload() {
+  builtin exec bash
+}
+
+# add the given folder to PATH if it exists and is not already in PATH
+pathprepend() {
+    if [ -d "$1" ] && [[ ":$PATH:" != *":$1:"* ]]; then
+        PATH="$1${PATH:+":$PATH"}"
+    fi
+}
+
+# simple tool for finding files by SHA256
+findsha256() {
+  if [ "$1" = "" ] || [ "$*" = "-h" ] || [ "$*" = "--help" ]; then
+    echo "Usage: findsha256 folder hash"
+  else
+    find $1 -type f -exec sha256sum {} \; | grep $2
+    find $1 -name data.csv -exec grep -i $2 {} \; | cut -d';' -f'1 2' --output-delimiter='  '
+  fi
+}
+

@@ -1,0 +1,30 @@
+#!/bin/bash
+
+# Custom system update function
+system-update() {
+  sudo apt-get update
+  sudo apt-get upgrade -y
+  sudo apt-get autoremove -y
+  sudo apt-get autoclean
+}
+
+# pip-update
+pip-upgrade() {
+  sudo pip3 freeze - local \
+    | grep -v "^\-e" \
+    | cut -d = -f 1 \
+    | xargs -n1 sudo pip3 install -U
+}
+
+# packing-box update command (development)
+pbox-update() {
+  cp -f /mnt/share/src/files/tools/* /opt/tools/
+  mv -f /opt/tools/help /opt/tools/?
+  cp -f /mnt/share/src/conf/*.yml /opt/
+  for F in /mnt/share/src/term/*; do
+    cp -f "$F" "/root/.${F##*/}"
+  done
+  source /root/.bashrc
+  find /mnt/share/src/files/detectors/ -type f \( ! -iname \"*\.*\" \) -exec cp -f {} /opt/bin/ \;
+  pip3 install --upgrade /mnt/share/src/lib/ -q > /dev/null
+}
