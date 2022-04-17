@@ -4,6 +4,7 @@ from tinyscript.helpers import execute_and_log as run
 
 from .__common__ import *
 from ..common.executable import Executable
+from ..common.item import update_logger
 from ..common.utils import make_registry
 
 
@@ -18,6 +19,7 @@ class Packer(Base):
       .pack(executable, **kwargs) [str]
       .run(executable, **kwargs) [str|(str,time)]
     """
+    @update_logger
     def pack(self, executable, include_hash=False, **kwargs):
         """ Runs the packer according to its command line format and checks if the executable has been changed by this
              execution. """
@@ -26,17 +28,19 @@ class Packer(Base):
         if not self._check(exe):
             return (None, False) if include_hash else False
         # now pack the input executable, taking its SHA256 in order to check for changes
-        h, self._error = exe.hash, False
+        h, self._error = exe.hash, None
         label = self.run(exe, **kwargs)
         exe.hash = hashlib.sha256_file(str(exe))
         if self._error:
+            err = self._error.replace(str(exe) + ": ", "").replace(self.name + ": ", "").strip()
+            self.logger.debug("not packed (%s)" % err)
             return (h, None) if include_hash else None
         elif h == exe.hash:
-            self.logger.debug("%s's content was not changed by %s" % (exe.filename, self.name))
+            self.logger.debug("not packed (content not changed)")
             self._bad = True
             return (h, None) if include_hash else None
         # if packing succeeded, we can return packer's label
-        self.logger.debug("%s packed with %s" % (exe.filename, self.name))
+        self.logger.debug("packed successfully")
         return (h, label) if include_hash else label
     
     def run(self, executable, **kwargs):
@@ -57,6 +61,7 @@ class Ezuri(Packer):
     key = None
     iv  = None
     
+    @update_logger
     def run(self, executable, **kwargs):
         """ This packer prompts for parameters. """
         P = subprocess.PIPE

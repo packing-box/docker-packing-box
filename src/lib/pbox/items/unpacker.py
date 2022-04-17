@@ -3,6 +3,7 @@ from tinyscript import hashlib
 
 from .__common__ import *
 from ..common.executable import Executable
+from ..common.item import update_logger
 from ..common.utils import make_registry
 
 
@@ -16,6 +17,7 @@ class Unpacker(Base):
     Extra methods:
       .unpack(executable, **kwargs) [str]
     """
+    @update_logger
     def unpack(self, executable, **kwargs):
         """ Runs the unpacker according to its command line format and checks if the executable has been changed by this
              execution. """
@@ -26,16 +28,16 @@ class Unpacker(Base):
             return False
         # now unpack the input executable, taking its SHA256 in order to check for changes
         s256 = hashlib.sha256_file(str(exe))
-        self._error = False
+        self._error = None
         label = self.run(exe, **kwargs)
         if self._error:
             return
         elif s256 == hashlib.sha256_file(str(exe)):
-            self.logger.debug("%s's content was not changed by %s" % (exe.filename, self.name))
+            self.logger.debug("%s's content was not changed" % exe.filename)
             self._bad = True
             return
         # if unpacking succeeded, we can return packer's label
-        self.logger.debug("%s unpacked by %s using %s" % (exe.filename, self.name, label))
+        self.logger.debug("%s unpacked using %s" % (exe.filename, label))
         return label
 
 

@@ -1,6 +1,7 @@
 # -*- coding: UTF-8 -*-
 from .__common__ import *
 from ..common.executable import Executable
+from ..common.item import update_logger
 from ..common.utils import class_or_instance_method, file_or_folder_or_dataset, make_registry
 
 
@@ -15,12 +16,14 @@ class Detector(Base):
     """ Detector abstraction.
     
     Extra methods:
-      .detect(executable, **kwargs) [str]
+      .detect(executable, multiclass, **kwargs) [str]
+      .test(executable, multiclass, **kwargs)
     """
     use_output = True
     
     @class_or_instance_method
     @file_or_folder_or_dataset
+    @update_logger
     def detect(self, executable, multiclass=True, **kwargs):
         """ If called from the class:
             Runs every known detector on the given executable and decides the label through voting (with a penalty on
@@ -77,8 +80,9 @@ class Detector(Base):
                 print("")
             # if packer detection succeeded, we can return packer's label
             if label:
-                self.logger.debug("%s detected as packed with %s by %s" % (e.filename, label, self.name))
                 label = label.strip()
+            else:
+                self.logger.debug("did not detect anything")
             if not multiclass:
                 label = label is not None if getattr(self, "multiclass", True) else label.lower() == "true"
             if dslen:
@@ -86,6 +90,7 @@ class Detector(Base):
             return (e, label) + actual_label
     
     @file_or_folder_or_dataset
+    @update_logger
     def test(self, executable, multiclass=True, **kwargs):
         """ Tests the given item on some executable files. """
         self._test(kwargs.get('silent', False))

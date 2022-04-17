@@ -103,24 +103,11 @@ class Base(Item):
         super(Base, self).__init__()
         self._categories_exp = expand_categories(*self.categories)
         self._bad = False
-        self._error = False
+        self._error = None
         self._params = {}
         self.__init = False
     
-    def __getattribute__(self, name):
-        if name == getattr(super(Base, self), "type", "")[:-2]:
-            # this part sets the internal logger up while triggering the main method (e.g. pack) for the first time ;
-            #  this is necessary as the registry of subclasses is made at loading, before Tinyscript initializes its
-            #  main logger whose config must be propagated to child loggers
-            if not self.__init:
-                logging.setLogger(self.name)
-                self.__init = True
-            # check: is this item operational ?
-            if self.status in STATUS_DISABLED + ["not installed", "todo"]:
-                self.logger.debug("Status: %s" % self.status)
-                return lambda *a, **kw: False
-        return super(Base, self).__getattribute__(name)
-    
+    @update_logger
     def _check(self, exe):
         """ Check if the given executable can be processed by this item. """
         c = exe.category
@@ -165,6 +152,7 @@ class Base(Item):
                     actions.append("sleep %s" % delay)
         return script.replace("{{actions}}", "\n".join(actions))
     
+    @update_logger
     def _test(self, silent=False):
         """ Preamble to the .test(...) method for validation and log purpose. """
         if self.status in STATUS_DISABLED + ["not installed"]:
@@ -175,10 +163,18 @@ class Base(Item):
             self.logger.info("Testing %s..." % self.cname)
         return True
     
-    def check(self, *categories):
+    def check(self, *categories, **kwargs):
         """ Checks if the current item is applicable to the given categories. """
-        return self.status == "ok" and \
-               any(c in self._categories_exp for c in expand_categories(*(categories or ["All"])))
+        silent = kwargs.get('silent', True)
+        if self.status == "ok":
+            if any(c in self._categories_exp for c in expand_categories(*(categories or ["All"]))):
+                return True
+            if not silent:
+                self.logger.debug("does not apply to the selected categories")
+            return False
+        if not silent:
+            self.logger.debug("Status: " + self.status)
+        return False
     
     def help(self):
         """ Returns a help message in Markdown format. """
@@ -193,6 +189,7 @@ class Base(Item):
             md.append(Section("References"), List(*self.references, **{'ordered': True}))
         return md.md()
     
+    @update_logger
     def run(self, executable, **kwargs):
         """ Customizable method for shaping the command line to run the item on an input executable. """
         retval = self.name
@@ -255,7 +252,8 @@ class Base(Item):
                     attempt += " -v"
                 kw['shell'] = ">" in attempt
                 try:
-                    output, _, retc = run(attempt, **kw)
+                    output, error, retc = run(attempt, **kw)
+                    self._error = error
                 except:
                     self.logger.error("Command: %s" % attempt)
                     raise
@@ -265,7 +263,6 @@ class Base(Item):
                 if retc > 0:
                     attempts.remove(attempt if param is None else (attempt, param))
                     if len(attempts) == 0:
-                        self._error = True
                         return
                 else:
                     if param:
@@ -277,6 +274,7 @@ class Base(Item):
             r = (r, dt)
         return r
     
+    @update_logger
     def setup(self, **kw):
         """ Sets the item up according to its install instructions. """
         logging.setLogger(self.name)
@@ -531,6 +529,7 @@ class Base(Item):
         if rm:
             run("rm -rf %s" % tmp.joinpath(self.name), **kw)
     
+    @update_logger
     def test(self, files=None, keep=False, **kw):
         """ Tests the item on some executable files. """
         if not self._test(kw.pop('silent', False)):
