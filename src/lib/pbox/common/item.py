@@ -1,13 +1,22 @@
 # -*- coding: UTF-8 -*-
-from tinyscript import logging
+from tinyscript import functools, logging
 
 from tinyscript.report import *
 
 
-__all__ = ["Item"]
+__all__ = ["update_logger", "Item"]
 
 
 _fmt_name = lambda x: (x or "").lower().replace("_", "-")
+
+
+def update_logger(m):
+    """ Method decorator for triggering the setting of the bound logger (see pbox.common.Item.__getattribute__). """
+    @functools.wraps(m)
+    def _wrapper(self, *a, **kw):
+        getattr(self, "logger", None)
+        return m(self, *a, **kw)
+    return _wrapper
 
 
 class Item:
@@ -16,7 +25,21 @@ class Item:
         self.cname = self.__class__.__name__
         self.name = _fmt_name(self.__class__.__name__)
         self.type = self.__class__.__base__.__name__.lower()
-        self.logger = logging.getLogger(self.name)
+        self.logger # triggers the creation of a logger with the default config
+    
+    def __getattribute__(self, name):
+        """ Custom getattribute method for setting the logger. """
+        if name == "logger":
+            if not hasattr(self, "_logger"):
+                self._logger = logging.getLogger(self.name)
+                self._logger_init = False
+            elif not self._logger_init:
+                # this is required for aligning item's log config to the main logger configured with the 'initialize'
+                #  function of Tinyscript
+                logging.setLogger(self.name)
+                self._logger_init = True
+            return self._logger
+        return super(Item, self).__getattribute__(name)
     
     def __repr__(self):
         """ Custom string representation for an item. """

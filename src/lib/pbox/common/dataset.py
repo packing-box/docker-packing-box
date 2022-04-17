@@ -100,11 +100,7 @@ class Dataset:
     
     def __setattr__(self, name, value):
         if name == "categories":
-            # get the list of packers related to the selected categories
             self._categories_exp = expand_categories(*value)
-            self.packers = [p for p in Packer.registry if p.check(*self._categories_exp)]
-            if len(self.packers) == 0:
-                raise ValueError("No packer found for these categories")
         super(Dataset, self).__setattr__(name, value)
     
     def __setitem__(self, executable, label):
@@ -308,29 +304,33 @@ class Dataset:
             n = len(list(self._walk(n <= 0, silent=True)))
         # get executables to be randomly packed or not
         i, cbad = 0, n // 3 * 2
-        pbar = tqdm(total=n, unit="executable")
+        pbar = None
+        # select enabled and non-failing packers among the input list
+        packers = [p for p in (packer or Packer.registry) if p in Packer.registry and \
+                                                             p.check(*self._categories_exp, silent=False)]
         for exe in self._walk(n <= 0):
+            label = short_label = None
             if i >= n > 0:
                 break
+            if len(packers) == 0:
+                self.logger.critical("No packer left")
+                return
             self.logger.debug("handling %s..." % exe)
-            i += 1
-            label = short_label = None
-            packers = [p for p in (packer or Packer.registry) if p in self.packers]
+            # set the progress bar now to not overlap with self._walk's logging
+            if pbar is None:
+                pbar = tqdm(total=n, unit="executable")
             if pack_all or random.randint(0, len(packers) if balance else 1):
-                if len(packers) == 0:
-                    self.logger.critical("No packer left")
-                    return
-                elif len(packers) > 1:
+                if len(packers) > 1:
                     random.shuffle(packers)
                 exe.copy()
                 old_h = exe.destination.absolute()
-                for p in packers:
+                for p in packers[:]:
                     exe.hash, label = p.pack(str(old_h), include_hash=True)
                     if not label or p._bad:
                         if p._bad:
                             if cbad <= 0:
                                 self.logger.warning("Disabling %s..." % p.__class__.__name__)
-                                self.packers.remove(p)
+                                packers.remove(p)
                             else:
                                 cbad -= 1
                             label = None
@@ -342,7 +342,9 @@ class Dataset:
                     break
             if not pack_all or (pack_all and short_label is not None):
                 self[exe] = short_label
-            pbar.update()
+            if label is not None or not pack_all:
+                i += 1
+                pbar.update()
         pbar.close()
         if i < n - 1:
             self.logger.warning("Found too few candidate executables")
@@ -492,10 +494,12 @@ class Dataset:
         tmp = ts.TempPath(".dataset-backup", hex(hash(self))[2:])
         backups, i = [], 0
         for i, backup in enumerate(sorted(tmp.listdir(Dataset.check), key=lambda p: -int(p.basename))):
-            backup = Dataset(backup)
+            backup, n = Dataset(backup), 0
+            # if there is a change since the last backup, create a new one
             if i == 0 and dataset != backup:
                 dataset._copy(tmp.joinpath(str(int(time.time()))))
-            elif i >= BACKUP_COPIES:
+                n = 1
+            elif i >= BACKUP_COPIES - n:
                 backup._remove()
         if i == 0:
             dataset._copy(tmp.joinpath(str(int(time.time()))))

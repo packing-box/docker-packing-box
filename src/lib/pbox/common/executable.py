@@ -18,6 +18,7 @@ class Executable(Path):
     (3) dataset-bound, with a new destination dataset
     """
     FIELDS = ["realpath", "category", "filetype", "size", "ctime", "mtime"]
+    HASH = "sha256"  # possible values: hashlib.algorithms_available
     # NB: the best signature matched is the longest
     SIGNATURES = {
         '^Mach-O 32-bit ':                         "Mach-O32",
@@ -113,7 +114,7 @@ class Executable(Path):
     
     @cached_property
     def hash(self):
-        return hashlib.sha256_file(str(self))
+        return getattr(hashlib, Executable.HASH + "_file")(str(self))
     
     @cached_property
     def mtime(self):

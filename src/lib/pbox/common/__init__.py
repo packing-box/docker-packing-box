@@ -1,6 +1,6 @@
 # -*- coding: UTF-8 -*-
-from .config import config
+from .config import *
+from .config import __all__ as _config
 
-
-__all__ = ["config"]
+__all__ = _config
 
