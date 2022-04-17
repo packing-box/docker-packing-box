@@ -1,15 +1,17 @@
 # -*- coding: UTF-8 -*-
+from tinyscript import configparser
 from tinyscript.helpers import ConfigPath, Path
-try:
-    from ConfigParser import ConfigParser
-except ImportError:
-    from configparser import ConfigParser
+
+
+__all__ = ["config", "LOG_FORMATS"]
+
+LOG_FORMATS = ["%(asctime)s [%(levelname)-8s] %(message)s", "%(asctime)s [%(levelname)-8s] %(name)-16s - %(message)s"]
 
 
 _ws = lambda s, v: Path(s['workspace'].joinpath(v), create=True, expand=True).absolute()
 
 
-class Config(ConfigParser):
+class Config(configparser.ConfigParser):
     """ Simple Config class for handling some packing-box settings. """
     DEFAULTS = {
         'main': {

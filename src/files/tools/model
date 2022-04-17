@@ -113,6 +113,8 @@ if __name__ == '__main__':
     visualize.add_argument("-e", "--export", action="store_true", help="export to PNG")
     visualize.add_argument("-o", "--output-dir", default=".", help="output directory")
     initialize(noargs_action="help")
+    logger.name = "model"
+    logging.configLogger(logger, ["INFO", "DEBUG"][args.verbose], fmt=LOG_FORMATS[args.verbose], relative=True)
     args.load = args.command != "list"
     try:
         m = DumpedModel(**vars(args))

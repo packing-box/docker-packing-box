@@ -1,6 +1,7 @@
 #!/usr/bin/python3
 # -*- coding: UTF-8 -*-
 import bintropy
+from pbox import *
 from tinyscript import *
 
 
@@ -72,6 +73,8 @@ if __name__ == "__main__":
     parser.add_argument("-l", "--label", nargs="*", action="extend", help="select a particular label (keeps order)")
     parser.add_argument("-s", "--scale", action="store_true", help="scale plots according to the first binary")
     initialize()
+    logger.name = "visualizer"
+    logging.configLogger(logger, ["INFO", "DEBUG"][args.verbose], fmt=LOG_FORMATS[args.verbose], relative=True)
     imgn = ts.Path(args.filename).stem
     logger.info("Collecting files from %s for pattern '%s'..." % (args.folder, args.filename))
     labels, files = find(args.folder, args.filename, args.label)

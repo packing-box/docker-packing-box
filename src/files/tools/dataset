@@ -97,6 +97,8 @@ if __name__ == '__main__':
     view = __add_name(sparsers.add_parser("view", help="view executables filtered from a dataset"))
     view.add_argument("-q", "--query", help="query for selecting records to be viewed")
     initialize(noargs_action="help")
+    logger.name = "dataset"
+    logging.configLogger(logger, ["INFO", "DEBUG"][args.verbose], fmt=LOG_FORMATS[args.verbose], relative=True)
     args.load = args.command != "list"
     ds = (FilelessDataset if getattr(args, "fileless", False) or \
           getattr(args, "name", None) and FilelessDataset.check(args.name) else Dataset)(**vars(args))
