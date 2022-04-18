@@ -216,13 +216,13 @@ class Dataset:
                     if not exe.is_file():
                         continue
                     exe = Executable(exe, dataset=self)
-                    if exe.category not in self._categories_exp or exe.filename in packers:
+                    if exe.category not in self._categories_exp or exe.stem in packers:
                         continue  # ignore unrelated files and packers themselves
                     if walk_all:
                         yield exe
                     else:
                         candidates.append(exe)
-        if len(candidates) > 0:
+        if len(candidates) > 0 and not walk_all:
             random.shuffle(candidates)
             for c in candidates:
                 yield c
@@ -317,11 +317,21 @@ class Dataset:
         pbar = None
         for exe in self._walk(n <= 0):
             label = short_label = None
+            # check 1: are there already samples enough?
             if i >= n > 0:
                 break
+            # check 2: are there working packers left?
             if len(packers) == 0:
                 self.logger.critical("No packer left")
                 return
+            # check 3: is the selected Executable supported by any of the remaining packers?
+            if all(not p._check(exe, silent=True) for p in packers):
+                self.logger.debug("unsupported file (%s)" % exe)
+                continue
+            # check 4: was this executable already included in the dataset?
+            if len(self._data) > 0 and exe.hash in self._data.hash.values:
+                self.logger.debug("already in the dataset (%s)" % exe)
+                continue
             self.logger.debug("handling %s..." % exe)
             # set the progress bar now to not overlap with self._walk's logging
             if pbar is None:
@@ -329,10 +339,14 @@ class Dataset:
             if pack_all or random.randint(0, len(packers) if balance else 1):
                 if len(packers) > 1:
                     random.shuffle(packers)
-                exe.copy()
-                old_h = exe.destination.absolute()
+                destination = exe.copy(extension=True)
+                if not destination:
+                    continue
+                old_h = destination.absolute()
                 for p in packers[:]:
                     exe.hash, label = p.pack(str(old_h), include_hash=True)
+                    if exe.hash is None:
+                        continue  # means that this kind of executable is not supported by this packer
                     if not label or p._bad:
                         if p._bad:
                             if cbad <= 0:

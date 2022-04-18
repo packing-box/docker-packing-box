@@ -81,13 +81,15 @@ class Executable(Path):
         self.label = kwargs.pop('label', getattr(self, "label", None))
         return self
     
-    def copy(self):
-        if str(self) != str(self.destination) and not self.destination.exists():
+    def copy(self, extension=False):
+        dest = Path(str(self.destination) + ["", self.extension][extension])
+        if str(self) != dest and not dest.exists():
             try:  # copy file with its attributes and metadata
-                shutil.copy2(str(self), str(self.destination))
+                shutil.copy2(str(self), str(dest))
             except:
                 raise
-            self.destination.chmod(0o777)
+            dest.chmod(0o777)
+            return dest
     
     @property
     def metadata(self):
