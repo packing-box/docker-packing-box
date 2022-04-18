@@ -99,6 +99,7 @@ class Dataset:
         return "<%s dataset at 0x%x>" % (self.name, id(self))
     
     def __setattr__(self, name, value):
+        # auto-expand the categories attribute into a private one
         if name == "categories":
             self._categories_exp = expand_categories(*value)
         super(Dataset, self).__setattr__(name, value)
@@ -289,14 +290,23 @@ class Dataset:
     def make(self, n=0, categories=["All"], balance=False, packer=None, pack_all=False, **kw):
         """ Make n new samples in the current dataset among the given binary categories, balanced or not according to
              the number of distinct packers. """
-        self.categories = categories
+        self.categories = categories  # this triggers creating self._categories_exp
+        # select enabled and non-failing packers among the input list
+        packers = [p for p in (packer or Packer.registry) if p in Packer.registry and \
+                                                             p.check(*self._categories_exp, silent=False)]
+        if len(packers) == 0:
+            self.logger.critical("No valid packer selected")
+            return
+        # then restrict dataset's categories to these of the selected packers
+        pcategories = aggregate_categories(*[p.categories for p in packers])
+        self.categories = collapse_categories(*[c for c in expand_categories(*categories) if c in pcategories])
         sources = []
         for cat, src in self.sources.items():
             if all(c not in expand_categories(cat) for c in self._categories_exp):
                 continue
             sources.extend(src)
         self.logger.info("Source directories:    %s" % ",".join(set(sources)))
-        self.logger.info("Considered categories: %s" % ",".join(categories))
+        self.logger.info("Considered categories: %s" % ",".join(self.categories))  # this updates self._categories_exp
         self.logger.info("Selected packers:      %s" % ",".join(["All"] if packer is None else \
                                                                 [p.__class__.__name__ for p in packer]))
         self._metadata['sources'] = list(set(map(str, self._metadata.get('sources', []) + sources)))
@@ -305,9 +315,6 @@ class Dataset:
         # get executables to be randomly packed or not
         i, cbad = 0, n // 3 * 2
         pbar = None
-        # select enabled and non-failing packers among the input list
-        packers = [p for p in (packer or Packer.registry) if p in Packer.registry and \
-                                                             p.check(*self._categories_exp, silent=False)]
         for exe in self._walk(n <= 0):
             label = short_label = None
             if i >= n > 0:
@@ -345,7 +352,8 @@ class Dataset:
             if label is not None or not pack_all:
                 i += 1
                 pbar.update()
-        pbar.close()
+        if pbar:
+            pbar.close()
         if i < n - 1:
             self.logger.warning("Found too few candidate executables")
         l = len(self)
@@ -581,7 +589,7 @@ class Dataset:
                         _t, h = "packed", ["Size Range", "Packed", "%"]
                     # none packed
                     elif data1[c][-1][3] == "0":
-                        _t, h = "not-packed", ["Size Range", "Total", "%"]
+                        _t, h = "not-packed", ["Size Range", "Not Packed", "%"]
                     # mix of not packed and packed
                     else:
                         _t, h = "mix", ["Size Range", "Total", "%", "Packed", "%"]
