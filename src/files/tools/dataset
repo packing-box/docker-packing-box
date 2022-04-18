@@ -5,7 +5,7 @@ from pbox.__info__ import *
 from tinyscript import *
 
 
-__version__     = "2.0.1"
+__version__     = "2.0.2"
 __doc__         = """
 This tool aims to manipulate a dataset in multiple ways by:
 - adding new executables from the packing-box Docker image or from a user-defined source, packed or not with the
@@ -29,6 +29,8 @@ __description__ = "Make datasets of packed and not packed executables for use wi
 
 def __add_name(parser, force=False):
     def dataset_exists(string):
+        if string == "all":
+            return string
         p = config['datasets'].joinpath(string)
         (ts.folder_exists_or_create if force else ts.folder_exists)(str(p))
         if not force and not Dataset.check(p) and not FilelessDataset.check(p):
@@ -99,8 +101,14 @@ if __name__ == '__main__':
     initialize(noargs_action="help")
     logger.name = "dataset"
     logging.configLogger(logger, ["INFO", "DEBUG"][args.verbose], fmt=LOG_FORMATS[args.verbose], relative=True)
-    args.load = args.command != "list"
-    ds = (FilelessDataset if getattr(args, "fileless", False) or \
-          getattr(args, "name", None) and FilelessDataset.check(args.name) else Dataset)(**vars(args))
-    getattr(ds, args.command)(**vars(args))
+    name, args.load = getattr(args, "name", None), args.command != "list"
+    if args.command == "purge" and name == "all":
+        for ds in Dataset.iteritems():
+            ds.purge()
+    elif name == "all":
+        logger.warning("Dataset cannot be named 'all' (reserved word)")
+    else:
+        ds = (FilelessDataset if getattr(args, "fileless", False) or \
+              name and FilelessDataset.check(name) else Dataset)(**vars(args))
+        getattr(ds, args.command)(**vars(args))
 

@@ -6,7 +6,7 @@ from pbox.__info__ import *
 from tinyscript import *
 
 
-__version__     = "1.2.0"
+__version__     = "1.2.1"
 __doc__         = """
 This utility aims to facilitate detectors|packers|unpackers' setup|test according to the related YAML data file.
 """
