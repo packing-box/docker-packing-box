@@ -74,12 +74,16 @@ TEST_FILES = {
         "/root/.wine/drive_c/windows/syswow64/winemine.exe",
         "/root/.wine/drive_c/windows/twain_32.dll",
         "/root/.wine/drive_c/windows/twain_32/sane.ds",
+        "/root/.wine/drive_c/windows/syswow64/msscript.ocx",
+        "/root/.wine/drive_c/windows/syswow64/msgsm32.acm",
     ],
     'PE64': [
         "/root/.wine/drive_c/windows/hh.exe",
         "/root/.wine/drive_c/windows/system32/spoolsv.exe",
         "/root/.wine/drive_c/windows/system32/dmscript.dll",
         "/root/.wine/drive_c/windows/twain_64/gphoto2.ds",
+        "/root/.wine/drive_c/windows/system32/msscript.ocx",
+        "/root/.wine/drive_c/windows/system32/msadp32.acm",
     ],
 }
 
