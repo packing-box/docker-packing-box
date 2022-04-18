@@ -11,7 +11,7 @@ except ImportError:
 
 
 __script__      = "packing-box"
-__version__     = "1.1.0"
+__version__     = "1.1.1"
 __description__ = "Display this help message or packer's help"
 
 
@@ -23,7 +23,7 @@ This Docker image is a ready-to-use platform for making datasets of packed and n
 """
 
 
-def overview(show=False, category=None):
+def overview(show=False, category=None, family=None):
     """ Display an overview of tools, detectors, packers, unpackers and datasets. """
     report, n = Report(Text(TEMPLATE)), 0
     tools = []
@@ -41,7 +41,7 @@ def overview(show=False, category=None):
     report.append(Section("Tools (%d)" % len(tools)), Table(tools, column_headers=tools_headers))
     descr = {}
     for cls in [Detector, Packer, Unpacker]:
-        r, d = cls.summary(show, category)
+        r, d = cls.summary(show, category, **({'families': family} if cls is Packer else {}))
         if cls is Detector:
             table = r[1]
             table.column_headers.insert(-1, "Superdetector")
@@ -64,17 +64,17 @@ def overview(show=False, category=None):
 
 
 if __name__ == '__main__':
-    meg1 = parser.add_mutually_exclusive_group()
-    meg1.add_argument("--category", default="All", help="filter on a category of executables")
-    meg1.add_argument("--item", help="get help for a particular detector, packer or unpacker")
-    meg2 = parser.add_mutually_exclusive_group()
-    meg2.add_argument("--item", help="get help for a particular detector, packer or unpacker")
-    meg2.add_argument("--show-all", action="store_true", help="show all packers, even those that are broken")
+    megs = [parser.add_mutually_exclusive_group() for i in range(3)]
+    megs[0].add_argument("-c", "--category", default="All", help="filter on a category of executables")
+    megs[1].add_argument("-f", "--family", default="All", help="filter on a family of packers")
+    for i in range(3):
+        megs[i].add_argument("-i", "--item", help="get help for a particular detector, packer or unpacker")
+    megs[2].add_argument("-s", "--show-all", action="store_true", help="show all packers, even those that are broken")
     initialize()
     logger.name = "help"
     logging.configLogger(logger, ["INFO", "DEBUG"][args.verbose], fmt=LOG_FORMATS[args.verbose], relative=True)
     if args.item is None:
-        print(mdv.main(overview(args.show_all, args.category)))
+        print(mdv.main(overview(args.show_all, args.category, args.family)))
     else:
         subcls = None
         for cls in [Detector, Packer, Unpacker]:

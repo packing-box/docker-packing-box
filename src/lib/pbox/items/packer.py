@@ -17,8 +17,17 @@ class Packer(Base):
     
     Extra methods:
       .pack(executable, **kwargs) [str]
+    
+    Overloaded methods:
+      .help()
       .run(executable, **kwargs) [str|(str,time)]
     """
+    def help(self):
+        try:
+            return super(Packer, self).help({'families': ",".join(self.families)})
+        except AttributeError:
+            return super(Packer, self).help()
+    
     @update_logger
     def pack(self, executable, include_hash=False, **kwargs):
         """ Runs the packer according to its command line format and checks if the executable has been changed by this

@@ -28,7 +28,7 @@ sleep .1
 mv -f "$DST" "$SRC"{{postamble}}
 """
 OS_COMMANDS = subprocess.check_output("compgen -c", shell=True, executable="/bin/bash").splitlines()
-ERR_PATTERN = r"^\x07?\s*(?:\-\s*)?(?:\[ERR(?:OR)?\]|ERR(?:OR)?\:)\s*"
+ERR_PATTERN = r"^\x07?\s*(?:\-\s*)?(?:\[(?:ERR(?:OR)?|\!)\]|ERR(?:OR)?\:)\s*"
 PARAM_PATTERN = r"{{(.*?)(?:\[(.*?)\])?}}"
 STATUS = {
     'broken':        _c("☒", "magenta"),
@@ -190,15 +190,17 @@ class Base(Item):
             self.logger.debug("Status: " + self.status)
         return False
     
-    def help(self):
+    def help(self, extras=None):
         """ Returns a help message in Markdown format. """
         md = Report()
         if getattr(self, "description", None):
             md.append(Text(self.description))
         if getattr(self, "comment", None):
             md.append(Blockquote("**Note**: " + self.comment))
-        md.append(Text("**Source**: " + self.source))
+        md.append(Text("**Source**    : " + self.source))
         md.append(Text("**Applies to**: " + ", ".join(sorted(expand_categories(*self.categories, **{'once': True})))))
+        for k, v in (extras or {}).items():
+            md.append(Text("**%-10s**: " % k.capitalize() + v))
         if getattr(self, "references", None):
             md.append(Section("References"), List(*self.references, **{'ordered': True}))
         return md.md()
@@ -592,7 +594,7 @@ class Base(Item):
         return ["not ", ""][b(self.name) in OS_COMMANDS] + "installed" if st is None else st
     
     @classmethod
-    def summary(cls, show=False, category="All"):
+    def summary(cls, show=False, category="All", **kwargs):
         """ Make a summary table for the given class. """
         items = []
         pheaders = ["Name", "Targets", "Status", "Source"]
@@ -600,6 +602,10 @@ class Base(Item):
         for item in cls.registry:
             s, ic = item.status, expand_categories(*getattr(item, "categories", ["All"]))
             if not show and s in STATUS_DISABLED or all(c not in expand_categories(category) for c in ic):
+                continue
+            _g = lambda attr: getattr(item, attr, "<empty>")
+            if len(kwargs) > 0 and all(v not in [None, "All"] and \
+                (v not in _g(k) if isinstance(_g(k), list) else _g(k) != v) for k, v in kwargs.items()):
                 continue
             k = STATUS[s]
             descr.setdefault(k, [])
