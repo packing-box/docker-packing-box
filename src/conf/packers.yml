@@ -2,6 +2,9 @@ ACProtect:
   categories:
     - PE32
   description: ACProtect is an application that allows you to protect Windows executable files against piracy,using public keys encryption algorithms (RSA) to create and verify the registration keys and unlock some RSA key locked code,it has embedded cryptor against dump and unpacker.it also has many anti debug tricks. And you can use it to create evaluation and trial application versions. with specialized API system, mutual communication between loader and application is also can be achieved.
+  families:
+    - cryptor
+    - protector
   source: https://www.yaldex.com/Bestsoft/Utilities/acprotect.htm
   status: commercial
 
@@ -9,6 +12,8 @@ AinEXE:
   categories:
     - PE32
   description: DOS executable packer (part of the AIN Archiver suite).
+  families:
+    - compressor
   source: https://defacto2.net/f/a520164?filename=packers.zip
   status: info
 
@@ -16,6 +21,10 @@ Alienyze:
   categories:
     - PE32
   description: Alienyze is a software packer designed to do just that while offering the additional benefit of helping software developers to also compress the executable files, allowing them to reduce the file size of their software as much as possible.
+  families:
+    - compressor
+    - cryptor
+    - protector
   source: https://alienyze.com/
   status: commercial
 
@@ -24,6 +33,8 @@ Alternate_EXE_Packer:
     - PE
   comment: Relies on UPX 3.96.
   description: This program is able to compress executable files (type EXE) or DLL-files. Already compressed files may also be decompressed with this program. There exist 12 different levels for file-compression. This program is also able to create backups of the files that shall be compressed.
+  families:
+    - compressor
   references:
     - https://www.alternate-tools.com/pages/c_exepacker.php
   source: https://www.alternate-tools.com/files/EXEPacker.exe
@@ -61,6 +72,8 @@ APack:
   categories:
     - MSDOS
   description: 16-bit DOS executable compressor. aPACK compresses the file while keeping it executable. aPACK uses advanced compression heuristics and tricks to achieve the best compression ratio.
+  families:
+    - compressor
   install:
     - wget:  https://www.ibsensoftware.com/files/apack-1.00.zip
     - unzip: /opt/packers/apack
@@ -72,15 +85,39 @@ APack:
   source: https://www.ibsensoftware.com/download.html
   status: broken
 
+Armadillo:
+  categories:
+    - PE32
+    - PE64
+  description: Incorporates both a license manager and wrapper system for protecting PE files.
+  families:
+    - compressor
+    - protector
+  source: https://web.archive.org/web/20030324043555/https://www.exetools.com/files/protectors/win/armd252b2.zip
+  status: info
+
 ASPack:
   categories:
     - PE32
   comment: Cannot run inside a virtualized environment unless cracked.
   description: ASPack is an advanced solution created to provide Win32 EXE file packing and to protect them against non-professional reverse engineering.
+  families:
+    - compressor
+    - protector
   references:
     - https://github.com/fireeye/capa-rules/blob/master/anti-analysis/packer/aspack/packed-with-aspack.yml
   source: http://www.aspack.com/aspack.html
   status: broken
+
+AxProtector:
+  categories:
+    - PE
+  description: AxProtector is the ideal solution to save time and effort when it comes to integrating protection in your software. With AxProtector you can protect your software against piracy and reverse engineering in a fully automated fashion.
+  families:
+    - cryptor
+    - protector
+  source: https://www.wibu.com/us/products/protection-suite/axprotector.html
+  status: commercial
 
 BeRo:
   aliases:
@@ -89,6 +126,8 @@ BeRo:
   categories:
     - PE32
   description: BeRoEXEPacker, or short BEP, is a executable packer for 32-bit windows executables that can compress win32 EXEs and DLLs and offers LZBRS, LZBRR, LZBRA, LZMA, LZBRCM and CTX1 compression. 
+  families:
+    - compressor
   install:
     - copy: bep.exe /opt/packers/beroexepacker.exe
     - setp: /opt/packers/
@@ -98,7 +137,9 @@ BeRo:
 BurnEye:
   categories:
     - ELF32
-  description: Burneye is an executeable encryption program, which is suited to protect ELF binaries on the Intel x86 Linux operating system. It supports a variety of options to wrap an arbitrary executeable with multiple encryption layers.
+  description: Burneye is an executable encryption program, which is suited to protect ELF binaries on the Intel x86 Linux operating system. It supports a variety of options to wrap an arbitrary executable with multiple encryption layers.
+  families:
+    - cryptor
   references:
     - https://docplayer.net/86668430-Modern-linux-malware-exposed.html
   source: https://packetstormsecurity.com/files/29691/burneye-1.0-linux-static.tar.gz.html
@@ -108,6 +149,8 @@ ConfuserEx:
   categories:
     - .NET
   description: ConfuserEx is a open-source protector for .NET applications. It is the successor of Confuser project.
+  families:
+    - protector
   install:
     - wget:  https://github.com/mkaring/ConfuserEx/releases/download/v1.5.0/ConfuserEx-CLI.zip
     - unzip: /opt/packers/confuserex
@@ -123,6 +166,8 @@ Crinkler:
     - PE
   comment: This tool is used for working with Visual Studio projects.
   description: Crinkler is an executable file compressor (or rather, a compressing linker) for Windows for compressing small demoscene executables. As of 2020, it is the most widely used tool for compressing 1k/4k/8k intros.
+  families:
+    - compressor
   source: https://github.com/runestubbe/Crinkler
   status: info
 
@@ -130,6 +175,9 @@ DotNetZ:
   categories:
     - .NET
   description: .NETZ is a straightforward and lightweight, command-line piece of software written in C that allows you to compress and pack Microsoft .NET Framework executable files to ensure they consume as little space on your computer's hard drive as possible.
+  families:
+    - bundler
+    - compressor
   install:
     - unzip: /opt/packers
     - wine:  netz-bin/netz.exe
@@ -139,10 +187,23 @@ DotNetZ:
     - https://ltops9.wordpress.com/2012/12/02/191/
   source: https://www.softpedia.com/get/Programming/Packers-Crypters-Protectors/NETZ.shtml
 
+ElecKey:
+  categories:
+    - PE
+    - Mach-O
+  description: ElecKey offers the copy protection technology against software piracy, illegal use, and reverse engineering. So you can assure that your software distribution is always secure. ElecKey supports a variety of software licensing methods. You can choose from node-locked, USB dongle, network licenses, as well as different combinations.
+  families:
+    - protector
+  source: https://www.sciensoft.com/products/eleckey
+  status: commercial
+
 ELFuck:
   categories:
     - ELF32
   description: ELF packer for i386 original version from sk2 by sd.
+  families:
+    - compressor
+    - protector
   references:
     - https://docplayer.net/86668430-Modern-linux-malware-exposed.html
   source: https://github.com/timhsutw/elfuck
@@ -153,6 +214,8 @@ Enigma_Protector:
     - PE32
     - PE64
   description: A professional system for licensing and protecting executable files for Windows. The Enigma Protector is an essential tool for every developer of commercial software and shareware for Windows.
+  families:
+    - protector
   source: https://www.enigmaprotector.com/
   status: commercial
 
@@ -161,8 +224,12 @@ Enigma_Virtual_Box:
     - PE32
     - PE64
   description: Application virtualization system for Windows. Enigma Virtual Box enables application files and registry to be consolidated in a single executable file, without loss of efficiency and without virtualized files having to be extracted to the HDD. Enigma Virtual Box is a free application that supports both x86 and x64 binaries.
+  families:
+    - bundler
+    - virtualizer
+  references:
+    - https://github.com/dhondta/dataset-packed-pe/wiki/Automate-packing-with-Enigma-Virtual-Box
   source: https://www.enigmaprotector.com/en/aboutvb.html
-  status: commercial
 
 Eronana_Packer:
   categories:
@@ -171,6 +238,8 @@ Eronana_Packer:
   description: This is a packer for exe under win32. You can use it to pack any 32-bit exe file.
   exclude:
     - DLL: PE32\+? executable \(DLL\)
+  families:
+    - compressor
   install:
     - wget:  https://github.com/Eronana/packer/releases/download/packer/packer.zip
     - unzip: /opt/packers/eronana-packer
@@ -190,6 +259,8 @@ EXE_Stealth:
     - PE
   comment: Trial version ; does not allow to protect executables.
   description: EXE Stealth can protect most of the executable files that are compatible with PE format. However, not every executable file is compatible with EXEStealth and other PE protectors. A problem can enter the compiler or if it uses a loader with data submitted after the loader.
+  families:
+    - protector
   install:
     - copy: exestealth.exe /opt/packers/exestealth.exe
     - setp: /opt/packers/
@@ -204,6 +275,8 @@ EXE32Pack:
   categories:
     - PE32
   description: Compresses Win32 EXEs, DLLs, etc and dynamically expands them upon execution.
+  families:
+    - compressor
   install:
     - wget: http://www.magicnotes.com/steelbytes/exe32pack.zip
     - unzip: /opt/packers
@@ -215,6 +288,9 @@ eXPressor:
     - PE32
     - PE64
   description: Used as a compressor this tool can compress EXE files to half their normal size. Once compressed, the files execute just like normal. As a protector It is designed to protect applications against crackers ; also can help developers in creation of uncrackable registration keys, and implementation of trial version for protected software.
+  families:
+    - compressor
+    - protector
   install:
     - wget: http://www.cgsoftlabs.ro/zip/eXPressor.zip
     - unzip: /opt/packers/eronana-packer
@@ -228,6 +304,8 @@ Ezuri:
   categories:
     - ELF
   description: A Simple Linux ELF Runtime Crypter. An unpacker by f0wl can be found at f0wl/ezuri_unpack.
+  families:
+    - cryptor
   install:
     - wget:  https://github.com/guitmz/ezuri/archive/master.zip
     - unzip: /opt/packers
@@ -244,6 +322,8 @@ FSG:
   categories:
     - PE32
   description: FSG states for Fast Small Good and is a Windows executable packer.
+  families:
+    - compressor
   gui:
     # be sure to focus on the input text box
     - click 110 215 (.5)
@@ -265,6 +345,8 @@ GZEXE:
   categories:
     - ELF
   description: The gzexe utility allows you to compress executables in place and have them automatically uncompress and execute when you run them (at a penalty in performance). Note that the compressed executable is a shell script. This may create some security holes. In particular, the compressed executable relies on the PATH environment variable to find gzip and some standard utilities (basename, chmod, ln, mkdir, mktemp, rm, sleep, and tail).
+  families:
+    - compressor
   install:
     - apt: gzip
   references:
@@ -286,6 +368,9 @@ hXOR-Packer:
   description: A PE (Portable Executable) packer with Huffman Compression and Xor encryption.
   exclude:
     - DLL: PE32\+? executable \(DLL\)
+  families:
+    - compressor
+    - cryptor
   install:
     - exec:  rm -rf "/opt/packers/hXOR-Packer v0.1" /opt/packers/hxor-packer
     - wget:  https://github.com/rurararura/hXOR-Packer/releases/download/0.1/hXOR-Packer.v0.1.zip
@@ -313,6 +398,8 @@ Kkrunchy:
   description: Kkrunchy is a small exe packer primarily meant for 64k intros.
   exclude:
     - DLL: PE32\+? executable \(DLL\)
+  families:
+    - compressor
   install:
     - wget:  http://www.farbrausch.de/~fg/kkrunchy/kkrunchy_023a2.zip
     - unzip: /opt/packers
@@ -328,6 +415,8 @@ LM-X_License_Manager:
   categories:
     - All
   description: LM-X License Manager lets you protect your products against piracy by enforcing various levels of security, save time, and reduce business risks. When coupled with License Activation Center (LAC), LM-X provides a complete license management solution that greatly simplifies license creation and activation. With one of the widest ranges of platform and language support, LM-X License Manager allows ISVs to quickly and effortlessly reach new markets and customers, driving sales and increasing revenue.
+  families:
+    - protector
   source: https://www.x-formation.com/lm-x-license-manager/
   status: commercial
 
@@ -337,6 +426,8 @@ M0dern_P4cker:
   description: Just a modern packer for Elf binaries.
   exclude:
     - o
+  families:
+    - cryptor
   install:
     - apt:   libcapstone-dev
     - exec:  rm -rf /opt/packers/m0dern_p4cker-e24a1d47dae1acb0cc3dc4d2fb42a61662bc210c /opt/packers/m0dern_p4cker
@@ -356,6 +447,8 @@ MEW:
   description: MEW is an EXE compression tool that was specifically designed to handle small files, but does a pretty good job when working with larger files too.
   exclude:
     - DLL: PE32\+? executable \(DLL\)
+  families:
+    - compressor
   gui:
     # click on "..." to open a target executable
     - click 675 425 (.1)
@@ -384,6 +477,8 @@ MidgetPack:
     ELF32:
       - o
       - so
+  families:
+    - protector
   install:
     - copy: midgetpack
   steps:
@@ -397,6 +492,8 @@ MoleBox:
   categories:
     - PE
   description: MoleBox Virtualization Solution (VS) creates a private and secure virtual environment for your software applications, isolating them from the underlying operating system and other software installed and running on the host device.
+  families:
+    - virtualizer
   source: https://www.molebox.com/
   status: commercial
 
@@ -408,6 +505,8 @@ MPRESS:
   exclude:
     PE:
       - ds
+  families:
+    - compressor
   install:
     - unzip: /opt/packers/mpress
     - wine:  mpress.exe
@@ -443,6 +542,8 @@ NeoLite:
   categories:
     - PE32
   description: NeoLite compresses Windows 32-bit .EXE files and DLLs. It compresses them in such a manner that they are still executed normally. No additional software is required to run the compressed software, it is completely transparent. There is no speed penalty incurred.
+  families:
+    - compressor
   references:
     - http://www.neoworx.com
     - http://www.neoworx.com/download/NeoLte20.exe
@@ -453,6 +554,8 @@ NetCrypt:
   categories:
     - .NET
   description: A proof-of-concept packer for .NET executables, designed to provide a starting point to explain the basic principles of runtime packing.
+  families:
+    - compressor
   install:
     - wget:  https://github.com/friedkiwi/netcrypt/releases/download/v1.1/netcrypt.zip
     - unzip: /opt/packers/netcrypt
@@ -464,13 +567,37 @@ NSPack:
     - PE32
     - PE64
   description: NsPack is a wonderful tool which can compress 32bits and 64bits exe, dll, ocx, scr files. Application supports also windows programs as well as C#.net program. 
+  families:
+    - compressor
   source: https://webscene.ir/tools/show/NsPack-and-crack-3.7
+  status: info
+
+Obsidium:
+  categories:
+    - PE32
+    - PE64
+  description: Obsidium is a feature-rich professional software protection and licensing system that was designed as a cost effective and easy to implement, yet reliable and non-invasive way to protect your 32- and 64-bit Windows software applications and games from reverse engineering, unauthorized modifications ("cracking") and redistribution ("software piracy") while providing a secure and flexible licensing/registration system.
+  families:
+    - protector
+  source: https://www.obsidium.de
+  status: commercial
+
+Origami:
+  categories:
+    - .NET
+  description: Packer compressing .net assemblies, (ab)using the PE format for data storage. The assembly supplied to origami will be compressed and encrypted with a simple xor operation, the encrypted and compressed data (payload) will be inserted into a stub executable which will invoke its payload on runtime.
+  families:
+    - compressor
+    - cryptor
+  source: https://github.com/dr4k0nia/Origami
   status: info
 
 Packman:
   categories:
     - PE32
   description: Packman is a Windows EXE/DLL packer. It takes an existing EXE/DLL and compresses it into a form that runs exactly like the original, with detailed control over resource filtering, compression algorithm and packing process.
+  families:
+    - compressor
   source: https://www.portablefreeware.com/?id=847
   status: info
 
@@ -478,6 +605,9 @@ Pakkero:
   categories:
     - ELF
   description: Pakkero is a binary packer written in Go made for fun and educational purpose. Its main goal is to take in input a program file (elf binary, script, even appimage) and compress it, protect it from tampering and intrusion.
+  families:
+    - compressor
+    - protector
   install:
     - wget: https://github.com/89luca89/pakkero/releases/download/0.7.0/pakkero_linux_amd64
     - cd:   /tmp
@@ -487,12 +617,24 @@ Pakkero:
   source: https://github.com/89luca89/pakkero
   status: ok
 
+Papaw:
+  categories:
+    - ELF
+  description: Papaw is a permissively-licensed packer for executables which contain statically linked, third-party components of various licenses and run on various devices, with limited disk space. It reduces the size of executables and makes them capable of replacing themselves on disk, while optionally providing very basic anti-debugging protection to discourage those attempting some trivial reverse-engineering techniques.
+  families:
+    - compressor
+    - protector
+  source: https://github.com/dimkr/papaw
+  status: info
+
 PE-Packer:
   categories:
     - PE32
   description: Simple packer for Windows 32-bits PE files. The new PE file after packing can obstruct the process of reverse engineering. It will transform the original import table, encrypt sections, clear section names and installing the shell-entry. When running a packed PE file, the shell-entry will decrypt and load the original program by decrypting sections, initializing the original import table and relocation.
   exclude:
     - DLL: PE32\+? executable \(DLL\)
+  families:
+    - cryptor
   install:
     - wget:  https://github.com/czs108/PE-Packer/releases/download/v1.0.0-beta/PE-Packer-1.0.0-beta-win-x86.zip
     - unzip: /opt/packers/pepacker
@@ -505,10 +647,19 @@ PE-Packer:
   source: https://github.com/czs108/PE-Packer
   status: ok
 
+PE-Toy:
+  categories:
+    - PE32
+  description: A PE file packer.
+  source: https://github.com/r0ngwe1/petoy
+  status: info
+
 PECompact:
   categories:
     - PE32
   description: PECompact v2 is a next generation win32 portable executable compressor. Runewritten from the ground up, PECompact v2 is designed to be the ultimate solution to executable compression.
+  families:
+    - compressor
   source: https://bitsum.com/pecompact.htm
   status: commercial
 
@@ -519,6 +670,8 @@ PELock:
   description: PELock is a software security solution designed for protection of any 32 bit Windows applications against cracking, tampering and reverse engineering analysis.
   exclude:
     - DLL: PE32\+? executable \(DLL\)
+  families:
+    - protector
   gui:
     # click on "OK" when the intro window is displayed
     - click 630 570 (.5) [x3]
@@ -545,6 +698,8 @@ PEShield:
     - PE32
   comment: The provided executable does not run.
   description: PE-SHiELD is a program, which encrypts 32-bit Windows EXE files, leaving them still executable. The previous version was over a year in the wild and there is still no unpacker for it.
+  families:
+    - cryptor
   install:
     - unzip: /opt/packers/peshield
     - wine:  peshield.exe
@@ -553,12 +708,24 @@ PEShield:
   source: https://webscene.ir/tools/show/PE-SHIELD-0.25
   status: broken
 
+PESpin:
+  categories:
+    - PE32
+  description: PESpin is a Windows executable files protector, compressor coded in pure Win32ASM using MASM. Overall, this application will enable the compression of the entire executable - code, data and resources, thus leaving the file protected against patching or disassembling.
+  families:
+    - compressor
+    - protector
+  source: http://downloads.fyxm.net/PESpin-95477.html
+  status: info
+
 PEtite:
   categories:
     - PE32
   description: Petite is a free Win32 (Windows 95/98/2000/NT/XP/Vista/7/etc) executable (EXE/DLL/etc) compressor.
   exclude:
     - ds
+  families:
+    - compressor
   install:
     - wget:  https://www.un4seen.com/files/petite24.zip
     - unzip: /opt/packers/petite
@@ -592,6 +759,8 @@ RLPack:
   description: RLPack is a tiny application which compresses executable files but still allows you to run them under normal conditions. Its features can be seamlessly figured out.
   exclude:
     - DLL: PE32\+? executable \(DLL\)
+  families:
+    - compressor
   gui:
     # click on checkbox "Make Backup" (to prevent it from copying the binary)
     - click 285 580
@@ -613,10 +782,22 @@ RLPack:
   source: https://www.softpedia.com/get/Programming/Packers-Crypters-Protectors/RLPack-Basic-Edition.shtml
   status: ok
 
+SEPacker:
+  categories:
+    - PE32
+  description: Simple Executable Packer is a simple windows .exe/.dll packer. (Compresses code section and your compiled binaries waste less space) Almost whole codes written in pure C and very minimal also understandable (which makes modifying very easy; like debugger traps, encryption etc.)
+  families:
+    - compressor
+  source: https://sourceforge.net/projects/sepacker
+  status: info
+
 Shiva:
   categories:
     - ELF
   description: Shiva is a tool to encrypt ELF executables under Linux. Shiva can be used to wrap an executable in such a way that though it continues to run as it did before it is very difficult to debug or reverse engineer. Shiva can be used to password protect critical programs, including setuid programs, or simply to obfuscate sensitive data stored within programs.
+  families:
+    - cryptor
+    - protector
   install:
     - wget:  https://dl.packetstormsecurity.net/crypt/linux/shiva-0.95.tar.gz
     - untar: /opt/packers
@@ -631,16 +812,34 @@ Silent_Packer:
     - ELF
     - PE
   description: Silent_Packer is an ELF / PE packer written in pure C. This program can be used to obfuscate a binary. This packer supports PIE binaries. It currently supports XOR and AES-128-ECB as cipher methods.
+  families:
+    - cryptor
   install:
     - wget: https://github.com/SilentVoid13/Silent_Packer/releases/download/v0.1/Silent_Packer
     - cd:   /tmp
     - copy: silent-packer
   source: https://github.com/SilentVoid13/Silent_Packer
 
+SmartPacker:
+  categories:
+    - PE32
+    - PE64
+  description: Packs 32 & 64bit applications with DLLs, data files, 3rd party run-time into one single executable that runs instantly, with no installs or hassles. Featuring virtual filesystem, drag & drop files/folders, icon support, password protection, commandline parameters, plug-in support, customizable storage locations etc. [DISCONTINUED]
+  families:
+    - bundler
+    - protector
+    - virtualizer
+  maintained: false
+  source: https://www.smartpacker.nl
+  status: commercial
+
 Telock:
   categories:
     - PE
   description: Telock is a practical tool that intends to help developers who want to protect their work and reduce the size of the executable files. The application is designed to encode your files in order to make them impossible or at least hard to reverse engineer.
+  families:
+    - compressor
+    - protector
   gui:
     # click on the "File" menu
     - click 220 220 (.1)
@@ -664,11 +863,24 @@ TheArk:
   categories:
     - PE32
   description: Windows x86 PE Packer In C++.
+  families:
+    - compressor
   install:
     - wget:  https://github.com/aaaddress1/theArk/releases/download/1.0/Release.zip
     - unzip: /opt/packers/theark
     - wine:  theArk.exe
   source: https://github.com/aaaddress1/theArk
+
+Themida:
+  categories:
+    - PE32
+    - PE64
+  description: Advanced Windows software protection system, developed for software developers who wish to protect their applications against advanced reverse engineering and software cracking.
+  families:
+    - protector
+    - virtualizer
+  source: https://www.oreans.com/themida.php
+  status: commercial
 
 UPX:
   categories:
@@ -678,6 +890,8 @@ UPX:
     - PE32
     - PE64
   description: UPX is a free, portable, extendable, high-performance executable packer for several executable formats.
+  families:
+    - compressor
   exclude:
     PE:
       - ds
@@ -705,6 +919,9 @@ Ward:
   categories:
     - ELF
   description: This is a simple implementation of an ELF packer that creates stealthy droppers for loading malicious ELFs in-memory. Useful for red teamers trying to proliferate a payload while evading detection.
+  families:
+    - compressor
+    - protector
   install:
     - exec:  rm -rf /opt/packers/ward-master
     - wget:  https://github.com/ex0dus-0x/ward/archive/refs/heads/master.zip
@@ -729,6 +946,8 @@ WinUPack:
     - MSDOS
     - PE32
   description: WinUpack is the frontend version of Upack. Upack is a packer that can compress Windows PE file, which may self-decompress and run normally without any other decompresser. It can pack executable files of Windows PE format files with almost the best compression ratio. Whereas DOS-EXEs(MZ), Win3.x-EXE/DLLs(NE), and any other platform programs are not supported by Upack. Upack is only for compression, not for protection mainly.
+  families:
+    - compressor
   source: http://downloads.fyxm.net/Portable-WinUpack-13975.html
   status: info
 
@@ -736,6 +955,8 @@ Xor_Packer:
   categories:
     - PE
   description: A simple packer working with all PE files which cipher your exe with a XOR implementation.
+  families:
+    - cryptor
   install:
     - wget: https://github.com/nqntmqmqmb/xorPacker/raw/master/xorPacker/bin/Debug/xorPacker.exe
     - exec: mv /tmp/xor-packer.exe /opt/packers/
@@ -753,6 +974,10 @@ Yoda_Crypter:
   description: This is a small PE crypter with some nice protection options.
   exclude:
     - ds
+  families:
+    - compressor
+    - cryptor
+    - protector
   gui:
     # click on "..." to open a target executable
     - click 580 330 (.1)
@@ -767,7 +992,7 @@ Yoda_Crypter:
   install:
     - unzip: /opt/packers/yoda_crypter
     - wine:  yC.exe
-  source: https://sourceforge.net/projects/yodap/files/Yoda%20Crypter/
+  source: https://sourceforge.net/projects/yodap
   status: ok
 
 Yoda_Protector:
@@ -779,9 +1004,22 @@ Yoda_Protector:
   description: Yoda's Protector is a free, open source, Windows 32-bit software protector. It performs string & resource encryption, resource compression, uses Microsoft Crypto API, program compression, program optimization, polymorphic encryption, API redirection, anti-debugging tricks, removes debug information and relocation table, optimizes and removes DOS header.
   exclude:
     - ds
+  families:
+    - compressor
+    - cryptor
+    - protector
   install:
     - unzip: /opt/packers/yoda_protector
     - wine:  yP.exe
   source: http://yodap.sourceforge.net
   status: gui
+
+Zprotect:
+  categories:
+    - .NET
+  description: Zprotect goes beyond traditional obfuscation methods. In addition to renaming your metadata entities, it also supports advanced obfuscation methods that will harden your overall protection scheme and foil reverse engineering altogether.
+  families:
+    - protector
+  source: http://www.jiami.net
+  status: commercial
 
