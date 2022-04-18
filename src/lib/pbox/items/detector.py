@@ -17,6 +17,8 @@ class Detector(Base):
     
     Extra methods:
       .detect(executable, multiclass, **kwargs) [str]
+    
+    Overloaded methods:
       .test(executable, multiclass, **kwargs)
     """
     use_output = True

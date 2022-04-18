@@ -82,7 +82,7 @@ class Executable(Path):
         return self
     
     def copy(self, extension=False):
-        dest = Path(str(self.destination) + ["", self.extension][extension])
+        dest = Path(str(self.destination) + ["", self.extension.lower()][extension])
         if str(self) != dest and not dest.exists():
             try:  # copy file with its attributes and metadata
                 shutil.copy2(str(self), str(dest))
