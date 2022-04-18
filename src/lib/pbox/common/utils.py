@@ -13,9 +13,9 @@ except ImportError:
 from .config import config
 
 
-__all__ = ["backup", "benchmark", "class_or_instance_method", "collapse_categories", "expand_categories",
-           "file_or_folder_or_dataset", "highlight_best", "make_registry", "mdv", "metrics", "shorten_str",
-           "CATEGORIES", "PERF_HEADERS"]
+__all__ = ["aggregate_categories", "backup", "benchmark", "class_or_instance_method", "collapse_categories",
+           "expand_categories", "file_or_folder_or_dataset", "highlight_best", "make_registry", "mdv", "metrics",
+           "shorten_str", "CATEGORIES", "PERF_HEADERS"]
 
 
 CATEGORIES = {
@@ -37,6 +37,17 @@ PERF_HEADERS = {
 
 
 bold = lambda text: "\033[1m{}\033[0m".format(text)
+
+
+def aggregate_categories(*categories, **kw):
+    """ Aggregate the given input categories. """
+    l = []
+    for c in categories:
+        if isinstance(c, (list, tuple)):
+            l.extend(expand_categories(*c))
+        else:
+            l.append(c)
+    return collapse_categories(*set(l)) if kw.get('collapse', False) else list(set(l))
 
 
 def backup(f):
@@ -61,14 +72,24 @@ def benchmark(f):
 
 def collapse_categories(*categories, **kw):
     """ 2-depth dictionary-based collapsing function for getting a short list of executable categories. """
+    # also support list input argument
     if len(categories) == 1 and isinstance(categories[0], (tuple, list)):
         categories = categories[0]
     selected = [x for x in categories]
-    for c in [k for k in CATEGORIES.keys() if k != "All"]:
+    groups = [k for k in CATEGORIES.keys() if k != "All"]
+    for c in groups:
+        # if a complete group of categories (PE, ELF, Mach-O) is included, only keep the entire group
         if all(x in selected for x in CATEGORIES[c]):
             for x in CATEGORIES[c]:
                 selected.remove(x)
             selected.append(c)
+    # ensure children of complete groups are removed
+    for c in selected[:]:
+        if c in groups:
+            for sc in selected:
+                if sc in CATEGORIES[c]:
+                    selected.remove(sc)
+    # if everything in the special group 'All' is included, simply select only 'All'
     if all(x in selected for x in CATEGORIES['All']):
         selected = ["All"]
     return list(set(selected))
