@@ -28,6 +28,7 @@ sleep .1
 mv -f "$DST" "$SRC"{{postamble}}
 """
 OS_COMMANDS = subprocess.check_output("compgen -c", shell=True, executable="/bin/bash").splitlines()
+ERR_PATTERN = r"^\x07?\s*(?:\-\s*)?(?:\[ERR(?:OR)?\]|ERR(?:OR)?\:)\s*"
 PARAM_PATTERN = r"{{(.*?)(?:\[(.*?)\])?}}"
 STATUS = {
     'broken':        _c("☒", "magenta"),
@@ -200,7 +201,7 @@ class Base(Item):
         weak = kwargs.get('weak')
         kw = {'logger': self.logger, 'silent': []}
         if not config['wine_errors']:
-            kw['silent'].append(r"^[0-9a-f]{4}:(err|fixme):")
+            kw['silent'].append(r"^[0-9a-f]{4}\:(?:err|fixme)\:")
         _str = lambda o: "'" + str(o) + "'"
         _repl = lambda s: s.replace("{{executable}}", _str(executable)) \
                            .replace("{{executable.dirname}}", _str(executable.dirname)) \
@@ -253,13 +254,19 @@ class Base(Item):
                 kw['shell'] = ">" in attempt
                 try:
                     output, error, retc = run(attempt, **kw)
-                    self._error = error
                 except:
                     self.logger.error("Command: %s" % attempt)
                     raise
-                output = ensure_str(output)
+                output = ensure_str(output).strip()
+                # filter out error lines from stdout
+                out_err = "\n".join(re.sub(ERR_PATTERN, "", l) for l in output.splitlines() if re.match(ERR_PATTERN, l))
+                output  = "\n".join(l for l in output.splitlines() if not re.match(ERR_PATTERN, l) and l.strip() != "")
+                # update error string obtained from stderr
+                self._error = "\n".join(l for l in error.splitlines() \
+                                        if all(re.search(p, l) is None for p in kw.get('silent', [])))
+                self._error = (self._error + "\n" + out_err).strip()
                 if self.name in attempt and benchmark:
-                    output, dt = shlex.split(output)
+                    output, dt = shlex.split(output.splitlines()[-1])
                 if retc > 0:
                     attempts.remove(attempt if param is None else (attempt, param))
                     if len(attempts) == 0:
