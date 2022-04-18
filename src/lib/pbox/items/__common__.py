@@ -109,7 +109,7 @@ class Base(Item):
         self.__init = False
     
     @update_logger
-    def _check(self, exe):
+    def _check(self, exe, silent=False):
         """ Check if the given executable can be processed by this item. """
         c = exe.category
         exe = Executable(exe)
@@ -122,10 +122,19 @@ class Base(Item):
                     l.extend(v)
             exc = list(set(l))
         if c not in self._categories_exp:
-            self.logger.debug("%s does not handle %s executables" % (self.cname, c))
+            if not silent:
+                self.logger.debug("does not handle %s executables" % c)
             return False
-        if ext in exc:
-            self.logger.debug("%s does not handle .%s files" % (self.cname, ext))
+        for p in exc:
+            if isinstance(p, dict):
+                disp, patt = list(p.items())[0]
+                if re.search(patt, exe.filetype):
+                    if not silent:
+                        self.logger.debug("does not handle %s files" % disp)
+                    return False
+        if ext in [_ for _ in exc if not isinstance(_, dict)]:
+            if not silent:
+                self.logger.debug("does not handle .%s files" % ext)
             return False
         return True
     
