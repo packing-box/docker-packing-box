@@ -5,7 +5,7 @@ from tinyscript.helpers import ConfigPath, Path
 
 __all__ = ["config", "LOG_FORMATS"]
 
-LOG_FORMATS = ["%(asctime)s [%(levelname)-8s] %(message)s", "%(asctime)s [%(levelname)-8s] %(name)-16s - %(message)s"]
+LOG_FORMATS = ["%(asctime)s [%(levelname)s] %(message)s", "%(asctime)s [%(levelname)-8s] %(name)-16s - %(message)s"]
 
 
 _ws = lambda s, v: Path(s['workspace'].joinpath(v), create=True, expand=True).absolute()

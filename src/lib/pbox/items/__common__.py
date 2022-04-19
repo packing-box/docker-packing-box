@@ -230,7 +230,7 @@ class Base(Item):
             if self.name in step:
                 i, opt = step.index(self.name), ""
                 if benchmark:
-                    opt += " -b"
+                    opt += " --benchmark"
                 if binary:
                     opt += " --binary"
                 if weak is not None and weak:
@@ -262,7 +262,7 @@ class Base(Item):
                     attempt, param = attempt
                 if attempt.startswith("cd "):
                     self.logger.debug(attempt)
-                    os.chdir(attempt[3:])
+                    os.chdir(attempt[3:].strip("'"))
                     continue
                 if verbose:
                     attempt += " -v"
