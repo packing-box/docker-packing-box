@@ -1,5 +1,6 @@
 # -*- coding: UTF-8 -*-
 import pandas as pd
+import re
 import yaml
 from functools import wraps
 from time import perf_counter, time
@@ -208,11 +209,28 @@ def make_registry(cls):
     glob = inspect.getparentframe().f_back.f_globals
     with Path("/opt/%ss.yml" % cls.__name__.lower()).open() as f:
         items = yaml.load(f, Loader=yaml.Loader)
+    _cache = {}
     for item, data in items.items():
+        # ensure the related item is available in module's globals()
         if item not in glob:
-            i = glob[item] = type(item, (cls, ), dict(cls.__dict__))
-        else:
-            i = glob[item]
+            glob[item] = type(item, (cls, ), dict(cls.__dict__))
+        i = glob[item]
+        # before setting attributs from the YAML parameters, check for 'base' ; this allows to copy all attributes from
+        #  an entry originating from another item class (i.e. copying from Packer's equivalent to Unpacker ; e.g. UPX)
+        base = data.pop('base', None)  # i.e. detector|packer|unpacker
+        if isinstance(base, str) and re.match(r"(?i)(detector|packer|unpacker)$", base):
+            base = base.lower()
+            if base.capitalize() == cls.__name__:
+                raise ValueError("%s cannot point to itself" % cls.__name__)
+            if base not in _cache.keys():
+                with Path("/opt/%ss.yml" % base).open() as f:
+                    _cache[base] = yaml.load(f, Loader=yaml.Loader)
+            for k, v in _cache[base].get(item, {}).items():
+                # do not process these keys as they shall be different from an item class to another anyway
+                if k in ["steps", "status"]:
+                    continue
+                setattr(i, k, v)
+        # now set attributes from YAML parameters
         for k, v in data.items():
             if k == "status":
                 k = "_" + k
