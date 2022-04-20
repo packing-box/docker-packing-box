@@ -23,24 +23,25 @@ This Docker image is a ready-to-use platform for making datasets of packed and n
 """
 
 
-def overview(show=False, category=None, family=None):
+def overview(show=False, category=None, family=None, keep=None):
     """ Display an overview of tools, detectors, packers, unpackers and datasets. """
     report, n = Report(Text(TEMPLATE)), 0
-    tools = []
-    tools_headers = ["Name", "Description", "Version"]
-    for tool in ts.Path(__file__).dirname.listdir(lambda f: f.is_file()):
-        row = [tool.stem, "", ""]
-        try:
-            for line in tool.read_text().splitlines():
-                if re.match(r"__(description|version)__", line):
-                    row[[1, 2]["__version__" in line]] = line.split("=", 1)[-1].strip(" \"")
-        except UnicodeDecodeError:
-            continue
-        if row[1]:
-            tools.append(row)
-    report.append(Section("Tools (%d)" % len(tools)), Table(tools, column_headers=tools_headers))
+    if keep is None:
+        tools = []
+        tools_headers = ["Name", "Description", "Version"]
+        for tool in ts.Path(__file__).dirname.listdir(lambda f: f.is_file()):
+            row = [tool.stem, "", ""]
+            try:
+                for line in tool.read_text().splitlines():
+                    if re.match(r"__(description|version)__", line):
+                        row[[1, 2]["__version__" in line]] = line.split("=", 1)[-1].strip(" \"")
+            except UnicodeDecodeError:
+                continue
+            if row[1]:
+                tools.append(row)
+        report.append(Section("Tools (%d)" % len(tools)), Table(tools, column_headers=tools_headers))
     descr = {}
-    for cls in [Detector, Packer, Unpacker]:
+    for cls in ([Detector, Packer, Unpacker] if keep is None else [globals()[keep[:-1].capitalize()]]):
         r, d = cls.summary(show, category, **({'families': family} if cls is Packer else {}))
         if cls is Detector:
             table = r[1]
@@ -59,22 +60,25 @@ def overview(show=False, category=None, family=None):
         descr.update(d)
     report.append(Section("Legend"),
                   Text(" ; ".join("%s  %s" % (k, v) for k, v in sorted(descr.items(), key=lambda x: x[1]))))
-    report.append(*Dataset.summarize(".", args.show_all))
+    if keep is None:
+        report.append(*Dataset.summarize(".", args.show_all))
     return report.md()
 
 
 if __name__ == '__main__':
-    megs = [parser.add_mutually_exclusive_group() for i in range(3)]
+    megs = [parser.add_mutually_exclusive_group() for i in range(4)]
     megs[0].add_argument("-c", "--category", default="All", help="filter on a category of executables")
     megs[1].add_argument("-f", "--family", default="All", help="filter on a family of packers")
-    for i in range(3):
+    for i in range(4):
         megs[i].add_argument("-i", "--item", help="get help for a particular detector, packer or unpacker")
-    megs[2].add_argument("-s", "--show-all", action="store_true", help="show all packers, even those that are broken")
+    megs[2].add_argument("-k", "--keep", choices=["detectors", "packers", "unpackers"],
+                         help="only keep detectors, packers or unpackers")
+    megs[3].add_argument("-s", "--show-all", action="store_true", help="show all packers, even those that are broken")
     initialize()
     logger.name = "help"
     logging.configLogger(logger, ["INFO", "DEBUG"][args.verbose], fmt=LOG_FORMATS[args.verbose], relative=True)
     if args.item is None:
-        print(mdv.main(overview(args.show_all, args.category, args.family)))
+        print(mdv.main(overview(args.show_all, args.category, args.family, args.keep)))
     else:
         subcls = None
         for cls in [Detector, Packer, Unpacker]:
