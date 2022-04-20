@@ -214,6 +214,7 @@ class Base(Item):
         binary = kwargs.get('binary', False)
         verbose = kwargs.get('verbose', False)
         weak = kwargs.get('weak')
+        extra_opt = "" if kwargs.get('extra_opt') is None else kwargs['extra_opt'] + " "
         kw = {'logger': self.logger, 'silent': []}
         if not config['wine_errors']:
             kw['silent'].append(r"^[0-9a-f]{4}\:(?:err|fixme)\:")
@@ -226,7 +227,7 @@ class Base(Item):
         kw['silent'].extend(list(map(_repl, getattr(self, "silent", []))))
         output = None
         cwd = os.getcwd()
-        for step in getattr(self, "steps", ["%s %s" % (self.name, executable)]):
+        for step in getattr(self, "steps", ["%s %s%s" % (self.name, extra_opt, _str(executable))]):
             if self.name in step:
                 i, opt = step.index(self.name), ""
                 if benchmark:

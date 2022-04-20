@@ -29,7 +29,7 @@ class Unpacker(Base):
         # now unpack the input executable, taking its SHA256 in order to check for changes
         s256 = hashlib.sha256_file(str(exe))
         self._error = None
-        label = self.run(exe, **kwargs)
+        label = self.run(exe, extra_opt="-d", **kwargs)
         if self._error:
             return
         elif s256 == hashlib.sha256_file(str(exe)):
