@@ -71,3 +71,4 @@ tmp
 TODO
 .mypy_cache
 dataset*/
+experiment*/
