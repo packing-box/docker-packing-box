@@ -13,7 +13,7 @@ from tinyscript.report import *
 from .algorithms import Algorithm, WekaClassifier
 from .dataset import *
 from .executable import Executable
-from ..common.config import config
+from ..common.config import *
 from ..common.utils import *
 
 
@@ -61,7 +61,6 @@ class Model:
             self._metadata = {}
             self._performance = pd.DataFrame(columns=PERF_HEADERS.keys())
         else:
-            self.path = Path(config['models'].joinpath(self.name)).absolute()
             if not Model.check(self.path):
                 return
             for n in ["dump", "features", "metadata", "performance"]:
@@ -79,16 +78,12 @@ class Model:
     def _metrics(self, target, prediction, proba):
         """ Metrics computation method. """
         self.logger.debug("> Computing metrics...")
-        # compute indicators
-        tn, fp, fn, tp = confusion_matrix(target, prediction).ravel()
-        # compute evaluation metrics:
-        accuracy, precision, recall, f_measure = metrics(tn, fp, fn, tp)
+        accuracy, precision, recall, f_measure = metrics(*confusion_matrix(target, prediction).ravel())
         mcc = matthews_corrcoef(target, prediction)
         try:
             auc = roc_auc_score(target, proba)
         except ValueError:
             auc = -1
-        # return metrics for further display
         return [accuracy, precision, recall, f_measure, mcc, auc]
     
     def _prepare(self, dataset=None, preprocessor=None, multiclass=False, labels=None, feature=None, pattern=None,
@@ -188,7 +183,7 @@ class Model:
             if isinstance(p, tuple):
                 try:
                     p, params = p
-                except:
+                except ValueError:
                     self.logger.error("Bad preprocessor format: %s" % p)
                     raise
                 m = "%s with %s" % (p.__name__, ", ".join("{}={}".format(*i) for i in params.items()))
@@ -207,7 +202,6 @@ class Model:
     def _save(self):
         """ Save model's state to the related files. """
         l = self.logger
-        self.path = Path(config['models'].joinpath(self.name)).absolute()
         if not self.__read_only and self.path.exists():
             l.warning("This model already exists !")
             return
@@ -271,7 +265,9 @@ class Model:
         """ Edit the performance log file. """
         p = config['models'].joinpath(".performances.csv") if self.name is None else \
             config['models'].joinpath(self.name, "performance.csv")
-        subprocess.call(["vd", str(p.absolute()), "--csv-delimiter", ";"], stderr=subprocess.PIPE)
+        cmd = "vd %s --csv-delimiter \";\"" % p.absolute()
+        self.logger.debug(cmd)
+        subprocess.call(cmd, stderr=subprocess.PIPE, shell=True)
     
     def list(self, algorithms=False, **kw):
         """ List all the models from the given path or all available algorithms. """
@@ -302,9 +298,9 @@ class Model:
                                           "Packers"])]
         print(mdv.main(Report(*r).md()))
     
-    def remove(self, **kw):
-        """ Remove the current model. """
-        Path(config['models'].joinpath(self.name)).absolute().remove(error=False)
+    def purge(self, **kw):
+        """ Purge the current model. """
+        self.path.remove(error=False)
     
     def rename(self, name2=None, **kw):
         """ Rename the current model. """
@@ -388,7 +384,7 @@ class Model:
                                              self._metadata['dataset']['executables'],
                                              algo.lower().replace(".", ""), len(self._features))
         if reset:
-            Path(config['models'].joinpath(self.name)).absolute().remove(error=False)
+            self.path.remove(error=False)
         self._load()
         if self.__read_only:
             l.warning("Cannot retrain a model")
@@ -480,6 +476,29 @@ class Model:
             params['?'] = str(Path(output_dir).joinpath("%s.png" % self.name))
         print(f(self.classifier, **params))
     
+    @property
+    def name(self):
+        return self._name
+    
+    @name.setter
+    def name(self, value):
+        if value and not re.match(NAMING_CONVENTION, name):
+            raise ValueError("Bad input name")
+        self._name = value
+    
+    @property
+    def path(self):
+        if self.name:
+            if not hasattr(self, "_path"):
+                self._path = Path(config['models'].joinpath(self.name)).absolute()
+            return self._path
+    
+    @path.setter
+    def path(self, value):
+        if not isinstance(value, Path):
+            value = Path(value).absolute()
+        self._path = value
+    
     @staticmethod
     def check(folder):
         try:
@@ -508,7 +527,7 @@ class DumpedModel:
         self.name         = Path(name).stem
         self._features    = {}
         self._metadata    = {}
-        self.__p = config['models'].joinpath(".performances.csv")    
+        self.__p = config['models'].joinpath(".performances.csv")
         try:
             self._performance = pd.read_csv(str(self.__p), sep=";")
         except FileNotFoundError:

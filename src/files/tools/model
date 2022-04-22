@@ -76,7 +76,7 @@ if __name__ == '__main__':
     __add_name(sparsers.add_parser("edit", help="edit the performance log file"), True)
     listm = sparsers.add_parser("list", help="list all the models from the workspace")
     listm.add_argument("--algorithms", action="store_true", help="show available algorithms instead of models")
-    __add_name(sparsers.add_parser("remove", help="remove the selected model"), force=True)
+    __add_name(sparsers.add_parser("purge", help="purge the selected model"), force=True)
     rename = sparsers.add_parser("rename", help="rename the selected model")
     __add_name(rename)
     rename.add_argument("name2", type=ts.folder_does_not_exist, help="new name of the model")

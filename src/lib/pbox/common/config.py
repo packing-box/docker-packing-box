@@ -3,9 +3,10 @@ from tinyscript import configparser
 from tinyscript.helpers import ConfigPath, Path
 
 
-__all__ = ["config", "LOG_FORMATS"]
+__all__ = ["config", "LOG_FORMATS", "NAMING_CONVENTION"]
 
 LOG_FORMATS = ["%(asctime)s [%(levelname)s] %(message)s", "%(asctime)s [%(levelname)-8s] %(name)-16s - %(message)s"]
+NAMING_CONVENTION = r"(?i)^[a-z][a-z0-9]*(?:[-_][a-z0-9]+)*$"
 
 
 _ws = lambda s, v: Path(s['workspace'].joinpath(v), create=True, expand=True).absolute()

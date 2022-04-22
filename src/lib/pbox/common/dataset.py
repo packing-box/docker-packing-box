@@ -7,7 +7,7 @@ from tinyscript import b, colored, hashlib, json, logging, random, subprocess, t
 from tinyscript.report import *
 from tqdm import tqdm
 
-from .config import config
+from .config import *
 from .executable import *
 from .utils import *
 from ..items import *
@@ -34,6 +34,8 @@ class Dataset:
     """
     @logging.bindLogger
     def __init__(self, name="dataset", source_dir=None, load=True, **kw):
+        if not re.match(NAMING_CONVENTION, name):
+            raise ValueError("Bad input name")
         self._files = getattr(self.__class__, "_files", True)
         self.path = ts.Path(config['datasets'].joinpath(name), create=load).absolute()
         self.sources = source_dir or PACKING_BOX_SOURCES

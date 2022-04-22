@@ -1,14 +1,14 @@
 # -*- coding: UTF-8 -*-
-from .algorithms import *
-from .algorithms import __all__ as _algorithms
+from .algorithm import *
+from .algorithm import __all__ as _algorithm
 from .dataset import *
 from .dataset import __all__ as _dataset
 from .executable import *
 from .executable import __all__ as _executable
 from .features import *
 from .features import __all__ as _features
-from .models import *
-from .models import __all__ as _models
+from .model import *
+from .model import __all__ as _model
 
-__all__ = _algorithms + _dataset + _executable + _features + _models
+__all__ = _algorithm + _dataset + _executable + _features + _model
 
