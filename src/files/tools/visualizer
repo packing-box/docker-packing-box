@@ -1,17 +1,21 @@
 #!/usr/bin/python3
 # -*- coding: UTF-8 -*-
 import bintropy
+import pandas as pd
 from pbox import *
+from pbox.common.utils import edit_file
+from pbox.learning.executable import Executable
 from tinyscript import *
 
 
-__version__     = "1.0.1"
+__version__     = "2.0.0"
 __doc__         = """
 This tool aims to generate representations of binaries, emphasizing their sections and plotting their entropy,
  for the sake of comparing them, e.g. an original PE file and its packed versions.
 """
 __examples__    = [
-    "geek.exe PackingData",
+    "features \".$\" dataset-packed-pe --label Exe32Pack",
+    "find \".$\" dataset-packed-pe --max-not-matching 2",
     "\"PsExec.exe$\" PackingData -l Notpacked -l MEW -l NSPack -l RLPack -l UPX",
     "\"pskill.exe$\" PackingData -f jpg",
 ]
@@ -19,13 +23,26 @@ __description__ = "Generate a figure with representations of input binaries' sec
 
 
 LABELS = {
-    'not-packed':     "Original",
-    'Notpacked':      "Original",
-    'BeRoEXEPacker':  "BeRo",
+    'not-packed':         "Original",
+    'Notpacked':          "Original",
+    'BeRoEXEPacker':      "BeRo",
+    'Enigma Virtual Box': "Enigma VBox",
 }
 
 
-def find(folder, pattern, selected=None):
+def __add_folder(parser, alias=False, fmt=False):
+    parser.add_argument("filename", help="binary to be represented ; format is regex")
+    parser.add_argument("folder", type=ts.folder_exists, help="target folder")
+    if alias:
+        parser.add_argument("-a", "--alias", type=ts.json_config, help="input label alias in JSON format")
+    if fmt:
+        parser.add_argument("-f", "--format", default="png", choices=["jpg", "png", "tif", "svg"], help="image format")
+    parser.add_argument("-l", "--label", nargs="*", action="extend", help="select a particular label (keeps order)")
+    parser.add_argument("-m", "--max-not-matching", type=int, help="maximum number of labels not matching")
+    return parser
+
+
+def find_files(folder, pattern, selected=None, nbr_not_selected=None, display=False):
     """ Find files matching the given filename pattern withing the specified folder. It uses subfolders' names as labels
          for categorizing the matching file.
     
@@ -46,41 +63,119 @@ def find(folder, pattern, selected=None):
     :param pattern:  pattern for matching files
     :param selected: list of labels to be filtered (keeps the order)
     """
-    folder = ts.Path(folder)
-    labels, files = [], []
-    for fp in folder.walk(lambda f: f.is_file()):
+    preffixes, available_labels, files = {}, [], {}
+    # collect (best matching) preffixes first
+    for dp in ts.Path(folder).walk(filter_func=lambda x: x.is_dir()):
+        if ".git" in dp.parts:
+            continue
+        if len(list(dp.listdir(filter_func=lambda x: x.is_dir()))) == 0:
+            l, prev, preffix = dp.basename, None, {}
+            for f in dp.listdir(filter_func=lambda x: x.is_file()):
+                common = ""
+                for c1, c2 in zip(prev or f.stem, f.stem):
+                    if c1 == c2:
+                        common += c1
+                    else:
+                        break
+                preffix.setdefault(common, 0)
+                preffix[common] += 1
+                prev = f.stem
+            preffixes[l] = max(preffix, key=preffix.get)
+    # check for label errors
+    error = False
+    if selected is not None:
+        for l in selected[:]:
+            if l not in preffixes.keys():
+                for good in preffixes.keys():
+                    if good.lower() == l.lower():
+                        logger.warning("Fixed label %s to %s" % (l, good))
+                        selected[selected.index(l)] = good
+                        l = None
+                        break
+                if l is not None:
+                    logger.error("Bad label: %s" % l)
+                    error = True
+    if error:
+        sys.exit(1)
+    # collect matching files
+    for fp in ts.Path(folder).walk(filter_func=lambda x: x.is_file()):
+        if ".git" in fp.parts or len(list(fp.dirname.listdir(filter_func=lambda d: d.is_dir()))) > 0:
+            continue
+        l = fp.dirname.basename
+        if l not in available_labels:
+            available_labels.append(l)
         if re.search(pattern, fp.filename):
-            l = fp.dirname.basename
-            if not selected or l in selected:
-                labels.append(l)
-                files.append(fp)
-    if selected:
-        labels2, files2 = [], []
-        for label in selected:
+            fname = fp.filename[len(preffixes[l]):]
+            files.setdefault(fname, {'files': [], 'labels': []})
+            if selected is None or l in selected:
+                files[fname]['labels'].append(l)
+                files[fname]['files'].append(fp)
+    if selected is None:
+        selected = sorted(available_labels)
+    elif selected is not None and nbr_not_selected is None:
+        nbr_not_selected = 0
+    # discard ones that have too few labels selected
+    if nbr_not_selected is not None:
+        n = len(selected)
+        files = {f: d for f, d in files.items() if n - len(d['labels']) <= nbr_not_selected}
+    # check files for which the selection was found and display if relevant
+    for file, data in files.items():
+        (logger.info if display else logger.debug)(file)
+        for label in selected[:]:
+            l = LABELS.get(label, label)
             try:
-                files2.append(files[labels.index(label)])
-                labels2.append(label)
+                data['files'][data['labels'].index(label)]
+                if display:
+                    logger.success(l)
             except ValueError:
-                logger.warning("'%s' not found in labels" % label)
-        return selected, files2
-    return labels, files
+                if display:
+                    logger.failure(l)
+    if len(files) == 0:
+        logger.warning("No data")
+    return files
 
 
 if __name__ == "__main__":
-    parser.add_argument("filename", help="binary to be represented")
-    parser.add_argument("folder", type=ts.folder_exists, help="source folder for PackingData")
-    parser.add_argument("-f", "--format", default="png", choices=["jpg", "png", "tif", "svg"], help="image format")
-    parser.add_argument("-l", "--label", nargs="*", action="extend", help="select a particular label (keeps order)")
-    parser.add_argument("-s", "--scale", action="store_true", help="scale plots according to the first binary")
+    sparsers = parser.add_subparsers(dest="command", help="command to be executed")
+    feat = __add_folder(sparsers.add_parser("features", help="compute features for files matching the regex with the "
+                                                             "input labels"))
+    find = __add_folder(sparsers.add_parser("find", help="find files matching the regex with the input labels"))
+    plot = __add_folder(sparsers.add_parser("plot", help="plot files matching the regex given the selected labels"),
+                        alias=True, fmt=True)
+    plot.add_argument("-s", "--scale", action="store_true", help="scale plots according to the first binary")
     initialize()
     logger.name = "visualizer"
     logging.configLogger(logger, ["INFO", "DEBUG"][args.verbose], fmt=LOG_FORMATS[args.verbose], relative=True)
-    imgn = ts.Path(args.filename).stem
-    logger.info("Collecting files from %s for pattern '%s'..." % (args.folder, args.filename))
-    labels, files = find(args.folder, args.filename, args.label)
-    labels = [LABELS.get(l, l) for l in labels]
-    for f in files:
-        logger.debug("> %s" % f)
-    logger.info("Making plot to %s.%s..." % (imgn, args.format))
-    bintropy.plot(*files, img_name=imgn, labels=labels, sublabel="size-ep-ent", scale=args.scale)
+    LABELS.update(getattr(args, "alias", None) or {})
+    msg = " files from %s matching '%s' with the selected labels..." % (args.folder, args.filename)
+    if args.command == "features":
+        logger.info("Computing features of" + msg)
+        tmp_p = ts.TempPath(prefix="visualizer-edit-", length=8)
+        tmp_f = tmp_p.tempfile("files.csv")
+        for file, data in find_files(args.folder, args.filename, args.label, args.max_not_matching).items():
+            files = []
+            logger.info(file)
+            for f, l in zip(data['files'], data['labels']):
+                exe = Executable(f)
+                row = {'path': str(f), 'label': LABELS.get(l, l)}
+                row.update(exe.data)
+                files.append(row)
+            files = pd.DataFrame(files)
+            files.to_csv(str(tmp_f), sep=";", index=False, header=True)
+            edit_file(tmp_f, logger=logger)
+        tmp_p.remove()
+    elif args.command == "find":
+        logger.info("Searching for" + msg)
+        for _ in find_files(args.folder, args.filename, args.label, args.max_not_matching, True).keys():
+            pass
+    elif args.command == "plot":
+        logger.info("Collecting" + msg)
+        for file, data in find_files(args.folder, args.filename, args.label, args.max_not_matching).items():
+            files, labels = data['files'], data['labels']
+            labels = [LABELS.get(l, l) for l in labels]
+            imgn = ts.Path(file).stem
+            logger.info("Making plot to %s.%s..." % (imgn, args.format))
+            for f in files:
+                logger.debug(f)
+            bintropy.plot(*files, img_name=imgn, labels=labels, sublabel="size-ep-ent", scale=args.scale)
 
