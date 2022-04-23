@@ -33,7 +33,7 @@ def __add_name(parser, force=False):
             return string
         p = config['datasets'].joinpath(string)
         (ts.folder_exists_or_create if force else ts.folder_exists)(str(p))
-        if not force and not Dataset.check(p) and not FilelessDataset.check(p):
+        if not force and not Dataset.check(string) and not FilelessDataset.check(string):
             raise ValueError("Bad dataset")
         return p
     parser.add_argument("name", type=dataset_exists, help="name of the dataset")

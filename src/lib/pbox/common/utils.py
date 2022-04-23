@@ -4,7 +4,7 @@ import re
 import yaml
 from functools import wraps
 from time import perf_counter, time
-from tinyscript import inspect
+from tinyscript import inspect, subprocess
 from tinyscript.helpers import is_file, is_folder, Path
 try:  # from Python3.9
     import mdv3 as mdv
@@ -15,8 +15,8 @@ from .config import config
 
 
 __all__ = ["aggregate_categories", "backup", "benchmark", "class_or_instance_method", "collapse_categories",
-           "expand_categories", "file_or_folder_or_dataset", "highlight_best", "make_registry", "mdv", "metrics",
-           "shorten_str", "CATEGORIES", "PERF_HEADERS"]
+           "edit_file", "expand_categories", "file_or_folder_or_dataset", "highlight_best", "make_registry", "mdv",
+           "metrics", "shorten_str", "CATEGORIES", "PERF_HEADERS"]
 
 
 CATEGORIES = {
@@ -94,6 +94,15 @@ def collapse_categories(*categories, **kw):
     if all(x in selected for x in CATEGORIES['All']):
         selected = ["All"]
     return list(set(selected))
+
+
+def edit_file(path, csv_sep=";", **kw):
+    """" Edit a target file with visidata. """
+    cmd = "vd %s --csv-delimiter \"%s\"" % (path, csv_sep)
+    logger = kw.pop('logger', None)
+    if logger:
+        logger.debug(cmd)
+    subprocess.call(cmd, stderr=subprocess.PIPE, shell=True, **kw)
 
 
 def expand_categories(*categories, **kw):

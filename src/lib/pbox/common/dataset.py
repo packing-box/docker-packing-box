@@ -34,7 +34,7 @@ class Dataset:
     """
     @logging.bindLogger
     def __init__(self, name="dataset", source_dir=None, load=True, **kw):
-        if not re.match(NAMING_CONVENTION, name):
+        if not re.match(NAMING_CONVENTION, name.basename if isinstance(name, ts.Path) else str(name)):
             raise ValueError("Bad input name")
         self._files = getattr(self.__class__, "_files", True)
         self.path = ts.Path(config['datasets'].joinpath(name), create=load).absolute()
@@ -166,6 +166,7 @@ class Dataset:
     
     def _load(self):
         """ Load dataset's associated files or create them. """
+        self.logger.debug("loading dataset...")
         if self._files:
             self.files.mkdir(exist_ok=True)
         for n in ["data", "metadata"] + [["features"], []][self._files]:
@@ -183,12 +184,14 @@ class Dataset:
     
     def _remove(self):
         """ Remove the current dataset. """
+        self.logger.debug("removing dataset...")
         self.path.remove(error=False)
     
     def _save(self):
         """ Save dataset's state to JSON files. """
         if not self.__change:
             return
+        self.logger.debug("saving dataset...")
         self._metadata['categories'] = sorted(collapse_categories(*self._metadata['categories']))
         self._metadata['counts'] = self._data.label.value_counts().to_dict()
         self._metadata['executables'] = len(self)
@@ -231,9 +234,8 @@ class Dataset:
     
     def edit(self, **kw):
         """ Edit the data CSV file. """
-        cmd = "vd %s --csv-delimiter \";\"" % self.path.joinpath("data.csv").absolute()
-        self.logger.debug(cmd)
-        subprocess.call(cmd, stderr=subprocess.PIPE, shell=True)
+        self.logger.debug("editing dataset's data.csv...")
+        edit_file(self.path.joinpath("data.csv").absolute(), logger=self.logger)
     
     def export(self, destination="export", n=0, **kw):
         """ Export packed executables to the given destination folder. """
@@ -423,6 +425,7 @@ class Dataset:
     
     def select(self, name2=None, query=None, **kw):
         """ Select a subset from the current dataset based on multiple criteria. """
+        self.logger.debug("selecting a subset of the dataset...")
         ds2 = Dataset(name2)
         for e in self._filter(query, **kw):
             ds2[Executable(dataset=self, hash=e.hash)] = self[e.hash, True]

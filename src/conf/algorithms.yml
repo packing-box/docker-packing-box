@@ -11,7 +11,7 @@ AB:
   link: https://scikit-learn.org/stable/modules/generated/sklearn.ensemble.AdaBoostClassifier.html
 
 BN:
-  base:        !!python/name:pbox.learning.algorithms.BayesNet  # based on weka.classifiers.bayes.BayesNet
+  base:        !!python/name:pbox.learning.algorithm.BayesNet  # based on weka.classifiers.bayes.BayesNet
   description: Bayesian Network
   parameters:
     static:
@@ -31,7 +31,7 @@ BNB:
   link: http://scikit-learn.org/stable/modules/generated/sklearn.naive_bayes.BernoulliNB.html
 
 D:
-  base:        !!python/name:pbox.learning.algorithms.Decorate  # based on weka.classifiers.meta.Decorate
+  base:        !!python/name:pbox.learning.algorithm.Decorate  # based on weka.classifiers.meta.Decorate
   description: Decorate
   parameters:
     static:
@@ -89,7 +89,7 @@ GNB:
   link: http://scikit-learn.org/stable/modules/generated/sklearn.naive_bayes.GaussianNB.html
 
 J48:
-  base:        !!python/name:pbox.learning.algorithms.J48  # based on weka.classifiers.trees.J48
+  base:        !!python/name:pbox.learning.algorithm.J48  # based on weka.classifiers.trees.J48
   description: Decision Tree
   parameters:
     static:
@@ -123,7 +123,7 @@ LP:
   link: https://scikit-learn.org/stable/modules/generated/sklearn.linear_model.Perceptron.html
 
 LR:
-  base:        !!python/name:pbox.learning.algorithms.Logistic  # based on weka.classifiers.functions.Logistic
+  base:        !!python/name:pbox.learning.algorithm.Logistic  # based on weka.classifiers.functions.Logistic
   description: Logistic Regression
   parameters:
     static:

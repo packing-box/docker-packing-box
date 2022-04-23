@@ -975,7 +975,6 @@ Yoda_Crypter:
   exclude:
     - ds
   families:
-    - compressor
     - cryptor
     - protector
   gui:

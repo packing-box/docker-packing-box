@@ -10,7 +10,7 @@ from tinyscript import ast, json, logging, subprocess
 from tinyscript.helpers import human_readable_size, is_executable, is_generator, Path
 from tinyscript.report import *
 
-from .algorithms import Algorithm, WekaClassifier
+from .algorithm import Algorithm, WekaClassifier
 from .dataset import *
 from .executable import Executable
 from ..common.config import *
@@ -65,7 +65,7 @@ class Model:
                 return
             for n in ["dump", "features", "metadata", "performance"]:
                 p = self.path.joinpath(n + (".joblib" if n == "dump" else ".csv" if n == "performance" else ".json"))
-                self.logger.debug("Loading %s..." % str(p))
+                self.logger.debug("loading model %s..." % str(p))
                 if n == "dump":
                     self.classifier = joblib.load(str(p))
                     self.__read_only = True
@@ -77,7 +77,7 @@ class Model:
     
     def _metrics(self, target, prediction, proba):
         """ Metrics computation method. """
-        self.logger.debug("> Computing metrics...")
+        self.logger.debug("computing metrics...")
         accuracy, precision, recall, f_measure = metrics(*confusion_matrix(target, prediction).ravel())
         mcc = matthews_corrcoef(target, prediction)
         try:
@@ -95,7 +95,7 @@ class Model:
                 l.error("%s is not a valid input dataset" % dataset)
                 return False
             # copy relevant information from the input dataset
-            l.debug("Preparing the dataset...")
+            l.debug("preparing dataset...")
             self._metadata['dataset'] = {k: v for k, v in ds._metadata.items()}
             self._metadata['dataset']['path'] = str(ds.path)
             self._metadata['dataset']['name'] = ds.path.stem
@@ -177,14 +177,15 @@ class Model:
         
         NB: we prefer controlling preprocessing ourselves instead of using sklearn.pipeline.Pipeline(...).
         """
-        c = False
+        c, l = False, self.logger
+        l.debug("preprocessing model...")
         for p in preprocessors:
             p, params = PREPROCESSORS.get(p, p), {}
             if isinstance(p, tuple):
                 try:
                     p, params = p
                 except ValueError:
-                    self.logger.error("Bad preprocessor format: %s" % p)
+                    l.error("Bad preprocessor format: %s" % p)
                     raise
                 m = "%s with %s" % (p.__name__, ", ".join("{}={}".format(*i) for i in params.items()))
             else:
@@ -193,7 +194,7 @@ class Model:
             v = "Transform" if n.endswith("Transformer") else "Encode" if n.endswith("Encoder") else \
                 "Standardize" if n.endswith("Scaler") else "Normalize" if n.endswith("Normalizer") or n == "PCA" else \
                 "Discretize" if n.endswith("Discretizer") else "Preprocess"
-            self.logger.debug("> %s the data (%s)" % (v, m))
+            l.debug("> %s the data (%s)" % (v, m))
             preprocessed = p(**params).fit_transform(self._data)
             c = True
         if c:  # ensure self._data remains a DataFrame
@@ -206,7 +207,7 @@ class Model:
             l.warning("This model already exists !")
             return
         self.path.mkdir(exist_ok=True)
-        l.debug("%s model %s..." % (["Saving", "Updating"][self.__read_only], str(self.path)))
+        l.debug("%s model %s..." % (["saving", "updating"][self.__read_only], str(self.path)))
         p = self.path.joinpath("performance.csv")
         l.debug("> %s" % str(p))
         self._performance.to_csv(str(p), sep=";", columns=PERF_HEADERS.keys(), index=False, header=True,
@@ -225,8 +226,8 @@ class Model:
     
     def compare(self, dataset=None, model=None, include=False, **kw):
         """ Compare the last performance of this model on the given dataset with other ones. """
-        data = []
-        models = [self]
+        l, data, models = self.logger, [], [self]
+        l.debug("comparing models...")
         if isinstance(model, (list, tuple)):
             models.extend(model)
         elif model is not None:
@@ -254,7 +255,7 @@ class Model:
                     data.append(row)
                     break
         if len(data) == 0:
-            self.logger.warning("No model selected" if dataset is None else "%s not found" % dataset)
+            l.warning("No model selected" if dataset is None else "%s not found" % dataset)
             return
         ph = PERF_HEADERS
         h = ["Model"] + list(ph.keys())
@@ -263,11 +264,8 @@ class Model:
     
     def edit(self, **kw):
         """ Edit the performance log file. """
-        p = config['models'].joinpath(".performances.csv") if self.name is None else \
-            config['models'].joinpath(self.name, "performance.csv")
-        cmd = "vd %s --csv-delimiter \";\"" % p.absolute()
-        self.logger.debug(cmd)
-        subprocess.call(cmd, stderr=subprocess.PIPE, shell=True)
+        self.logger.debug("editing %sperformances.csv..." % ["model's ", "workspace's ."][self.path is None])
+        edit_file(self.path or config['models'].joinpath(".performances.csv"), logger=self.logger)
     
     def list(self, algorithms=False, **kw):
         """ List all the models from the given path or all available algorithms. """
@@ -300,10 +298,12 @@ class Model:
     
     def purge(self, **kw):
         """ Purge the current model. """
+        self.logger.debug("purging model...")
         self.path.remove(error=False)
     
     def rename(self, name2=None, **kw):
         """ Rename the current model. """
+        self.logger.debug("renaming model...")
         self.path = p = config['models'].joinpath(name2)
         if p.exists():
             self.logger.warning("%s already exists" % p)

@@ -262,3 +262,6 @@ export DOTNET_CLI_TELEMETRY_OPTOUT=1
 pathprepend /opt/bin
 pathprepend /opt/tools
 pathprepend /opt/utils
+
+# thefuck alias
+eval "$(thefuck --alias)"
