@@ -50,7 +50,8 @@ def __item_exists(string):
 
 if __name__ == '__main__':
     sparsers = parser.add_subparsers(dest="command", help="command to be executed")
-    # level 1 subparser for configuring options of pbox
+    # level 1 subparsers for cleaning up leftovers and configuring options of pbox
+    p = sparsers.add_parser("clean", help="cleanup temporary folders")
     p = sparsers.add_parser("config", help="set a config option")
     for opt, func, val in config.iteroptions():
         p.add_argument("--" + opt, type=func, default=str(val))
@@ -70,13 +71,18 @@ if __name__ == '__main__':
     initialize(noargs_action="help", ext_logging=True)
     logger.name = "packing-box"
     logging.configLogger(logger, ["INFO", "DEBUG"][args.verbose], fmt=LOG_FORMATS[args.verbose], relative=True)
-    if args.command == "config":
+    if args.command == "clean":
+        for d in ts.TempPath().listdir(filter_func=lambda d: d.is_dir()):
+            if d.basename.startswith("tmp") or any(d.basename.startswith("%s-%s-" % pair) for pair in \
+               itertools.product(["packer", "detector", "unpacker"], ["setup", "tests"])):
+                d.remove()
+    elif args.command == "config":
         change = False
         for opt, func, val in config.iteroptions():
             v = getattr(args, opt)
             if func(v) != func(val):
                 config[opt] = v
-                logger.debug("Set %s to '%s'" % (opt, v))
+                logger.debug("set %s to '%s'" % (opt, v))
                 change = True
             else:
                 logger.debug("%s already set to '%s'" % (opt, v))
