@@ -599,7 +599,7 @@ class Base(Item):
         """ Make a summary table for the given class. """
         items = []
         pheaders = ["Name", "Targets", "Status", "Source"]
-        n, descr = 0, {}
+        n_ok, n, descr = 0, 0, {}
         for item in cls.registry:
             s, ic = item.status, expand_categories(*getattr(item, "categories", ["All"]))
             if not show and s in STATUS_DISABLED or all(c not in expand_categories(category) for c in ic):
@@ -613,6 +613,8 @@ class Base(Item):
             if s not in descr[k]:
                 descr[k].append(s)
             n += 1
+            if item.status == "ok":
+                n_ok += 1
             items.append([
                 item.cname,
                 ",".join(collapse_categories(*expand_categories(*item.categories))),
@@ -620,6 +622,7 @@ class Base(Item):
                 "<%s>" % item.source,
             ])
         descr = {k: "/".join(sorted(v)) for k, v in descr.items()}
-        return ([] if n == 0 else [Section("%ss (%d)" % (cls.__name__, n)), Table(items, column_headers=pheaders)]), \
-               descr
+        score = n if n == n_ok else "%d/%d" % (n_ok, n)
+        return ([] if n == 0 else \
+                [Section("%ss (%s)" % (cls.__name__, score)), Table(items, column_headers=pheaders)]), descr
 

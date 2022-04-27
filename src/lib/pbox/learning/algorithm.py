@@ -26,7 +26,7 @@ class WekaClassifier(Classifier):
             self.train_file = m.path.joinpath("train.arff")
             self.test_file = m.path.joinpath("test.arff")
         kwargs = {("-" + k if not k.startswith("-") else k): v for k, v in kwargs.items()}
-        super(WekaClassifier, self).__init__(name=self.name, ckargs=kwargs)
+        super(WekaClassifier, self).__init__(name=self.name.split(".")[-1].lower(), ckargs=kwargs)
     
     def fit(self, train_data, train_target):
         super(WekaClassifier, self).train(self.train_file)

@@ -42,7 +42,7 @@ D:
       W: weka.classifiers.trees.J48  # full name of base classifier
   link: https://weka.sourceforge.io/doc.stable/weka/classifiers/meta/Decorate.html
 
-DL8.5:
+DL85:
   base:        !!python/name:dl85.DL85Classifier
   description: DL8.5 (optimal decision tree)
   multiclass: false
