@@ -11,7 +11,9 @@ __all__ = ["Algorithm", "WekaClassifier"]
 
 class Algorithm(Item):
     """ Algorithm abstraction. """
-    pass
+    def is_weka(self):
+        """ Simple method for checking if the algorithm is based on a Weka class. """
+        return isinstance(self.base, WekaClassifier)
 
 
 class WekaClassifier(Classifier):

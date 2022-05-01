@@ -64,6 +64,7 @@ class Executable(Base):
     def selection(self, features):
         if features is None:
             return
+        self._selection = {'pre': [], 'post': []}
         if not isinstance(features, (list, tuple)):
             features = [features]
         if isinstance(features, (list, tuple)):
@@ -74,8 +75,9 @@ class Executable(Base):
                 # this will filter features ones computed (e.g. "dll_characteristics_...", part of the "pefeats" group)
                 else:
                     self._selection['post'].append(f)
-        try:
-            del self.data
-        except AttributeError:
-            pass
+        if hasattr(self, "data"):
+            if all(f in self.data.keys() for f in self._selection['post']):
+                self.data = {k: v for k, v in self.data.items() if k in self._selection['post']}
+            else:
+                del self.data
 

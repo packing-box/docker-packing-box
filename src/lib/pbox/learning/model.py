@@ -2,12 +2,13 @@
 import joblib
 import multiprocessing as mp
 import pandas as pd
+import re
 from sklearn.base import is_classifier
 from sklearn.metrics import confusion_matrix, matthews_corrcoef, roc_auc_score
 from sklearn.model_selection import train_test_split, GridSearchCV
 from sklearn.preprocessing import *
 from tinyscript import ast, json, logging, subprocess
-from tinyscript.helpers import human_readable_size, is_executable, is_generator, Path
+from tinyscript.helpers import human_readable_size, is_executable, is_generator, Path, TempPath
 from tinyscript.report import *
 
 from .algorithm import Algorithm, WekaClassifier
@@ -15,6 +16,7 @@ from .dataset import *
 from .executable import Executable
 from ..common.config import *
 from ..common.utils import *
+from ..items.detector import Detector
 
 
 __all__ = ["DumpedModel", "Model", "N_JOBS", "PREPROCESSORS"]
@@ -25,7 +27,7 @@ N_JOBS = mp.cpu_count() // 2
 PREPROCESSORS = {
     'MA':         MaxAbsScaler,
     'MM':         MinMaxScaler,
-    'Norm':       Normalizer,
+    'Norm':       (Normalizer, {'axis': 0}),
     'OneHot':     (OneHotEncoder, {'drop': "if_binary", 'handle_unknown': "ignore"}),
     'Ord':        OrdinalEncoder,
     'PT-bc':      (PowerTransformer, {'method': "box-cox"}),
@@ -90,18 +92,32 @@ class Model:
                  data_only=False, **kw):
         """ Prepare the Model instance based on the given Dataset instance. """
         ds, l, labels = dataset, self.logger, labels or {}
+        # if not only the data shall be prepared, then the only supported input format is a valid dataset ;
+        #  i.e. hen preparing data for the train() method
         if not data_only:
             if not getattr(ds, "is_valid", lambda: False)():
                 l.error("%s is not a valid input dataset" % dataset)
                 return False
-            # copy relevant information from the input dataset
+            # copy relevant information from the input dataset (which is the reference one for the trained model)
             l.debug("preparing dataset...")
             self._metadata['dataset'] = {k: v for k, v in ds._metadata.items()}
             self._metadata['dataset']['path'] = str(ds.path)
             self._metadata['dataset']['name'] = ds.path.stem
+        # at this point, we may either have a valid dataset or another source format ; if string, this shall be a path
+        if isinstance(ds, str):
+            ds = Path(ds)
+            if not ds.is_absolute():
+                try:
+                    ds = open_dataset(ds)
+                except ValueError:
+                    pass
+            if not ds.exists():
+                raise ValueError("Invalid input dataset")
+        l.info("Reference dataset:  %s" % ds)
         self._data, self._target = pd.DataFrame(), pd.DataFrame(columns=["label"])
         # start input dataset parsing
         def __parse(exes, label=True):
+            l.info("Computing features...")
             if not isinstance(exes, list) and not is_generator(exes):
                 exes = [exes]
             for exe in exes:
@@ -112,11 +128,9 @@ class Model:
                 self._data = self._data.append(exe.data, ignore_index=True)
                 if label:
                     self._target = self._target.append({'label': labels.get(exe.hash)}, ignore_index=True)
-        # handle individual executables, folders of executables or both types of dataset instances
-        if config['datasets'].joinpath(str(ds)).exists():
-            ds = open_dataset(ds)
         # case 1: handle a fileless dataset (where features are already computed)
         if isinstance(ds, FilelessDataset):
+            l.info("Loading features...")
             for exe in ds:
                 break
             exe = Executable(exe)
@@ -128,8 +142,9 @@ class Model:
         elif isinstance(ds, Dataset):
             __parse(ds.files.listdir(is_executable), False)
             self._target = ds._data.loc[:, ds._data.columns == "label"]
-        else:
-            # case 3: CSV file
+        # case 3: CSV file
+        elif ds.extension == ".csv":
+            l.info("Loading features...")
             try:
                 d, n = pd.read_csv(str(ds), sep=kw.pop('sep', ",")), Path(ds).filename
                 self._data, self._target = d.loc[:, d.columns != "label"], d.loc[:, d.columns == "label"]
@@ -138,13 +153,15 @@ class Model:
                 l.error(d.columns)
                 l.warning("This error may be caused by a bad CSV separator ; you can set it with --sep")
                 raise
-            except (KeyError, FileNotFoundError, TypeError):
-                # case 4: handle a single executable
-                if is_executable(str(ds)):
-                    __parse(ds)
-                # case 5: handle the executables within a folder
-                elif ds.is_folder():
-                    __parse(ds.listdir(is_executable))
+        # other formats shall only work when data is to be considered, with no train and test data frames ;
+        #  i.e. when preparing data for the test() method
+        elif data_only and (is_executable(ds) or ds.is_dir()):
+            data, self._target = pd.DataFrame(), pd.DataFrame()
+            # cases 4 and 5: respectively single executable or folder of executables
+            __parse([ds] if is_executable(ds) else ds.listdir(is_executable))
+        # this shall not occur
+        else:
+            raise ValueError("Unsupported input format")
         if len(self._data) == 0:
             l.warning("No data")
             return
@@ -158,18 +175,21 @@ class Model:
             self._target.loc[self._target.label != 0, "label"] = 1
             self._target = self._target.astype('int')
         self.labels = set(self._target.label.values)
+        print(self._data)
         self._preprocess(*(preprocessor or ()))
+        print(self._data)
         if data_only:
             return True
         # prepare for training and testing sets
         class Dummy: pass
         self._train, self._test = Dummy(), Dummy()
-        ds.logger.debug("> Split data and target vectors to train and test subnets")
+        ds.logger.debug("> split data and target vectors to train and test subnets")
         self._train.data, self._test.data, self._train.target, self._test.target = \
             train_test_split(self._data, self._target, test_size=.2, random_state=42)
         # prepare for Weka
-        l.debug("> Create ARFF train and test files (for Weka)")
-        WekaClassifier.to_arff(self)
+        if self.algorithm.is_weka():
+            l.debug("> create ARFF train and test files (for Weka)")
+            WekaClassifier.to_arff(self)
         return True
     
     def _preprocess(self, *preprocessors):
@@ -177,8 +197,16 @@ class Model:
         
         NB: we prefer controlling preprocessing ourselves instead of using sklearn.pipeline.Pipeline(...).
         """
-        c, l = False, self.logger
-        l.debug("preprocessing model...")
+        c, l, df = False, self.logger, self._data
+        l.info("Preprocessing data...")
+        # exclude features for which only one distinct value exists ; this carries no information
+        self._data = df[[c for c in list(df) if len(df[c].unique()) > 1]]
+        if self.logger.level <= 10:
+            self.logger.debug("discarded features with unique values:\n- " + \
+                              "\n- ".join(df[[c for c in list(df) if len(df[c].unique()) <= 1]].columns))
+        # apply preprocessors per column
+        
+        
         for p in preprocessors:
             p, params = PREPROCESSORS.get(p, p), {}
             if isinstance(p, tuple):
@@ -191,9 +219,9 @@ class Model:
             else:
                 m = p.__name__
             n = p.__name__
-            v = "Transform" if n.endswith("Transformer") else "Encode" if n.endswith("Encoder") else \
-                "Standardize" if n.endswith("Scaler") else "Normalize" if n.endswith("Normalizer") or n == "PCA" else \
-                "Discretize" if n.endswith("Discretizer") else "Preprocess"
+            v = "transform" if n.endswith("Transformer") else "encode" if n.endswith("Encoder") else \
+                "standardize" if n.endswith("Scaler") else "normalize" if n.endswith("Normalizer") or n == "PCA" else \
+                "discretize" if n.endswith("Discretizer") else "preprocess"
             l.debug("> %s the data (%s)" % (v, m))
             preprocessed = p(**params).fit_transform(self._data)
             c = True
@@ -208,10 +236,6 @@ class Model:
             return
         self.path.mkdir(exist_ok=True)
         l.debug("%s model %s..." % (["saving", "updating"][self.__read_only], str(self.path)))
-        p = self.path.joinpath("performance.csv")
-        l.debug("> %s" % str(p))
-        self._performance.to_csv(str(p), sep=";", columns=PERF_HEADERS.keys(), index=False, header=True,
-                                 float_format=FLOAT_FORMAT)
         if not self.__read_only:
             for n in ["dump", "features", "metadata"]:
                 p = self.path.joinpath(n + (".joblib" if n == "dump" else ".json"))
@@ -223,6 +247,10 @@ class Model:
                         json.dump(getattr(self, "_" + n), f, indent=2)
                 p.chmod(0o444)
             self.__read_only = True
+        p = self.path.joinpath("performance.csv")
+        l.debug("> %s" % str(p))
+        self._performance.to_csv(str(p), sep=";", columns=PERF_HEADERS.keys(), index=False, header=True,
+                                 float_format=FLOAT_FORMAT)
     
     def compare(self, dataset=None, model=None, include=False, **kw):
         """ Compare the last performance of this model on the given dataset with other ones. """
@@ -296,6 +324,18 @@ class Model:
                                           "Packers"])]
         print(mdv.main(Report(*r).md()))
     
+    def preprocess(self, **kw):
+        """ Preprocess an input dataset given selected features and display it with visidata for review. """
+        kw['data_only'] = True
+        if not self._prepare(**kw):
+            self.logger.debug("could not prepare dataset")
+            return
+        tmp_p = TempPath(prefix="model-preprocess-", length=8)
+        tmp_f = tmp_p.tempfile("data.csv")
+        self._data.to_csv(str(tmp_f), sep=";", index=False, header=True)
+        edit_file(tmp_f, logger=self.logger)
+        tmp_p.remove()
+    
     def purge(self, **kw):
         """ Purge the current model. """
         self.logger.debug("purging model...")
@@ -318,10 +358,11 @@ class Model:
                      for i, n in enumerate(best_feat)]
         params = a['parameters'].keys()
         l = max(map(len, params))
-        params = [("{: <%s} = {}" % l).format(*p) for p in a['parameters'].items()]
+        params = [("{: <%s} = {}" % l).format(*p) for p in sorted(a['parameters'].items(), key=lambda x: x[0])]
         c = List(["**Path**:         %s" % self.path,
                   "**Size**:         %s" % human_readable_size(self.path.joinpath("dump.joblib").size),
                   "**Algorithm**:    %s (%s)" % (a['description'], a['name']),
+                  "**Multiclass**:   %s" % "NY"[a['multiclass']],
                   "**Features**:     %d \n\n\t1. %s\n\n" % (len(self._features), "\n\n\t1. ".join(best_feat)),
                   "**Parameters**: \n\n\t- %s\n\n" % "\n\t- ".join(params)])
         print(mdv.main(Report(Section("Model characteristics"), c).md()))
@@ -333,17 +374,17 @@ class Model:
                   "**Packers**:      %s" % ", ".join(ds['counts'].keys())])
         print(mdv.main(Report(Section("Reference dataset"), c).md()))
     
-    def test(self, **kw):
+    def test(self, executable, **kw):
         """ Test a single executable or a set of executables and evaluate metrics. """
-        l, n = self.logger, kw.get('executable')
+        l, ds = self.logger, executable
         if self.classifier is None:
             l.warning("Model shall be trained before testing")
             return
-        kw['dataset'] = n
+        kw['dataset'] = ds
         kw['data_only'] = True
         if not self._prepare(**kw):
             return
-        l.debug("Testing %s on %s..." % (self.name, n))
+        l.debug("Testing %s on %s..." % (self.name, ds))
         prediction, dt = benchmark(self.classifier.predict)(self._data)
         dt = 1000 * dt
         try:
@@ -353,11 +394,11 @@ class Model:
         ph = PERF_HEADERS
         h, m = list(ph.keys())[1:], self._metrics(self._target, prediction, proba)
         m2 = [ph[k](v) if v >= 0 else "-" for k, v in zip(list(ph.keys())[1:-1], m)]
-        r = Section("Test results for: " + n), Table([m2 + [ph['Processing Time'](dt)]], column_headers=h)
+        r = Section("Test results for: " + ds), Table([m2 + [ph['Processing Time'](dt)]], column_headers=h)
         print(mdv.main(Report(*r).md()))
         if len(self._data) > 0:
             row = {'Model': self.name} if self.__class__ is DumpedModel else {}
-            row['Dataset'] = n
+            row['Dataset'] = str(ds)
             for k, v in zip(h, m):
                 row[k] = v
             row['Processing Time'] = dt
@@ -366,28 +407,31 @@ class Model:
     
     def train(self, algorithm=None, cv=5, n_jobs=N_JOBS, param=None, reset=False, **kw):
         """ Training method handling cross-validation. """
-        l, n_cpu, name = self.logger, mp.cpu_count(), kw['dataset'].name
+        l, n_cpu, ds = self.logger, mp.cpu_count(), kw['dataset']
         try:
             cls = self.algorithm = Algorithm.get(algorithm)
             algo = cls.__class__.__name__
         except KeyError:
             l.error("%s not available" % algorithm)
             return
+        l.info("Selected algorithm: %s" % cls.description)
         if n_jobs > n_cpu:
-            self.logger.warning("Maximum n_jobs is %d" % n_cpu)
+            l.warning("Maximum n_jobs is %d" % n_cpu)
             n_jobs = n_cpu
+        # prepare the dataset first, as we need to know the number of features for setting model's name
         if not self._prepare(**kw):
             return
         if self.name is None:
-            c = sorted(collapse_categories(*self._metadata['dataset']['categories']))
-            self.name = "%s_%s_%d_%s_f%d" % (self._metadata['dataset']['name'], "-".join(map(lambda x: x.lower(), c)),
-                                             self._metadata['dataset']['executables'],
+            c = sorted(collapse_categories(*ds._metadata['categories']))
+            self.name = "%s_%s_%d_%s_f%d" % (ds.path.stem, "-".join(map(lambda x: x.lower(), c)),
+                                             ds._metadata['executables'],
                                              algo.lower().replace(".", ""), len(self._features))
         if reset:
             self.path.remove(error=False)
         self._load()
         if self.__read_only:
             l.warning("Cannot retrain a model")
+            l.warning("You can remove it first with the following command: model purge %s" % self.name)
             return
         if not getattr(cls, "multiclass", True) and kw.get('multiclass', False):
             l.error("%s does not support multiclass" % algo)
@@ -410,27 +454,27 @@ class Model:
                     del param_grid[n]
                 except KeyError:
                     pass
-        l.debug("Training %s on %s..." % (algo, name))
+        l.info("Training model...")
         c = cls.base(**params)
         # if a param_grid is input, perform cross-validation and select the best classifier
         if len(param_grid) > 0:
-            l.debug("> Applying Grid Search (CV=%d)..." % cv)
+            l.debug("> applying Grid Search (CV=%d)..." % cv)
             grid = GridSearchCV(c, param_grid=param_grid, cv=cv, scoring='accuracy', n_jobs=n_jobs)
             grid.fit(self._data, self._target)
             results = '\n'.join("  %0.3f (+/-%0.03f) for %r" % (m, s * 2, p) \
                 for m, s, p in zip(grid.cv_results_['mean_test_score'],
                                    grid.cv_results_['std_test_score'],
                                    grid.cv_results_['params']))
-            l.debug("> Grid scores:\n{}".format(results))
-            l.debug("> Best parameters found:\n  {}".format(grid.best_params_))
+            l.debug("> grid scores:\n{}".format(results))
+            l.debug("> best parameters found:\n  {}".format(grid.best_params_))
             params.update(grid.best_params_)
-            if isinstance(cls.base, WekaClassifier):
+            if isinstance(cls, WekaClassifier):
                 params['model'] = self
             c = cls.base(**params)
         # now fit the (best) classifier and predict labels
-        l.debug("> Fitting the classifier...")
+        l.debug("> fitting the classifier...")
         c.fit(self._train.data, self._train.target)
-        l.debug("> Making predictions...")
+        l.debug("> making predictions...")
         d = []
         try:
             prob1 = c.predict_proba(self._train.data)[:, 1]
@@ -446,12 +490,12 @@ class Model:
         m2 = [ph[k](v) if v >= 0 else "-" for k, v in zip(h, m2)]
         d.append(["Test"] + m2)
         h = ["."] + h
-        print(mdv.main(Table(d, column_headers=h).md()))
+        print(mdv.main(Report(Title("Name: %s" % self.name), Table(d, column_headers=h)).md()))
         try:
             del params['model']
         except KeyError:
             pass
-        self.name += "_" + str(hash(tuple(",".join("{}={}".format(k, v) for k, v in params.items()))))
+        l.info("Parameters:\n- %s" % "\n- ".join("%s = %s" % p for p in params.items()))
         self.classifier = c
         self._metadata.setdefault('algorithm', {})
         self._metadata['algorithm']['name'] = algo
@@ -482,8 +526,8 @@ class Model:
     
     @name.setter
     def name(self, value):
-        if value and not re.match(NAMING_CONVENTION, name):
-            raise ValueError("Bad input name")
+        if value and not re.match(NAMING_CONVENTION, value):
+            raise ValueError("Bad input name: %s" % value)
         self._name = value
     
     @property
@@ -534,7 +578,7 @@ class DumpedModel:
             self._performance = pd.DataFrame(columns=["Model"] + list(PERF_HEADERS.keys()))
     
     def _save(self):
-        self.logger.debug("> Saving metrics to %s..." % str(self.__p))
+        self.logger.debug("> saving metrics to %s..." % str(self.__p))
         p = self._performance
         k = p.columns
         p = p.loc[p.round(3).drop_duplicates(subset=k[:-1]).index]
