@@ -48,7 +48,10 @@ DL85:
   multiclass: false
   parameters:
     static:
-      iterative: true
+      iterative:  true
+      time_limit: 60
+    cv:
+      max_depth: !!python/object/new:range [3, 6]
   visualization:
     text:   sklearn.tree.export_text
     export: null
@@ -80,6 +83,16 @@ DT:
     export: null
   link: https://scikit-learn.org/stable/modules/generated/sklearn.tree.DecisionTreeClassifier.html
 
+GBC:
+  base:        !!python/name:sklearn.ensemble.GradientBoostingClassifier
+  description: Gradient Boosting Classifier
+  parameters:
+    static:
+      n_estimators: 30
+      random_state: 42
+    cv:
+      max_depth: !!python/object/new:range [3, 8]
+
 GNB:
   base:        !!python/name:sklearn.naive_bayes.GaussianNB
   description: Gaussian Naive Bayes
@@ -90,7 +103,7 @@ GNB:
 
 J48:
   base:        !!python/name:pbox.learning.algorithm.J48  # based on weka.classifiers.trees.J48
-  description: Decision Tree
+  description: Decision Tree (J48)
   parameters:
     static:
       C: 0.25  # confidence threshold for pruning
@@ -107,10 +120,10 @@ kNN:
       leaf_size:   30
       metric:      minkowski
       n_neighbors: 5
-      p:           2          # euclidian distance
       weights:     uniform
     cv:
       n_neighbors: !!python/object/new:range [1, 8, 2]
+      p:           !!python/tuple [1, 2]                # euclidian distance
   link: http://scikit-learn.org/stable/modules/generated/sklearn.neighbors.KNeighborsClassifier.html
 
 LP:
@@ -130,9 +143,9 @@ LR:
       M: -1  # maximum number of iterations (-1: until convergence)
   link: https://weka.sourceforge.io/doc.stable/weka/classifiers/functions/Logistic.html
 
-LSVM:
+LSVC:
   base:        !!python/name:sklearn.svm.LinearSVC
-  description: Linear Support Vector Machine
+  description: Linear Support Vector Classification
   parameters:
     static:
       dual:         true
@@ -141,7 +154,7 @@ LSVM:
       random_state: 42
       tol:          !!float 1e-4
     cv:
-      C: !!python/object/new:numpy.logspace [1, 6, 6]
+      C: !!python/object/new:numpy.logspace [-1, 4, 6]
   link: http://scikit-learn.org/stable/modules/generated/sklearn.svm.LinearSVC.html
 
 MLP:
