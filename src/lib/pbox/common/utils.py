@@ -224,11 +224,11 @@ def make_registry(cls):
         if item not in glob:
             glob[item] = type(item, (cls, ), dict(cls.__dict__))
         i = glob[item]
-        # before setting attributs from the YAML parameters, check for 'base' ; this allows to copy all attributes from
+        # before setting attributes from the YAML parameters, check for 'base' ; this allows to copy all attributes from
         #  an entry originating from another item class (i.e. copying from Packer's equivalent to Unpacker ; e.g. UPX)
-        base = data.pop('base', None)  # i.e. detector|packer|unpacker
+        base = data.get('base')  # i.e. detector|packer|unpacker ; DO NOT pop as 'base' is also used for algorithms
         if isinstance(base, str) and re.match(r"(?i)(detector|packer|unpacker)$", base):
-            base = base.lower()
+            base = data.pop('base', None).lower()
             if base.capitalize() == cls.__name__:
                 raise ValueError("%s cannot point to itself" % cls.__name__)
             if base not in _cache.keys():
