@@ -1,5 +1,8 @@
 # -*- coding: UTF-8 -*-
-from tinyscript.helpers import is_executable
+import plotext as plt
+from textwrap import wrap
+from tinyscript import code, colored
+from tinyscript.helpers import get_terminal_size, ints2hex, is_executable, txt2bold, Path
 from tqdm import tqdm
 
 from .executable import Executable
@@ -11,16 +14,21 @@ from ..common.utils import backup
 __all__ = ["open_dataset", "Dataset", "FilelessDataset"]
 
 
+# patch plotext to support Y labels with ANSI sequences for colored text
+code.add_line(plt._monitor.monitor_class.build_plot, 1, "from tinyscript.helpers import ansi_seq_strip")
+code.replace(plt._monitor.monitor_class.build_plot, "len(el[0])", "len(ansi_seq_strip(el[0]))")
+
+
 def open_dataset(folder):
     """ Open the target dataset with the right class. """
     p = config['datasets'].joinpath(folder)
     if Dataset.check(folder):
         return Dataset(folder)
     if FilelessDataset.check(folder):
-        return Dataset(folder)
-    elif Dataset.check(p):
+        return FilelessDataset(folder)
+    if Dataset.check(p):
         return Dataset(p)
-    elif FilelessDataset.check(p):
+    if FilelessDataset.check(p):
         return FilelessDataset(p)
     raise ValueError("%s is not a valid dataset" % folder)
 
@@ -84,10 +92,51 @@ class FilelessDataset(Dataset):
             self[exe.hash] = d
             pbar.update()
         self.logger.debug("removing files...")
-        self.backup.purge()
         self.files.remove(error=False)
+        self.logger.debug("removing eventual backups...")
+        try:
+            self.backup.purge()
+        except AttributeError:
+            pass
         self._save()
     Dataset.convert = convert
+    
+    def features(self, feature, **kw):
+        """ Plot the distribution of the given feature. """
+        if not isinstance(feature, (tuple, list)):
+            feature = [feature]
+        self.logger.debug("counting values for feature%s %s..." % (["", "s"][len(feature) > 1], ", ".join(feature)))
+        counts = {}
+        for exe in self._iter_with_features(feature):
+            v = tuple(exe.data[f] for f in feature)
+            counts.setdefault(v, [0, 0])
+            counts[v][str(exe.label) != "nan"] += 1
+        s = sum(sum(x) for x in counts.values())
+        if set(counts.keys()) == {0., 1.}:
+            counts = {k == 1.: v for k, v in counts.items()}
+        elif all(f.startswith("byte_") for f in feature):
+            counts = {ints2hex(*tuple(int(sk) for sk in k)): v for k, v in counts.items()}
+        elif all(all(int(sk) == sk for sk in k) for k in counts.keys()):
+            counts = {tuple(int(sk) for sk in k): v for k, v in counts.items()}
+        counts = {k: v for k, v in sorted(counts.items(), key=lambda x: x[0])}
+        width = get_terminal_size()[0]
+        self.logger.debug("plotting...")
+        # format side ticks
+        yticks = [(str(k[0]) if isinstance(k, (tuple, list)) and len(k) == 1 else str(k),
+                   "(%s)" % "|".join([colored(str(v[0]), "green"), colored(str(v[1]), "red")])) \
+                  for k, v in sorted(counts.items(), key=lambda x: x[0])]
+        lmax = [max(map(len, [t for t, _ in yticks])), max(map(len, [t for _, t in yticks]))]
+        yticks = ["%s %s" % (t1.ljust(lmax[0]), t2.rjust(lmax[1])) for t1, t2 in yticks]
+        plt.bar(yticks, [sum(v) / s for _, v in sorted(counts.items(), key=lambda x: x[0])],
+                orientation="h", marker="hd", minimum=.0, width=.1)
+        title = self._features[feature[0]] if len(feature) == 1 else \
+                "\n".join(wrap("combination of %s" % ", ".join(self._features[f] for f in feature), width))
+        title = title[0].upper() + title[1:]
+        print("\n%s\n" % "\n".join(txt2bold(l.center(width)) for l in title.splitlines()))
+        plt.clc()
+        plt.plotsize(width, (2 * len(counts) - 1) + 4)
+        plt.show()
+    Dataset.features = features
     
     @backup
     def merge(self, name2=None, **kw):

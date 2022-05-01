@@ -62,11 +62,13 @@ class Dataset:
             h = self._data.loc[df['realpath'] == h, 'hash'].iloc[0]
         except:
             pass
+        ext = ts.Path(self._data.loc[df['hash'] == h, 'realpath'].iloc[0]).extension
         if len(self._data) > 0:
             self.logger.debug("removing %s..." % h)
             self._data = self._data[self._data.hash != h]
         if self._files:
             self.files.joinpath(h).remove(error=False)
+            self.files.joinpath(h + ext).remove(error=False)
     
     def __eq__(self, dataset):
         """ Custom equality function. """
@@ -143,6 +145,10 @@ class Dataset:
         else:
             self.logger.debug("adding %s..." % e.hash)
             self._data = df.append(d, ignore_index=True)
+    
+    def __str__(self):
+        """ Custom object's string. """
+        return self.name
     
     def _copy(self, path):
         """ Copy the current dataset to a given destination. """
@@ -236,6 +242,10 @@ class Dataset:
         """ Edit the data CSV file. """
         self.logger.debug("editing dataset's data.csv...")
         edit_file(self.path.joinpath("data.csv").absolute(), logger=self.logger)
+    
+    def exists(self):
+        """ Dummy exists method. """
+        return self.path.exists()
     
     def export(self, destination="export", n=0, **kw):
         """ Export packed executables to the given destination folder. """
@@ -344,7 +354,7 @@ class Dataset:
                 if len(packers) > 1:
                     random.shuffle(packers)
                 destination = exe.copy(extension=True)
-                if not destination:
+                if not destination:  # occurs when the copy failed
                     continue
                 old_h = destination.absolute()
                 for p in packers[:]:
@@ -362,9 +372,12 @@ class Dataset:
                         continue
                     else:  # consider short label (e.g. "midgetpack", not "midgetpack[<password>]")
                         short_label = label.split("[")[0]
-                        exe.destination = self.files.joinpath(exe.hash)
-                        old_h.rename(exe.destination)
                     break
+                # ensure we did not left the executable name with its hash AND extension behind
+                try:
+                    old_h.rename(exe.destination)
+                except FileNotFoundError:
+                    pass
             if not pack_all or (pack_all and short_label is not None):
                 self[exe] = short_label
             if label is not None or not pack_all:

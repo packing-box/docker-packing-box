@@ -54,6 +54,9 @@ if __name__ == '__main__':
                         help="destination folder for the exported executables")
     export.add_argument("-n", "--number-executables", dest="n", type=ts.pos_int, default=0,
                         help="number of packed executables to be exported")
+    feat = __add_name(sparsers.add_parser("features", help="plot the distribution of a given feature"))
+    feat.add_argument("feature", choices=list(FEATURE_DESCRIPTIONS.keys()), action="extend", nargs="*",
+                      help="feature identifiers")
     fix = __add_name(sparsers.add_parser("fix", help="fix a corrupted dataset"))
     fgroup = fix.add_mutually_exclusive_group()
     fgroup.add_argument("-d", "--detect", action="store_true", help="detect used packer with installed detectors")
