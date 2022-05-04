@@ -10,7 +10,14 @@ __all__ = ["Features", "FEATURE_DESCRIPTIONS"]
 
 
 FEATURE_DESCRIPTIONS = {}
+FEATURE_DESCRIPTIONS.update(ELFEATS)
 FEATURE_DESCRIPTIONS.update(PEFEATS)
+FEATURE_TRANSFORMERS = {
+    r'^byte_\d+': None,
+    r'checksum':  None,
+    r'^dll_':     None,
+    r'^number_':  None,
+}
 FEATURES = {
     'All': {
         'entropy': lambda exe: entropy(exe.read_bytes()),
