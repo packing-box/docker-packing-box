@@ -119,7 +119,7 @@ class Dataset:
         """
         try:
             label, update = label
-        except ValueError:
+        except (TypeError, ValueError):  # TypeError occurs when label is None
             label, update = label, False
         self.__change, l = True, self.logger
         df, e = self._data, executable
@@ -156,7 +156,7 @@ class Dataset:
                 for n, v in d.items():
                     df.loc[df['hash'] == e.hash, n] = v
             else:
-                l.debug("discarding %s (this hash holds a version packed with %s)..." % (e.hash, Packer.get(lbl).cname))
+                l.debug("discarding %s%s..." % (e.hash, ["", " (already in dataset)"][lbl == d['label']]))
         else:
             l.debug("adding %s..." % e.hash)
             self._data = df.append(d, ignore_index=True)
@@ -369,7 +369,7 @@ class Dataset:
                 if len(packers) > 1:
                     random.shuffle(packers)
                 destination = exe.copy(extension=True)
-                if not destination:  # occurs when the copy failed
+                if destination is None:  # occurs when the copy failed
                     continue
                 old_h = destination.absolute()
                 for p in packers[:]:

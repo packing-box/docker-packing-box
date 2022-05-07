@@ -53,7 +53,7 @@ class Executable(Path):
                 if ds1:
                     self._dataset = ds1
                     try:
-                        self.destination = self._dataset.files.joinpath(self.hash)
+                        self._destination = self._dataset.files.joinpath(self.hash)
                     except AttributeError:  # 'FilelessDataset' object has no attribute 'files'
                         pass
                 return self
@@ -66,7 +66,7 @@ class Executable(Path):
                 if exe.is_file():
                     self = super(Executable, cls).__new__(cls, str(exe), **kwargs)
                     self.hash = h  # avoid hash recomputation
-                    self.destination = ds1.files.joinpath(self.hash)
+                    self._destination = ds1.files.joinpath(self.hash)
             self._dataset = ds1
             try:
                 for a, v in ds1._data[ds1._data.hash == h].iloc[0].to_dict().items():
@@ -78,7 +78,7 @@ class Executable(Path):
                 pass  # this occurs when the executable did not exist in the dataset yet
             # case (3)
             if ds2 is not None and ds2._files:
-                self.destination = ds2.files.joinpath(h)
+                self._destination = ds2.files.joinpath(h)
         self.label = kwargs.pop('label', getattr(self, "label", None))
         return self
     
@@ -107,6 +107,16 @@ class Executable(Path):
     @cached_property
     def ctime(self):
         return datetime.fromtimestamp(self.stat().st_ctime)
+    
+    @property
+    def destination(self):
+        try:
+            return self._destination
+        except AttributeError:
+            try:
+                return self._dataset.files.joinpath(self.hash)
+            except AttributeError:
+                pass
     
     @cached_property
     def filetype(self):
