@@ -4,7 +4,7 @@ import re
 import yaml
 from functools import wraps
 from time import perf_counter, time
-from tinyscript import inspect, subprocess
+from tinyscript import inspect, logging, subprocess
 from tinyscript.helpers import is_file, is_folder, Path
 try:  # from Python3.9
     import mdv3 as mdv
@@ -62,8 +62,7 @@ def backup(f):
 def benchmark(f):
     """ Decorator for benchmarking function executions. """
     def _wrapper(*args, **kwargs):
-        logger, perf = kwargs.get("logger"), kwargs.pop("perf", True)
-        t = perf_counter if perf else time
+        t = perf_counter if kwargs.pop("perf", True) else time
         start = t()
         r = f(*args, **kwargs)
         dt = t() - start
@@ -99,9 +98,9 @@ def collapse_categories(*categories, **kw):
 def edit_file(path, csv_sep=";", **kw):
     """" Edit a target file with visidata. """
     cmd = "vd %s --csv-delimiter \"%s\"" % (path, csv_sep)
-    logger = kw.pop('logger', None)
-    if logger:
-        logger.debug(cmd)
+    l = kw.pop('logger', None)
+    if l:
+        l.debug(cmd)
     subprocess.call(cmd, stderr=subprocess.PIPE, shell=True, **kw)
 
 
@@ -214,10 +213,16 @@ def highlight_best(data, headers=None, exclude_cols=[0, -1], formats=None):
 
 def make_registry(cls):
     """ Make class' registry of child classes and fill the __all__ list in. """
-    cls.registry = []
-    glob = inspect.getparentframe().f_back.f_globals
+    def _setattr(i, d):
+        for k, v in d.items():
+            if k == "status":
+                k = "_" + k
+            setattr(i, k, v)
+    # open the .conf file associated to cls (i.e. Detector, Packer, ...)
+    cls.registry, glob = [], inspect.getparentframe().f_back.f_globals
     with Path("/opt/%ss.yml" % cls.__name__.lower()).open() as f:
         items = yaml.load(f, Loader=yaml.Loader)
+    # start parsing items of cls
     _cache = {}
     for item, data in items.items():
         # ensure the related item is available in module's globals()
@@ -227,25 +232,41 @@ def make_registry(cls):
         # before setting attributes from the YAML parameters, check for 'base' ; this allows to copy all attributes from
         #  an entry originating from another item class (i.e. copying from Packer's equivalent to Unpacker ; e.g. UPX)
         base = data.get('base')  # i.e. detector|packer|unpacker ; DO NOT pop as 'base' is also used for algorithms
-        if isinstance(base, str) and re.match(r"(?i)(detector|packer|unpacker)$", base):
-            base = data.pop('base', None).lower()
-            if base.capitalize() == cls.__name__:
-                raise ValueError("%s cannot point to itself" % cls.__name__)
-            if base not in _cache.keys():
-                with Path("/opt/%ss.yml" % base).open() as f:
-                    _cache[base] = yaml.load(f, Loader=yaml.Loader)
-            for k, v in _cache[base].get(item, {}).items():
-                # do not process these keys as they shall be different from an item class to another anyway
-                if k in ["steps", "status"]:
-                    continue
-                setattr(i, k, v)
+        if isinstance(base, str):
+            m = re.match(r"(?i)(detector|packer|unpacker)(?:\[(.*?)\])?$", str(base))
+            if m:
+                data.pop('base')
+                base, bcls = m.groups()
+                base, bcls = base.capitalize(), bcls or item
+                if base == cls.__name__ and bcls in [None, item]:
+                    raise ValueError("%s cannot point to itself" % item)
+                if base not in _cache.keys():
+                    with Path("/opt/%ss.yml" % base.lower()).open() as f:
+                        _cache[base] = yaml.load(f, Loader=yaml.Loader)
+                for k, v in _cache[base].get(bcls, {}).items():
+                    # do not process these keys as they shall be different from an item class to another anyway
+                    if k in ["steps", "status"]:
+                        continue
+                    setattr(i, k, v)
+            else:
+                raise ValueError("'base' set to '%s' of %s discarded (bad format)" % (base, item))
+        # check for eventual variants ; the goal is to copy the current item class and to adapt the fields from the
+        #  variants to the new classes (note that on the contrary of base, a variant inherits the 'status' parameter)
+        variants, vilist = data.pop('variants', {}), []
+        for vitem in variants.keys():
+            vi = glob[vitem] = type(vitem, (cls, ), dict(cls.__dict__))
+            vilist.append(vi)
         # now set attributes from YAML parameters
-        for k, v in data.items():
-            if k == "status":
-                k = "_" + k
-            setattr(i, k, v)
+        for it in [i] + vilist:
+            _setattr(it, data)
         glob['__all__'].append(item)
         cls.registry.append(i())
+        # overwrite parameters specific to variants
+        for vitem, vdata in variants.items():
+            vi = glob[vitem]
+            _setattr(vi, vdata)
+            glob['__all__'].append(vitem)
+            cls.registry.append(vi())
 
 
 def metrics(tn=0, fp=0, fn=0, tp=0):
