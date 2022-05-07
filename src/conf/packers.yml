@@ -364,10 +364,11 @@ GZEXE:
 hXOR-Packer:
   categories:
     - PE
-  comments: FIXME ; it packs to {{executable}}.exe with hash 1cc82b2855df0c2fb3c30dffe9f02512aebd79d7df8b00ce69aa0790aa60297e
   description: A PE (Portable Executable) packer with Huffman Compression and Xor encryption.
   exclude:
     - DLL: PE32\+? executable \(DLL\)
+  failure:
+    hash: 1cc82b2855df0c2fb3c30dffe9f02512aebd79d7df8b00ce69aa0790aa60297e
   families:
     - compressor
     - cryptor
@@ -381,9 +382,22 @@ hXOR-Packer:
   references:
     - https://github.com/rurararura/hXOR-Packer
   steps:
-    - hxor-packer {{executable}} {{executable}}
+    - hxor-packer {{executable}} {{executable}} -ce
   source: https://github.com/rurararura/hXOR-Packer/releases/tag/0.1
   status: ok
+  variants:
+    hXOR-Compressor:
+      description: A PE (Portable Executable) packer with Huffman Compression.
+      families:
+        - compressor
+      steps:
+        - hxor-packer {{executable}} {{executable}} -c
+    hXOR-Crypter:
+      description: A PE (Portable Executable) packer with Xor encryption.
+      families:
+        - cryptor
+      steps:
+        - hxor-packer {{executable}} {{executable}} -e
 
 JDPack:
   categories:
