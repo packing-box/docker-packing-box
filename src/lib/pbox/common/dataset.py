@@ -55,20 +55,23 @@ class Dataset:
     
     def __delitem__(self, executable):
         """ Remove an executable (by its real name or hash) from the dataset. """
-        self.__change = True
+        self.__change, df = True, self._data
         h = executable
         # first, ensure we handle the hash name (not the real one)
         try:
-            h = self._data.loc[df['realpath'] == h, 'hash'].iloc[0]
+            h = df.loc[df['realpath'] == h, 'hash'].iloc[0]
         except:
             pass
-        ext = ts.Path(self._data.loc[df['hash'] == h, 'realpath'].iloc[0]).extension
-        if len(self._data) > 0:
+        if len(df) > 0:
             self.logger.debug("removing %s..." % h)
-            self._data = self._data[self._data.hash != h]
+            self._data = df[df.hash != h]
         if self._files:
             self.files.joinpath(h).remove(error=False)
-            self.files.joinpath(h + ext).remove(error=False)
+            try:
+                ext = ts.Path(df.loc[df['hash'] == h, 'realpath'].iloc[0]).extension
+                self.files.joinpath(h + ext).remove(error=False)
+            except:
+                pass
     
     def __eq__(self, dataset):
         """ Custom equality function. """
@@ -114,7 +117,11 @@ class Dataset:
         :param executable: either the path to the executable or its Executable instance
         :param label:      either the text label of the given executable or its dictionary of data
         """
-        self.__change = True
+        try:
+            label, update = label
+        except ValueError:
+            label, update = label, False
+        self.__change, l = True, self.logger
         df, e = self._data, executable
         e = e if isinstance(e, Executable) else Executable(e, dataset=self)
         # consider the case when 'label' is a dictionary with the executable's attribute, i.e. from another dataset
@@ -139,11 +146,19 @@ class Dataset:
         if e.category not in self._metadata['categories']:
             self._metadata['categories'].append(e.category)
         if len(df) > 0 and e.hash in df.hash.values:
-            self.logger.debug("updating %s..." % e.hash)
-            for n, v in d.items():
-                df.loc[df['hash'] == e.hash, n] = v
+            row = df.loc[df['hash'] == e.hash]
+            lbl = row['label'].iloc[0]
+            # consider updating when:
+            #  (a) hash already exists but is not packed => can pack it
+            #  (b) new fields are added, e.g. when converting to FilelessDataset (features are computed)
+            if str(lbl) == "nan" or update:
+                l.debug("updating %s..." % e.hash)
+                for n, v in d.items():
+                    df.loc[df['hash'] == e.hash, n] = v
+            else:
+                l.debug("discarding %s (this hash holds a version packed with %s)..." % (e.hash, Packer.get(lbl).cname))
         else:
-            self.logger.debug("adding %s..." % e.hash)
+            l.debug("adding %s..." % e.hash)
             self._data = df.append(d, ignore_index=True)
     
     def __str__(self):
@@ -172,7 +187,7 @@ class Dataset:
     
     def _load(self):
         """ Load dataset's associated files or create them. """
-        self.logger.debug("loading dataset...")
+        self.logger.debug("loading dataset '%s'..." % self.basename)
         if self._files:
             self.files.mkdir(exist_ok=True)
         for n in ["data", "metadata"] + [["features"], []][self._files]:
@@ -190,14 +205,14 @@ class Dataset:
     
     def _remove(self):
         """ Remove the current dataset. """
-        self.logger.debug("removing dataset...")
+        self.logger.debug("removing dataset '%s'..." % self.basename)
         self.path.remove(error=False)
     
     def _save(self):
         """ Save dataset's state to JSON files. """
         if not self.__change:
             return
-        self.logger.debug("saving dataset...")
+        self.logger.debug("saving dataset '%s'..." % self.basename)
         self._metadata['categories'] = sorted(collapse_categories(*self._metadata['categories']))
         self._metadata['counts'] = self._data.label.value_counts().to_dict()
         self._metadata['executables'] = len(self)
@@ -438,10 +453,19 @@ class Dataset:
     
     def select(self, name2=None, query=None, **kw):
         """ Select a subset from the current dataset based on multiple criteria. """
-        self.logger.debug("selecting a subset of the dataset...")
-        ds2 = Dataset(name2)
+        self.logger.debug("selecting a subset of dataset '%s'..." % self.basename)
+        ds2 = self.__class__(name2)
+        ds2._metadata['sources'] = src = self._metadata['sources'][:]
+        _tmp = {s: 0 for s in src}
         for e in self._filter(query, **kw):
-            ds2[Executable(dataset=self, hash=e.hash)] = self[e.hash, True]
+            for s in src:
+                if e.realpath.startswith(s):
+                    _tmp[s] += 1
+                    break
+            ds2[Executable(dataset=self, dataset2=ds2, hash=e.hash)] = self[e.hash, True]
+        for s, cnt in _tmp.items():
+            if cnt == 0:
+                src.remove(s)
         ds2._save()
     
     def show(self, limit=10, per_category=False, **kw):
@@ -515,7 +539,7 @@ class Dataset:
                       e.mtime.strftime("%d/%m/%y"), "" if str(e.label) in ["nan", "None"] else e.label])
         if len(d) == 0:
             return
-        r = [Text("Sources:\n %s" % "\n ".join("[%d] %s" % (i, s) for i, s in enumerate(src))),
+        r = [Text("Sources:\n%s" % "\n".join("[%d] %s" % (i, s) for i, s in enumerate(src))),
              Table(d, title="Filtered records", column_headers=h)]
         print(mdv.main(Report(*r).md()))
     
@@ -523,8 +547,8 @@ class Dataset:
     def backup(self):
         """ Get the latest backup. """
         tmp = ts.TempPath(".dataset-backup", hex(hash(self))[2:])
-        for backup in sorted(tmp.listdir(Dataset.check), key=lambda p: -int(p.basename)):
-            return Dataset(backup)
+        for backup in sorted(tmp.listdir(self.__class__.check), key=lambda p: -int(p.basename)):
+            return self.__class__(backup)
     
     @backup.setter
     def backup(self, dataset):
@@ -534,7 +558,7 @@ class Dataset:
         tmp = ts.TempPath(".dataset-backup", hex(hash(self))[2:])
         backups, i = [], 0
         for i, backup in enumerate(sorted(tmp.listdir(Dataset.check), key=lambda p: -int(p.basename))):
-            backup, n = Dataset(backup), 0
+            backup, n = self.__class__(backup), 0
             # if there is a change since the last backup, create a new one
             if i == 0 and dataset != backup:
                 dataset._copy(tmp.joinpath(str(int(time.time()))))
@@ -557,10 +581,15 @@ class Dataset:
         return self._data.label
     
     @property
+    def basename(self):
+        """ Dummy shortcut for dataset's path.basename. """
+        return self.path.basename
+    
+    @property
     def name(self):
         """ Get the name of the dataset composed with its list of categories. """
-        return "%s(%s)" % (self.path.basename, ",".join(sorted(collapse_categories(*self.categories)))) \
-               if len(self.categories) > 0 else self.path.basename
+        c, p = getattr(self, "categories", []), self.path.basename
+        return "%s(%s)" % (p, ",".join(sorted(collapse_categories(*c)))) if len(c) > 0 else self.path.basename
     
     @property
     def overview(self):
@@ -632,7 +661,7 @@ class Dataset:
                 if c == "All":
                     break
         r.append(Rule())
-        r.append(Text("**Sources**:\n\n %s" % "\n ".join("[%d] %s" % (i, s) for i, s in enumerate(src))))
+        r.append(Text("**Sources**:\n\n%s" % "\n".join("[%d] %s" % (i, s) for i, s in enumerate(src))))
         # display files if any
         if len(data2) > 0:
             r.append(Section("Executables per label and category"))

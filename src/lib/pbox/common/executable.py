@@ -41,7 +41,7 @@ class Executable(Path):
             # if reinstantiating an Executable instance, simply immediately return it
             if isinstance(e, Executable):
                 return e
-            # this case aries when a series is passed from Pandas' .itertuples() ; this produces an orphan executable
+            # this case arises when a series is passed from Pandas' .itertuples() ; this produces an orphan executable
             if all(hasattr(e, f) for f in fields) and hasattr(e, "_fields"):
                 try:
                     dest = ds1.files.joinpath(e.hash)
@@ -61,12 +61,13 @@ class Executable(Path):
         if ds1 is not None:
             # case (2)
             h = kwargs.pop('hash', self.basename)
-            exe = ds1.files.joinpath(h)
-            if exe.is_file():
-                self = super(Executable, cls).__new__(cls, str(exe), **kwargs)
-                self.hash = h  # avoid hash recomputation
+            if ds1._files:
+                exe = ds1.files.joinpath(h)
+                if exe.is_file():
+                    self = super(Executable, cls).__new__(cls, str(exe), **kwargs)
+                    self.hash = h  # avoid hash recomputation
+                    self.destination = ds1.files.joinpath(self.hash)
             self._dataset = ds1
-            self.destination = ds1.files.joinpath(self.hash)
             try:
                 for a, v in ds1._data[ds1._data.hash == h].iloc[0].to_dict().items():
                     if a in Executable.FIELDS + ["hash", "label"]:
@@ -76,7 +77,7 @@ class Executable(Path):
             except IndexError:
                 pass  # this occurs when the executable did not exist in the dataset yet
             # case (3)
-            if ds2 is not None:
+            if ds2 is not None and ds2._files:
                 self.destination = ds2.files.joinpath(h)
         self.label = kwargs.pop('label', getattr(self, "label", None))
         return self
