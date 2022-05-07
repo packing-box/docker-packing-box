@@ -226,6 +226,7 @@ def make_registry(cls):
     _cache = {}
     for item, data in items.items():
         # ensure the related item is available in module's globals()
+        #  NB: the item may already be in globals in some cases like pbox.items.packer.Ezuri
         if item not in glob:
             glob[item] = type(item, (cls, ), dict(cls.__dict__))
         i = glob[item]

@@ -2,7 +2,7 @@
 from tinyscript import b, ensure_str, hashlib, random, re, subprocess
 from tinyscript.helpers import execute_and_log as run
 
-from .__common__ import *
+from .__common__ import Base, PARAM_PATTERN
 from ..common.executable import Executable
 from ..common.item import update_logger
 from ..common.utils import make_registry
@@ -10,6 +10,18 @@ from ..common.utils import make_registry
 
 # this list is filled in with subclasses at the end of this module
 __all__ = ["Packer"]
+
+
+def _parse_parameter(param):
+    m = re.match(r"^randint(?:\((\d+),(\d+)\))?$", param)
+    if m:
+        try:
+            i1, i2 = m.groups()
+            i1, i2 = i1 or 1, i2 or 256
+            return str(random.randint(int(i1), int(i2)))
+        except ValueError:
+            pass
+    return param
 
 
 class Packer(Base):
@@ -64,9 +76,10 @@ class Packer(Base):
         for step in getattr(self, "steps", ["%s %s" % (self.name, executable)]):
             if "{{password}}" in step and 'password' not in self._params:
                 self._params['password'] = [random.randstr()]
-            m = re.search(r"{{(.*?)\[(.*?)\]}}", step)
-            if m and m.group(1) not in self._params:
-                self._params[m.group(1)] = [" " + x if x.startswith("-") else x for x in m.group(2).split("|")]
+            for name, value in re.findall(re.sub(r"\)\?\}\}$", ")}}", PARAM_PATTERN), step):
+                if name not in self._params:
+                    self._params[name] = [" " + x if x.startswith("-") else _parse_parameter(x) \
+                                          for x in value.split("|")]
         # then execute parent run() method taking the parameters into account
         return super(Packer, self).run(executable, **kwargs)
 

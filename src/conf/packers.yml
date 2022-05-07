@@ -382,7 +382,7 @@ hXOR-Packer:
   references:
     - https://github.com/rurararura/hXOR-Packer
   steps:
-    - hxor-packer {{executable}} {{executable}} -ce
+    - hxor-packer {{executable}} {{executable}} -ce {{key[randint]}}
   source: https://github.com/rurararura/hXOR-Packer/releases/tag/0.1
   status: ok
   variants:
@@ -397,7 +397,7 @@ hXOR-Packer:
       families:
         - cryptor
       steps:
-        - hxor-packer {{executable}} {{executable}} -e
+        - hxor-packer {{executable}} {{executable}} -e {{key[randint(0,16777215)]}}
 
 JDPack:
   categories:
