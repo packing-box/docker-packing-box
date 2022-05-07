@@ -27,7 +27,7 @@ __examples__    = [
 __description__ = "Make datasets of packed and not packed executables for use with Machine Learning"
 
 
-def __add_name(parser, force=False):
+def __add_name(parser, force=False, name="name", help="name of the dataset"):
     def dataset_exists(string):
         if string == "all":
             return string
@@ -36,7 +36,7 @@ def __add_name(parser, force=False):
         if not force and not Dataset.check(string) and not FilelessDataset.check(string):
             raise ValueError("Bad dataset")
         return p
-    parser.add_argument("name", type=dataset_exists, help="name of the dataset")
+    parser.add_argument(name, type=dataset_exists, help=help)
     return parser
 
 
@@ -57,6 +57,9 @@ if __name__ == '__main__':
     feat = __add_name(sparsers.add_parser("features", help="plot the distribution of a given feature"))
     feat.add_argument("feature", choices=list(FEATURE_DESCRIPTIONS.keys()), action="extend", nargs="*",
                       help="feature identifiers")
+    feat.add_argument("-m", "--multiclass", action="store_true", help="process features using multiple label classes")
+    feat.add_argument("-o", "--output-format", choices=["jpg", "png", "tif", "svg"],
+                      help="image file format for plotting", note="no format means plotting in the terminal")
     fix = __add_name(sparsers.add_parser("fix", help="fix a corrupted dataset"))
     fgroup = fix.add_mutually_exclusive_group()
     fgroup.add_argument("-d", "--detect", action="store_true", help="detect used packer with installed detectors")
@@ -78,7 +81,7 @@ if __name__ == '__main__':
     make.add_argument("-s", "--source-dir", action="extend", nargs="*", type=lambda p: ts.Path(p, expand=True),
                       help="executables source directory to be included")
     merge = __add_name(sparsers.add_parser("merge", help="merge two datasets"))
-    merge.add_argument("name2", type=ts.folder_exists, help="name of the dataset to merge")
+    __add_name(merge, name="name2", help="name of the dataset to merge")
     purge = __add_name(sparsers.add_parser("purge", help="purge a dataset"), True)
     purge.add_argument("-b", "--backup", action="store_true", help="only purge backups")
     remove = __add_name(sparsers.add_parser("remove", help="remove executables from a dataset"))
