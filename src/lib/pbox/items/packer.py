@@ -44,13 +44,19 @@ class Packer(Base):
             err = self._error.replace(str(exe) + ": ", "").replace(self.name + ": ", "").strip()
             self.logger.debug("not packed (%s)" % err)
             return (h, None) if include_hash else None
-        elif h == exe.hash:
-            self.logger.debug("not packed (content not changed)")
+        elif any(getattr(exe, a, None) == v for a, v in getattr(self, "failure", {}).items()) or h == exe.hash:
+            if h == exe.hash:
+                self.logger.debug("not packed (content not changed)")
+            else:
+                for a, v in self.failure.items():
+                    if getattr(exe, a, None) == v:
+                        self.logger.debug("not packed (failure condition met: %s=%s)" % (a, str(v)))
+                        break
             self._bad = True
             return (h, None) if include_hash else None
         # if packing succeeded, we can return packer's label
         self.logger.debug("packed successfully")
-        return (h, label) if include_hash else label
+        return (exe.hash, label) if include_hash else label
     
     def run(self, executable, **kwargs):
         """ Customizable method for shaping the command line to run the packer on an input executable. """
