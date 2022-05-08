@@ -264,7 +264,7 @@ class Dataset:
     
     def export(self, destination="export", n=0, **kw):
         """ Export packed executables to the given destination folder. """
-        self.logger.debug("exporting packed executables...")
+        self.logger.info("Exporting packed executables of %s to '%s'..." % (self.basename, destination))
         l, tmp = [e for e in self if e.label is not None], []
         n = min(n, len(l))
         if n > 0:
@@ -319,12 +319,12 @@ class Dataset:
     def make(self, n=0, categories=["All"], balance=False, packer=None, pack_all=False, **kw):
         """ Make n new samples in the current dataset among the given binary categories, balanced or not according to
              the number of distinct packers. """
-        self.categories = categories  # this triggers creating self._categories_exp
+        l, self.categories = self.logger, categories  # this triggers creating self._categories_exp
         # select enabled and non-failing packers among the input list
         packers = [p for p in (packer or Packer.registry) if p in Packer.registry and \
                                                              p.check(*self._categories_exp, silent=False)]
         if len(packers) == 0:
-            self.logger.critical("No valid packer selected")
+            l.critical("No valid packer selected")
             return
         # then restrict dataset's categories to these of the selected packers
         pcategories = aggregate_categories(*[p.categories for p in packers])
@@ -334,9 +334,9 @@ class Dataset:
             if all(c not in expand_categories(cat) for c in self._categories_exp):
                 continue
             sources.extend(src)
-        self.logger.info("Source directories:    %s" % ",".join(set(sources)))
-        self.logger.info("Considered categories: %s" % ",".join(self.categories))  # this updates self._categories_exp
-        self.logger.info("Selected packers:      %s" % ",".join(["All"] if packer is None else \
+        l.info("Source directories:    %s" % ",".join(set(sources)))
+        l.info("Considered categories: %s" % ",".join(self.categories))  # this updates self._categories_exp
+        l.info("Selected packers:      %s" % ",".join(["All"] if packer is None else \
                                                                 [p.__class__.__name__ for p in packer]))
         self._metadata['sources'] = list(set(map(str, self._metadata.get('sources', []) + sources)))
         if n == 0:
@@ -351,17 +351,17 @@ class Dataset:
                 break
             # check 2: are there working packers left?
             if len(packers) == 0:
-                self.logger.critical("No packer left")
+                l.critical("No packer left")
                 return
             # check 3: is the selected Executable supported by any of the remaining packers?
             if all(not p._check(exe, silent=True) for p in packers):
-                self.logger.debug("unsupported file (%s)" % exe)
+                l.debug("unsupported file (%s)" % exe)
                 continue
             # check 4: was this executable already included in the dataset?
             if len(self._data) > 0 and exe.hash in self._data.hash.values:
-                self.logger.debug("already in the dataset (%s)" % exe)
+                l.debug("already in the dataset (%s)" % exe)
                 continue
-            self.logger.debug("handling %s..." % exe)
+            l.debug("handling %s..." % exe)
             # set the progress bar now to not overlap with self._walk's logging
             if pbar is None:
                 pbar = tqdm(total=n, unit="executable")
@@ -379,7 +379,7 @@ class Dataset:
                     if not label or p._bad:
                         if p._bad:
                             if cbad <= 0:
-                                self.logger.warning("Disabling %s..." % p.__class__.__name__)
+                                l.warning("Disabling %s..." % p.__class__.__name__)
                                 packers.remove(p)
                             else:
                                 cbad -= 1
@@ -401,13 +401,13 @@ class Dataset:
         if pbar:
             pbar.close()
         if i < n - 1:
-            self.logger.warning("Found too few candidate executables")
-        l = len(self)
-        if l > 0:
+            l.warning("Found too few candidate executables")
+        ls = len(self)
+        if ls > 0:
             # finally, save dataset's metadata and labels to JSON files
-            p = sorted(list(set([l for l in self._data.label.values if isinstance(l, str)])))
-            self.logger.info("Used packers: %s" % ", ".join(p))
-            self.logger.info("#Executables: %d" % l)
+            p = sorted(list(set([lb for lb in self._data.label.values if isinstance(lb, str)])))
+            l.info("Used packers: %s" % ", ".join(p))
+            l.info("#Executables: %d" % ls)
         self._save()
     
     def purge(self, backup=False, **kw):
@@ -424,28 +424,29 @@ class Dataset:
     @backup
     def remove(self, query=None, **kw):
         """ Remove executables from the dataset given multiple criteria. """
+        self.logger.debug("removing files from %s based on query '%s'..." % (self.basename, query))
         for e in self._filter(query, **kw):
             del self[e.hash]
         self._save()
     
     def rename(self, name2=None, **kw):
         """ Rename the current dataset. """
-        path2 = config['datasets'].joinpath(name2)
+        l, path2 = self.logger, config['datasets'].joinpath(name2)
         if not path2.exists():
-            self.logger.debug("renaming dataset (and backups) to %s..." % path2)
+            l.debug("renaming %s (and backups) to %s..." % (self.basename, name2))
             tmp = ts.TempPath(".dataset-backup", hex(hash(self))[2:])
             self.path = self.path.rename(path2)
             tmp.rename(ts.TempPath(".dataset-backup", hex(hash(self))[2:]))
         else:
-            self.logger.warning("%s already exists" % path2)
+            l.warning("%s already exists" % name2)
     
     def revert(self, **kw):
         """ Revert to the latest version of the dataset (if a backup copy exists in /tmp). """
-        b = self.backup
+        b, l = self.backup, self.logger
         if b is None:
-            self.logger.warning("No backup found ; could not revert")
+            l.warning("No backup found ; could not revert")
         else:
-            self.logger.debug("reverting dataset to previous backup...")
+            l.debug("reverting %s to previous backup..." % self.basename)
             self._remove()
             b._copy(self.path)
             b._remove()
@@ -453,7 +454,7 @@ class Dataset:
     
     def select(self, name2=None, query=None, **kw):
         """ Select a subset from the current dataset based on multiple criteria. """
-        self.logger.debug("selecting a subset of dataset '%s'..." % self.basename)
+        self.logger.debug("selecting a subset of %s based on query '%s'..." % (self.basename, query))
         ds2 = self.__class__(name2)
         ds2._metadata['sources'] = src = self._metadata['sources'][:]
         _tmp = {s: 0 for s in src}
@@ -488,13 +489,16 @@ class Dataset:
     def update(self, source_dir=".", categories=["All"], labels=None, detect=False, **kw):
         """ Update the dataset with a folder of binaries, detecting used packers if 'detect' is set to True, otherwise
              packing randomly. If labels are provided, they are used instead of applying packer detection. """
-        self.categories = categories
+        l, self.categories = self.logger, categories
         labels = Dataset.labels_from_file(labels)
         if source_dir is None:
-            self.logger.warning("No source folder provided")
+            l.warning("No source folder provided")
             return self
         if not isinstance(source_dir, list):
             source_dir = [source_dir]
+        l.info("Source directories: %s" % ",".join(set(source_dir)))
+        if labels:
+            l.info("Source labels:      %s" % labels)
         self._metadata.setdefault('categories', [])
         self._metadata['sources'] = list(set(map(str, self._metadata.get('sources', []) + source_dir)))
         n = 0
@@ -516,7 +520,7 @@ class Dataset:
             pbar.update()
         pbar.close()
         if i < 0:
-            self.logger.warning("No executable found")
+            l.warning("No executable found")
         self._save()
     
     def view(self, query=None, **kw):

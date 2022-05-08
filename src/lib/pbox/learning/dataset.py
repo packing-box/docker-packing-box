@@ -2,7 +2,7 @@
 import matplotlib.pyplot
 import plotext
 from textwrap import wrap
-from tinyscript import code, colored, itertools
+from tinyscript import code, colored, itertools, ts
 from tinyscript.helpers import ansi_seq_strip, get_terminal_size, ints2hex, is_executable, txt2bold, Path
 from tqdm import tqdm
 
@@ -36,10 +36,11 @@ COLORMAP = {
 }
 
 
-
 # patch plotext to support Y labels with ANSI sequences for colored text
 code.add_line(plotext._monitor.monitor_class.build_plot, 1, "from tinyscript.helpers import ansi_seq_strip")
 code.replace(plotext._monitor.monitor_class.build_plot, "len(el[0])", "len(ansi_seq_strip(el[0]))")
+
+matplotlib.pyplot.rcParams['font.family'] = "serif"
 
 
 def open_dataset(folder):
@@ -94,15 +95,17 @@ class FilelessDataset(Dataset):
         """ Convert a dataset with files to a dataset without files. """
         l = self.logger
         if not self._files:
-            l.warning("A fileless dataset cannot be converted to a dataset with files")
+            l.warning("Already a fileless dataset")
             return
+        l.info("Converting to fileless dataset...")
+        l.info("Size of dataset:     %s" % ts.human_readable_size(self.path.size))
         if new_name is not None:
             ds = Dataset(new_name)
             ds.merge(self.path.basename, **kw)
             ds.convert(feature, pattern, **kw)
+            l.info("Size of new dataset: %s" % ts.human_readable_size(ds.path.size))
             return
         self._files = False
-        l.debug("converting dataset...")
         self.path.joinpath("features.json").write_text("{}")
         self._features = {}
         pbar = tqdm(total=self._metadata['executables'], unit="executable")
@@ -115,6 +118,7 @@ class FilelessDataset(Dataset):
             d.update(exe.data)
             self[exe.hash] = (d, True)  # True: force updating the row
             pbar.update()
+        pbar.close()
         l.debug("removing files...")
         self.files.remove(error=False)
         l.debug("removing eventual backups...")
@@ -123,6 +127,7 @@ class FilelessDataset(Dataset):
         except AttributeError:
             pass
         self._save()
+        l.info("New size of dataset: %s" % ts.human_readable_size(self.path.size))
     Dataset.convert = convert
     
     def features(self, feature, output_format=None, dpi=200, multiclass=False, **kw):
@@ -130,7 +135,7 @@ class FilelessDataset(Dataset):
         l = self.logger
         if not isinstance(feature, (tuple, list)):
             feature = [feature]
-        l.debug("counting values for feature%s %s..." % (["", "s"][len(feature) > 1], ", ".join(feature)))
+        l.info("Counting values for feature%s %s..." % (["", "s"][len(feature) > 1], ", ".join(feature)))
         # start counting, keeping 'Not packed' counts separate (to prevent it from being sorted with others)
         counts_np, counts, labels = {}, {}, []
         for exe in self._iter_with_features(feature):
@@ -155,16 +160,17 @@ class FilelessDataset(Dataset):
                     d.setdefault(lbl, 0)
             else:
                 d.setdefault('Packed', 0)
+        l.debug("sorting feature values...")
         # sort counts by feature value and by label
         counts = {k: {sk: sv for sk, sv in sorted(v.items(), key=lambda x: x[0].lower())} \
                   for k, v in sorted(counts.items(), key=lambda x: x[0])}
         # merge counts of not packed and other counts
-        all_counts = {k: {'Not packed': v} for k, v in counts_np.items()}
+        all_counts = {k: {'Not packed': v} for k, v in sorted(counts_np.items(), key=lambda x: x[0])}
         for k, v in counts.items():
             for sk, sv in v.items():
                 all_counts[k][sk] = sv  # force keys order
         counts = all_counts
-        # reformat feature values
+        l.debug("reformatting feature values...")
         vtype = str
         #  transform {0,1} to False|True
         if set(counts.keys()) == {0., 1.}:
@@ -178,7 +184,7 @@ class FilelessDataset(Dataset):
         elif all(all(int(sk) == sk for sk in k) for k in counts.keys()):
             counts = {tuple(int(sk) for sk in k): v for k, v in counts.items()}
             vtype = int
-        l.debug("plotting...")
+        l.debug("Plotting...")
         width = get_terminal_size()[0] if output_format is None else 60
         plt = plotext if output_format is None else matplotlib.pyplot
         try:
@@ -229,14 +235,15 @@ class FilelessDataset(Dataset):
             plt.xlabel(x_label, fontdict=font)
             plt.ylabel(y_label, fontdict=font)
             starts = [0 for i in range(len(values[0]))]
-            for p, l ,c, v in zip(percentages, labels, cmap, values):
-                b = plt.barh(yticks, p, label=l, color=c, left=starts)
+            for p, lb ,c, v in zip(percentages, labels, cmap, values):
+                b = plt.barh(yticks, p, label=lb, color=c, left=starts)
                 starts = [x + y for x, y in zip(starts, p)]
                 plt.bar_label(b, labels=["" if x == 0 else x for x in v], label_type="center", color="white")
             plt.yticks(**({'family': "monospace", 'fontsize': 8} if vtype is hex else {'fontsize': 9}))
             plt.legend()
-            img_name = ["", "combo-"][len(feature) > 1] + feature[0]
-            plt.savefig(img_name + "." + output_format, img_format=output_format, dpi=dpi, bbox_inches="tight")
+            img_name = ["", "combo-"][len(feature) > 1] + feature[0] + "." + output_format
+            l.debug("saving image to %s..." % img_name)
+            plt.savefig(img_name, img_format=output_format, dpi=dpi, bbox_inches="tight")
     Dataset.features = features
     
     @backup
@@ -249,11 +256,12 @@ class FilelessDataset(Dataset):
             l.error("Cannot merge %s and %s" % (cls1, cls2))
             return
         # add rows from the input dataset
-        l.debug("merging rows from %s..." % ds2.path)
+        l.info("Merging rows from %s into %s..." % (ds2.basename, self.basename))
         pbar = tqdm(total=ds2._metadata['executables'], unit="executable")
         for r in ds2:
             self[Executable(hash=r.hash, dataset=ds2, dataset2=self)] = r._row._asdict()
             pbar.update()
+        pbar.close()
         # as the previous operation does not update categories and features, do it manually
         self._metadata.setdefault('categories', [])
         for category in ds2._metadata.get('categories', []):
