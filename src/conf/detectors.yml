@@ -184,6 +184,23 @@ PEscan:
   source: https://tzworks.com/prototypes/pescan/pescan64.v.0.60.lin.tar.gz
   status: commercial
 
+PETools:
+  categories:
+    - PE
+  description: 
+  install:
+    - wget: https://github.com/petoolse/petools:latest
+    - exec:
+      - mkdir -p /opt/detectors/petools
+      - mv /tmp/petools.7z /opt/detectors/petools/
+    - cd: /opt/detectors/petools/
+    - exec:
+      - 7z x petools.7z
+      - rm -f petools.7z
+      - chmod +x PETools.exe
+  source: https://github.com/petoolse/petools
+  status: gui
+
 PortEx:
   author: Karsten Philipp Boris Hahn
   categories:
