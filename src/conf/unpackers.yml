@@ -2,6 +2,25 @@ GZEXE:
   base:   packer
   status: ok
 
+Unipacker:
+  categories:
+    - PE32
+    - PE64
+  description: Automatic and platform-independent unpacker for Windows binaries based on emulation.
+  install:
+    - apt: unipacker
+  references: 
+    - https://youtu.be/ee5_JUIEf8Q
+    - https://www.usenix.org/conference/usenixsecurity21/presentation/downing
+    - https://dl.acm.org/doi/abs/10.1145/3433210.3457894
+    - https://github.com/L1NNA/JARV1S-Disassembler
+    - https://www.cs.virginia.edu/~cr4bd/4630/S2021/slides/20210301-slides.pdf
+  source: https://github.com/unipacker/unipacker
+  steps:
+    - unipacker {{executable}} 2>/dev/null
+    - mv {{executable.dirname}}/unpacked_{{executable.filename}} {{executable}}
+  status: ok
+
 UPX:
   base:   packer
   status: ok
