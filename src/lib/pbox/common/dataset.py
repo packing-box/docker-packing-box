@@ -212,9 +212,17 @@ class Dataset:
         """ Save dataset's state to JSON files. """
         if not self.__change:
             return
+        if len(self) == 0 and not Dataset.check(self.basename):
+            self._remove()
+            return
         self.logger.debug("saving dataset '%s'..." % self.basename)
         self._metadata['categories'] = sorted(collapse_categories(*self._metadata['categories']))
-        self._metadata['counts'] = self._data.label.value_counts().to_dict()
+        try:
+            self._metadata['counts'] = self._data.label.value_counts().to_dict()
+        except AttributeError:
+            self.logger.warning("No label found")
+            self._remove()
+            return
         self._metadata['executables'] = len(self)
         for n in ["data", "metadata"] + [["features"], []][self._files]:
             if n == "data":
@@ -306,12 +314,13 @@ class Dataset:
         """ Check if this Dataset instance has a valid structure. """
         return self.__class__.check(self.path)
     
-    def list(self, show_all=False, **kw):
+    def list(self, show_all=False, hide_files=False, raw=False, **kw):
         """ List all the datasets from the given path. """
         self.logger.debug("summarizing datasets from %s..." % config['datasets'])
-        d = Dataset.summarize(str(config['datasets']), show_all)
+        d = Dataset.summarize(str(config['datasets']), show_all, hide_files)
         if len(d) > 0:
-            print(mdv.main(Report(*d).md()))
+            r = mdv.main(Report(*d).md())
+            print(ts.ansi_seq_strip(r) if raw else r)
         else:
             self.logger.warning("No dataset found in workspace (%s)" % config['datasets'])
     
@@ -334,7 +343,7 @@ class Dataset:
             if all(c not in expand_categories(cat) for c in self._categories_exp):
                 continue
             sources.extend(src)
-        l.info("Source directories:    %s" % ",".join(set(sources)))
+        l.info("Source directories:    %s" % ",".join(map(str, set(sources))))
         l.info("Considered categories: %s" % ",".join(self.categories))  # this updates self._categories_exp
         l.info("Selected packers:      %s" % ",".join(["All"] if packer is None else \
                                                                 [p.__class__.__name__ for p in packer]))
@@ -496,17 +505,17 @@ class Dataset:
             return self
         if not isinstance(source_dir, list):
             source_dir = [source_dir]
-        l.info("Source directories: %s" % ",".join(set(source_dir)))
-        if labels:
-            l.info("Source labels:      %s" % labels)
+        l.info("Source directories: %s" % ",".join(map(str, set(source_dir))))
         self._metadata.setdefault('categories', [])
         self._metadata['sources'] = list(set(map(str, self._metadata.get('sources', []) + source_dir)))
         n = 0
         for e in self._walk(True, {'All': source_dir}, True):
             n += 1
-        pbar = tqdm(total=n, unit="executable")
-        i = -1
+        i, pbar = -1, None
         for i, e in enumerate(self._walk(True, {'All': source_dir})):
+            # set the progress bar now to not overlap with self._walk's logging
+            if pbar is None:
+                pbar = tqdm(total=n, unit="executable")
             if e.category not in self._metadata['categories']:
                 self._metadata['categories'].append(e.category)
             # precedence: input dictionary of labels > dataset's own labels > detection (if enabled) > discard
@@ -518,7 +527,8 @@ class Dataset:
                 else:
                     del self[e]  # ensure there is no trace of this executable to be discarded
             pbar.update()
-        pbar.close()
+        if pbar:
+            pbar.close()
         if i < 0:
             l.warning("No executable found")
         self._save()
@@ -690,8 +700,10 @@ class Dataset:
     
     @classmethod
     def iteritems(cls):
-        for row in cls.summarize(str(config['datasets']), False)[1].data:
-            yield Dataset(row[0])
+        s = cls.summarize(str(config['datasets']), False)
+        if len(s) > 0:
+            for row in [1].data:
+                yield Dataset(row[0])
     
     @classmethod
     def validate(cls, name, load=True):
@@ -722,29 +734,34 @@ class Dataset:
         return labels
     
     @staticmethod
-    def summarize(path=None, show=False):
+    def summarize(path=None, show=False, hide_files=False):
         datasets = []
-        headers = ["Name", "#Executables", "Size", "Files", "Categories", "Packers"]
+        headers = ["Name", "#Executables", "Size"] + [["Files"], []][hide_files] + ["Categories", "Packers"]
         for dset in ts.Path(config['datasets']).listdir(lambda x: x.joinpath("metadata.json").exists()):
             with dset.joinpath("metadata.json").open() as meta:
                 metadata = json.load(meta)
             try:
-                datasets.append([
+                row = [
                     dset.basename,
                     str(metadata['executables']),
                     ts.human_readable_size(dset.size),
-                    ["no", "yes"][dset.joinpath("files").exists()],
+                ] + [[["no", "yes"][dset.joinpath("files").exists()]], []][hide_files] + [
                     ",".join(sorted(metadata['categories'])),
                     shorten_str(",".join("%s{%d}" % i \
                                 for i in sorted(metadata['counts'].items(), key=lambda x: (-x[1], x[0])))),
-                ])
+                ]
             except KeyError:
+                row = None
                 if show:
-                    datasets.append([
+                    row = [
                         dset.basename,
                         str(metadata.get('executables', colored("?", "red"))),
-                        colored("corrupted", "red"),
-                    ])
+                        ts.human_readable_size(dset.size),
+                    ] + [[["no", "yes"][dset.joinpath("files").exists()]], []][hide_files] + [
+                        colored("?", "red"), colored("?", "red"),
+                    ]
+            if row:
+                datasets.append(row)
         n = len(datasets)
         return [] if n == 0 else [Section("Datasets (%d)" % n), Table(datasets, column_headers=headers)]
 

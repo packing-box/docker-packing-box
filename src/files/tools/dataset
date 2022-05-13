@@ -5,7 +5,7 @@ from pbox.__info__ import *
 from tinyscript import *
 
 
-__version__     = "2.0.2"
+__version__     = "2.0.3"
 __doc__         = """
 This tool aims to manipulate a dataset in multiple ways by:
 - adding new executables from the packing-box Docker image or from a user-defined source, packed or not with the
@@ -65,7 +65,9 @@ if __name__ == '__main__':
     fgroup.add_argument("-d", "--detect", action="store_true", help="detect used packer with installed detectors")
     fgroup.add_argument("-l", "--labels", type=ts.json_config, help="set labels from a JSON file")
     listds = sparsers.add_parser("list", help="list all the datasets from the workspace")
-    listds.add_argument("--show-all", action="store_true", help="show all datasets, even those that are corrupted")
+    listds.add_argument("-a", "--show-all", action="store_true", help="show all datasets even those that are corrupted")
+    listds.add_argument("-f", "--hide-files", action="store_true", help="hide the 'files' column")
+    listds.add_argument("-r", "--raw", action="store_true", help="display raw uncolored text", note="useful with grep")
     make = __add_name(sparsers.add_parser("make", help="add n randomly chosen executables from input sources to the "
                                                        "dataset"), True)
     make_ = make.add_mutually_exclusive_group()
@@ -112,8 +114,12 @@ if __name__ == '__main__':
     logging.configLogger(logger, ["INFO", "DEBUG"][args.verbose], fmt=LOG_FORMATS[args.verbose], relative=True)
     name, args.load = getattr(args, "name", None), args.command != "list"
     if args.command == "purge" and name == "all":
+        purged = False
         for ds in Dataset.iteritems():
             ds.purge()
+            purger = True
+        if not purged:
+            logger.warning("No dataset to purge in workspace (%s)" % config['datasets'])
     elif name == "all":
         logger.warning("Dataset cannot be named 'all' (reserved word)")
     else:
