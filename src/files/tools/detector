@@ -8,7 +8,7 @@ from tinyscript.report import *
 from tqdm import tqdm
 
 
-__version__     = "1.0.2"
+__version__     = "1.0.3"
 __doc__         = """
 This tool aims to detect the packer used on an input executable, folder of executables or Dataset.
 """
@@ -16,15 +16,11 @@ __examples__    = []
 __description__ = "Detect the packer used on an input executable/folder/dataset"
 
 
-def detector_name(d):
-    return Detector.get(d) if d != "all" else []
-
-
 if __name__ == '__main__':
     parser.add_argument("executable", help="executable or folder containing executables or dataset")
     parser.add_argument("-b", "--binary", action="store_true", help="only consider if packed or not")
-    parser.add_argument("-d", "--detector", default="all", action="extend", nargs="*", type=detector_name,
-                        help="detector(s) to be used")
+    parser.add_argument("-d", "--detector", action="extend", nargs="*", type=Detector.get,
+                        help="detector(s) to be used", note="Uses the superdetector by default")
     grp = parser.add_mutually_exclusive_group()
     grp.add_argument("-f", "--failures-only", action="store_true", help="output failures only")
     grp.add_argument("-m", "--metrics-only", action="store_true", help="output metrics only")
@@ -55,7 +51,6 @@ if __name__ == '__main__':
                     if not args.failures_only or r != l and r != -1:
                         log = [logger.failure, logger.success][r == l] if l != -1 else logger.debug
                         log("{}: {}".format(e, disp))
-                print(r)
                 if r != -1:
                     stats[['tp', 'tn'][r is None] if r == l else ['fp', 'fn'][r is None]] += 1
                 if pbar is not None:
