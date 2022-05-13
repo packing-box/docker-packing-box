@@ -8,7 +8,7 @@ from pbox.learning.executable import Executable
 from tinyscript import *
 
 
-__version__     = "2.0.0"
+__version__     = "2.0.1"
 __doc__         = """
 This tool aims to generate representations of binaries, emphasizing their sections and plotting their entropy,
  for the sake of comparing them, e.g. an original PE file and its packed versions.
@@ -37,7 +37,7 @@ def __add_folder(parser, alias=False, fmt=False):
     if fmt:
         parser.add_argument("-f", "--format", default="png", choices=["jpg", "png", "tif", "svg"], help="image format")
     parser.add_argument("-l", "--label", nargs="*", action="extend", help="select a particular label (keeps order)")
-    parser.add_argument("-m", "--max-not-matching", type=int, help="maximum number of labels not matching")
+    parser.add_argument("-m", "--max-not-matching", type=ts.pos_int, help="maximum number of labels not matching")
     return parser
 
 
@@ -62,24 +62,24 @@ def find_files(folder, pattern, selected=None, nbr_not_selected=None, display=Fa
     :param pattern:  pattern for matching files
     :param selected: list of labels to be filtered (keeps the order)
     """
-    preffixes, available_labels, files = {}, [], {}
+    preffixes, available_labels, files, disp_all = {}, [], {}, selected is None
     # collect (best matching) preffixes first
     for dp in ts.Path(folder).walk(filter_func=lambda x: x.is_dir()):
-        if ".git" in dp.parts:
+        # discard .git/* and non-leaf subfolders of the folder tree structure
+        if ".git" in dp.parts or len(list(dp.listdir(filter_func=lambda x: x.is_dir()))) > 0:
             continue
-        if len(list(dp.listdir(filter_func=lambda x: x.is_dir()))) == 0:
-            l, prev, preffix = dp.basename, None, {}
-            for f in dp.listdir(filter_func=lambda x: x.is_file()):
-                common = ""
-                for c1, c2 in zip(prev or f.stem, f.stem):
-                    if c1 == c2:
-                        common += c1
-                    else:
-                        break
-                preffix.setdefault(common, 0)
-                preffix[common] += 1
-                prev = f.stem
-            preffixes[l] = max(preffix, key=preffix.get)
+        l, prev, preffix = dp.basename, None, {}
+        for f in dp.listdir(filter_func=lambda x: x.is_file()):
+            common = ""
+            for c1, c2 in zip(prev or f.stem, f.stem):
+                if c1 == c2:
+                    common += c1
+                else:
+                    break
+            preffix.setdefault(common, 0)
+            preffix[common] += 1
+            prev = f.stem
+        preffixes[l] = max(preffix, key=preffix.get)
     # check for label errors
     error = False
     if selected is not None:
@@ -87,7 +87,7 @@ def find_files(folder, pattern, selected=None, nbr_not_selected=None, display=Fa
             if l not in preffixes.keys():
                 for good in preffixes.keys():
                     if good.lower() == l.lower():
-                        logger.warning("Fixed label %s to %s" % (l, good))
+                        logger.debug("Fixed label %s to %s" % (l, good))
                         selected[selected.index(l)] = good
                         l = None
                         break
@@ -98,6 +98,7 @@ def find_files(folder, pattern, selected=None, nbr_not_selected=None, display=Fa
         sys.exit(1)
     # collect matching files
     for fp in ts.Path(folder).walk(filter_func=lambda x: x.is_file()):
+        # discard files from .git/* and non-leaf subfolders of the folder tree structure
         if ".git" in fp.parts or len(list(fp.dirname.listdir(filter_func=lambda d: d.is_dir()))) > 0:
             continue
         l = fp.dirname.basename
@@ -106,31 +107,36 @@ def find_files(folder, pattern, selected=None, nbr_not_selected=None, display=Fa
         if re.search(pattern, fp.filename):
             fname = fp.filename[len(preffixes[l]):]
             files.setdefault(fname, {'files': [], 'labels': []})
-            if selected is None or l in selected:
-                files[fname]['labels'].append(l)
-                files[fname]['files'].append(fp)
+            files[fname]['labels'].append(l)
+            files[fname]['files'].append(fp)
     if selected is None:
         selected = sorted(available_labels)
     elif selected is not None and nbr_not_selected is None:
         nbr_not_selected = 0
-    # discard ones that have too few labels selected
-    if nbr_not_selected is not None:
-        n = len(selected)
-        files = {f: d for f, d in files.items() if n - len(d['labels']) <= nbr_not_selected}
-    # check files for which the selection was found and display if relevant
+    # discard files that have too few positive labels or that do not have the selected labels in their packed versions
+    n = 0
     for file, data in files.items():
-        (logger.info if display else logger.debug)(file)
-        for label in selected[:]:
-            l = LABELS.get(label, label)
+        # set booleans for files having their label match one of the selected labels
+        labels = {}
+        for label in sorted(available_labels):
             try:
                 data['files'][data['labels'].index(label)]
-                if display:
-                    logger.success(l)
+                labels[label] = True
             except ValueError:
-                if display:
-                    logger.failure(l)
-    if len(files) == 0:
-        logger.warning("No data")
+                labels[label] = False
+        # discard files for which either there is a non matching label in the selected ones or too few positive labels
+        if not disp_all and any(not labels[l] for l in selected) or \
+           nbr_not_selected is not None and sum(labels.values()) + nbr_not_selected < len(available_labels):
+            continue
+        # display valid results
+        (logger.info if display else logger.debug)(file)
+        for label, state in labels.items():
+            l = LABELS.get(label, label)
+            if display:
+                (logger.success if state else logger.failure)(l)
+        n += 1
+    if n == 0:
+        logger.warning("No match")
     return files
 
 
@@ -146,7 +152,8 @@ if __name__ == "__main__":
     logger.name = "visualizer"
     logging.configLogger(logger, ["INFO", "DEBUG"][args.verbose], fmt=LOG_FORMATS[args.verbose], relative=True)
     LABELS.update(getattr(args, "alias", None) or {})
-    msg = " files from %s matching '%s' with the selected labels..." % (args.folder, args.filename)
+    msg = " files from %s matching '%s'%s..." % (args.folder, args.filename,
+                                                 [" with the selected labels", ""][args.label is None])
     if args.command == "features":
         logger.info("Computing features of" + msg)
         tmp_p = ts.TempPath(prefix="visualizer-edit-", length=8)
