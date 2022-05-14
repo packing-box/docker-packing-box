@@ -6,11 +6,14 @@ from pboxtools import *
 def parse(output, **kwargs):
     r, f = [], lambda s: re.sub(r"('s|[()])", "", s).replace(" ", "_")
     for l in output.splitlines():
+        if l.strip() == "Warning: Unknown compiler or packer.":
+            r.append("unknown")
+            continue
         with suppress(AttributeError):
             r.append(f(re.search(r"^Detected tool\s+:\s+(.+)\s+\(packer\)(?:.+)$", l).group(1).lower()))
     return r
 
 
 if __name__ == "__main__":
-    run("RetDec", parse_func=parse)
+    run("RetDec", parse_func=parse, parse_stderr=True)
 
