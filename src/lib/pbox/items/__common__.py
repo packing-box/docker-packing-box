@@ -144,9 +144,9 @@ class Base(Item):
     
     def _gui(self, target, local=False):
         """ Prepare GUI script. """
-        preamble = "PWD=\"`pwd`\"\ncd \"%s\"\nEXE=\"%s\"" % (target.dirname, target.filename) if local else \
-                   "EXE=\"%s\"" % target
-        postamble = ["", "\ncd \"$PWD\""][local]
+        preamble = "PWD='`pwd`'\ncd '%s'\nEXE='%s'" % (target.dirname, target.filename) if local else \
+                   "EXE='%s'" % target
+        postamble = ["", "\ncd '$PWD'"][local]
         script = GUI_SCRIPT.replace("{{preamble}}", preamble).replace("{{postamble}}", postamble)
         cmd = re.compile(r"^(.*?)(?:\s+\((\d*\.\d*|\d+)\)(?:|\s+\[x(\d+)\])?)?$")
         actions = []
@@ -326,9 +326,9 @@ class Base(Item):
             elif cmd == "cd":
                 result = (result or tmp).joinpath(arg)
                 if not result.exists():
-                    self.logger.debug("mkdir \"%s\"" % result)
+                    self.logger.debug("mkdir '%s'" % result)
                     result.mkdir()
-                self.logger.debug("cd \"%s\"" % result)
+                self.logger.debug("cd '%s'" % result)
                 os.chdir(str(result))
             # copy a file from the previous location (or /tmp if not defined) to /opt/bin, making the destination file
             #  executable
@@ -341,8 +341,8 @@ class Base(Item):
                 # if /usr/bin/... exists, then save it to /opt/bin/... to superseed it
                 if dst.is_samepath(ubin.joinpath(arg2)) and dst.exists():
                     dst = obin.joinpath(arg2)
-                if run("cp %s\"%s\" \"%s\"" % (["", "-r"][src.is_dir()], src, dst), **kw)[-1] == 0 and dst.is_file():
-                    run("chmod +x \"%s\"" % dst, **kw)
+                if run("cp %s'%s' '%s'" % (["", "-r "][src.is_dir()], src, dst), **kw)[-1] == 0 and dst.is_file():
+                    run("chmod +x '%s'" % dst, **kw)
                 if arg1 == self.name:
                     rm = False
             # execute the given command as is, with no pre-/post-condition, not altering the result state variable
@@ -357,25 +357,25 @@ class Base(Item):
             elif cmd in ["git", "gitr"]:
                 result = (result or tmp).joinpath(Path(ts.urlparse(arg).path).stem)
                 result.remove(False)
-                run("git clone -q %s%s \"%s\"" % (["", "--recursive "][cmd == "gitr"], arg, result), **kw)
+                run("git clone -q %s%s '%s'" % (["", "--recursive "][cmd == "gitr"], arg, result), **kw)
             # create a shell script to execute Bash code and make it executable
             elif cmd in ["java", "mono", "sh", "wine"]:
                 r, txt, tgt = ubin.joinpath(self.name), "#!/bin/bash\n", (result or opt).joinpath(arg)
                 if cmd == "java":
-                    txt += "java -jar \"%s\" \"$@\"" % tgt
+                    txt += "java -jar '%s' '$@'" % tgt
                 elif cmd == "mono":
-                    txt += "mono \"%s\" \"$@\"" % tgt
+                    txt += "mono '%s' '$@'" % tgt
                 elif cmd == "sh":
                     txt += "\n".join(arg.split("\\n"))
                 elif cmd == "wine":
                     if hasattr(self, "gui"):
                         txt = self._gui(tgt)
                     else:
-                        txt += "wine \"%s\" \"$@\"" % tgt
-                self.logger.debug("echo -en '%s' > \"%s\"" % (txt, r))
+                        txt += "wine '%s' '$@'" % tgt
+                self.logger.debug("echo -en '%s' > '%s'" % (txt, r))
                 try:
                     r.write_text(txt)
-                    run("chmod +x \"%s\"" % r, **kw)
+                    run("chmod +x '%s'" % r, **kw)
                 except PermissionError:
                     self.logger.error("bash: %s: Permission denied" % r)
                 result = r
@@ -383,7 +383,7 @@ class Base(Item):
             elif cmd == "ln":
                 r = ubin.joinpath(self.name)
                 r.remove(False)
-                run("ln -s \"%s\" \"%s\"" % ((result or tmp).joinpath(arg), r), **kw)
+                run("ln -s '%s' '%s'" % ((result or tmp).joinpath(arg), r), **kw)
                 result = r
             elif cmd in ["lsh", "lwine"]:
                 if cmd == "lwine" and hasattr(self, "gui"):
@@ -393,14 +393,14 @@ class Base(Item):
                         arg1, arg2 = shlex.split(arg)
                     except ValueError:
                         arg1, arg2 = "/opt/%ss/%s" % (self.type, self.name), arg
-                    arg2 = "wine \"%s\" \"$@\"" % arg2 if cmd == "lwine" else "./%s" % arg2
-                    arg = "#!/bin/bash\nPWD=`pwd`\nif [[ \"$1\" = /* ]]; then TARGET=\"$1\"; else TARGET=\"$PWD/$1\";" \
-                          " fi\ncd \"%s\"\n%s \"$TARGET\" \"$2\"\ncd \"$PWD\"" % (arg1, arg2)
+                    arg2 = "wine '%s' '$@'" % arg2 if cmd == "lwine" else "./%s" % arg2
+                    arg = "#!/bin/bash\nPWD=`pwd`\nif [[ '$1' = /* ]]; then TARGET='$1'; else TARGET='$PWD/$1';" \
+                          " fi\ncd '%s'\n%s '$TARGET' '$2'\ncd '$PWD'" % (arg1, arg2)
                 result = ubin.joinpath(self.name)
-                self.logger.debug("echo -en '%s' > \"%s\"" % (arg, result))
+                self.logger.debug("echo -en '%s' > '%s'" % (arg, result))
                 try:
                     result.write_text(arg)
-                    run("chmod +x \"%s\"" % result, **kw)
+                    run("chmod +x '%s'" % result, **kw)
                 except PermissionError:
                     self.logger.error("bash: %s: Permission denied" % result)
             # compile a C project
@@ -442,15 +442,15 @@ class Base(Item):
                 # if /usr/bin/... exists, then save it to /opt/bin/... to superseed it
                 if r.is_samepath(ubin.joinpath(self.name)) and r.exists():
                     r = obin.joinpath(self.name)
-                if run("mv -f \"%s\" \"%s\"" % (result, r), **kw)[-1] == 0 and r.is_file():
-                    run("chmod +x \"%s\"" % r, **kw)
+                if run("mv -f '%s' '%s'" % (result, r), **kw)[-1] == 0 and r.is_file():
+                    run("chmod +x '%s'" % r, **kw)
                 result = r
             # simple install through PIP
             elif cmd == "pip":
                 run("pip3 -q install %s" % arg, **kw)
             # remove a given directory (then bypassing the default removal at the end of all commands)
             elif cmd == "rm":
-                run("rm -rf \"%s\"" % Path(arg).absolute(), **kw)
+                run("rm -rf '%s'" % Path(arg).absolute(), **kw)
                 rm = False
             # manually set the result to be used in the next command
             elif cmd == "set":
@@ -461,8 +461,9 @@ class Base(Item):
             # decompress a RAR/TAR/ZIP archive to the given location (absolute or relative to /tmp)
             elif cmd in ["unrar", "untar", "unzip"]:
                 ext = "." + cmd[-3:]
+                # for tar, do not use the extension as a check (may be .tar.bz2, .tar.gz, .tar.xz, ...)
                 if ext == ".tar":
-                    ext = ".tar.gz"
+                    ext = result.extension
                 if result is None:
                     result = tmp.joinpath("%s%s" % (self.name, ext))
                 # rectify ext and result if .tar.xz
@@ -473,13 +474,18 @@ class Base(Item):
                     # decompress to the target folder but also to a temp folder (for debugging purpose)
                     r, t, first = tmp.joinpath(arg), ts.TempPath(prefix="%s-setup-" % self.type, length=8), True
                     for d in [r, t]:
-                        cmd = "unzip -qqo \"%s\" -d \"%s\"" % (result, d) if ext == ".zip" else \
-                              "unrar x \"%s\" \"%s\"" % (result, d) if ext == ".rar" else \
-                              "tar x%sf \"%s\" -C \"%s\"" % (["", "z"][ext == ".tar.gz"], result, d)
+                        run_func = run if first else run2
+                        if ext == ".tar.bz2":
+                            run_func("bunzip2 -f '%s'" % result, **(kw if first else {}))
+                            ext = ".tar"  # switch extension to trigger 'tar x(v)f'
+                            result = result.dirname.joinpath(result.stem + ".tar")
+                        cmd = "unzip -qqo '%s' -d '%s'" % (result, d) if ext == ".zip" else \
+                              "unrar x '%s' '%s'" % (result, d) if ext == ".rar" else \
+                              "tar x%sf '%s' -C '%s'" % (["", "z"][ext == ".tar.gz"], result, d)
                         if ext != ".zip":
                             d.mkdir(parents=True, exist_ok=True)
                         # log execution (run) the first time, not afterwards (run2)
-                        (run if first else run2)(cmd, **(kw if first else {}))
+                        run_func(cmd, **(kw if first else {}))
                         first = False
                     # in case of wget, cleanup the archive
                     if wget:
