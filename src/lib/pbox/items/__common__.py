@@ -187,6 +187,7 @@ class Base(Item):
                 self.logger.debug("does not apply to the selected categories")
             return False
         if not silent:
+            self.logger.warning("%s disabled" % self.name)
             self.logger.debug("Status: " + self.status)
         return False
     

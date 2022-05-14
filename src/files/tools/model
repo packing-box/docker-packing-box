@@ -78,7 +78,7 @@ if __name__ == '__main__':
     listm.add_argument("--algorithms", action="store_true", help="show available algorithms instead of models")
     preproc = sparsers.add_parser("preprocess", help="preprocess features and visualize the result")
     preproc.add_argument("dataset", type=__dataset_exists, help="dataset to be preprocessed")
-    preproc.add_argument("-m", "--multiclass", action="store_true", help="train the model using multiple label classes")
+    preproc.add_argument("-m", "--multiclass", action="store_true", help="preprocess data using multiple label classes")
     preproc.add_argument("-p", "--preprocessor", action="extend", nargs="*", choices=PREPROCESSORS.keys(), help=pp_help)
     pgroup1 = preproc.add_mutually_exclusive_group()
     pgroup1.add_argument("--feature", action="extend", nargs="*", help="list of features to be selected")

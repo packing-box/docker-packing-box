@@ -23,6 +23,22 @@ class Detector(Base):
     """
     use_output = True
     
+    def check(self, *categories, **kwargs):
+        """ Checks if the current item is applicable to the given categories. """
+        d_mc, i_mc = getattr(self, "multiclass", True), kwargs.pop('multiclass')
+        vote, chk_vote = getattr(self, "vote", True), kwargs.pop('vote', True)
+        if super(Detector, self).check(*categories, **kwargs):
+            # detector can be disabled either because it cannot vote or because it is not multiclass and detection was
+            #  requested as multiclass (note that, on the other side, a multiclass-capable detector shall always be
+            #  able to output a non-multiclass result (no packer label becomes False, otherwise True)
+            if (not chk_vote or vote) and not (not d_mc and i_mc):
+                return True
+            if chk_vote and not vote:
+                self.logger.debug("not allowed to vote")
+            if not d_mc and i_mc:
+                self.logger.debug("does not support multiclass")
+        return False
+    
     @class_or_instance_method
     @file_or_folder_or_dataset
     @update_logger
@@ -40,9 +56,7 @@ class Detector(Base):
         actual_label = [(), (l if multiclass else l is not None, )]['label' in kwargs]
         if isinstance(self, type):
             registry = [d for d in kwargs.get('select', Detector.registry) \
-                        if d.check(Executable(executable).category) and getattr(d, "vote", True) and \
-                        (multiclass and getattr(d, "multiclass", True) or \
-                         not multiclass and not getattr(d, "multiclass", True))]
+                        if d.check(Executable(executable).category, multiclass=multiclass, **kwargs)]
             l, t = len(registry), kwargs.get('threshold', THRESHOLD) or THRESHOLD
             t = t(l) if isinstance(t, type(lambda: 0)) else t
             if not 0 < t <= l:
@@ -71,12 +85,11 @@ class Detector(Base):
                 r += (details, )
             return r
         else:
-            # check: is this detector able to process the input executable ?
             e = executable if isinstance(executable, Executable) else Executable(executable)
-            if e.category not in self._categories_exp or \
+            if not self.check(e.category, multiclass=multiclass, vote=False, **kwargs) or \
                e.extension[1:] in getattr(self, "exclude", {}).get(e.category, []):
                 return -1
-            # now try to detect a packer on the input executable
+            # try to detect a packer on the input executable
             label = self.run(e, **kwargs)
             if kwargs.get('verbose', False):
                 print("")

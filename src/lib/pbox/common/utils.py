@@ -181,7 +181,7 @@ def file_or_folder_or_dataset(method):
         for a in kwargs.pop('file', []):
             _extend_e(a)
         # then handle the list
-        kwargs['silent'] = False
+        kwargs['silent'] = kwargs.get('silent', False)
         for exe in e:
             kwargs['dslen'] = len(e)
             # this is useful for a decorated method that handles the difference between the computed and actual labels

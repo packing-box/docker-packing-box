@@ -111,8 +111,6 @@ def find_files(folder, pattern, selected=None, nbr_not_selected=None, display=Fa
             files[fname]['files'].append(fp)
     if selected is None:
         selected = sorted(available_labels)
-    elif selected is not None and nbr_not_selected is None:
-        nbr_not_selected = 0
     # discard files that have too few positive labels or that do not have the selected labels in their packed versions
     n = 0
     for file, data in files.items():
@@ -145,6 +143,7 @@ if __name__ == "__main__":
     feat = __add_folder(sparsers.add_parser("features", help="compute features for files matching the regex with the "
                                                              "input labels"))
     find = __add_folder(sparsers.add_parser("find", help="find files matching the regex with the input labels"))
+    find.add_argument("-d", "--no-display", action="store_false", help="do not display packer label matches")
     plot = __add_folder(sparsers.add_parser("plot", help="plot files matching the regex given the selected labels"),
                         alias=True, fmt=True)
     plot.add_argument("-s", "--scale", action="store_true", help="scale plots according to the first binary")
@@ -172,7 +171,7 @@ if __name__ == "__main__":
         tmp_p.remove()
     elif args.command == "find":
         logger.info("Searching for" + msg)
-        for _ in find_files(args.folder, args.filename, args.label, args.max_not_matching, True).keys():
+        for _ in find_files(args.folder, args.filename, args.label, args.max_not_matching, args.no_display).keys():
             pass
     elif args.command == "plot":
         logger.info("Collecting" + msg)
