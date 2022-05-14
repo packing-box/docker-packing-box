@@ -108,7 +108,7 @@ def execute(name, **kwargs):
     cmd = cmd if shell else split(cmd)
     proc = Popen(cmd, stdout=PIPE, stderr=PIPE, shell=shell)
     out, err = proc.communicate()
-    return out.decode(), err.decode()
+    return out.decode(errors="ignore"), err.decode(errors="ignore")
 
 
 def normalize(*packers, **kwargs):
@@ -133,7 +133,7 @@ def normalize(*packers, **kwargs):
 
 
 def run(name, exec_func=execute, parse_func=lambda x, **kw: x, stderr_func=lambda x, **kw: x, parser_args=[],
-        normalize_output=True, binary_only=False, weak_assumptions=False, **kwargs):
+        normalize_output=True, binary_only=False, parse_stderr=False, weak_assumptions=False, **kwargs):
     """ Run a tool and parse its output.
     
     It also allows to parse stderr and to normalize the output.
@@ -251,6 +251,9 @@ def run(name, exec_func=execute, parse_func=lambda x, **kw: x, stderr_func=lambd
     dt = perf_counter() - t1
     # now handle the result if no error
     err = stderr_func(err, **vars(a))
+    if parse_stderr:
+        out += "\n" + err
+        err = ""
     if err:
         a.logger.error(err)
         exit(1)
