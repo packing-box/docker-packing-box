@@ -1,0 +1,16 @@
+#!/usr/bin/python3
+# -*- coding: UTF-8 -*-
+from pboxtools import *
+
+
+def parse(output, **kwargs):
+    r = []
+    for l in output.strip("\n ").split(": ", 1)[1].split(", "):
+        with suppress(AttributeError):
+            r.append(re.search(r"^(.+)\s+compressed$", l.strip()).group(1).lower())
+    return r
+
+
+if __name__ == "__main__":
+    run("Unix_File", parse_func=parse)
+

@@ -270,3 +270,19 @@ RetDec:
   status:  ok
   version: /opt/detectors/retdec/share/retdec/CHANGELOG.md
 
+Unix_File:
+  categories:
+    - All
+  command: /usr/bin/file {path}
+  comment: This tool is a file analyzer and is only able to detect well-known compressors such as UPX, PEtite or PECompact.
+  description: file tests each argument in an attempt to classify it. There are three sets of tests, performed in this order ; filesystem tests, magic tests, and language tests. The first test that succeeds causes the file type to be printed.
+  install:
+    - apt: file
+  references:
+    - https://linux.die.net/man/1/file
+    - https://man.openbsd.org/file.1
+    - https://pubs.opengroup.org/onlinepubs/9699919799/utilities/file.html
+    - https://man.netbsd.org/libmagic.3
+  source: https://launchpad.net/ubuntu/+source/file
+  status: ok
+  vote:   false
