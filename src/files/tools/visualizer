@@ -8,7 +8,7 @@ from pbox.learning.executable import Executable
 from tinyscript import *
 
 
-__version__     = "2.0.1"
+__version__     = "2.0.2"
 __doc__         = """
 This tool aims to generate representations of binaries, emphasizing their sections and plotting their entropy,
  for the sake of comparing them, e.g. an original PE file and its packed versions.
@@ -41,7 +41,7 @@ def __add_folder(parser, alias=False, fmt=False):
     return parser
 
 
-def find_files(folder, pattern, selected=None, nbr_not_selected=None, display=False):
+def find_files(folder, pattern, selected=None, nbr_not_selected=None, display=False, force_display=False):
     """ Find files matching the given filename pattern withing the specified folder. It uses subfolders' names as labels
          for categorizing the matching file.
     
@@ -111,8 +111,9 @@ def find_files(folder, pattern, selected=None, nbr_not_selected=None, display=Fa
             files[fname]['files'].append(fp)
     if selected is None:
         selected = sorted(available_labels)
+    len_al = len(available_labels)
     # discard files that have too few positive labels or that do not have the selected labels in their packed versions
-    n = 0
+    n, disp = 0, display or force_display
     for file, data in files.items():
         # set booleans for files having their label match one of the selected labels
         labels = {}
@@ -123,11 +124,14 @@ def find_files(folder, pattern, selected=None, nbr_not_selected=None, display=Fa
             except ValueError:
                 labels[label] = False
         # discard files for which either there is a non matching label in the selected ones or too few positive labels
+        n_good = sum(labels.values())
         if not disp_all and any(not labels[l] for l in selected) or \
-           nbr_not_selected is not None and sum(labels.values()) + nbr_not_selected < len(available_labels):
+           nbr_not_selected is not None and n_good + nbr_not_selected < len_al:
             continue
         # display valid results
-        (logger.info if display else logger.debug)(file)
+        if disp:
+            file += " (%d/%d)" % (n_good, len_al)
+        (logger.info if disp else logger.debug)(file)
         for label, state in labels.items():
             l = LABELS.get(label, label)
             if display:
@@ -148,6 +152,7 @@ if __name__ == "__main__":
                         alias=True, fmt=True)
     plot.add_argument("-s", "--scale", action="store_true", help="scale plots according to the first binary")
     initialize()
+    ff_args = args.folder, args.filename, args.label, args.max_not_matching
     logger.name = "visualizer"
     logging.configLogger(logger, ["INFO", "DEBUG"][args.verbose], fmt=LOG_FORMATS[args.verbose], relative=True)
     LABELS.update(getattr(args, "alias", None) or {})
@@ -157,7 +162,7 @@ if __name__ == "__main__":
         logger.info("Computing features of" + msg)
         tmp_p = ts.TempPath(prefix="visualizer-edit-", length=8)
         tmp_f = tmp_p.tempfile("files.csv")
-        for file, data in find_files(args.folder, args.filename, args.label, args.max_not_matching).items():
+        for file, data in find_files(*ff_args).items():
             files = []
             logger.info(file)
             for f, l in zip(data['files'], data['labels']):
@@ -171,11 +176,11 @@ if __name__ == "__main__":
         tmp_p.remove()
     elif args.command == "find":
         logger.info("Searching for" + msg)
-        for _ in find_files(args.folder, args.filename, args.label, args.max_not_matching, args.no_display).keys():
+        for _ in find_files(*ff_args, display=args.no_display, force_display=True).keys():
             pass
     elif args.command == "plot":
         logger.info("Collecting" + msg)
-        for file, data in find_files(args.folder, args.filename, args.label, args.max_not_matching).items():
+        for file, data in find_files(*ff_args).items():
             files, labels = data['files'], data['labels']
             labels = [LABELS.get(l, l) for l in labels]
             imgn = ts.Path(file).stem
