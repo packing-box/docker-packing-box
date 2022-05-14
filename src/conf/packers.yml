@@ -47,7 +47,7 @@ Amber:
   exclude:
     - DLL: PE32\+? executable \(DLL\)
   install:
-    - wget:  https://github.com/EgeBalci/amber/releases/download/v3.1/amber_linux_amd64_3.1.zip
+    - wget:  https://github.com/EgeBalci/amber:latest{linux_amd64}
     - unzip: /opt/packers/
     - ln:    amber
   references:
@@ -152,7 +152,7 @@ ConfuserEx:
   families:
     - protector
   install:
-    - wget:  https://github.com/mkaring/ConfuserEx/releases/download/v1.5.0/ConfuserEx-CLI.zip
+    - wget:  https://github.com/mkaring/ConfuserEx:latest{ConfuserEx-CLI}
     - unzip: /opt/packers/confuserex
     - mono:  Confuser.CLI.exe
   references:
@@ -374,7 +374,7 @@ hXOR-Packer:
     - cryptor
   install:
     - exec:  rm -rf "/opt/packers/hXOR-Packer v0.1" /opt/packers/hxor-packer
-    - wget:  https://github.com/rurararura/hXOR-Packer/releases/download/0.1/hXOR-Packer.v0.1.zip
+    - wget:  https://github.com/rurararura/hXOR-Packer:latest{hXOR-Packer}
     - unzip: /opt/packers
     - exec:  mv "/opt/packers/hXOR-Packer v0.1" /opt/packers/hxor-packer
     - exec:  chmod +x /opt/packers/hxor-packer/packer.exe
@@ -383,7 +383,7 @@ hXOR-Packer:
     - https://github.com/rurararura/hXOR-Packer
   steps:
     - hxor-packer {{executable}} {{executable}} -ce {{key[randint]}}
-  source: https://github.com/rurararura/hXOR-Packer/releases/tag/0.1
+  source: https://github.com/rurararura/hXOR-Packer
   status: ok
   variants:
     hXOR-Compressor:
@@ -571,7 +571,7 @@ NetCrypt:
   families:
     - compressor
   install:
-    - wget:  https://github.com/friedkiwi/netcrypt/releases/download/v1.1/netcrypt.zip
+    - wget:  https://github.com/friedkiwi/netcrypt:latest{netcrypt}
     - unzip: /opt/packers/netcrypt
     - wine:  SimplePacker.exe
   source: https://github.com/friedkiwi/netcrypt
@@ -650,7 +650,7 @@ PE-Packer:
   families:
     - cryptor
   install:
-    - wget:  https://github.com/czs108/PE-Packer/releases/download/v1.0.0-beta/PE-Packer-1.0.0-beta-win-x86.zip
+    - wget:  https://github.com/czs108/PE-Packer:latest{beta-win}
     - unzip: /opt/packers/pepacker
     - wine:  PE-Packer.exe
   steps:
@@ -750,6 +750,7 @@ PEtite:
     - https://www.aldeid.com/wiki/Category:Digital-Forensics/Computer-Forensics/Anti-Reverse-Engineering/Packers/Petite
     - https://github.com/fireeye/capa-rules/blob/master/anti-analysis/packer/petite/packed-with-petite.yml
   source: https://www.un4seen.com/petite
+  status: ok
 
 PEzor:
   categories:
@@ -880,7 +881,7 @@ TheArk:
   families:
     - compressor
   install:
-    - wget:  https://github.com/aaaddress1/theArk/releases/download/1.0/Release.zip
+    - wget:  https://github.com/aaaddress1/theArk:latest{Release}
     - unzip: /opt/packers/theark
     - wine:  theArk.exe
   source: https://github.com/aaaddress1/theArk
@@ -913,7 +914,9 @@ UPX:
       - o
       - so
   install:
-    - apt: upx
+    - wget:  https://github.com/upx/upx:latest{amd64_linux}
+    - untar: /opt/packers
+    - ln:    /opt/packers/upx-3.96-amd64_linux/upx
   silent:
     - AlreadyPackedException
     - CantPackException
@@ -928,6 +931,32 @@ UPX:
     - https://www.aldeid.com/wiki/Category:Digital-Forensics/Computer-Forensics/Anti-Reverse-Engineering/Packers/UPX
   source: https://upx.github.io
   status: ok
+  variants:
+    UPX-3.91:
+      install:
+        - wget:  https://github.com/upx/upx/releases/download/v3.91/upx-3.91-amd64_linux.tar.bz2
+        - untar: /opt/packers
+        - ln:    /opt/packers/upx-3.91-amd64_linux/upx
+    UPX-3.92:
+      install:
+        - wget:  https://github.com/upx/upx/releases/download/v3.92/upx-3.92-amd64_linux.tar.xz
+        - untar: /opt/packers
+        - ln:    /opt/packers/upx-3.92-amd64_linux/upx
+    UPX-3.93:
+      install:
+        - wget:  https://github.com/upx/upx/releases/download/v3.93/upx-3.93-amd64_linux.tar.xz
+        - untar: /opt/packers
+        - ln:    /opt/packers/upx-3.93-amd64_linux/upx
+    UPX-3.94:
+      install:
+        - wget:  https://github.com/upx/upx/releases/download/v3.94/upx-3.94-amd64_linux.tar.xz
+        - untar: /opt/packers
+        - ln:    /opt/packers/upx-3.94-amd64_linux/upx
+    UPX-3.95:
+      install:
+        - wget:  https://github.com/upx/upx/releases/download/v3.95/upx-3.95-amd64_linux.tar.xz
+        - untar: /opt/packers
+        - ln:    /opt/packers/upx-3.95-amd64_linux/upx
 
 Ward:
   categories:
