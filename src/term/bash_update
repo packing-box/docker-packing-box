@@ -26,5 +26,6 @@ pbox-update() {
   done
   source /root/.bashrc
   find /mnt/share/src/files/detectors/ -type f \( ! -iname \"*\.*\" \) -exec cp -f {} /opt/bin/ \;
+  mv -f /opt/bin/userdb*.txt /opt/detectors/
   pip3 install --upgrade /mnt/share/src/lib/ -q > /dev/null
 }
