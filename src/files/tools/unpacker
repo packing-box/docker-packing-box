@@ -1,0 +1,38 @@
+#!/usr/bin/python3
+# -*- coding: UTF-8 -*-
+from pbox import *
+from pbox.__info__ import *
+from tinyscript import *
+from tqdm import tqdm
+
+
+__version__     = "1.0.0"
+__doc__         = """
+This tool simply unpacks (using Unpacker.unpack) with the selected unpacker an executable or folder of executables.
+"""
+__examples__    = []
+__description__ = "Unpack an input executable/folder with the selected unpacker"
+
+
+if __name__ == '__main__':
+    parser.add_argument("unpacker", type=Unpacker.get, help="selected unpacker")
+    parser.add_argument("executable", help="executable or folder containing executables")
+    initialize(noargs_action="usage", multi_level_debug=True)
+    logging.configLogger(logger, ["INFO", "DEBUG"][args.verbose], fmt=LOG_FORMATS[args.verbose], relative=True)
+    p = ts.Path(args.executable)
+    delattr(args, "executable")
+    if p.is_file():
+        args.unpacker.unpack(p.absolute(), **vars(args))
+    elif p.is_dir():
+        n, pbar = sum(1 for _ in p.listdir(ts.is_executable)), None
+        logger.debug("packing files from folder %s..." % p)
+        for f in p.listdir(ts.is_executable):
+            if pbar is None:
+                pbar = tqdm(total=n, unit="executable")
+            args.unpacker.unpack(f.absolute(), **vars(args))
+            pbar.update()
+        if n == 0:
+            logger.warning("No executable found")
+        else:
+            pbar.close()
+
