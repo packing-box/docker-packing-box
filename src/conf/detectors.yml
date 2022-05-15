@@ -85,6 +85,7 @@ GetTyp:
   status:  ok
   version: <output>
   vote:    false
+  weak:    true
 
 Language_2000:
   categories:
@@ -108,6 +109,7 @@ Manalyze:
     - make: bin -j5
   source: https://github.com/JusticeRage/Manalyze
   status: ok
+  weak:   true
 
 NPEFileAnalyzer:
   categories:
@@ -145,6 +147,7 @@ PeFrame:
   source:  https://github.com/guelfoweb/peframe
   status:  ok
   version: <output>
+  weak:    true
 
 PePack:
   categories:
@@ -216,6 +219,7 @@ PortEx:
   source:  https://github.com/katjahahn/PortEx
   status:  ok
   version: <output>
+  weak:    true
 
 PyPackerDetect:
   categories:
@@ -227,6 +231,7 @@ PyPackerDetect:
     - pip: pypackerdetect
   source: https://github.com/dhondta/PyPackerDetect
   status: ok
+  weak:   true
 
 PyPeid:
   author: Koh M. Nakagawa

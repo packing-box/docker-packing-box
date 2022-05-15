@@ -19,6 +19,7 @@ class Detector(Base):
       .detect(executable, multiclass, **kwargs) [str]
     
     Overloaded methods:
+      .check(*categories, **kwargs)
       .test(executable, multiclass, **kwargs)
     """
     use_output = True

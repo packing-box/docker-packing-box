@@ -44,16 +44,15 @@ def overview(show=False, category=None, family=None, keep=None):
     for cls in ([Detector, Packer, Unpacker] if keep is None else [globals()[keep[:-1].capitalize()]]):
         r, d = cls.summary(show, category, **({'families': family} if cls is Packer else {}))
         if cls is Detector:
-            table = r[1]
-            table.column_headers.insert(-1, "Superdetector")
+            table, cols = r[1], ["Multiclass", "Weak Mode", "Superdetector"]
+            for col in cols:
+                table.column_headers.insert(-1, col)
             data = []
             for row in table.data:
                 dcls = Detector.get(row[0])
-                if dcls.status == "ok":
-                    v = [colored("☒", "red"), colored("☑", "green")][getattr(dcls, "vote", True)]
-                else:
-                    v = colored("☒", "grey")
-                row.insert(-1, v)
+                cred, cgreen = ("red", "green") if dcls.status == "ok" else ("grey", "grey")
+                for col, default in [("multiclass", True), ("weak", False), ("vote", True)]:
+                    row.insert(-1, [colored("☒", cred), colored("☑", cgreen)][getattr(dcls, col, default)])
                 data.append(row)
             table.data = data
         report.append(*r)
