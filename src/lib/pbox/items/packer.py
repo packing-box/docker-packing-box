@@ -95,7 +95,7 @@ class Ezuri(Packer):
         P = subprocess.PIPE
         p = subprocess.Popen(["ezuri"], stdout=P, stderr=P, stdin=P)
         executable = Executable(executable)
-        self.logger.debug("ezuri ; inputs: src/dst=%s, procname=%s" % (executable, executable.stem))
+        self.logger.debug("inputs: src/dst=%s, procname=%s" % (executable, executable.stem))
         out, err = p.communicate(b("%(e)s\n%(e)s\n%(n)s\n%(k)s\n%(iv)s\n" % {
             'e': executable, 'n': executable.stem,
             'k': "" if Ezuri.key is None else Ezuri.key,

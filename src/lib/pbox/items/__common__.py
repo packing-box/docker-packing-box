@@ -211,10 +211,8 @@ class Base(Item):
         """ Customizable method for shaping the command line to run the item on an input executable. """
         retval = self.name
         use_output = False
-        benchmark = kwargs.get('benchmark', False)
-        binary = kwargs.get('binary', False)
-        verbose = kwargs.get('verbose', False)
-        weak = kwargs.get('weak')
+        benchm, verb = kwargs.get('benchmark', False), kwargs.get('verbose', False) and getattr(self, "verbose", False)
+        binary, weak = kwargs.get('binary', False), kwargs.get('weak')
         extra_opt = "" if kwargs.get('extra_opt') is None else kwargs['extra_opt'] + " "
         kw = {'logger': self.logger, 'silent': []}
         if not config['wine_errors']:
@@ -228,10 +226,10 @@ class Base(Item):
         kw['silent'].extend(list(map(_repl, getattr(self, "silent", []))))
         output = None
         cwd = os.getcwd()
-        for step in getattr(self, "steps", ["%s %s%s" % (self.name, extra_opt, _str(executable))]):
+        for step in getattr(self, "steps", ["%s %s%s" % (self.name.replace("_" ,"-"), extra_opt, _str(executable))]):
             if self.name in step:
                 i, opt = step.index(self.name), ""
-                if benchmark:
+                if benchm:
                     opt += " --benchmark"
                 if binary:
                     opt += " --binary"
@@ -266,14 +264,14 @@ class Base(Item):
                     self.logger.debug(attempt)
                     os.chdir(attempt[3:].strip("'"))
                     continue
-                if verbose:
+                if verb:
                     attempt += " -v"
                 kw['shell'] = ">" in attempt
                 try:
                     output, error, retc = run(attempt, **kw)
-                except:
-                    self.logger.error("Command: %s" % attempt)
-                    raise
+                except Exception as e:
+                    self.logger.error("Bad command: %s" % attempt)
+                    output, error, retc = "", str(e), 1
                 output = ensure_str(output).strip()
                 # filter out error lines from stdout
                 out_err = "\n".join(re.sub(ERR_PATTERN, "", l) for l in output.splitlines() if re.match(ERR_PATTERN, l))
@@ -282,9 +280,11 @@ class Base(Item):
                 self._error = "\n".join(l for l in error.splitlines() \
                                         if all(re.search(p, l) is None for p in kw.get('silent', [])))
                 self._error = (self._error + "\n" + out_err).strip()
-                if self.name in attempt and benchmark:
+                if self.name in attempt and benchm:
                     output, dt = shlex.split(output.splitlines()[-1])
                 if retc > 0:
+                    if verb:
+                        attempt = attempt.replace(" -v", "")
                     attempts.remove(attempt if param is None else (attempt, param))
                     if len(attempts) == 0:
                         return
@@ -294,7 +294,7 @@ class Base(Item):
                     break
         os.chdir(cwd)
         r = (output or None) if use_output or getattr(self, "use_output", False) else retval
-        if benchmark:
+        if benchm:
             r = (r, dt)
         return r
     
@@ -362,16 +362,16 @@ class Base(Item):
             elif cmd in ["java", "mono", "sh", "wine"]:
                 r, txt, tgt = ubin.joinpath(self.name), "#!/bin/bash\n", (result or opt).joinpath(arg)
                 if cmd == "java":
-                    txt += "java -jar '%s' '$@'" % tgt
+                    txt += "java -jar \"%s\" \"$@\"" % tgt
                 elif cmd == "mono":
-                    txt += "mono '%s' '$@'" % tgt
+                    txt += "mono \"%s\" \"$@\"" % tgt
                 elif cmd == "sh":
                     txt += "\n".join(arg.split("\\n"))
                 elif cmd == "wine":
                     if hasattr(self, "gui"):
                         txt = self._gui(tgt)
                     else:
-                        txt += "wine '%s' '$@'" % tgt
+                        txt += "wine \"%s\" \"$@\"" % tgt
                 self.logger.debug("echo -en '%s' > '%s'" % (txt, r))
                 try:
                     r.write_text(txt)
@@ -393,9 +393,9 @@ class Base(Item):
                         arg1, arg2 = shlex.split(arg)
                     except ValueError:
                         arg1, arg2 = "/opt/%ss/%s" % (self.type, self.name), arg
-                    arg2 = "wine '%s' '$@'" % arg2 if cmd == "lwine" else "./%s" % arg2
-                    arg = "#!/bin/bash\nPWD=`pwd`\nif [[ '$1' = /* ]]; then TARGET='$1'; else TARGET='$PWD/$1';" \
-                          " fi\ncd '%s'\n%s '$TARGET' '$2'\ncd '$PWD'" % (arg1, arg2)
+                    arg2 = "wine \"%s\" \"$@\"" % arg2 if cmd == "lwine" else "./%s" % arg2
+                    arg = "#!/bin/bash\nPWD=\"`pwd`\"\nif [[ \"$1\" = /* ]]; then TARGET=\"$1\"; else " \
+                          "TARGET=\"$PWD/$1\"; fi\ncd \"%s\"\n%s \"$TARGET\" \"$2\"\ncd \"$PWD\"" % (arg1, arg2)
                 result = ubin.joinpath(self.name)
                 self.logger.debug("echo -en '%s' > '%s'" % (arg, result))
                 try:
