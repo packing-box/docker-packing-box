@@ -61,7 +61,8 @@ class Dataset:
         try:
             h = df.loc[df['realpath'] == h, 'hash'].iloc[0]
         except:
-            pass
+            if isinstance(h, Executable):
+                h = h.hash
         if len(df) > 0:
             self.logger.debug("removing %s..." % h)
             self._data = df[df.hash != h]
@@ -500,18 +501,21 @@ class Dataset:
              packing randomly. If labels are provided, they are used instead of applying packer detection. """
         l, self.categories = self.logger, categories
         labels = Dataset.labels_from_file(labels)
+        if len(labels) == 0 and not detect:
+            if ts.confirm("No label was provided ; consider every executable as not packed ?"):
+                labels = None
+            else:
+                l.warning("No label provided, cannot proceed.")
+                return
         if source_dir is None:
             l.warning("No source folder provided")
-            return self
+            return
         if not isinstance(source_dir, list):
             source_dir = [source_dir]
         l.info("Source directories: %s" % ",".join(map(str, set(source_dir))))
         self._metadata.setdefault('categories', [])
         self._metadata['sources'] = list(set(map(str, self._metadata.get('sources', []) + source_dir)))
-        n = 0
-        for e in self._walk(True, {'All': source_dir}, True):
-            n += 1
-        i, pbar = -1, None
+        i, n, pbar = -1, sum(1 for _ in self._walk(True, {'All': source_dir}, True)), None
         for i, e in enumerate(self._walk(True, {'All': source_dir})):
             # set the progress bar now to not overlap with self._walk's logging
             if pbar is None:
@@ -520,7 +524,7 @@ class Dataset:
                 self._metadata['categories'].append(e.category)
             # precedence: input dictionary of labels > dataset's own labels > detection (if enabled) > discard
             try:
-                self[e] = labels[e.hash]
+                self[e] = None if labels is None else labels[e.hash]
             except KeyError:
                 if detect:
                     self[e] = Detector.detect(e)
