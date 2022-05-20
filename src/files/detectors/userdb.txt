@@ -438,14 +438,6 @@ ep_only = true
 signature = 0E 07 B9 ?? ?? BE ?? ?? 33 FF FC F3 A4 A1 ?? ?? 2D ?? ?? 8E D0 BC ?? ?? 8C D8
 ep_only = true
 
-[AKInstaler - German tool - ASL]
-signature = 55 8B EC 6A FF 68 ?? ?? 40 00 68 ?? ?? 40 00 64 A1 00 00 00 00 50 64 89 25 00 00 00 00 83 EC 68 53 56 57 89 65 E8 33 DB 89 5D FC 6A 02 FF 15 ?? 11 40
-ep_only = true
-
-[AMGC Archive]
-signature = AD 36 22 00
-ep_only = true
-
 [ANDpakk2 (apk2) V0.06 -> Dmitry Andreev * 20080731]
 signature = 60 FC BE ?? ?? ?? ?? BF ?? ?? ?? ?? 57 83 CD FF 33 C9 F9 EB 05 A4 02 DB 75 05 8A 1E 46 12 DB 72 F4 33 C0 40 02 DB 75 05 8A 1E 46 12 DB 13 C0 02 DB 75 05 8A 1E 46 12 DB 72 0E 48 02 DB 75 05 8A 1E 46 12 DB 13 C0 EB DC 83 E8 03 72 0F C1 E0 08 AC 83 F0 FF 74 4D D1 F8 8B E8 EB 09 02 DB 75 05 8A 1E 46 12 DB 13 C9 02 DB 75 05 8A 1E 46 12 DB 13 C9 75 1A 41 02 DB 75 05 8A 1E 46 12 DB 13 C9 02 DB 75 05 8A 1E 46 12 DB 73 EA 83 C1 02 81 FD ?? ?? ?? ?? 83 D1 01 56 8D 34 2F F3 A4 5E E9 73 FF FF FF C3
 ep_only = true
@@ -1618,10 +1610,6 @@ ep_only = true
 signature = 55 8B EC 6A FF 68 98 71 40 00 68 48 2D 40 00 64 A1 00 00 00 00 50 64 89 25 00 00 00 00 83 EC 58
 ep_only = true
 
-[Armadillo v1.71]
-signature = 55 8B EC 6A FF 68 ?? ?? ?? ?? 68 ?? ?? ?? ?? 64 A1
-ep_only = false
-
 [Armadillo v1.72-v1.73]
 signature = 55 8B EC 6A FF 68 E8 C1 ?? ?? 68 F4 86 ?? ?? 64 A1 ?? ?? ?? ?? 50 64 89 25 ?? ?? ?? ?? 83 EC 58
 ep_only = true
@@ -2092,18 +2080,6 @@ ep_only = true
 
 [BobPack v1.00 --> BoB / BobSoft]
 signature = 60 E8 00 00 00 00 8B 0C 24 89 CD 83 E9 06 81 ED ?? ?? ?? ?? E8 3D 00 00 00 89 85 ?? ?? ?? ?? 89 C2 B8 5D 0A 00 00 8D 04 08 E8 E4 00 00 00 8B 70 04 01 D6 E8 76 00 00 00 E8 51 01 00 00 E8 01 01
-ep_only = true
-
-[BobSoft Mini Delphi -> BoB / BobSoft]
-signature = 55 8B EC 83 C4 F0 53 B8 ?? ?? ?? ?? E8 ?? ?? ?? ?? 33 C0 55 68 ?? ?? ?? ?? 64 FF 30 64 89 20 B8 ?? ?? ?? ?? E8
-ep_only = true
-
-[BobSoft Mini Delphi -> BoB / BobSoft]
-signature = 55 8B EC 83 C4 F0 53 56 B8 ?? ?? ?? ?? E8 ?? ?? ?? ?? 33 C0 55 68 ?? ?? ?? ?? 64 FF 30 64 89 20 B8
-ep_only = true
-
-[BobSoft Mini Delphi -> BoB / BobSoft]
-signature = 55 8B EC 83 C4 F0 B8 ?? ?? ?? ?? E8
 ep_only = true
 
 [BookManager v9510]
@@ -3005,50 +2981,6 @@ ep_only = true
 [DalKrypt 1.0 -> DalKiT]
 signature = 68 00 10 40 00 58 68 ?? ?? ?? 00 5F 33 DB EB 0D 8A 14 03 80 EA 07 80 F2 04 88 14 03 43 81 FB ?? ?? ?? 00 72 EB FF E7
 ep_only = false
-
-[Datafile from Norton Utilities]
-signature = 50 4E 43 49
-ep_only = true
-
-[Delphi v1.0 Unit]
-signature = 44 43 55 31
-ep_only = true
-
-[Delphi v2.0 Unit]
-signature = 44 43 55 32
-ep_only = true
-
-[Dev-C++ 4.9.9.2 -> Bloodshed Software]
-signature = 55 89 E5 83 EC 08 C7 04 24 01 00 00 00 FF 15 ?? ?? ?? 00 E8 C8 FE FF FF 90 8D B4 26 00 00 00 00 55 89 E5 83 EC 08 C7 04 24 02 00 00 00 FF 15 ?? ?? ?? 00 E8 A8 FE FF FF 90 8D B4 26 00 00 00 00 55 8B 0D ?? ?? ?? 00 89 E5 5D FF E1 8D 74 26 00 55 8B 0D ?? ?? ?? 00 89 E5 5D FF E1 90 90 90 90 55 89 E5 5D E9 ?? ?? 00 00 90 90 90 90 90 90 90
-ep_only = true
-
-[Dev-C++ 4.9.9.2 -> Bloodshed Software]
-signature = 55 89 E5 83 EC 08 C7 04 24 01 00 00 00 FF 15 ?? ?? ?? 00 E8 C8 FE FF FF 90 8D B4 26 00 00 00 00 55 89 E5 83 EC 08 C7 04 24 02 00 00 00 FF 15 ?? ?? ?? 00 E8 A8 FE FF FF 90 8D B4 26 00 00 00 00 55 8B 0D ?? ?? ?? 00 89 E5 5D FF E1 8D 74 26 00 55 8B 0D
-ep_only = true
-
-[Dev-C++ 4.9.9.2 -> Bloodshed Software]
-signature = 57 68 ?? 0D 01 00 68 00 ?? ?? 00 E8 50 ?? FF FF 68 ?? ?? ?? 00 68 ?? ?? ?? 00 68 ?? ?? ?? 00 68 ?? ?? ?? 00 68 ?? ?? ?? 00
-ep_only = true
-
-[Dev-C++ 4.9.9.2 by DouBle_Zer0]
-signature = 55 89 E5 83 EC 08 C7 04 24 01 00 00 00 FF 15 ?? ?? ?? ?? E8 ?? ?? ?? ?? 90 8D B4 26 00 00 00 00 55 89 E5 83 EC 08 C7 04 24 02 00 00 00 FF 15 ?? ?? ?? ?? E8 ?? ?? ?? ?? 90 8D B4 26 00 00 00 00 55 8B 0D ?? ?? ?? ?? 89 E5 5D FF E1 8D 74 26 00 55 8B 0D ?? ?? ?? ?? 89 E5 5D FF E1 90 90 90 90 55 89 E5 5D
-ep_only = true
-
-[Dev-C++ DLL]
-signature = 55 89 E5 57 56 53 83 EC 0C 8B 7D 0C 83 FF ?? 0F 84 AB 00 00 00 89 7C 24 04 8B 5D 10 8B 4D 08 89 5C 24 08 89 0C 24 E8 ?? ?? ?? 00 89 C6 83 EC 0C 83 FF ?? 0F 94 C2 31 C0 85 F6 0F 94 C0 85 C2 74 5B 8B 15 00 ?? ?? 10 85 D2 74 45 8B 1D 10 ?? ?? 10 EB 0D 90 90 90 90 90 90 90 90 90 90 90 90 90 83 EB 04 39
-ep_only = true
-
-[Dev-C++ v4]
-signature = 55 89 E5 83 EC 08 83 C4 F4 6A ?? A1 ?? ?? ?? 00 FF D0 E8 ?? FF FF FF
-ep_only = true
-
-[Dev-C++ v5]
-signature = 55 89 E5 83 EC 14 6A ?? FF 15 ?? ?? ?? 00 ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? 00 00 00 00
-ep_only = true
-
-[Dev-Cue 4.9.9.2 -> Bloodshed Software]
-signature = 55 89 E5 83 EC 08 C7 04 24 01 00 00 00 FF 15 ?? ?? ?? 00 E8 C8 FE FF FF 90 8D
-ep_only = true
 
 [Diet 1.00 (EXE)]
 signature = FC 06 1E 0E 8C C8 01 06 38 01 BA 00 00 03 C2 8B D8 05 00 00 8E DB 8E C0 33 F6 33 FF B9 08 00 F3 A5 4B 48 4A 79 EE 8E C3 8E D8 BE 4A 00 AD 8B E8 B2 10 EA 00 00 00 00 FF
@@ -17524,22 +17456,6 @@ ep_only = false
 
 [WinUpack v0.39 final -> Dwing c)2005]
 signature = BE B0 11 ?? ?? AD 50 FF 76 34 EB 7C 48 01 ?? ?? 0B 01 4C 6F 61 64 4C 69 62 72 61 72 79 41 00 00 18 10 00 00 10 00 00 00 00 ?? ?? ?? 00 00 ?? ?? 00 10 00 00 00 02 00 00 04 00 00 00 00 00 39 00 04 00 00 00 00 00 00 00 00 ?? ?? ?? 00 02 00 00 00 00 00 00 ?? 00 00 ?? 00 00 ?? 00 00 ?? ?? 00 00 00 10 00 00 10 00 00 00 00 00 00 0A 00 00 00 00 00 00 00 00 00 00 00 EE ?? ?? ?? 14 00 00 00 00 ?? ?? ?? ?? ?? ?? 00 FF 76 38 AD 50 8B 3E BE F0 ?? ?? ?? 6A 27 59 F3 A5 FF 76 04 83 C8 FF 8B DF AB EB 1C 00 00 00 00 47 65 74 50 72 6F 63 41 64 64 72 65 73 73 00 00 ?? ?? ?? ?? ?? 00 00 00 40 AB 40 B1 04 F3 AB C1 E0 0A B5 ?? F3 AB 8B 7E 0C 57 51 E9 ?? ?? ?? ?? 56 10 E2 E3 B1 04 D3 E0 03 E8 8D 53 18 33 C0 55 40 51 D3 E0 8B EA 91 FF 56 4C 99 59 D1 E8 13 D2 E2 FA 5D 03 EA 45 59 89 6B 08 56 8B F7 2B F5 F3 A4 AC 5E B1 80 AA 3B 7E 34 0F 82 AC FE FF FF 58 5F 59 E3 1B 8A 07 47 04 18 3C 02 73 F7 8B 07 3C ?? 75 F3 B0 00 0F C8 03 46 38 2B C7 AB E2 E5 5E 5D 59 46 AD 85 C0 74 1F 51
-ep_only = true
-
-[WinZIP Self Extractor]
-signature = 33 ED 55 9A FF FF 00 00 0B C0 74 EE 81 C1 00 01 72 E8 89 0E 90 03 89 36 92 03 89 3E 94 03 89 1E 96 03 8C 06 98 03 89 16 9A 03 33 C0 50 9A FF FF 00 00 FF 36 94 03 9A FF FF 00 00 0B C0 74 BB FF 36 94 03 FF 36 92 03 FF 36 98 03 FF 36 96 03 FF
-ep_only = true
-
-[WinZip (32-bit) 6.x]
-signature = FF 15 ?? ?? ?? 00 B1 22 38 08 74 02 B1 20 40 80 38 00 74 10 38 08 74 06 40 80 38 00 75 F6 80 38 00 74 01 40 33 C9 ?? ?? ?? ?? FF 15
-ep_only = true
-
-[WinZip 32-bit SFX v9.0 module -> Winzip]
-signature = 53 FF 15 ?? ?? ?? 00 B3 22 38 18 74 03 80 C3 FE 40 33 D2 8A 08 3A CA 74 10 3A CB 74 07 40 8A
-ep_only = true
-
-[WinZip SFX]
-signature = 8A CB D3 E7 4F FF 4D D8 0F B7 08 23 FE 3B F9 75 E4 E9 9F FD FF FF FF 45 EC 8B 45 EC 39 45 E0 0F 8D 7F FD FF FF 83 7D DC 00 74 32 83 7D E0 01 74 2C B8 01 00 00 00 EB 27 83 7D D8 00 74 0E FF B5 38 FF FF FF E8 1D 00 00 00 83 C4 04 68 00 00 40
 ep_only = true
 
 [Wind of Crypt 1.0 -> DarkPressure]
