@@ -149,17 +149,6 @@ PeFrame:
   version: <output>
   weak:    true
 
-PePack:
-  categories:
-    - MSDOS
-    - PE
-  description: Check if a PE file is packed. This tool belongs to pev, an open source, full-featured, multiplatform command line toolkit to work with PE (Portable Executables) binaries.
-  install:
-    - apt: pev
-  source: https://github.com/merces/pev
-  status: ok
-  vote: false
-
 PEiD:
   categories:
     - MSDOS
@@ -175,6 +164,17 @@ PEiD:
     - https://github.com/wolfram77web/app-peid
   source: https://github.com/dhondta/peid
   status: ok
+
+PePack:
+  categories:
+    - MSDOS
+    - PE
+  description: Check if a PE file is packed. This tool belongs to pev, an open source, full-featured, multiplatform command line toolkit to work with PE (Portable Executables) binaries.
+  install:
+    - apt: pev
+  source: https://github.com/merces/pev
+  status: ok
+  vote: false
 
 PEscan:
   categories:

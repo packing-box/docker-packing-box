@@ -8,7 +8,7 @@ def parse(output, **kwargs):
     for l in output.splitlines():
         with suppress(AttributeError):
             r.append(re.search(r"^[^:]+:\s+(?:packer|protector):\s+(.+)", l).group(1).lower() \
-                     .replace("'s", "").replace(" ", "_").replace("(", "").replace(")", ""))
+                     .replace("'s", " ").replace(" ", "_").replace("(", " ").replace(")", " "))
     return r
 
 
