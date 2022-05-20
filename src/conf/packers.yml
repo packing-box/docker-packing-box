@@ -109,6 +109,20 @@ ASPack:
   source: http://www.aspack.com/aspack.html
   status: broken
 
+ASProtect:
+  categories:
+    - PE32
+  description: Multifunctional EXE packing tool designed for software developers to protect 32-bit applications with in-built application copy protection system.
+  source: http://www.aspack.com/asprotect32.html
+  status: commercial
+  variants:
+    ASProtect64:
+      categories:
+        - .NET
+        - PE64
+      description: Designed for professional protection against unauthorized use, industrial and home copying, professional hacking and analysis of software products distributed over the Internet and on any physical media. The distinctive feature of the product is support of only 64-bit applications and .NET applications for Windows.
+      source: http://www.aspack.com/asprotect64.html
+
 AxProtector:
   categories:
     - PE
@@ -512,6 +526,16 @@ MoleBox:
   source: https://www.molebox.com/
   status: commercial
 
+Morphine:
+  categories:
+    - MSDOS
+    - PE32
+  description: Morphine is very unique application for PE files encryption. Unlike other PE encryptors and compressors Morphine includes own PE loader which enables it to put whole source image to the .text section of new PE file. This one is very powerful because you can compress source file with your favourite compressor like UPX and then encrypt its output with Morphine. Another powerful thing here is polymorphic engine which always creates absolutely different decryptor for the new PE file.
+  families:
+    - cryptor
+  source: https://github.com/bowlofstew/rootkit.com/tree/master/hf/Morphine27
+  status: info
+
 MPRESS:
   categories:
     - PE
@@ -621,16 +645,24 @@ Pakkero:
     - ELF
   description: Pakkero is a binary packer written in Go made for fun and educational purpose. Its main goal is to take in input a program file (elf binary, script, even appimage) and compress it, protect it from tampering and intrusion.
   families:
-    - compressor
+    - cryptor
     - protector
   install:
     - wget: https://github.com/89luca89/pakkero/releases/download/0.7.0/pakkero_linux_amd64
     - cd:   /tmp
     - copy: pakkero
   steps:
-    - pakkero --file {{executable}} -o {{executable}} {{compressed[|-c]}}
+    - pakkero --file {{executable}} -o {{executable}}
   source: https://github.com/89luca89/pakkero
   status: ok
+  variants:
+    Pakkero-Compressed:
+      families:
+        - compressor
+        - cryptor
+        - protector
+      steps:
+        - pakkero --file {{executable}} -o {{executable}} -c
 
 Papaw:
   categories:
@@ -898,6 +930,16 @@ Themida:
   source: https://www.oreans.com/themida.php
   status: commercial
 
+Thinstall:
+  categories:
+    - PE
+  description: ThinApp accelerates application deployment and simplifies application migration by isolating applications from their underlying operating systems to eliminate application conflict and streamline delivery and management.
+  families:
+    - bundler
+    - virtualizer
+  source: https://www.vmware.com/products/thinapp
+  status: commercial
+
 UPX:
   categories:
     - ELF
@@ -1012,7 +1054,7 @@ Xor_Packer:
 Yoda_Crypter:
   aliases:
     - yC
-    - (?i)Yodas[_\s]Crypter
+    - (?i)Yoda'?s[_\s]Crypter
   categories:
     - PE32
   description: This is a small PE crypter with some nice protection options.
