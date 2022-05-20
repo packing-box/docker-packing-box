@@ -26,6 +26,7 @@ LABELS = {
     'Notpacked':          "Original",
     'BeRoEXEPacker':      "BeRo",
     'Enigma Virtual Box': "Enigma VBox",
+    'Eronana Packer':     "Eronana",
 }
 
 
@@ -41,7 +42,8 @@ def __add_folder(parser, alias=False, fmt=False):
     return parser
 
 
-def find_files(folder, pattern, selected=None, nbr_not_selected=None, display=False, force_display=False):
+def find_files(folder, pattern, selected=None, nbr_not_selected=None, display=False, force_display=False,
+               filter_selected=True):
     """ Find files matching the given filename pattern withing the specified folder. It uses subfolders' names as labels
          for categorizing the matching file.
     
@@ -137,6 +139,18 @@ def find_files(folder, pattern, selected=None, nbr_not_selected=None, display=Fa
             if display:
                 (logger.success if state else logger.failure)(l)
         n += 1
+    if filter_selected:
+        nfiles = {}
+        for file, data in files.items():
+            ndata = {'files': [], 'labels': []}
+            for label in selected:
+                try:
+                    ndata['files'].append(data['files'][data['labels'].index(label)])
+                    ndata['labels'].append(label)
+                except ValueError:
+                    logger.warning("label '%s' not found" % label)
+            nfiles = {file: ndata}
+        files = nfiles
     if n == 0:
         logger.warning("No match")
     return files
@@ -151,6 +165,7 @@ if __name__ == "__main__":
     plot = __add_folder(sparsers.add_parser("plot", help="plot files matching the regex given the selected labels"),
                         alias=True, fmt=True)
     plot.add_argument("-s", "--scale", action="store_true", help="scale plots according to the first binary")
+    rm = __add_folder(sparsers.add_parser("remove", help="remove files matching the regex with the input labels"))
     initialize()
     ff_args = args.folder, args.filename, args.label, args.max_not_matching
     logger.name = "visualizer"
@@ -176,7 +191,7 @@ if __name__ == "__main__":
         tmp_p.remove()
     elif args.command == "find":
         logger.info("Searching for" + msg)
-        for _ in find_files(*ff_args, display=args.no_display, force_display=True).keys():
+        for _ in find_files(*ff_args, display=args.no_display, force_display=True, filter_selected=False).keys():
             pass
     elif args.command == "plot":
         logger.info("Collecting" + msg)
@@ -187,5 +202,11 @@ if __name__ == "__main__":
             logger.info("Making plot to %s.%s..." % (imgn, args.format))
             for f in files:
                 logger.debug(f)
-            bintropy.plot(*files, img_name=imgn, labels=labels, sublabel="size-ep-ent", scale=args.scale)
+            bintropy.plot(*files, img_name=imgn, labels=labels, sublabel="size-ep-ent", scale=args.scale, logger=logger)
+    elif args.command == "remove":
+        logger.info("Removing" + msg)
+        for data in find_files(*ff_args).values():
+            if ts.confirm():
+                for f in data['files']:
+                    f.remove()
 
