@@ -258,6 +258,10 @@ export HTTPS_PROXY=$https_proxy
 # .NET core opt-out for telemetry
 export DOTNET_CLI_TELEMETRY_OPTOUT=1
 
+# get rid of annoying warning while using visualizer:
+#  QStandardPaths: XDG_RUNTIME_DIR not set, defaulting to '/tmp/runtime-root'
+export XDG_RUNTIME_DIR=/tmp/runtime-root
+
 # add relevant folders to PATH
 pathprepend /opt/bin
 pathprepend /opt/tools

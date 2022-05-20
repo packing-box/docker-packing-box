@@ -27,6 +27,7 @@ RUN (apt -qq -y install apt-transport-https apt-utils locales \
  && apt -qq -y install colordiff colortail cython3 dosbox git golang less ltrace tree strace sudo tmate tmux vim xterm \
  && apt -qq -y install iproute2 nodejs npm python3-setuptools python3-pip swig visidata weka x11-apps yarnpkg zstd \
  && apt -qq -y install curl ffmpeg imagemagick iptables jq psmisc tesseract-ocr unrar unzip wget xdotool xvfb \
+ && apt -qq -y install binwalk foremost \
  && wget -qO /tmp/bat.deb https://github.com/sharkdp/bat/releases/download/v0.18.2/bat-musl_0.18.2_amd64.deb \
  && dpkg -i /tmp/bat.deb && rm -f /tmp/bat.deb) 2>&1 > /dev/null \
  || echo -e "\033[1;31m DEPENDENCIES INSTALL FAILED \033[0m"
