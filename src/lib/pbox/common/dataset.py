@@ -706,7 +706,7 @@ class Dataset:
     def iteritems(cls):
         s = cls.summarize(str(config['datasets']), False)
         if len(s) > 0:
-            for row in [1].data:
+            for row in s[1].data:
                 yield Dataset(row[0])
     
     @classmethod
