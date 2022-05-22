@@ -5,7 +5,7 @@ from pbox.__info__ import *
 from tinyscript import *
 
 
-__version__     = "2.0.3"
+__version__     = "2.0.4"
 __doc__         = """
 This tool aims to manipulate a dataset in multiple ways by:
 - adding new executables from the packing-box Docker image or from a user-defined source, packed or not with the
@@ -14,15 +14,20 @@ This tool aims to manipulate a dataset in multiple ways by:
 - fixing its content.
 """
 __examples__    = [
-    "fix my-dataset",
+    "convert my-dataset --new-name my-fileless-dataset --feature entropy --feature '^byte_\d+_after_ep$'",
+    "export my-dataset --destination my-dataset-files -n 100",
+    "features my-dataset byte_0_after_ep byte_1_after_ep",
+    "features my-dataset number_resources --output-format png",
     "list --show-all",
     "make my-dataset -c ELF -n 500 --source-dir /path/to/dotnet/exe",
     "make my-dataset -c PE,ELF -n 2000",
-    "purge my-dataset",
-    "show my-dataset",
+    "merge my-dataset dataset-to-be-merged",
+    "select my-dataset my-new-dataset --query \"label == 'upx'\"",
+    "show my-dataset --per-category --limit 20",
     "update my-dataset --detect --refresh -s /path1/to/exe -s /path2/to/exe",
     "update my-dataset --source-dir /path/to/exe --labels /path/to/exe/labels.json",
-    "view my-dataset --ctime-year 2020",
+    "view my-dataset --query \"ctime > 2020\"",
+    "view my-dataset --query \"'PE32' in category\"",
 ]
 __description__ = "Make datasets of packed and not packed executables for use with Machine Learning"
 
@@ -43,11 +48,10 @@ def __add_name(parser, force=False, name="name", help="name of the dataset"):
 if __name__ == '__main__':
     sparsers = parser.add_subparsers(dest="command", help="command to be executed")
     convert = __add_name(sparsers.add_parser("convert", help="convert the target dataset to a fileless one"))
-    cgroup = convert.add_mutually_exclusive_group()
-    cgroup.add_argument("-f", "--feature", action="extend", nargs="*", help="list of features to be selected")
+    convert.add_argument("-f", "--feature", action="extend", nargs="*", help="feature to be selected",
+                         note="can also be a pattern")
     convert.add_argument("-n", "--new-name", help="name for the new converted dataset",
                          note="if None, the original dataset is overwritten")
-    cgroup.add_argument("-p", "--pattern", help="pattern of features to be selected")
     __add_name(sparsers.add_parser("edit", help="edit the data file"))
     export = __add_name(sparsers.add_parser("export", help="export the packed executable from a dataset"))
     export.add_argument("-d", "--destination", default="export", type=ts.folder_does_not_exist,
@@ -76,7 +80,7 @@ if __name__ == '__main__':
                                                                     "packers used, not between packed and not packed")
     make.add_argument("-c", "--categories", type=ts.values_list, default="All",
                       help="list of categories to be considered")
-    make.add_argument("-n", "--number-executables", dest="n", type=ts.pos_int, default=100,
+    make.add_argument("-n", "--number", dest="n", type=ts.pos_int, default=100,
                       help="number of executables for the output dataset")
     make.add_argument("-p", "--packer", action="extend", nargs="*", type=lambda p: Packer.get(p),
                       help="packer to be used")
@@ -117,7 +121,7 @@ if __name__ == '__main__':
         purged = False
         for ds in Dataset.iteritems():
             ds.purge()
-            purger = True
+            purged = True
         if not purged:
             logger.warning("No dataset to purge in workspace (%s)" % config['datasets'])
     elif name == "all":

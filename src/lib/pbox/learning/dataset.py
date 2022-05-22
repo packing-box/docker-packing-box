@@ -75,43 +75,42 @@ class FilelessDataset(Dataset):
             yield e
     Dataset.__iter__ = __iter__
     
-    def _iter_with_features(self, feature=None, pattern=None):
+    def _iter_with_features(self, feature=None):
         """ Convenience generator supplementing __iter__ for ensuring that feaures are also included. """
         if self._files:
             for exe in self:
-                exe.selection = feature or pattern
+                exe.selection = feature
                 if not hasattr(self, "_features"):
                     self._features = {}
                 self._features.update(exe.features)
                 yield exe
         else:
             for exe in self:
-                exe.selection = feature or pattern
+                exe.selection = feature
                 yield exe
     Dataset._iter_with_features = _iter_with_features
     
     @backup
-    def convert(self, feature=None, pattern=None, new_name=None, **kw):
+    def convert(self, feature=None, new_name=None, **kw):
         """ Convert a dataset with files to a dataset without files. """
         l = self.logger
         if not self._files:
             l.warning("Already a fileless dataset")
             return
-        l.info("Converting to fileless dataset...")
-        l.info("Size of dataset:     %s" % ts.human_readable_size(self.path.size))
         if new_name is not None:
             ds = Dataset(new_name)
-            ds.merge(self.path.basename, **kw)
-            ds.convert(feature, pattern, **kw)
-            l.info("Size of new dataset: %s" % ts.human_readable_size(ds.path.size))
+            ds.merge(self.path.basename, silent=True, **kw)
+            ds.convert(feature, **kw)
             return
+        l.info("Converting to fileless dataset...")
+        l.info("Size of dataset:     %s" % ts.human_readable_size(self.path.size))
         self._files = False
         self.path.joinpath("features.json").write_text("{}")
         self._features = {}
         pbar = tqdm(total=self._metadata['executables'], unit="executable")
         if not hasattr(self, "_features"):
             self._features = {}
-        for exe in self._iter_with_features(feature, pattern):
+        for exe in self._iter_with_features(feature):
             h = exe.basename
             self._features.update(exe.features)
             d = self[exe.hash, True]
@@ -127,7 +126,7 @@ class FilelessDataset(Dataset):
         except AttributeError:
             pass
         self._save()
-        l.info("New size of dataset: %s" % ts.human_readable_size(self.path.size))
+        l.info("Size of new dataset: %s" % ts.human_readable_size(self.path.size))
     Dataset.convert = convert
     
     def features(self, feature, output_format=None, dpi=200, multiclass=False, **kw):
@@ -247,7 +246,7 @@ class FilelessDataset(Dataset):
     Dataset.features = features
     
     @backup
-    def merge(self, name2=None, **kw):
+    def merge(self, name2=None, silent=False, **kw):
         """ Merge another dataset with the current one. """
         l = self.logger
         ds2 = Dataset(name2) if Dataset.check(name2) else FilelessDataset(name2)
@@ -256,12 +255,15 @@ class FilelessDataset(Dataset):
             l.error("Cannot merge %s and %s" % (cls1, cls2))
             return
         # add rows from the input dataset
-        l.info("Merging rows from %s into %s..." % (ds2.basename, self.basename))
-        pbar = tqdm(total=ds2._metadata['executables'], unit="executable")
+        getattr(l, ["info", "debug"][silent])("Merging rows from %s into %s..." % (ds2.basename, self.basename))
+        if not silent:
+            pbar = tqdm(total=ds2._metadata['executables'], unit="executable")
         for r in ds2:
             self[Executable(hash=r.hash, dataset=ds2, dataset2=self)] = r._row._asdict()
-            pbar.update()
-        pbar.close()
+            if not silent:
+                pbar.update()
+        if not silent:
+            pbar.close()
         # as the previous operation does not update categories and features, do it manually
         self._metadata.setdefault('categories', [])
         for category in ds2._metadata.get('categories', []):

@@ -48,7 +48,16 @@ class Executable(Base):
                 data.update(r)
             else:
                 data[name] = r
-        l = self._selection['post']
+        l = []
+        for f1 in self._selection['post']:
+            # handle f1 as exact feature name
+            if f1 in data.keys():
+                l.append(f1)
+                continue
+            # handle f1 as pattern
+            for f2 in data.keys():
+                if re.search(f1, f2, re.I):
+                    l.append(f2)
         return data if len(l) == 0 else {n: f for n, f in data.items() if n in l}
     
     @property
@@ -57,27 +66,32 @@ class Executable(Base):
     
     @property
     def selection(self):
-        l = self._selection['pre']
-        return self._features.copy() if len(l) == 0 else {n: f for n, f in self._features.items() if n in l}
+        l, d = self._selection['pre'], self._features
+        return d.copy() if len(l) == 0 else {n: f for n, f in d.items() if n in l}
     
     @selection.setter
     def selection(self, features):
+        self._selection = {'pre': [], 'post': []}
         if features is None:
             return
-        self._selection = {'pre': [], 'post': []}
         if not isinstance(features, (list, tuple)):
             features = [features]
-        if isinstance(features, (list, tuple)):
+        if isinstance(features, list):
             for f in features:
-                # this will filter groups of features before computation (e.g. "pefeats")
+                # this will filter out groups of features before computation (e.g. "pefeats")
                 if re.match(r"\{.*\}$", f):
                     self._selection['pre'].append(f[1:-1])
-                # this will filter features ones computed (e.g. "dll_characteristics_...", part of the "pefeats" group)
+                # this will filter features once computed (e.g. "dll_characteristics_...", part of the "pefeats" group)
                 else:
                     self._selection['post'].append(f)
         if hasattr(self, "data"):
+            # if all new features are included in the former data, just filter out
+            #  NB: by design, the following if condition does not handle patterns, meaning that when using them,
+            #       self.data will be deleted ; this is logical if we consider that patterns may match only a part of 
+            #       already existing data and then provide an incomplete result
             if all(f in self.data.keys() for f in self._selection['post']):
                 self.data = {k: v for k, v in self.data.items() if k in self._selection['post']}
+            # otherwise, reset the data attribute so that it is lazily recomputed at next call
             else:
                 del self.data
 
