@@ -8,14 +8,14 @@ __all__ = ["pefeats", "PEFEATS"]
 
 # features are in order of appearance in pefeats' output
 PEFEATS = __d = {}
-__d['dll_characteristics_1'] = "DLLs characteristics 1"
-__d['dll_characteristics_2'] = "DLLs characteristics 2"
-__d['dll_characteristics_3'] = "DLLs characteristics 3"
-__d['dll_characteristics_4'] = "DLLs characteristics 4"
-__d['dll_characteristics_5'] = "DLLs characteristics 5"
-__d['dll_characteristics_6'] = "DLLs characteristics 6"
-__d['dll_characteristics_7'] = "DLLs characteristics 7"
-__d['dll_characteristics_8'] = "DLLs characteristics 8"
+__d['dll_characteristics_1'] = "DLL characteristics 1 (dynamic base)"
+__d['dll_characteristics_2'] = "DLL characteristics 2 (force integrity)"
+__d['dll_characteristics_3'] = "DLL characteristics 3 (nx compat)"
+__d['dll_characteristics_4'] = "DLL characteristics 4 (no isolation)"
+__d['dll_characteristics_5'] = "DLL characteristics 5 (no SEH)"
+__d['dll_characteristics_6'] = "DLL characteristics 6 (no bind)"
+__d['dll_characteristics_7'] = "DLL characteristics 7 (WDM driver)"
+__d['dll_characteristics_8'] = "DLL characteristics 8 (terminal server aware)"
 __d['checksum'] = "Checksum"
 __d['image_base'] = "Image Base"
 __d['base_of_code'] = "Base of Code"
@@ -44,7 +44,7 @@ __d['x_section_is_not_code'] = "executable section is not a code section"
 __d['code_section_not_present'] = "code section is not present in the PE under analysis"
 __d['ep_not_in_code_section'] = "EP is not in the code section"
 __d['ep_not_in_standard_section'] = "EP is not in a standard section"
-__d['ep_not_x_section'] = "EP is not in an executable section"
+__d['ep_not_in_x_section'] = "EP is not in an executable section"
 __d['ep_ratio'] = "EP ratio between raw data and virtual size for the section of entry point"
 __d['number_sections_size_0'] = "number of sections having their physical size =0 (size on disk)"
 __d['number_sections_vsize>dsize'] = "number of sections having their virtual size greater than their raw data size"
@@ -134,7 +134,7 @@ __d['number_resources'] = "number of resources the PE holds"
 
 def pefeats(executable):
     """ This uses pefeats to extract 119 features from PE files. """
-    out, err, retc = run("pefeats \"%s\"" % executable)
+    out, err, retc = run("pefeats \'%s\'" % executable)
     if retc == 0:
         return {f: literal_eval(v) for f, v in zip(PEFEATS.keys(), out.decode().strip().split(",")[1:])}
 
