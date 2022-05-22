@@ -256,6 +256,7 @@ def make_registry(cls):
         variants, vilist = data.pop('variants', {}), []
         for vitem in variants.keys():
             vi = glob[vitem] = type(vitem, (cls, ), dict(cls.__dict__))
+            vi.parent = item
             vilist.append(vi)
         # now set attributes from YAML parameters
         for it in [i] + vilist:

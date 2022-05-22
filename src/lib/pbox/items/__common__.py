@@ -1,6 +1,6 @@
 # -*- coding: UTF-8 -*-
 from tinyscript import b, colored as _c, ensure_str, json, logging, os, random, re, shlex, subprocess, ts
-from tinyscript.helpers import execute_and_log as run, execute as run2, is_executable, is_file, is_folder, Path
+from tinyscript.helpers import execute_and_log as run, execute as run2, Path
 from tinyscript.report import *
 
 from ..common.config import config
@@ -602,15 +602,17 @@ class Base(Item):
         return ["not ", ""][b(self.name) in OS_COMMANDS] + "installed" if st is None else st
     
     @classmethod
-    def summary(cls, show=False, category="All", **kwargs):
+    def summary(cls, show=False, category="All", variants=False, **kwargs):
         """ Make a summary table for the given class. """
-        items = []
-        pheaders = ["Name", "Targets", "Status", "Source"]
+        items, pheaders = [], ["Name", "Targets", "Status", "Source"]
         n_ok, n, descr = 0, 0, {}
         for item in cls.registry:
             s, ic = item.status, expand_categories(*getattr(item, "categories", ["All"]))
-            if not show and s in STATUS_DISABLED or all(c not in expand_categories(category) for c in ic):
+            # check if item is enabled, if it applies to the selected categories and if it is a variant
+            if not show and (s in STATUS_DISABLED or item.is_variant()) or \
+               all(c not in expand_categories(category) for c in ic):
                 continue
+            # now, if keyword-arguments were given, exclude items that do not have the given values set
             _g = lambda attr: getattr(item, attr, "<empty>")
             if len(kwargs) > 0 and all(v not in [None, "All"] and \
                 (v not in _g(k) if isinstance(_g(k), list) else _g(k) != v) for k, v in kwargs.items()):

@@ -68,6 +68,11 @@ class Item:
             raise ValueError("'%s' is not defined" % item)
     
     @classmethod
+    def is_variant(cls):
+        """ Simple check for determining if the class is a variant of another class. """
+        return getattr(cls, "parent", None) is not None
+    
+    @classmethod
     def iteritems(cls):
         """ Class-level iterator for returning enabled items. """
         for i in cls.registry:
