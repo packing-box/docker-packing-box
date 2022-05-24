@@ -5,6 +5,17 @@ from bintropy.__info__ import __author__, __license__, __source__, __version__
 from pboxtools import *
 
 
+ARGS = [
+    [("-m", "--mode"), {'choices': [1, 2, 3], 'help': "mode of operation (0: full ; 1: per section, 2: per segment)"}],
+    [("-p", "--plot"), {'action': "store_true", 'help': "plot the entropy and sections"}],
+    [("--all-blocks", ), {'action': "store_true",
+                          'help': "consider all blocks, even those in which more than the half are zeros"}],
+    [("--blocksize", ), {'default': 256, 'type': int, 'help': "block size to be considered"}],
+    [("--threshold-average-entropy", ), {'default': 6.677, 'type': float, 'help': "threshold for the average entropy"}],
+    [("--threshold-highest-entropy", ), {'default': 7.199, 'type': float, 'help': "threshold for the highest entropy"}],
+]
+
+
 @version("Bintropy %s <%s> by %s\nLicensed under %s" % (__version__, __source__, __author__, __license__))
 @catch_exception
 def execute(name, **kwargs):
@@ -12,5 +23,5 @@ def execute(name, **kwargs):
 
 
 if __name__ == "__main__":
-    run("Bintropy", exec_func=execute, binary_only=True)
+    run("Bintropy", exec_func=execute, binary_only=True, parser_args=ARGS)
 
