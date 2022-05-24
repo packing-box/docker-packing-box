@@ -200,6 +200,8 @@ class Base(Item):
             md.append(Blockquote("**Note**: " + self.comment))
         md.append(Text("**Source**    : " + self.source))
         md.append(Text("**Applies to**: " + ", ".join(sorted(expand_categories(*self.categories, **{'once': True})))))
+        if getattr(self, "packers", None):
+            md.append(Text("**Can unpack**: " + ", ".join(self.packers)))
         for k, v in (extras or {}).items():
             md.append(Text("**%-10s**: " % k.capitalize() + v))
         if getattr(self, "references", None):
@@ -602,7 +604,7 @@ class Base(Item):
         return ["not ", ""][b(self.name) in OS_COMMANDS] + "installed" if st is None else st
     
     @classmethod
-    def summary(cls, show=False, category="All", variants=False, **kwargs):
+    def summary(cls, show=False, category="All", **kwargs):
         """ Make a summary table for the given class. """
         items, pheaders = [], ["Name", "Targets", "Status", "Source"]
         n_ok, n, descr = 0, 0, {}

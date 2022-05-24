@@ -8,7 +8,15 @@ Unipacker:
     - PE64
   description: Automatic and platform-independent unpacker for Windows binaries based on emulation.
   install:
-    - apt: unipacker
+    - pip: unipacker
+  packers:
+    - ASPack
+    - FSG
+    - MEW
+    - MPRESS
+    - PEtite
+    - UPX
+    - YZPack
   references: 
     - https://youtu.be/ee5_JUIEf8Q
     - https://www.usenix.org/conference/usenixsecurity21/presentation/downing
