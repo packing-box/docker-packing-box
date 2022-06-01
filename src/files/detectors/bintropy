@@ -1,12 +1,13 @@
 #!/usr/bin/python3
 # -*- coding: UTF-8 -*-
-from bintropy import bintropy
+from bintropy import bintropy, plot
 from bintropy.__info__ import __author__, __license__, __source__, __version__
 from pboxtools import *
 
 
 ARGS = [
-    [("-m", "--mode"), {'choices': [1, 2, 3], 'help': "mode of operation (0: full ; 1: per section, 2: per segment)"}],
+    [("-m", "--mode"), {'default': 0, 'choices': [0, 1, 2],
+                        'help': "mode of operation (0: full ; 1: per section, 2: per segment)"}],
     [("-p", "--plot"), {'action': "store_true", 'help': "plot the entropy and sections"}],
     [("--all-blocks", ), {'action': "store_true",
                           'help': "consider all blocks, even those in which more than the half are zeros"}],
@@ -19,7 +20,9 @@ ARGS = [
 @version("Bintropy %s <%s> by %s\nLicensed under %s" % (__version__, __source__, __author__, __license__))
 @catch_exception
 def execute(name, **kwargs):
-    return str(bintropy(kwargs['path'], logger=kwargs['logger']))
+    if kwargs['orig_args'].pop('plot'):
+        plot(kwargs['path'])
+    return str(bintropy(kwargs['path'], logger=kwargs['logger'], **kwargs['orig_args']))
 
 
 if __name__ == "__main__":
