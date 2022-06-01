@@ -42,7 +42,7 @@ def __add_folder(parser, alias=False, fmt=False):
     return parser
 
 
-def find_files(folder, pattern, selected=None, nbr_not_selected=None, display=False, force_display=False,
+def find_files(folder, pattern, selected=None, nbr_not_selected=None, display=False, force_display=False, remove=False,
                filter_selected=True):
     """ Find files matching the given filename pattern withing the specified folder. It uses subfolders' names as labels
          for categorizing the matching file.
@@ -134,14 +134,16 @@ def find_files(folder, pattern, selected=None, nbr_not_selected=None, display=Fa
         if disp:
             file += " (%d/%d)" % (n_good, len_al)
         (logger.info if disp else logger.debug)(file)
-        for label, state in labels.items():
+        for label, found in labels.items():
             l = LABELS.get(label, label)
             if display:
-                (logger.success if state else logger.failure)(l)
+                (logger.success if found else logger.failure)(l)
         n += 1
     if filter_selected:
         nfiles = {}
         for file, data in files.items():
+            if remove:
+                logger.info(file)
             ndata = {'files': [], 'labels': []}
             for label in selected:
                 try:
@@ -149,7 +151,7 @@ def find_files(folder, pattern, selected=None, nbr_not_selected=None, display=Fa
                     ndata['labels'].append(label)
                 except ValueError:
                     logger.warning("label '%s' not found" % label)
-            nfiles = {file: ndata}
+            nfiles[file] = ndata
         files = nfiles
     if n == 0:
         logger.warning("No match")
@@ -205,8 +207,8 @@ if __name__ == "__main__":
             bintropy.plot(*files, img_name=imgn, labels=labels, sublabel="size-ep-ent", scale=args.scale, logger=logger)
     elif args.command == "remove":
         logger.info("Removing" + msg)
-        for data in find_files(*ff_args).values():
-            if ts.confirm():
+        for file, data in find_files(*ff_args, remove=True).items():
+            if ts.confirm("Remove '%s' ?" % file):
                 for f in data['files']:
                     f.remove()
 

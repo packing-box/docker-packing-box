@@ -198,7 +198,7 @@ def run(name, exec_func=execute, parse_func=lambda x, **kw: x, stderr_func=lambd
     a.logger.setLevel([logging.INFO, logging.DEBUG][a.verbose])
     p = a.path = abspath(getattr(a, exe_type))
     if getattr(a, exe_type) != "DOESNOTEXIST" and not exists(p):
-        print("[ERROR] file not found")
+        a.logger.error("file not found")
         exit(1)
     # load related dictionaries
     DETECTORS_FILE = a.detectors_file
