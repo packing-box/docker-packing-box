@@ -1,0 +1,42 @@
+#!/usr/bin/python3
+# -*- coding: UTF-8 -*-
+import logging
+import os
+from argparse import ArgumentParser, RawTextHelpFormatter
+from subprocess import Popen, PIPE
+from sys import exit
+
+
+def entropy(filename):
+    p = Popen(["ent", filename], stdout=PIPE, stderr=PIPE)
+    out, _ = p.communicate()
+    return float(out.splitlines()[0].split()[2])
+
+
+if __name__ == '__main__':
+    parser = ArgumentParser(formatter_class=RawTextHelpFormatter, add_help=False)
+    parser.add_argument("target", help="target file or folder")
+    parser.add_argument("-t", "--threshold", default=7., type=float, help="entropy threshold")
+    extra = parser.add_argument_group("extra arguments")
+    extra.add_argument("-h", "--help", action="help", help="show this help message and exit")
+    extra.add_argument("-v", "--verbose", action="store_true", help="display debug information")
+    a = parser.parse_args()
+    logging.basicConfig(format="[%(levelname)s] %(message)s")
+    a.logger = logging.getLogger()
+    a.logger.setLevel([logging.INFO, logging.DEBUG][a.verbose])
+    if os.path.isdir(a.target):
+        for root, dirs, files in os.walk(a.target):
+            for f in files:
+                f = os.path.join(root, f)
+                e = entropy(f)
+                m = "%.02f\t%s" % (e, f)
+                [a.logger.debug, print][e > a.threshold](m)
+    elif os.path.isfile(a.target):
+        f = a.target
+        e = entropy(f)
+        m = "%.02f\t%s" % (e, f)
+        [a.logger.debug, print][e > a.threshold](m)
+    else:
+        a.logger.error("bad target")
+        exit(1)
+
