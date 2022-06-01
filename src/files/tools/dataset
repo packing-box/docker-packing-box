@@ -19,15 +19,15 @@ __examples__    = [
     "features my-dataset byte_0_after_ep byte_1_after_ep",
     "features my-dataset number_resources --output-format png",
     "list --show-all",
-    "make my-dataset -c ELF -n 500 --source-dir /path/to/dotnet/exe",
-    "make my-dataset -c PE,ELF -n 2000",
+    "make my-dataset -f ELF -n 500 --source-dir /path/to/dotnet/exe",
+    "make my-dataset -f PE,ELF -n 2000",
     "merge my-dataset dataset-to-be-merged",
     "select my-dataset my-new-dataset --query \"label == 'upx'\"",
-    "show my-dataset --per-category --limit 20",
+    "show my-dataset --per-format --limit 20",
     "update my-dataset --detect --refresh -s /path1/to/exe -s /path2/to/exe",
     "update my-dataset --source-dir /path/to/exe --labels /path/to/exe/labels.json",
     "view my-dataset --query \"ctime > 2020\"",
-    "view my-dataset --query \"'PE32' in category\"",
+    "view my-dataset --query \"'PE32' in format\"",
 ]
 __description__ = "Make datasets of packed and not packed executables for use with Machine Learning"
 
@@ -78,8 +78,7 @@ if __name__ == '__main__':
     make_.add_argument("-a", "--pack-all", action="store_true", help="pack all executables")
     make_.add_argument("-b", "--balance", action="store_true", help="balance the dataset relatively to the number of "
                                                                     "packers used, not between packed and not packed")
-    make.add_argument("-c", "--categories", type=ts.values_list, default="All",
-                      help="list of categories to be considered")
+    make.add_argument("-f", "--formats", type=ts.values_list, default="All", help="list of formats to be considered")
     make.add_argument("-n", "--number", dest="n", type=ts.pos_int, default=100,
                       help="number of executables for the output dataset")
     make.add_argument("-p", "--packer", action="extend", nargs="*", type=lambda p: Packer.get(p),
@@ -101,8 +100,8 @@ if __name__ == '__main__':
     select.add_argument("-q", "--query", help="query for selecting records to be selected",
                         note="see <https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.query.html>")
     show = __add_name(sparsers.add_parser("show", help="get an overview of the dataset"))
-    show.add_argument("-l", "--limit", default=10, type=int, help="number of executables to be displayed per category")
-    show.add_argument("--per-category", action="store_true", help="display statistics per category")
+    show.add_argument("-l", "--limit", default=10, type=int, help="number of executables to be displayed per format")
+    show.add_argument("--per-format", action="store_true", help="display statistics per format")
     update = __add_name(sparsers.add_parser("update", help="update a dataset with new executables"), True)
     ugroup = update.add_mutually_exclusive_group()
     ugroup.add_argument("-d", "--detect", action="store_true", help="detect used packer with installed detectors")
@@ -116,7 +115,7 @@ if __name__ == '__main__':
     initialize(noargs_action="help")
     logger.name = "dataset"
     logging.configLogger(logger, ["INFO", "DEBUG"][args.verbose], fmt=LOG_FORMATS[args.verbose], relative=True)
-    name, args.load = getattr(args, "name", None), args.command != "list"
+    name, args.load = getattr(args, "name", None), args.command not in ["list", "purge"]
     if args.command == "purge" and name == "all":
         purged = False
         for ds in Dataset.iteritems():

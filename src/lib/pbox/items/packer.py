@@ -36,7 +36,7 @@ class Packer(Base):
     """
     def help(self):
         try:
-            return super(Packer, self).help({'families': ",".join(self.families)})
+            return super(Packer, self).help({'categories': ",".join(self.categories)})
         except AttributeError:
             return super(Packer, self).help()
     
@@ -49,13 +49,20 @@ class Packer(Base):
         if not self._check(exe):
             return (None, False) if include_hash else False
         # now pack the input executable, taking its SHA256 in order to check for changes
-        h, self._error = exe.hash, None
+        h, self._error, self._bad = exe.hash, None, False
         label = self.run(exe, **kwargs)
         exe.hash = hashlib.sha256_file(str(exe))
+        # if "unmanaged" error, recover from it, without affecting the packer's state ;
+        #  Rationale: packer's errors shall be managed beforehand by testing with 'packing-box test packer ...' and its
+        #             settings shall be fine-tuned BEFORE making datasets ; "unmanaged" errors should thus not occur
         if self._error:
             err = self._error.replace(str(exe) + ": ", "").replace(self.name + ": ", "").strip()
             self.logger.debug("not packed (%s)" % err)
             return (h, None) if include_hash else None
+        # frequent behaviors ;
+        # if packed file's hash was not changed OR a custom failure condition from the packer's definition is met,
+        #  then change packer's state to "BAD" ; this will trigger a count at the dataset level and disable the packer
+        #  if it triggers too many failures
         elif any(getattr(exe, a, None) == v for a, v in getattr(self, "failure", {}).items()) or h == exe.hash:
             if h == exe.hash:
                 self.logger.debug("not packed (content not changed)")

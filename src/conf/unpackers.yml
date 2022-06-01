@@ -3,10 +3,10 @@ GZEXE:
   status: ok
 
 Unipacker:
-  categories:
+  description: Automatic and platform-independent unpacker for Windows binaries based on emulation.
+  formats:
     - PE32
     - PE64
-  description: Automatic and platform-independent unpacker for Windows binaries based on emulation.
   install:
     - pip: unipacker
   packers:

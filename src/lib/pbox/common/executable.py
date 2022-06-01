@@ -17,7 +17,7 @@ class Executable(Path):
     (2) dataset-bound (its data is used to populate attributes based on the executable's hash)
     (3) dataset-bound, with a new destination dataset
     """
-    FIELDS = ["realpath", "category", "filetype", "size", "ctime", "mtime"]
+    FIELDS = ["realpath", "filetype", "format", "size", "ctime", "mtime"]
     HASH = "sha256"  # possible values: hashlib.algorithms_available
     # NB: the best signature matched is the longest
     SIGNATURES = {
@@ -97,14 +97,6 @@ class Executable(Path):
         return {n: getattr(self, n) for n in Executable.FIELDS}
     
     @cached_property
-    def category(self):
-        best_fmt, l = None, 0
-        for ftype, fmt in Executable.SIGNATURES.items():
-            if len(ftype) > l and is_filetype(str(self), ftype):
-                best_fmt, l = fmt, len(ftype)
-        return best_fmt
-    
-    @cached_property
     def ctime(self):
         return datetime.fromtimestamp(self.stat().st_ctime)
     
@@ -124,6 +116,14 @@ class Executable(Path):
             return from_file(str(self))
         except OSError:
             return
+    
+    @cached_property
+    def format(self):
+        best_fmt, l = None, 0
+        for ftype, fmt in Executable.SIGNATURES.items():
+            if len(ftype) > l and is_filetype(str(self), ftype):
+                best_fmt, l = fmt, len(ftype)
+        return best_fmt
     
     @cached_property
     def hash(self):

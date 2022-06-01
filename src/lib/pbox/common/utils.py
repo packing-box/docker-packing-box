@@ -14,12 +14,12 @@ except ImportError:
 from .config import config
 
 
-__all__ = ["aggregate_categories", "backup", "benchmark", "class_or_instance_method", "collapse_categories",
-           "edit_file", "expand_categories", "file_or_folder_or_dataset", "highlight_best", "make_registry", "mdv",
-           "metrics", "shorten_str", "CATEGORIES", "PERF_HEADERS"]
+__all__ = ["aggregate_formats", "backup", "benchmark", "class_or_instance_method", "collapse_formats",
+           "edit_file", "expand_formats", "file_or_folder_or_dataset", "highlight_best", "make_registry", "mdv",
+           "metrics", "shorten_str", "FORMATS", "PERF_HEADERS"]
 
 
-CATEGORIES = {
+FORMATS = {
     'All':    ["ELF", "Mach-O", "MSDOS", "PE"],
     'ELF':    ["ELF32", "ELF64"],
     'Mach-O': ["Mach-O32", "Mach-O64", "Mach-Ou"],
@@ -40,15 +40,15 @@ PERF_HEADERS = {
 bold = lambda text: "\033[1m{}\033[0m".format(text)
 
 
-def aggregate_categories(*categories, **kw):
-    """ Aggregate the given input categories. """
+def aggregate_formats(*formats, **kw):
+    """ Aggregate the given input formats. """
     l = []
-    for c in categories:
+    for c in formats:
         if isinstance(c, (list, tuple)):
-            l.extend(expand_categories(*c))
+            l.extend(expand_formats(*c))
         else:
             l.append(c)
-    return collapse_categories(*set(l)) if kw.get('collapse', False) else list(set(l))
+    return collapse_formats(*set(l)) if kw.get('collapse', False) else list(set(l))
 
 
 def backup(f):
@@ -70,27 +70,27 @@ def benchmark(f):
     return _wrapper
 
 
-def collapse_categories(*categories, **kw):
-    """ 2-depth dictionary-based collapsing function for getting a short list of executable categories. """
+def collapse_formats(*formats, **kw):
+    """ 2-depth dictionary-based collapsing function for getting a short list of executable formats. """
     # also support list input argument
-    if len(categories) == 1 and isinstance(categories[0], (tuple, list)):
-        categories = categories[0]
-    selected = [x for x in categories]
-    groups = [k for k in CATEGORIES.keys() if k != "All"]
+    if len(formats) == 1 and isinstance(formats[0], (tuple, list)):
+        formats = formats[0]
+    selected = [x for x in formats]
+    groups = [k for k in FORMATS.keys() if k != "All"]
     for c in groups:
-        # if a complete group of categories (PE, ELF, Mach-O) is included, only keep the entire group
-        if all(x in selected for x in CATEGORIES[c]):
-            for x in CATEGORIES[c]:
+        # if a complete group of formats (PE, ELF, Mach-O) is included, only keep the entire group
+        if all(x in selected for x in FORMATS[c]):
+            for x in FORMATS[c]:
                 selected.remove(x)
             selected.append(c)
     # ensure children of complete groups are removed
     for c in selected[:]:
         if c in groups:
             for sc in selected:
-                if sc in CATEGORIES[c]:
+                if sc in FORMATS[c]:
                     selected.remove(sc)
     # if everything in the special group 'All' is included, simply select only 'All'
-    if all(x in selected for x in CATEGORIES['All']):
+    if all(x in selected for x in FORMATS['All']):
         selected = ["All"]
     return list(set(selected))
 
@@ -104,15 +104,15 @@ def edit_file(path, csv_sep=";", **kw):
     subprocess.call(cmd, stderr=subprocess.PIPE, shell=True, **kw)
 
 
-def expand_categories(*categories, **kw):
-    """ 2-depth dictionary-based expansion function for resolving a list of executable categories. """
+def expand_formats(*formats, **kw):
+    """ 2-depth dictionary-based expansion function for resolving a list of executable formats. """
     selected = []
-    for c in categories:                    # depth 1: e.g. All => ELF,PE OR ELF => ELF32,ELF64
-        for sc in CATEGORIES.get(c, [c]):   # depth 2: e.g. ELF => ELF32,ELF64
+    for c in formats:                    # depth 1: e.g. All => ELF,PE OR ELF => ELF32,ELF64
+        for sc in FORMATS.get(c, [c]):   # depth 2: e.g. ELF => ELF32,ELF64
             if kw.get('once', False):
                 selected.append(sc)
             else:
-                for ssc in CATEGORIES.get(sc, [sc]):
+                for ssc in FORMATS.get(sc, [sc]):
                     if ssc not in selected:
                         selected.append(ssc)
     return selected

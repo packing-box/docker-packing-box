@@ -23,7 +23,7 @@ This Docker image is a ready-to-use platform for making datasets of packed and n
 """
 
 
-def overview(show=False, category=None, family=None, keep=None):
+def overview(show=False, format=None, category=None, keep=None):
     """ Display an overview of tools, detectors, packers, unpackers and datasets. """
     report, n = Report(Text(TEMPLATE)), 0
     if keep is None:
@@ -42,7 +42,7 @@ def overview(show=False, category=None, family=None, keep=None):
         report.append(Section("Tools (%d)" % len(tools)), Table(tools, column_headers=tools_headers))
     descr = {}
     for cls in ([Detector, Packer, Unpacker] if keep is None else [globals()[keep[:-1].capitalize()]]):
-        r, d = cls.summary(show, category, **({'families': family} if cls is Packer else {}))
+        r, d = cls.summary(show, format, **({'categories': category} if cls is Packer else {}))
         if cls is Detector:
             table, cols = r[1], ["Multiclass", "Weak Mode", "Superdetector"]
             for col in cols:
@@ -66,8 +66,8 @@ def overview(show=False, category=None, family=None, keep=None):
 
 if __name__ == '__main__':
     megs = [parser.add_mutually_exclusive_group() for i in range(4)]
-    megs[0].add_argument("-c", "--category", default="All", help="filter on a category of executables")
-    megs[1].add_argument("-f", "--family", default="All", help="filter on a family of packers")
+    megs[0].add_argument("-c", "--category", default="All", help="filter on a category of packers")
+    megs[1].add_argument("-f", "--format", default="All", help="filter on a format of executables")
     for i in range(4):
         megs[i].add_argument("-i", "--item", help="get help for a particular detector, packer or unpacker")
     megs[2].add_argument("-k", "--keep", choices=["detectors", "packers", "unpackers"],
@@ -77,7 +77,7 @@ if __name__ == '__main__':
     logger.name = "help"
     logging.configLogger(logger, ["INFO", "DEBUG"][args.verbose], fmt=LOG_FORMATS[args.verbose], relative=True)
     if args.item is None:
-        print(mdv.main(overview(args.show_all, args.category, args.family, args.keep)))
+        print(mdv.main(overview(args.show_all, args.format, args.category, args.keep)))
     else:
         subcls = None
         for cls in [Detector, Packer, Unpacker]:

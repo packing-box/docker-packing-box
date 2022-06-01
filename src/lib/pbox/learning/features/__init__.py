@@ -5,7 +5,7 @@ from tinyscript.helpers import entropy
 from .elf import *
 from .pe import *
 from .transformers import *
-from ...common.utils import expand_categories, CATEGORIES
+from ...common.utils import expand_formats, FORMATS
 
 
 __all__ = ["Features", "FEATURE_DESCRIPTIONS", "FEATURE_TRANSFORMERS"]
@@ -21,8 +21,6 @@ FEATURE_DESCRIPTIONS.update(PEFEATS)
 FEATURE_TRANSFORMERS = {c: {sk: v for k, v in d.items() for sk in (filter(lambda x: re.search(k, x, re.I),
                             FEATURE_DESCRIPTIONS.keys()) if isinstance(k, str) else [sk])} \
                         for c, d in FEATURE_TRANSFORMERS.items()}
-from pprint import pprint
-pprint(FEATURE_TRANSFORMERS)
 FEATURES = {
     'All': {
         'entropy': lambda exe: entropy(exe.read_bytes()),
@@ -40,14 +38,14 @@ FEATURES = {
 
 
 class Features(dict):
-    """ This class represents the dictionary of features valid for a given list of executable categories. """
-    def __init__(self, *categories, **kw):
-        categories = expand_categories(*categories)
+    """ This class represents the dictionary of features valid for a given list of executable formats. """
+    def __init__(self, *formats, **kw):
+        formats = expand_formats(*formats)
         # consider most specific features first, then intermediate classes and finally the collapsed class "All"
-        l, names = list(CATEGORIES.keys()), []
-        for clist in [expand_categories("All"), l[1:], [l[0]]]:
+        l, names = list(FORMATS.keys()), []
+        for clist in [expand_formats("All"), l[1:], [l[0]]]:
             for c in clist:
-                if any(c2 in expand_categories(c) for c2 in categories):
+                if any(c2 in expand_formats(c) for c2 in formats):
                     for name, func in FEATURES.get(c, {}).items():
                         self[name] = func
 

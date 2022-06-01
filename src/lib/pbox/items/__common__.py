@@ -92,7 +92,7 @@ class Base(Item):
     """ Base item abstraction, for defining the common machinery for Detector, Packer and Unpacker.
     
     Instance methods:
-      .check(*categories) [bool]
+      .check(*formats) [bool]
       .help() [str]
       .run(executable, **kwargs) [str|(str,time)]
       .setup(**kwargs)
@@ -106,7 +106,7 @@ class Base(Item):
     
     def __init__(self):
         super(Base, self).__init__()
-        self._categories_exp = expand_categories(*self.categories)
+        self._formats_exp = expand_formats(*self.formats)
         self._bad = False
         self._error = None
         self._params = {}
@@ -115,19 +115,19 @@ class Base(Item):
     @update_logger
     def _check(self, exe, silent=False):
         """ Check if the given executable can be processed by this item. """
-        c = exe.category
+        fmt = exe.format
         exe = Executable(exe)
         ext = exe.extension[1:]
         exc = getattr(self, "exclude", [])
         if isinstance(exc, dict):
             l = []
             for k, v in exc.items():
-                if c in expand_categories(k):
+                if fmt in expand_formats(k):
                     l.extend(v)
             exc = list(set(l))
-        if c not in self._categories_exp:
+        if fmt not in self._formats_exp:
             if not silent:
-                self.logger.debug("does not handle %s executables" % c)
+                self.logger.debug("does not handle %s executables" % fmt)
             return False
         for p in exc:
             if isinstance(p, dict):
@@ -177,14 +177,14 @@ class Base(Item):
             self.logger.info("Testing %s..." % self.cname)
         return True
     
-    def check(self, *categories, **kwargs):
-        """ Checks if the current item is applicable to the given categories. """
+    def check(self, *formats, **kwargs):
+        """ Checks if the current item is applicable to the given formats. """
         silent = kwargs.get('silent', True)
         if self.status == "ok":
-            if any(c in self._categories_exp for c in expand_categories(*(categories or ["All"]))):
+            if any(c in self._formats_exp for c in expand_formats(*(formats or ["All"]))):
                 return True
             if not silent:
-                self.logger.debug("does not apply to the selected categories")
+                self.logger.debug("does not apply to the selected formats")
             return False
         if not silent:
             self.logger.warning("%s disabled" % self.name)
@@ -199,7 +199,7 @@ class Base(Item):
         if getattr(self, "comment", None):
             md.append(Blockquote("**Note**: " + self.comment))
         md.append(Text("**Source**    : " + self.source))
-        md.append(Text("**Applies to**: " + ", ".join(sorted(expand_categories(*self.categories, **{'once': True})))))
+        md.append(Text("**Applies to**: " + ", ".join(sorted(expand_formats(*self.formats, **{'once': True})))))
         if getattr(self, "packers", None):
             md.append(Text("**Can unpack**: " + ", ".join(self.packers)))
         for k, v in (extras or {}).items():
@@ -567,15 +567,15 @@ class Base(Item):
         if not self._test(kw.pop('silent', False)):
             return
         d = ts.TempPath(prefix="%s-tests-" % self.type, length=8)
-        for category in self._categories_exp:
+        for fmt in self._formats_exp:
             hl = []
             if files:
-                l = [f for f in files if Executable(f).category in self._categories_exp]
+                l = [f for f in files if Executable(f).format in self._formats_exp]
             else:
-                l = TEST_FILES.get(category, [])
+                l = TEST_FILES.get(fmt, [])
             if len(l) == 0:
                 continue
-            self.logger.info(category)
+            self.logger.info(fmt)
             for exe in l:
                 exe = Executable(exe)
                 if not self._check(exe):
@@ -604,15 +604,15 @@ class Base(Item):
         return ["not ", ""][b(self.name) in OS_COMMANDS] + "installed" if st is None else st
     
     @classmethod
-    def summary(cls, show=False, category="All", **kwargs):
+    def summary(cls, show=False, format="All", **kwargs):
         """ Make a summary table for the given class. """
         items, pheaders = [], ["Name", "Targets", "Status", "Source"]
         n_ok, n, descr = 0, 0, {}
         for item in cls.registry:
-            s, ic = item.status, expand_categories(*getattr(item, "categories", ["All"]))
-            # check if item is enabled, if it applies to the selected categories and if it is a variant
+            s, ic = item.status, expand_formats(*getattr(item, "formats", ["All"]))
+            # check if item is enabled, if it applies to the selected formats and if it is a variant
             if not show and (s in STATUS_DISABLED or item.is_variant()) or \
-               all(c not in expand_categories(category) for c in ic):
+               all(c not in expand_formats(format) for c in ic):
                 continue
             # now, if keyword-arguments were given, exclude items that do not have the given values set
             _g = lambda attr: getattr(item, attr, "<empty>")
@@ -628,7 +628,7 @@ class Base(Item):
                 n_ok += 1
             items.append([
                 item.cname,
-                ",".join(collapse_categories(*expand_categories(*item.categories))),
+                ",".join(collapse_formats(*expand_formats(*item.formats))),
                 STATUS[item.status],
                 "<%s>" % item.source,
             ])

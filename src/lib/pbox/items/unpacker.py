@@ -23,8 +23,8 @@ class Unpacker(Base):
              execution. """
         # check: is this unpacker able to process the input executable ?
         exe = Executable(executable)
-        if exe.category not in self._categories_exp or \
-           exe.extension[1:] in getattr(self, "exclude", {}).get(exe.category, []):
+        if exe.format not in self._formats_exp or \
+           exe.extension[1:] in getattr(self, "exclude", {}).get(exe.format, []):
             return False
         # now unpack the input executable, taking its SHA256 in order to check for changes
         s256 = hashlib.sha256_file(str(exe))

@@ -15,26 +15,33 @@ class Executable(Base):
     _features = {}
     
     def __new__(cls, *parts, **kwargs):
-        fields = Executable.FIELDS + ["hash", "label", "Index"]
         self = super(Executable, cls).__new__(cls, *parts, **kwargs)
         self._selection, self.transform = {'pre': [], 'post': []}, kwargs.get("transform")
-        if hasattr(self, "_dataset"):
-            with suppress(AttributeError, IndexError): # Attr => 'hash' column missing ; Index => exe does not exist yet
-                d = self._dataset._data[self._dataset._data.hash == self.hash].iloc[0].to_dict()
-                f = {a: v for a, v in d.items() if a not in fields if str(v) != "nan"}
-                if len(f) > 0:
-                    setattr(self, "data", f)
-                    self.selection = list(f.keys())
+        self.__getdata()
         return self
+    
+    def __delattr_(self, name):
+        if name in ["rawdata", "data"] and hasattr(self, "_dataset") and not self._dataset._files:
+            self.__getdata()
     
     def __getattribute__(self, name):
         if name == "_features":
             # populate Executable._features with the relevant set of features and their related functions
-            fset = Executable._features.get(self.category)
+            fset = Executable._features.get(self.format)
             if fset is None:
-                Executable._features[self.category] = fset = Features(self.category)
+                Executable._features[self.format] = fset = Features(self.format)
             return fset
         return super(Executable, self).__getattribute__(name)
+    
+    def __getdata(self):
+        if hasattr(self, "_dataset"):
+            fields = Executable.FIELDS + ["hash", "label", "Index"]
+            with suppress(AttributeError, IndexError): # Attr => 'hash' column missing ; Index => exe does not exist yet
+                d = self._dataset._data[self._dataset._data.hash == self.hash].iloc[0].to_dict()
+                f = {a: v for a, v in d.items() if a not in fields if str(v) != "nan"}
+                if len(f) > 0:
+                    setattr(self, "rawdata", f)
+                    self.selection = list(f.keys())
     
     @cached_property
     def data(self):
@@ -48,10 +55,12 @@ class Executable(Base):
                     v = int(v)
                 data[n] = v
         # define a private function for handling lambda functions in dictionaries
+        # this supports multiple formats ; rule of thumb: when a value is a tuple (lambda, str), it is mapped to 
+        #  a transform lambda function and a description for the FEATURE_DESCRIPTIONS dictionary
         def __transform(features, values):
             if isinstance(features, tuple) and len(features) == 2:
                 features, descr = features
-                FEATURE_DESCRIPTIONS[name] = descr
+                FEATURE_DESCRIPTIONS[features] = descr
             if isinstance(features, dict):
                 for subname, subvalue in features.items():
                     if isinstance(subvalue, tuple) and len(subvalue) == 2:
@@ -73,10 +82,10 @@ class Executable(Base):
                 if name in trans:
                     _processed.append(name)
                     __transform(trans.get(name, value), (value, ))
-                # if no transformer, simply assign the base value
-                else:
+                else:  # if no transformer, simply assign the base value
                     data[name] = value
             # handle combinations
+            # format: (f1, f2, ...): {new_f1: (lambda_f1, descr1), ...}
             for combo, features in trans.items():
                 if not isinstance(combo, tuple):
                     continue

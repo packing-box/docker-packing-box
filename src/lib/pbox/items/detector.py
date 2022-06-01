@@ -19,16 +19,16 @@ class Detector(Base):
       .detect(executable, multiclass, **kwargs) [str]
     
     Overloaded methods:
-      .check(*categories, **kwargs)
+      .check(*formats, **kwargs)
       .test(executable, multiclass, **kwargs)
     """
     use_output = True
     
-    def check(self, *categories, **kwargs):
-        """ Checks if the current item is applicable to the given categories. """
+    def check(self, *formats, **kwargs):
+        """ Checks if the current item is applicable to the given formats. """
         d_mc, i_mc = getattr(self, "multiclass", True), kwargs.pop('multiclass')
         vote, chk_vote = getattr(self, "vote", True), kwargs.pop('vote', True)
-        if super(Detector, self).check(*categories, **kwargs):
+        if super(Detector, self).check(*formats, **kwargs):
             # detector can be disabled either because it cannot vote or because it is not multiclass and detection was
             #  requested as multiclass (note that, on the other side, a multiclass-capable detector shall always be
             #  able to output a non-multiclass result (no packer label becomes False, otherwise True)
@@ -57,7 +57,7 @@ class Detector(Base):
         actual_label = [(), (l if multiclass else l is not None, )]['label' in kwargs]
         if isinstance(self, type):
             registry = [d for d in kwargs.get('select', Detector.registry) \
-                        if d.check(Executable(executable).category, multiclass=multiclass, **kwargs)]
+                        if d.check(Executable(executable).format, multiclass=multiclass, **kwargs)]
             l, t = len(registry), kwargs.get('threshold', THRESHOLD) or THRESHOLD
             t = t(l) if isinstance(t, type(lambda: 0)) else t
             if not 0 < t <= l:
@@ -87,8 +87,8 @@ class Detector(Base):
             return r
         else:
             e = executable if isinstance(executable, Executable) else Executable(executable)
-            if not self.check(e.category, multiclass=multiclass, vote=False, **kwargs) or \
-               e.extension[1:] in getattr(self, "exclude", {}).get(e.category, []):
+            if not self.check(e.format, multiclass=multiclass, vote=False, **kwargs) or \
+               e.extension[1:] in getattr(self, "exclude", {}).get(e.format, []):
                 return -1
             # try to detect a packer on the input executable
             label = self.run(e, **kwargs)

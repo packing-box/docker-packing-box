@@ -1,6 +1,9 @@
 # -*- coding: UTF-8 -*-
 import matplotlib.pyplot
+import pandas
 import plotext
+from sklearn.covariance import empirical_covariance
+from sklearn.preprocessing import StandardScaler
 from textwrap import wrap
 from tinyscript import code, colored, itertools, ts
 from tinyscript.helpers import ansi_seq_strip, get_terminal_size, ints2hex, is_executable, txt2bold, Path
@@ -114,7 +117,7 @@ class FilelessDataset(Dataset):
             h = exe.basename
             self._features.update(exe.features)
             d = self[exe.hash, True]
-            d.update(exe.data)
+            d.update(exe.rawdata)
             self[exe.hash] = (d, True)  # True: force updating the row
             pbar.update()
         pbar.close()
@@ -129,16 +132,18 @@ class FilelessDataset(Dataset):
         l.info("Size of new dataset: %s" % ts.human_readable_size(self.path.size))
     Dataset.convert = convert
     
-    def features(self, feature, output_format=None, dpi=200, multiclass=False, **kw):
+    def features(self, feature, output_format=None, dpi=200, multiclass=False, raw=True, **kw):
         """ Plot the distribution of the given feature. """
         l = self.logger
         if not isinstance(feature, (tuple, list)):
             feature = [feature]
         l.info("Counting values for feature%s %s..." % (["", "s"][len(feature) > 1], ", ".join(feature)))
         # start counting, keeping 'Not packed' counts separate (to prevent it from being sorted with others)
-        counts_np, counts, labels = {}, {}, []
+        counts_np, counts, labels, data = {}, {}, [], pandas.DataFrame()
         for exe in self._iter_with_features(feature):
-            v = tuple(exe.data[f] for f in feature)
+            exe_data = getattr(exe, ["data", "rawdata"][raw])
+            data = data.append(exe_data, ignore_index=True)
+            v = tuple(exe_data[f] for f in feature)
             counts_np.setdefault(v, 0)
             counts.setdefault(v, {} if multiclass else {'Packed': 0})
             lbl = str(exe.label)
@@ -152,6 +157,17 @@ class FilelessDataset(Dataset):
                     labels.append(lbl)
             else:
                 counts[v]['Packed'] += 1
+        data = StandardScaler().fit_transform(data)
+        # compute variance and covariance (if multiple features)
+        cov_matrix = empirical_covariance(data)
+        if len(feature) > 1:
+            var = "Variances:\n- " + "\n- ".join("%s: %.03f" % (f, cov_matrix[i][i]) for i, f in enumerate(feature))
+            covar = "Covariances:\n"
+            for i in range(len(cov_matrix)):
+                for j in range(i + 1, len(cov_matrix)):
+                    covar += "- %s / %s: %.03f\n" % (feature[i], feature[j], cov_matrix[i][j])
+        else:
+            var = "Variance: %.03f" % cov_matrix[0][0]
         # be sure to have values for every label (it was indeed not seen if 0, so set the default value)
         for v, d in counts.items():
             if multiclass:
@@ -225,6 +241,9 @@ class FilelessDataset(Dataset):
             # manually make the legend
             leg = (8 * " ").join(colored("██ %s" % n, c) for n, c in zip(labels, cmap))
             print("\n" + leg.center(width + (len(leg) - len(ansi_seq_strip(leg)))))
+            print("\n" + var)
+            if len(feature) > 1:
+                print("\n" + covar)
         else:
             font = {'color': "lightgray", 'size': 10}
             yticks = [str(k[0]) if isinstance(k, (tuple, list)) and len(k) == 1 else str(k) \
@@ -264,11 +283,11 @@ class FilelessDataset(Dataset):
                 pbar.update()
         if not silent:
             pbar.close()
-        # as the previous operation does not update categories and features, do it manually
-        self._metadata.setdefault('categories', [])
-        for category in ds2._metadata.get('categories', []):
-            if category not in self._metadata['categories']:
-                self._metadata['categories'].append(category)
+        # as the previous operation does not update formats and features, do it manually
+        self._metadata.setdefault('formats', [])
+        for fmt in ds2._metadata.get('formats', []):
+            if fmt not in self._metadata['formats']:
+                self._metadata['formats'].append(fmt)
         self._metadata['counts'] = self._data.label.value_counts().to_dict()
         self._metadata['executables'] = len(self)
         self._metadata.setdefault('sources', [])
