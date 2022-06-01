@@ -5,7 +5,8 @@ is_get    = lambda f: lambda x: x >= f
 is_let    = lambda f: lambda x: x <= f
 is_mult   = lambda i: lambda x: x % i == 0
 is_not_in = lambda *v: lambda x: x not in v
-is_null   = lambda x: x == 0
+is_not_0  = lambda x: x != 0
+is_0      = lambda x: x == 0
 is_within = lambda v1, v2: lambda x: v1 <= x <= v2
 
 
@@ -17,6 +18,14 @@ FEATURE_TRANSFORMERS = {
             lambda x: -1 if x % 0x1000 != 0 else x / 0x1000,
             "Base of Code (reduced to its multiplier of 0x1000 ; -1 means it is not a multiplier)"
         ),
+        # see: https://docs.microsoft.com/en-us/windows/win32/debug/pe-format
+        #  Windows CE: 0x00010000 ; other Windows: 0x00400000 ; DLL: 0x10000000
+        r'^image_base$': {
+            'is_image_base_standard': (
+                is_in(0x10000, 0x400000, 0x10000000),
+                "Is the ImageBase standard (Windows CE: 0x10000, other Windows PE: 0x400000, DLL: 0x10000000)"
+            ),
+        },
     },
     'boolean': {
         r'^base_of_code$': {
@@ -27,16 +36,8 @@ FEATURE_TRANSFORMERS = {
         },
         r'^checksum$': {
             'is_checksum_null': (
-                is_null,
+                is_0,
                 "Is the checksum set to 0"
-            ),
-        },
-        # see: https://docs.microsoft.com/en-us/windows/win32/debug/pe-format
-        #  Windows CE: 0x00010000 ; other Windows: 0x00400000 ; DLL: 0x10000000
-        r'^image_base$': {
-            'is_image_base_standard': (
-                is_in(0x10000, 0x400000, 0x10000000),
-                "Is the ImageBase standard (Windows CE: 0x10000, other Windows PE: 0x400000, DLL: 0x10000000)"
             ),
         },
         r'^os_major_version$': {
@@ -101,6 +102,62 @@ FEATURE_TRANSFORMERS = {
             'is_size_of_headers_4096B': (
                 is_equal(4096),
                 "Is the size of the headers equal to 4096B"
+            ),
+            'is_size_of_headers_non_standard': (
+                is_not_in(512, 1024, 1536, 4096),
+                "Is the size of the headers not equal to any of 512B, 1024B, 1536B or 4096B"
+            ),
+        },
+        r'^size_of_initializeddata$': {
+            'is_size_of_initializeddata_notnull': (
+                is_not_0,
+                "Is the size of initialized data not null"
+            ),
+            'is_size_of_initializeddata_get_1MB': (
+                is_get(1024*1024),
+                "Is the size of initialized data greater than or equal to 1MB"
+            ),
+            'is_size_of_initializeddata_get_2MB': (
+                is_get(2*1024*1024),
+                "Is the size of initialized data greater than or equal to 2MB"
+            ),
+            'is_size_of_initializeddata_get_3MB': (
+                is_get(3*1024*1024),
+                "Is the size of initialized data greater than or equal to 3MB"
+            ),
+            'is_size_of_initializeddata_get_4MB': (
+                is_get(4*1024*1024),
+                "Is the size of initialized data greater than or equal to 4MB"
+            ),
+            'is_size_of_initializeddata_get_5MB': (
+                is_get(5*1024*1024),
+                "Is the size of initialized data greater than or equal to 5MB"
+            ),
+        },
+        r'^size_of_initializeddata$': {
+            'is_size_of_uninitializeddata_notnull': (
+                is_not_0,
+                "Is the size of uninitialized data not null"
+            ),
+            'is_size_of_uninitializeddata_get_1MB': (
+                is_get(1024*1024),
+                "Is the size of uninitialized data greater than or equal to 1MB"
+            ),
+            'is_size_of_uninitializeddata_get_2MB': (
+                is_get(2*1024*1024),
+                "Is the size of uninitialized data greater than or equal to 2MB"
+            ),
+            'is_size_of_uninitializeddata_get_3MB': (
+                is_get(3*1024*1024),
+                "Is the size of uninitialized data greater than or equal to 3MB"
+            ),
+            'is_size_of_uninitializeddata_get_4MB': (
+                is_get(4*1024*1024),
+                "Is the size of uninitialized data greater than or equal to 4MB"
+            ),
+            'is_size_of_uninitializeddata_get_5MB': (
+                is_get(5*1024*1024),
+                "Is the size of uninitialized data greater than or equal to 5MB"
             ),
         },
     },
