@@ -3,9 +3,13 @@ import joblib
 import multiprocessing as mp
 import pandas as pd
 import re
-from sklearn.base import is_classifier
+from inspect import getmembers
+from sklearn.base import is_classifier, TransformerMixin, BaseEstimator
+from sklearn.decomposition import PCA
+from sklearn.feature_selection import VarianceThreshold
 from sklearn.metrics import confusion_matrix, matthews_corrcoef, roc_auc_score
 from sklearn.model_selection import train_test_split, GridSearchCV
+from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import *
 from tinyscript import ast, json, logging, subprocess
 from tinyscript.helpers import human_readable_size, is_executable, is_generator, Path, TempPath
@@ -14,6 +18,7 @@ from tinyscript.report import *
 from .algorithm import Algorithm, WekaClassifier
 from .dataset import *
 from .executable import Executable
+from .visualization import *
 from ..common.config import *
 from ..common.utils import *
 from ..items.detector import Detector
@@ -24,19 +29,52 @@ __all__ = ["DumpedModel", "Model", "N_JOBS", "PREPROCESSORS"]
 
 FLOAT_FORMAT = "%.6f"
 N_JOBS = mp.cpu_count() // 2
+# FIXME: parametrize all preprocessors, knowing that scalers fail within pipelines (no method '(.*_)?predict')
 PREPROCESSORS = {
-    'MA':         MaxAbsScaler,
-    'MM':         MinMaxScaler,
-    'Norm':       (Normalizer, {'axis': 0}),
-    'OneHot':     (OneHotEncoder, {'drop': "if_binary", 'handle_unknown': "ignore"}),
-    'Ord':        OrdinalEncoder,
-    'PT-bc':      (PowerTransformer, {'method': "box-cox"}),
-    'PT-yj':      (PowerTransformer, {'method': "yeo-johnson"}),
-    'QT-normal':  (QuantileTransformer, {'output_distribution': "normal"}),
-    'QT-uniform': (QuantileTransformer, {'output_distribution': "uniform"}),
-    'Rob':        (RobustScaler, {'quantile_range': (25, 75)}),
+#    'MA':         MaxAbsScaler,
+#    'MM':         MinMaxScaler,
+#    'Norm':       (Normalizer, {'axis': 0}),
+#    'OneHot':     (OneHotEncoder, {'drop': "if_binary", 'handle_unknown': "ignore"}),
+#    'Ord':        OrdinalEncoder,
+#    'PT-bc':      (PowerTransformer, {'method': "box-cox"}),
+#    'PT-yj':      (PowerTransformer, {'method': "yeo-johnson"}),
+#    'QT-normal':  (QuantileTransformer, {'output_distribution': "normal"}),
+#    'QT-uniform': (QuantileTransformer, {'output_distribution': "uniform"}),
+#    'Rob':        (RobustScaler, {'quantile_range': (25, 75)}),
+    'PCA':        (PCA, {'n_components': 2}),
     'Std':        StandardScaler,
 }
+
+
+class DebugPipeline:
+    """ Proxy class for attaching a logger ; NOT subclassed as logger cannot be pickled (cfr Model._save). """
+    def __init__(self, *args, **kwargs):
+        self.pipeline = None
+        kwargs['verbose'] = False  # ensure no verbose, this is managed by self.logger with self._log_message
+        self._args = (args, kwargs)
+    
+    def __getattribute__(self, name):
+        if name in ["_args", "_log_message", "append", "logger", "pipeline", "pop", "serialize"]:
+            return object.__getattribute__(self, name)
+        return object.__getattribute__(object.__getattribute__(self, "pipeline"), name)
+    
+    def _log_message(self, step_idx):
+        """ Overload original method to display messages with our own logger.
+        NB: verbosity is controlled via the logger, therefore we output None so that it is not natively displayed.  """
+        name, _ = self.steps[step_idx]
+        logger.info("(step %d/%d) Processing %s" % (step_idx + 1, len(self.steps), name))
+    Pipeline._log_message = _log_message
+    
+    def append(self, step):
+        if not isinstance(step, tuple):
+            step = (step.__class__.__name__, step)
+        if self.pipeline is None:
+            self.pipeline = Pipeline([step], *self._args[0], **self._args[1])
+        else:
+            self.pipeline.steps.append(step)
+    
+    def pop(self, idx=None):
+        self.pipeline.steps.pop() if idx is None else self.pipeline.steps.pop(idx)
 
 
 class Model:
@@ -50,37 +88,41 @@ class Model:
     """
     @logging.bindLogger
     def __init__(self, name=None, load=True, **kw):
+        global logger
+        logger = self.logger
         self.__read_only = False
+        self._features, self._metadata = {}, {}
+        self._performance = pd.DataFrame(columns=PERF_HEADERS.keys())
         self.name = name.stem if isinstance(name, Path) else name
-        self.classifier = None
+        self.pipeline = DebugPipeline()
         if load:
             self._load()
     
     def _load(self):
         """ Load model's associated files if relevant or create instance's attributes. """
-        if self.name is None:
-            self._features = {}
-            self._metadata = {}
-            self._performance = pd.DataFrame(columns=PERF_HEADERS.keys())
-        else:
-            if not Model.check(self.path):
-                return
-            for n in ["dump", "features", "metadata", "performance"]:
-                p = self.path.joinpath(n + (".joblib" if n == "dump" else ".csv" if n == "performance" else ".json"))
-                self.logger.debug("loading model %s..." % str(p))
-                if n == "dump":
-                    self.classifier = joblib.load(str(p))
-                    self.__read_only = True
-                elif n == "performance":
-                    self._performance = pd.read_csv(str(p), sep=";")
-                else:
-                    with p.open() as f:
-                        setattr(self, "_" + n, json.load(f))
+        #self.path = config['models'].joinpath(self.name)
+        if not Model.check(self.path):
+            return
+        for n in ["dump", "features", "metadata", "performance"]:
+            p = self.path.joinpath(n + (".joblib" if n == "dump" else ".csv" if n == "performance" else ".json"))
+            self.logger.debug("loading model %s..." % str(p))
+            if n == "dump":
+                self.pipeline.pipeline = joblib.load(str(p))
+                self.__read_only = True
+            elif n == "performance":
+                self._performance = pd.read_csv(str(p), sep=";")
+            else:
+                with p.open() as f:
+                    setattr(self, "_" + n, json.load(f))
     
     def _metrics(self, target, prediction, proba):
         """ Metrics computation method. """
         self.logger.debug("computing metrics...")
-        accuracy, precision, recall, f_measure = metrics(*confusion_matrix(target, prediction).ravel())
+        kw = {} if self._metadata['algorithm']['multiclass'] else {'labels': [0, 1]}
+        cmatrix = confusion_matrix(target, prediction, **kw)
+        self.logger.debug("TN: %d ; FP: %d ; FN: %d ; TP: %d" % \
+                          (cmatrix[0][0], cmatrix[0][1], cmatrix[1][0], cmatrix[1][1]))
+        accuracy, precision, recall, f_measure = metrics(*cmatrix.ravel())
         mcc = matthews_corrcoef(target, prediction)
         try:
             auc = roc_auc_score(target, proba)
@@ -88,12 +130,23 @@ class Model:
             auc = -1
         return [accuracy, precision, recall, f_measure, mcc, auc]
     
-    def _prepare(self, dataset=None, preprocessor=None, multiclass=False, labels=None, feature=None, pattern=None,
-                 data_only=False, **kw):
-        """ Prepare the Model instance based on the given Dataset instance. """
+    def _prepare(self, dataset=None, preprocessor=None, multiclass=False, labels=None, feature=None, data_only=False,
+                 **kw):
+        """ Prepare the Model instance based on the given Dataset/FilelessDataset/CSV/other instance.
+        NB: after preparation,
+             (1) input data is prepared (NOT preprocessed yet as this is part of the pipeline), according to 4 use cases
+                  - FilelessDataset (features already computed)
+                  - Dataset (features to be computed yet)
+                  - CSV file (assumes features from this model are present)
+                  - Others (single executable or folder)
+             (2) if training, the learning pipeline is created (with preprocessing steps only),
+                 otherwise it will be loaded via self._load() from the model (including the selected model)
+             (3) if training, model's metadata is populated AND training/test subsets are established
+        IMPORTANT: data_only is necessary as self._load() occurs AFTER self._prepare(...) ; this is due to the fact that
+                    self.name includes the number of features, which requires data preparation """
         ds, l, labels = dataset, self.logger, labels or {}
         # if not only the data shall be prepared, then the only supported input format is a valid dataset ;
-        #  i.e. hen preparing data for the train() method
+        #  i.e. when preparing data for the train() method
         if not data_only:
             if not getattr(ds, "is_valid", lambda: False)():
                 l.error("%s is not a valid input dataset" % dataset)
@@ -103,6 +156,10 @@ class Model:
             self._metadata['dataset'] = {k: v for k, v in ds._metadata.items()}
             self._metadata['dataset']['path'] = str(ds.path)
             self._metadata['dataset']['name'] = ds.path.stem
+        # if using data only (thus not training), this could be for preprocessing and visualizing features ; then the
+        #  model's reference dataset is to be used
+        elif ds is None:
+            ds = self._metadata['dataset']['name']
         # at this point, we may either have a valid dataset or another source format ; if string, this shall be a path
         if isinstance(ds, str):
             ds = Path(ds)
@@ -112,7 +169,8 @@ class Model:
                 except ValueError:
                     pass
             if not ds.exists():
-                raise ValueError("Invalid input dataset")
+                l.error("Bad input dataset (%s)" % ds)
+                return False
         l.info("Reference dataset:  %s" % ds)
         self._data, self._target = pd.DataFrame(), pd.DataFrame(columns=["label"])
         # start input dataset parsing
@@ -123,8 +181,9 @@ class Model:
             for exe in exes:
                 if not isinstance(exe, Executable):
                     exe = Executable(str(exe))
-                exe.selection = feature or pattern
-                self._features.update(exe.features)
+                exe.selection = feature
+                if not data_only:
+                    self._features.update(exe.features)
                 self._data = self._data.append(exe.data, ignore_index=True)
                 if label:
                     self._target = self._target.append({'label': labels.get(exe.hash)}, ignore_index=True)
@@ -134,8 +193,9 @@ class Model:
             for exe in ds:
                 break
             exe = Executable(exe)
-            exe.selection = feature or pattern
-            self._features.update(exe.features)
+            exe.selection = feature
+            if not data_only:
+                self._features.update(exe.features)
             self._data = ds._data[list(exe.features.keys())]
             self._target = ds._data.loc[:, ds._data.columns == "label"]
         # case 2: handle a normal dataset (features shall still be computed)
@@ -148,85 +208,74 @@ class Model:
             try:
                 d, n = pd.read_csv(str(ds), sep=kw.pop('sep', ",")), Path(ds).filename
                 self._data, self._target = d.loc[:, d.columns != "label"], d.loc[:, d.columns == "label"]
-                self._features = {k: "" for k in self._data.columns}
+                if not data_only:
+                    self._features = {k: "" for k in self._data.columns}
             except AttributeError:  # 'DataFrame' object has no attribute 'label'
                 l.error(d.columns)
                 l.warning("This error may be caused by a bad CSV separator ; you can set it with --sep")
                 raise
-        # other formats shall only work when data is to be considered, with no train and test data frames ;
-        #  i.e. when preparing data for the test() method
+        # case 4: other data, either single executable or folder (only valid when not training)
         elif data_only and (is_executable(ds) or ds.is_dir()):
-            data, self._target = pd.DataFrame(), pd.DataFrame()
-            # cases 4 and 5: respectively single executable or folder of executables
+            self._data, self._target = pd.DataFrame(), pd.DataFrame()
             __parse([ds] if is_executable(ds) else ds.listdir(is_executable))
         # this shall not occur
         else:
             raise ValueError("Unsupported input format")
         if len(self._data) == 0:
             l.warning("No data")
-            return
+            return False
         if len(self._features) == 0:
             l.warning("No selectable feature ; this may be due to a model unrelated to the input")
-            raise ValueError("No feature to extract")
-        n = getattr(ds, "name", str(ds))
+            return False
+        # ensure features are sorted and data has its columns sorted too
+        self._features = {k: v for k, v in sorted(self._features.items(), key=lambda x: x[0])}
+        self._data = self._data[sorted(self._features.keys())]
         self._target = self._target.fillna("")
         if not multiclass:  # convert to binary class
             self._target.loc[self._target.label == "", "label"] = 0
             self._target.loc[self._target.label != 0, "label"] = 1
             self._target = self._target.astype('int')
-        self.labels = set(self._target.label.values)
-        print(self._data)
-        self._preprocess(*(preprocessor or ()))
-        print(self._data)
-        if data_only:
+        # create the pipeline if it does not exist (i.e. while training)
+        if not data_only:
+            self.pipeline = DebugPipeline()
+            l.info("Making pipeline...")
+            for p in preprocessor:
+                p, params = PREPROCESSORS.get(p, p), {}
+                if isinstance(p, tuple):
+                    try:
+                        p, params = p
+                    except ValueError:
+                        l.error("Bad preprocessor format: %s" % p)
+                        raise
+                    m = "%s with %s" % (p.__name__, ", ".join("{}={}".format(*i) for i in params.items()))
+                else:
+                    m = p.__name__
+                n = p.__name__
+                v = "transform" if n.endswith("Transformer") else "encode" if n.endswith("Encoder") else \
+                    "standardize" if n.endswith("Scaler") else "normalize" if n.endswith("Normalizer") or n == "PCA" \
+                     else "discretize" if n.endswith("Discretizer") else "preprocess"
+                self.pipeline.append(("%s (%s)" % (v, m), p(**params)))
+        # if only data is to be processed (i.e. while testing), stop here, the rest is for training the model
+        else:
             return True
+        # apply variance threshold of 0.0 to remove useless features and rectify the list of features
+        l.debug("> remove 0-variance features")
+        selector = VarianceThreshold()
+        selector.fit(self._data)
+        self._data = self._data[self._data.columns[selector.get_support(indices=True)]]
+        self._features = {k: v for k, v in self._features.items() if k in self._data.columns}
         # prepare for training and testing sets
         class Dummy: pass
         self._train, self._test = Dummy(), Dummy()
-        ds.logger.debug("> split data and target vectors to train and test subnets")
+        ds.logger.debug("> split data and target vectors to train and test subsets")
         self._train.data, self._test.data, self._train.target, self._test.target = \
-            train_test_split(self._data, self._target, test_size=.2, random_state=42)
+            train_test_split(self._data, self._target, test_size=.2, random_state=42, stratify=self._target)
         # prepare for Weka
+        # TODO: to be tested yet
         if self.algorithm.is_weka():
             l.debug("> create ARFF train and test files (for Weka)")
             WekaClassifier.to_arff(self)
         return True
-    
-    def _preprocess(self, *preprocessors):
-        """ Preprocess the bound _data with an input list of preprocessors.
-        
-        NB: we prefer controlling preprocessing ourselves instead of using sklearn.pipeline.Pipeline(...).
-        """
-        c, l, df = False, self.logger, self._data
-        l.info("Preprocessing data...")
-        # exclude features for which only one distinct value exists ; this carries no information
-        self._data = df[[c for c in list(df) if len(df[c].unique()) > 1]]
-        if self.logger.level <= 10:
-            self.logger.debug("discarded features with unique values:\n- " + \
-                              "\n- ".join(df[[c for c in list(df) if len(df[c].unique()) <= 1]].columns))
-        # apply preprocessors per column
-        
-        
-        for p in preprocessors:
-            p, params = PREPROCESSORS.get(p, p), {}
-            if isinstance(p, tuple):
-                try:
-                    p, params = p
-                except ValueError:
-                    l.error("Bad preprocessor format: %s" % p)
-                    raise
-                m = "%s with %s" % (p.__name__, ", ".join("{}={}".format(*i) for i in params.items()))
-            else:
-                m = p.__name__
-            n = p.__name__
-            v = "transform" if n.endswith("Transformer") else "encode" if n.endswith("Encoder") else \
-                "standardize" if n.endswith("Scaler") else "normalize" if n.endswith("Normalizer") or n == "PCA" else \
-                "discretize" if n.endswith("Discretizer") else "preprocess"
-            l.debug("> %s the data (%s)" % (v, m))
-            preprocessed = p(**params).fit_transform(self._data)
-            c = True
-        if c:  # ensure self._data remains a DataFrame
-            self._data = pd.DataFrame(preprocessed, index=self._data.index, columns=self._data.columns)
     
     def _save(self):
         """ Save model's state to the related files. """
@@ -241,7 +290,7 @@ class Model:
                 p = self.path.joinpath(n + (".joblib" if n == "dump" else ".json"))
                 l.debug("> %s" % str(p))
                 if n == "dump":
-                    joblib.dump(self.classifier, str(p))
+                    joblib.dump(self.pipeline.pipeline, str(p))
                 else:
                     with p.open('w+') as f:
                         json.dump(getattr(self, "_" + n), f, indent=2)
@@ -302,7 +351,7 @@ class Model:
             r = [Section("Algorithms (%d)" % len(d)), Table(d, column_headers=["Name", "Description"])]
         else:
             d = []
-            for model in Path(config['models']).listdir(Model.check):
+            for model in self.iteritems():
                 with model.joinpath("metadata.json").open() as meta:
                     metadata = json.load(meta)
                 alg, ds = metadata['algorithm'], metadata['dataset']
@@ -312,7 +361,7 @@ class Model:
                     alg['description'],
                     ds['name'],
                     str(ds['executables']),
-                    ",".join(sorted(ds['categories'])),
+                    ",".join(sorted(ds['formats'])),
                     shorten_str(",".join("%s{%d}" % i \
                                 for i in sorted(ds['counts'].items(), key=lambda x: (-x[1], x[0])))),
                 ])
@@ -320,7 +369,7 @@ class Model:
                 self.logger.warning("No model found in workspace (%s)" % config['models'])
                 return
             r = [Section("Models (%d)" % len(d)),
-                 Table(d, column_headers=["Name", "Algorithm", "Description", "Dataset", "Size", "Categories",
+                 Table(d, column_headers=["Name", "Algorithm", "Description", "Dataset", "Size", "Formats",
                                           "Packers"])]
         print(mdv.main(Report(*r).md()))
     
@@ -330,6 +379,8 @@ class Model:
         if not self._prepare(**kw):
             self.logger.debug("could not prepare dataset")
             return
+        #self.pipeline.pop()  # remove the classifier, as we only want the data preprocessed
+        self.pipeline.fit(self._data, self._target)  # fit_transform with all the transformers, not with the estimator
         tmp_p = TempPath(prefix="model-preprocess-", length=8)
         tmp_f = tmp_p.tempfile("data.csv")
         self._data.to_csv(str(tmp_f), sep=";", index=False, header=True)
@@ -350,45 +401,47 @@ class Model:
     
     def show(self, **kw):
         """ Show an overview of the model. """
-        a, ds = self._metadata['algorithm'], self._metadata['dataset']
-        best_feat = [n for i, n in sorted(zip(self.classifier.feature_importances_, self._features.keys()),
-                                          key=lambda x: -x[0]) if i > 0.]
-        l = max(map(len, best_feat))
-        best_feat = [("{: <%s}: {}" % ((l + 1) if l >= 10 and i < 9 else l)).format(n, self._features[n]) \
-                     for i, n in enumerate(best_feat)]
+        a, ds, ps = self._metadata['algorithm'], self._metadata['dataset'], self.pipeline.steps
+        last_step = ps[-1][1] if isinstance(ps[-1], tuple) else ps[-1]
+        fi, fi_str = getattr([-1], "feature_importances_", None), []
+        if fi is not None:
+            best_feat = [n for i, n in sorted(zip(fi, sorted(self._features.keys())), key=lambda x: -x[0]) if i > 0.]
+            l = max(map(len, best_feat))
+            best_feat = [("{: <%s}: {}" % ((l + 1) if l >= 10 and i < 9 else l)).format(n, self._features[n]) \
+                         for i, n in enumerate(best_feat)]
+            fi_str = ["**Features**:      %d \n\n\t1. %s\n\n" % (len(self._features), "\n\n\t1. ".join(best_feat))]
         params = a['parameters'].keys()
         l = max(map(len, params))
         params = [("{: <%s} = {}" % l).format(*p) for p in sorted(a['parameters'].items(), key=lambda x: x[0])]
-        c = List(["**Path**:         %s" % self.path,
-                  "**Size**:         %s" % human_readable_size(self.path.joinpath("dump.joblib").size),
-                  "**Algorithm**:    %s (%s)" % (a['description'], a['name']),
-                  "**Multiclass**:   %s" % "NY"[a['multiclass']],
-                  "**Features**:     %d \n\n\t1. %s\n\n" % (len(self._features), "\n\n\t1. ".join(best_feat)),
+        c = List(["**Path**:          %s" % self.path,
+                  "**Size**:          %s" % human_readable_size(self.path.joinpath("dump.joblib").size),
+                  "**Algorithm**:     %s (%s)" % (a['description'], a['name']),
+                  "**Multiclass**:    %s" % "NY"[a['multiclass']]] + fi_str + \
+                 ["**Preprocessors**: \n\n\t- %s\n\n" % "\n\t- ".join(a['preprocessors']),
                   "**Parameters**: \n\n\t- %s\n\n" % "\n\t- ".join(params)])
         print(mdv.main(Report(Section("Model characteristics"), c).md()))
         ds_path = config['datasets'].joinpath(ds['name'])
         c = List(["**Path**:         %s" % ds_path,
                   "**Size**:         %s" % human_readable_size(ds_path.size),
                   "**#Executables**: %d" % ds['executables'],
-                  "**Categories**:   %s" % ", ".join(ds['categories']),
+                  "**Formats**:      %s" % ", ".join(ds['formats']),
                   "**Packers**:      %s" % ", ".join(ds['counts'].keys())])
         print(mdv.main(Report(Section("Reference dataset"), c).md()))
     
     def test(self, executable, **kw):
         """ Test a single executable or a set of executables and evaluate metrics. """
-        l, ds = self.logger, executable
-        if self.classifier is None:
+        l, ds, a = self.logger, executable, self._metadata['algorithm']
+        if len(self.pipeline.steps) == 0:
             l.warning("Model shall be trained before testing")
             return
-        kw['dataset'] = ds
-        kw['data_only'] = True
+        kw['data_only'], kw['dataset'] = True, ds
         if not self._prepare(**kw):
             return
         l.debug("Testing %s on %s..." % (self.name, ds))
-        prediction, dt = benchmark(self.classifier.predict)(self._data)
+        prediction, dt = benchmark(self.pipeline.predict)(self._data)
         dt = 1000 * dt
         try:
-            proba = self.classifier.predict_proba(self._data)[:, 1]
+            proba = self.pipeline.predict_proba(self._data)[:, 1]
         except AttributeError:
             proba = None
         ph = PERF_HEADERS
@@ -411,6 +464,11 @@ class Model:
         try:
             cls = self.algorithm = Algorithm.get(algorithm)
             algo = cls.__class__.__name__
+            self._metadata.setdefault('algorithm', {})
+            self._metadata['algorithm']['name'] = algo
+            self._metadata['algorithm']['description'] = cls.description
+            self._metadata['algorithm']['multiclass'] = kw.get('multiclass', False)
+            self._metadata['algorithm']['preprocessors'] = kw.get('preprocessor', False)
         except KeyError:
             l.error("%s not available" % algorithm)
             return
@@ -422,7 +480,7 @@ class Model:
         if not self._prepare(**kw):
             return
         if self.name is None:
-            c = sorted(collapse_categories(*ds._metadata['categories']))
+            c = sorted(collapse_formats(*ds._metadata['formats']))
             self.name = "%s_%s_%d_%s_f%d" % (ds.path.stem, "-".join(map(lambda x: x.lower(), c)),
                                              ds._metadata['executables'],
                                              algo.lower().replace(".", ""), len(self._features))
@@ -455,70 +513,80 @@ class Model:
                 except KeyError:
                     pass
         l.info("Training model...")
-        c = cls.base(**params)
+        self.pipeline.append((cls.name, cls.base(**params)))
         # if a param_grid is input, perform cross-validation and select the best classifier
+        _convert = lambda d: {k.split("__", 1)[1]: v for k, v in d.items()}
         if len(param_grid) > 0:
             l.debug("> applying Grid Search (CV=%d)..." % cv)
-            grid = GridSearchCV(c, param_grid=param_grid, cv=cv, scoring='accuracy', n_jobs=n_jobs)
-            grid.fit(self._data, self._target)
-            results = '\n'.join("  %0.3f (+/-%0.03f) for %r" % (m, s * 2, p) \
-                for m, s, p in zip(grid.cv_results_['mean_test_score'],
-                                   grid.cv_results_['std_test_score'],
-                                   grid.cv_results_['params']))
+            # as we use a pipeline, we need to rename all parameters to [estimator name]__[parameter]
+            param_grid = {"%s__%s" % (self.pipeline.steps[-1][0], k): v for k, v in param_grid.items()}
+            grid = GridSearchCV(self.pipeline.pipeline, param_grid=param_grid, cv=cv, scoring='accuracy', n_jobs=n_jobs)
+            grid.fit(self._data, self._target.values.ravel())
+            results = '\n'.join("  %0.3f (+/-%0.03f) for %r" % (m, s * 2, _convert(p)) \
+                                for m, s, p in zip(grid.cv_results_['mean_test_score'],
+                                                   grid.cv_results_['std_test_score'],
+                                                   grid.cv_results_['params']))
+            # as we use a pipeline, we need to reconvert parameters back to their normal name
+            best_params = _convert(grid.best_params_)
             l.debug("> grid scores:\n{}".format(results))
-            l.debug("> best parameters found:\n  {}".format(grid.best_params_))
-            params.update(grid.best_params_)
+            l.debug("> best parameters found:\n  {}".format(best_params))
+            params.update(best_params)
             if isinstance(cls, WekaClassifier):
                 params['model'] = self
-            c = cls.base(**params)
+            self.pipeline.pop()
+            self.pipeline.append((cls.name, cls.base(**params)))
         # now fit the (best) classifier and predict labels
         l.debug("> fitting the classifier...")
-        c.fit(self._train.data, self._train.target)
+        self.pipeline.fit(self._train.data, self._train.target.values.ravel())
         l.debug("> making predictions...")
         d = []
         try:
-            prob1 = c.predict_proba(self._train.data)[:, 1]
-            prob2 = c.predict_proba(self._test.data)[:, 1]
+            prob1 = self.pipeline.predict_proba(self._train.data)[:, 1]
+            prob2 = self.pipeline.predict_proba(self._test.data)[:, 1]
         except AttributeError:
             prob1 = prob2 = None
         ph = PERF_HEADERS
         h = list(ph.keys())[1:-1]
-        m1 = self._metrics(self._train.target, c.predict(self._train.data), prob1)
+        m1 = self._metrics(self._train.target, self.pipeline.predict(self._train.data), prob1)
         m1 = [ph[k](v) if v >= 0 else "-" for k, v in zip(h, m1)]
         d.append(["Train"] + m1)
-        m2 = self._metrics(self._test.target, c.predict(self._test.data), prob2)
+        m2 = self._metrics(self._test.target, self.pipeline.predict(self._test.data), prob2)
         m2 = [ph[k](v) if v >= 0 else "-" for k, v in zip(h, m2)]
         d.append(["Test"] + m2)
         h = ["."] + h
         print(mdv.main(Report(Title("Name: %s" % self.name), Table(d, column_headers=h)).md()))
-        try:
-            del params['model']
-        except KeyError:
-            pass
         l.info("Parameters:\n- %s" % "\n- ".join("%s = %s" % p for p in params.items()))
-        self.classifier = c
-        self._metadata.setdefault('algorithm', {})
-        self._metadata['algorithm']['name'] = algo
-        self._metadata['algorithm']['description'] = cls.description
         self._metadata['algorithm']['parameters'] = params
-        self._metadata['algorithm']['multiclass'] = kw.get('multiclass', False)
-        self._metadata['algorithm']['preprocessors'] = kw.get('preprocessor', False)
         self._save()
     
     def visualize(self, export=False, output_dir=".", **kw):
         """ Plot the model for visualization. """
-        if self.classifier is None:
+        if len(self.pipeline.steps) == 0:
             self.logger.warning("Model shall be trained before visualizing")
             return
-        f = getattr(self, "visualizations", {}).get(self._metadata['algorithm']['name'], {}) \
-                                               .get(["text", "export"][export])
-        if f is None:
-            self.logger.warning("Visualization not available for this algorithm")
+        a = self._metadata['algorithm']
+        viz = VISUALIZATIONS.get(a['name']).get(["text", "image"][export])
+        if viz is None:
+            self.logger.warning("Visualization not available for this algorithm%s" % [" in text mode", ""][export])
             return
-        params = {'feature_names': sorted(self._features.keys())}
-        if export: #FIXME
-            params['?'] = str(Path(output_dir).joinpath("%s.png" % self.name))
-        print(f(self.classifier, **params))
+        params = {'feature_names': sorted(self._features.keys()), 'logger': self.logger}
+        # if visualization requires the original data (e.g. kNN), use self._prepare to create self._data/self._target
+        if VISUALIZATIONS.get(a['name']).get("data", False):
+            kw['data_only'] = True
+            if not self._prepare(**kw):
+                return
+            params.update({'data': self._data, 'target': self._target, 'algo_params': a['parameters']})
+        if export:
+            destination = str(Path(output_dir).joinpath("%s.png" % self.name))
+            viz(self.classifier, **params).savefig(destination, format="png")
+            self.logger.warning("Visualization saved to %s" % destination)
+        else:
+            print(viz(self.classifier, **params))
+    
+    @property
+    def classifier(self):
+        if self.pipeline is not None:
+            return self.pipeline.steps[-1][1]
     
     @property
     def name(self):
@@ -543,12 +611,17 @@ class Model:
             value = Path(value).absolute()
         self._path = value
     
+    @classmethod
+    def iteritems(cls, instantiate=False):
+        for model in Path(config['models']).listdir(Model.check):
+            yield Model(model) if instantiate else model
+    
     @staticmethod
     def check(folder):
         try:
             Model.validate(folder)
             return True
-        except ValueError as e:
+        except (TypeError, ValueError):
             return False
     
     @staticmethod
@@ -566,11 +639,19 @@ class Model:
 
 class DumpedModel:
     @logging.bindLogger
-    def __init__(self, name=None, **kw):
-        self.classifier   = joblib.load(str(name))
-        self.name         = Path(name).stem
-        self._features    = {}
-        self._metadata    = {}
+    def __init__(self, name=None, is_pipeline=False, **kw):
+        global logger
+        logger = self.logger
+        obj, self.pipeline = joblib.load(str(name)), DebugPipeline()
+        if not is_pipeline:
+            self.pipeline.append(StandardScaler())
+            self.pipeline.append(obj)
+        else:
+            for s in obj.steps:
+                self.pipeline.append(s)
+        self.name      = Path(name).stem
+        self._features = {}
+        self._metadata = {}
         self.__p = config['models'].joinpath(".performances.csv")
         try:
             self._performance = pd.read_csv(str(self.__p), sep=";")
@@ -586,6 +667,6 @@ class DumpedModel:
     
     _metrics    = Model._metrics
     _prepare    = Model._prepare
-    _preprocess = Model._preprocess
+    classifier  = Model.classifier
     test        = Model.test
 
