@@ -27,6 +27,8 @@ def at_interrupt():
 
 def __add_name(parser, optional=False, force=False, joblib=False):
     def model_exists(string):
+        if string == "all":
+            return string
         if string:
             p = ts.Path(string)
             if joblib and p.is_file() and p.extension == ".joblib":
@@ -77,13 +79,8 @@ if __name__ == '__main__':
     listm = sparsers.add_parser("list", help="list all the models from the workspace")
     listm.add_argument("--algorithms", action="store_true", help="show available algorithms instead of models")
     preproc = sparsers.add_parser("preprocess", help="preprocess features and visualize the result")
-    preproc.add_argument("dataset", type=__dataset_exists, help="dataset to be preprocessed")
-    preproc.add_argument("-m", "--multiclass", action="store_true", help="preprocess data using multiple label classes")
-    preproc.add_argument("-p", "--preprocessor", action="extend", nargs="*", choices=PREPROCESSORS.keys(), help=pp_help)
-    pgroup1 = preproc.add_mutually_exclusive_group()
-    pgroup1.add_argument("--feature", action="extend", nargs="*", help="list of features to be selected")
-    pgroup1.add_argument("--pattern", help="pattern of features to be selected")
-    __add_name(sparsers.add_parser("purge", help="purge the selected model"), force=True)
+    __add_name(preproc)
+    __add_name(sparsers.add_parser("purge", help="purge the selected model"))
     rename = sparsers.add_parser("rename", help="rename the selected model")
     __add_name(rename)
     rename.add_argument("name2", type=ts.folder_does_not_exist, help="new name of the model")
@@ -91,12 +88,8 @@ if __name__ == '__main__':
     test = sparsers.add_parser("test", help="test the model on a given input")
     __add_name(test, joblib=True)
     test.add_argument("executable", help="executable or folder containing executables or dataset or data CSV file")
-    tgroup1 = test.add_mutually_exclusive_group()
-    test.add_argument("-m", "--multiclass", action="store_true", help="test the model using multiple label classes")
-    test.add_argument("-p", "--preprocessor", action="extend", nargs="*", choices=PREPROCESSORS.keys(), help=pp_help)
-    tgroup1.add_argument("--feature", action="extend", nargs="*", help="list of features to be selected")
-    tgroup1.add_argument("--pattern", help="pattern of features to be selected")
-    test.add_argument("--sep", default=",", choices=",;|\t", help="set the CSV separator")
+    test.add_argument("--sep", default=",", choices=",;|\t", help="set the CSV separator",
+                      note="required when using input CSV data instead of a Dataset")
     train = sparsers.add_parser("train", help="train a model on the given dataset")
     train.add_argument("dataset", type=__dataset_exists, help="dataset for training the model")
     __add_name(train, True)
@@ -105,9 +98,11 @@ if __name__ == '__main__':
                             "\n- ".join("%s: %s%s" % (a.name.ljust(4), a.description, ["", "*"][a.parameters.get('cv') \
                             is not None]) for a in Algorithm.registry))
     train.add_argument("-m", "--multiclass", action="store_true", help="train the model using multiple label classes")
-    train.add_argument("-p", "--preprocessor", action="extend", nargs="*", choices=PREPROCESSORS.keys(), help=pp_help)
+    # TODO: see if other preprocessors are meaningful ; currently enabled: Std, PCA
+    train.add_argument("-p", "--preprocessor", default=["Std"], action="extend", nargs="*",
+                       choices=PREPROCESSORS.keys(), help=pp_help)
     train.add_argument("-r", "--reset", action="store_true", help="reset the model before (re)training")
-    train.add_argument("--cv", default=3, help="number of Cross-Validation folds")
+    train.add_argument("--cv", default=5, help="number of Cross-Validation folds")
     tgroup2 = train.add_mutually_exclusive_group()
     tgroup2.add_argument("--feature", action="extend", nargs="*", help="list of features to be selected")
     train.add_argument("--n-jobs", default=N_JOBS, help="number of jobs to be run in parallel")
@@ -122,10 +117,20 @@ if __name__ == '__main__':
     initialize(noargs_action="help")
     logger.name = "model"
     logging.configLogger(logger, ["INFO", "DEBUG"][args.verbose], fmt=LOG_FORMATS[args.verbose], relative=True)
-    args.load = args.command != "list"
-    try:
-        m = DumpedModel(**vars(args))
-    except (KeyError, OSError):
-        m = Model(**vars(args))
-    getattr(m, args.command)(**vars(args))
+    name, args.load = getattr(args, "name", None), args.command not in ["list", "purge"]
+    if args.command == "purge" and name == "all":
+        purged = False
+        for m in Model.iteritems(True):
+            m.purge()
+            purged = True
+        if not purged:
+            logger.warning("No model to purge in workspace (%s)" % config['models'])
+    elif name == "all":
+        logger.warning("Model cannot be named 'all' (reserved word)")
+    else:
+        try:
+            m = DumpedModel(**vars(args))
+        except (KeyError, OSError):
+            m = Model(**vars(args))
+        getattr(m, args.command)(**vars(args))
 
