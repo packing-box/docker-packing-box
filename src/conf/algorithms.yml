@@ -55,9 +55,6 @@ DL85:
       time_limit: 60
     cv:
       max_depth: !!python/object/new:range [3, 6]
-  visualization:
-    text:   sklearn.tree.export_text
-    export: null
 
 DT:
   base:        !!python/name:sklearn.tree.DecisionTreeClassifier
@@ -81,9 +78,6 @@ DT:
         - log2
       min_samples_leaf:  !!python/object/new:range [1, 9]
       min_samples_split: !!python/object/new:range [2, 11]
-  visualization:
-    text:   sklearn.tree.export_text
-    export: null
 
 GB:
   base:        !!python/name:sklearn.ensemble.GradientBoostingClassifier
@@ -123,11 +117,10 @@ kNN:
     static:
       leaf_size:   30
       metric:      minkowski
-      n_neighbors: 5
-      weights:     uniform
     cv:
-      n_neighbors: !!python/object/new:range [1, 8, 2]
-      p:           !!python/tuple [1, 2]                # euclidian distance
+      n_neighbors: !!python/object/new:range [1, 10, 2]
+      p:           [1, 2]                        # euclidian distance
+      weights:     ["distance", "uniform"]
 
 LP:
   base:        !!python/name:sklearn.linear_model.Perceptron
@@ -189,14 +182,12 @@ RF:
   parameters:
     static:
       max_depth:    null
-      max_features: auto
-      n_estimators: 10
+      max_features: sqrt
       random_state: 42
     cv:
-      criterion:
-        - entropy
-        - gini
-      max_depth: !!python/object/new:range [4, 11]
+      criterion:    ["entropy", "gini"]
+      max_depth:    !!python/object/new:range [4, 11]
+      n_estimators: [10, 20, 30, 40]
 
 SVM:
   base:        !!python/name:sklearn.svm.SVC
