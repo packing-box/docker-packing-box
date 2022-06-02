@@ -334,16 +334,16 @@ class Dataset:
             return
         # then restrict dataset's formats to these of the selected packers
         pformats = aggregate_formats(*[p.formats for p in packers])
-        self.formats = collapse_formats(*[c for c in expand_formats(*formats) if c in pformats])
+        self.formats = collapse_formats(*[f for f in expand_formats(*formats) if f in pformats])
         sources = []
-        for cat, src in self.sources.items():
-            if all(c not in expand_formats(cat) for c in self._formats_exp):
+        for fmt, src in self.sources.items():
+            if all(c not in expand_formats(fmt) for f in self._formats_exp):
                 continue
             sources.extend(src)
         l.info("Source directories: %s" % ",".join(map(str, set(sources))))
         l.info("Considered formats: %s" % ",".join(self.formats))  # this updates self._formats_exp
         l.info("Selected packers:   %s" % ",".join(["All"] if packer is None else \
-                                                                [p.__class__.__name__ for p in packer]))
+                                                   [p.__class__.__name__ for p in packer]))
         self._metadata['sources'] = list(set(map(str, self._metadata.get('sources', []) + sources)))
         if n == 0:
             n = len(list(self._walk(n <= 0, silent=True)))
@@ -352,6 +352,7 @@ class Dataset:
         i, cbad, cgood, pbar = 0, {p: CBAD for p in packer}, {p: CGOOD for p in packer}, None
         for exe in self._walk(n <= 0):
             label = short_label = None
+            to_be_packed = pack_all or random.randint(0, len(packers) if balance else 1)
             # check 1: are there already samples enough?
             if i >= n > 0:
                 break
@@ -363,15 +364,15 @@ class Dataset:
             if all(not p._check(exe, silent=True) for p in packers):
                 l.debug("unsupported file (%s)" % exe)
                 continue
-            # check 4: was this executable already included in the dataset?
-            if len(self._data) > 0 and exe.hash in self._data.hash.values:
+            # check 4.a: was this executable already included in the dataset?
+            if len(self._data) > 0 and not to_be_packed and exe.hash in self._data.hash.values:
                 l.debug("already in the dataset (%s)" % exe)
                 continue
             l.debug("handling %s..." % exe)
             # set the progress bar now to not overlap with self._walk's logging
             if pbar is None:
                 pbar = tqdm(total=n, unit="executable")
-            if pack_all or random.randint(0, len(packers) if balance else 1):
+            if to_be_packed:
                 if len(packers) > 1:
                     random.shuffle(packers)
                 destination = exe.copy(extension=True)
@@ -382,6 +383,10 @@ class Dataset:
                     exe.hash, label = p.pack(str(old_h), include_hash=True)
                     if exe.hash is None:
                         continue  # means that this kind of executable is not supported by this packer
+                    # check 4.b: was this packed executable already included in the dataset?
+                    if len(self._data) > 0 and exe.hash in self._data.hash.values:
+                        l.debug("already packed before (%s)" % exe)
+                        continue
                     if not label or p._bad:
                         # if we reached the limit of GOOD packing occurrences, then we consider the packer as GOOD again
                         if cgood[p] <= 0:
@@ -417,12 +422,13 @@ class Dataset:
             pbar.close()
         if i < n - 1:
             l.warning("Found too few candidate executables")
-        ls = len(self)
-        if ls > 0:
-            # finally, save dataset's metadata and labels to JSON files
-            p = sorted(list(set([lb for lb in self._data.label.values if isinstance(lb, str)])))
-            l.info("Used packers: %s" % ", ".join(p))
-            l.info("#Executables: %d" % ls)
+        else:
+            ls = len(self)
+            if ls > 0:
+                p = sorted(list(set([lb for lb in self._data.label.values if isinstance(lb, str)])))
+                l.info("Used packers: %s" % ", ".join(p))
+                l.info("#Executables: %d" % ls)
+        # finally, save dataset's metadata and labels to JSON files
         self._save()
     
     def purge(self, backup=False, **kw):
@@ -612,8 +618,8 @@ class Dataset:
     @property
     def name(self):
         """ Get the name of the dataset composed with its list of formats. """
-        c, p = getattr(self, "formats", []), self.path.basename
-        return "%s(%s)" % (p, ",".join(sorted(collapse_formats(*c)))) if len(c) > 0 else self.path.basename
+        fmt, p = getattr(self, "formats", []), self.path.basename
+        return "%s(%s)" % (p, ",".join(sorted(collapse_formats(*fmt)))) if len(fmt) > 0 else self.path.basename
     
     @property
     def overview(self):
@@ -658,45 +664,45 @@ class Dataset:
                 continue
             data1.setdefault(fmt, [])
             for c in CAT:
-                data1[fmt].append([c, d[c][0], "%.2f" % (100 * (float(d[c][0]) / total)) if total > 0 else 0,
-                                        d[c][1], "%.2f" % (100 * (float(d[c][1]) / totalp)) if totalp > 0 else 0])
+                data1[fmt].append([c, d[fmt][0], "%.2f" % (100 * (float(d[c][0]) / total)) if total > 0 else 0,
+                                      d[fmt][1], "%.2f" % (100 * (float(d[c][1]) / totalp)) if totalp > 0 else 0])
             data1[fmt].append(["Total", str(total), "", str(totalp), ""])
         # display statistics if any
         if len(data1) > 0:
             r.append(Section("Executables per size and format"))
-            for c in formats:
-                c = c if self.__per_format else "All"
-                if c in data1:
-                    if c != "All":
-                        r.append(Subsection(c))
+            for fmt in formats:
+                fmt = fmt if self.__per_format else "All"
+                if fmt in data1:
+                    if fmt != "All":
+                        r.append(Subsection(fmt))
                     # if all packed
-                    if all(x1 == x2 for x1, x2 in [(r[2], r[4]) for r in data1[c]]):
+                    if all(x1 == x2 for x1, x2 in [(r[2], r[4]) for r in data1[fmt]]):
                         _t, h = "packed", ["Size Range", "Packed", "%"]
                     # none packed
-                    elif data1[c][-1][3] == "0":
+                    elif data1[fmt][-1][3] == "0":
                         _t, h = "not-packed", ["Size Range", "Not Packed", "%"]
                     # mix of not packed and packed
                     else:
                         _t, h = "mix", ["Size Range", "Total", "%", "Packed", "%"]
-                    d = data1[c] if _t == "mix" else \
-                        [[r[0], r[3], r[4]] for r in data1[c]] if _t == "packed" else \
-                        [r[:3] for r in data1[c]]
-                    r += [Table(d, title=c, column_headers=h)]
-                if c == "All":
+                    d = data1[fmt] if _t == "mix" else \
+                        [[r[0], r[3], r[4]] for r in data1[fmt]] if _t == "packed" else \
+                        [r[:3] for r in data1[fmt]]
+                    r += [Table(d, title=fmt, column_headers=h)]
+                if fmt == "All":
                     break
         r.append(Rule())
         r.append(Text("**Sources**:\n\n%s" % "\n".join("[%d] %s" % (i, s) for i, s in enumerate(src))))
         # display files if any
         if len(data2) > 0:
             r.append(Section("Executables per label and format"))
-            for c in formats:
-                c = c if self.__per_format else "All"
-                if c in data2:
-                    if c != "All":
-                        r.append(Subsection(c))
-                    r += [Table(data2[c], title=c,
+            for fmt in formats:
+                fmt = fmt if self.__per_format else "All"
+                if fmt in data2:
+                    if fmt != "All":
+                        r.append(Subsection(fmt))
+                    r += [Table(data2[fmt], title=fmt,
                                 column_headers=["Hash", "Path", "Creation", "Modification", "Label"])]
-                if c == "All":
+                if fmt == "All":
                     break
         return r
     
@@ -760,15 +766,18 @@ class Dataset:
                     shorten_str(",".join("%s{%d}" % i \
                                 for i in sorted(metadata['counts'].items(), key=lambda x: (-x[1], x[0])))),
                 ]
-            except KeyError:
+            except Exception as err:
                 row = None
                 if show:
+                    if headers[-1] != "Reason":
+                        headers.append("Reason")
                     row = [
                         dset.basename,
                         str(metadata.get('executables', colored("?", "red"))),
                         ts.human_readable_size(dset.size),
                     ] + [[["no", "yes"][dset.joinpath("files").exists()]], []][hide_files] + [
                         colored("?", "red"), colored("?", "red"),
+                        colored("%s: %s" % (err.__class__.__name__, str(err)), "red")
                     ]
             if row:
                 datasets.append(row)
