@@ -9,6 +9,9 @@ from .features import *
 from .features import __all__ as _features
 from .model import *
 from .model import __all__ as _model
+from .visualization import *
+from .visualization import __all__ as _viz
 
-__all__ = _algorithm + _dataset + _executable + _features + _model
+
+__all__ = _algorithm + _dataset + _executable + _features + _model + _viz
 
