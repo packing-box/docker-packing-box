@@ -87,6 +87,8 @@ if __name__ == '__main__':
                     pbar.update()
     except Exception as e:
         (logger.exception if args.verbose > 0 else logger.error)(e)
+        if args.metrics_only:
+            print("E,E,E,E")
         sys.exit(1)
     if pbar is not None:
         pbar.close()
@@ -101,4 +103,7 @@ if __name__ == '__main__':
         else:
             r = Section("Detection results: "), Table([m], column_headers=h)
             print(mdv.main(Report(*r).md()))
+    else:
+        if args.metrics_only:
+            print("-,-,-,-")
 

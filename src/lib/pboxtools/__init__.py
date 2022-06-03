@@ -5,6 +5,7 @@ import re
 from argparse import ArgumentParser, RawTextHelpFormatter
 from ast import literal_eval
 from contextlib import suppress
+from itertools import product
 from os.path import abspath, exists, isfile
 from pprint import pformat
 from shlex import split
@@ -111,25 +112,56 @@ def execute(name, **kwargs):
     return out.decode(errors="ignore"), err.decode(errors="ignore")
 
 
-def normalize(*packers, **kwargs):
-    """ Normalize the output from a list of values based on the PACKERS list.
+def normalize(*strings, **kwargs):
+    """ Normalize the output from a list of values based on the PACKERS list according to a decision heuristic.
     
-    :param packers: list of packer-related strings
+    :param strings: list of packer-related strings
     """
-    if len(packers) == 0 or packers in [(None, ), ("", )]:
+    if len(strings) == 0 or strings in [(None, ), ("", )]:
         return
-    d = {'unknown': -1}
-    for s in packers:
+    # count results
+    d, unknown = {}, 0
+    for s in strings:
+        b = False
         for packer, details in PACKERS.items():
-            for p in ["(?i)(?:[^a-z]|^)%s(?:[^a-z]|$)" % packer] + details.get('aliases', []):
-                if re.search(p, s):
+            for pattern, string in product(["(?i)(?:[^a-z]|^)%s(?:[^a-z]|$)" % packer] + details.get('aliases', []),
+                                           [s, re.sub(r"('s|\s|\(|\))", "", s)]):
+                if re.search(pattern, string):
                     p = packer.lower()
                     d.setdefault(p, 0)
                     d[p] += 1
+                    b = True
                     break
-    m = [k for k, v in d.items() if v == max(d.values())]
+        # collected strings that could not be matched by a packer name or related pattern are considered suspicious
+        if not b:
+            unknown += 1
+    # if no detection, check for suspicions and return "unknown" if found, otherwise return None
+    if len(d) == 0:
+        print(unknown)
+        if unknown > 0:
+            return "unknown"
+        return
+    vmax = max(d.values())
+    m = [k for k, v in d.items() if v == vmax]
     kwargs['logger'].debug("Matches: %s\n" % d)
-    return m[0] if len(m) == 1 else "unknown"  # cannot decide when multiple maxima
+    # trivial when no cndidate ; consider unknown count
+    if len(m) == 0:
+        if unknown > 0:
+            return "unknown"
+        return
+    # trivial when there is only one maxima
+    elif len(m) == 1:
+        return m[0]
+    # when multiple maxima, only decide if longest match AND shorter strings are include in the longest match ;
+    #  otherwise, return "undecided"
+    else:
+        best = m[0]
+        for s in m[1:]:
+            if s in best or best in s:
+                best = max([s, best], key=len)
+            else:
+                return "undecided"
+        return best
 
 
 def run(name, exec_func=execute, parse_func=lambda x, **kw: x, stderr_func=lambda x, **kw: x, parser_args=[],

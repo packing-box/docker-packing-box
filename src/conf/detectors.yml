@@ -154,7 +154,7 @@ PeFrame:
     - MSDOS
     - PE
   install:
-    - pip:  git+https://github.com/digitalsleuth/peframe
+    - pip: git+https://github.com/digitalsleuth/peframe
   license: gpl
   source:  https://github.com/guelfoweb/peframe
   status:  ok

@@ -10,17 +10,19 @@ ARGS = [
 
 
 def parse(output, **kwargs):
-    js, packer_strings = kwargs['orig_args']['json'], []
+    js, r = kwargs['orig_args']['json'], []
+    # parse JSON output
     if js:
         js = json.loads(output)
-        packer_strings.extend(js.get('peinfo', {}).get('features', {}).get('packer', []))
+        r.extend(js.get('peinfo', {}).get('features', {}).get('packer', []))
         if any(d.get('packer_compiler_signatures.yar', "") == "IsPacked" for d in js.get('yara_plugins', [])):
-            packer_strings.append("unknown")
+            r.append("unknown")
         if kwargs['weak']:
             for s in js.get('strings', {}).get('dump', []):
                 # collect strings explicitly mentioning it is packed or section names
                 if "packed" in s.lower() or s.startswith("."):
-                    packer_strings.append(s)
+                    r.append(s)
+    # or parse text output
     else:
         sections, sec = ["Yara Plugins", "Packer", "Sections Suspicious"], None
         for l in output.splitlines():
@@ -32,16 +34,16 @@ def parse(output, **kwargs):
             if l == "":
                 sec = None
             elif sec == "Yara Plugins" and "IsPacked" in l:
-                packer_strings.append("unknown")
+                r.append("unknown")
             elif sec == "Packer":
-                packer_strings.append(l)
+                r.append(l)
             elif sec == "Sections Suspicious" and kwargs['weak']:
-                packer_strings.append(l.split(" ", 1)[0].strip())
-    # filter some patterns found by trial and error
-    for s in packer_strings[:]:
+                r.append(l.split(" ", 1)[0].strip())
+    # filter out some patterns found by trial and error
+    for s in r[:]:
         if s.startswith("Microsoft_Visual_Cpp_"):
-            packer_strings.remove(s)
-    return packer_strings or [None]
+            r.remove(s)
+    return r
 
 
 if __name__ == "__main__":

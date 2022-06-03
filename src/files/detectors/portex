@@ -7,7 +7,7 @@ def parse(output, **kwargs):
     r = []
     for l in output.splitlines():
         with suppress(AttributeError):
-            r.append(re.search(r"^\* Section name .+ is typical for (.+) packer$", l).group(1).lower())
+            r.append(re.search(r"^\* Section name .+ is typical for (.+) packer$", l).group(1))
             continue
         if kwargs['weak']:
             for p in [r"^Entry Point is in section \d+ with name (.+)$",
@@ -15,7 +15,7 @@ def parse(output, **kwargs):
                       r"^\* Entry point is in writeable section \d+ with name (.+)$",
                       r"^\* Section name is unusual: (.+)$"]:
                 with suppress(AttributeError):
-                    r.append(re.search(p, l).group(1).lower())
+                    r.append(re.search(p, l).group(1))
     return r
 
 

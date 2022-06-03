@@ -16,7 +16,7 @@ This tool aims to generate representations of binaries, emphasizing their sectio
 __examples__    = [
     "features \".$\" dataset-packed-pe --label Exe32Pack",
     "find \".$\" dataset-packed-pe --max-not-matching 2",
-    "plot \"PsExec.exe$\" PackingData -l Notpacked -l MEW -l NSPack -l RLPack -l UPX",
+    "plot \"PsExec.exe$\" PackingData -l not-packed -l MEW -l NSPack -l RLPack -l UPX",
 ]
 __description__ = "Generate a figure with representations of input binaries' sections and entropy"
 

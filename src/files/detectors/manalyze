@@ -38,20 +38,16 @@ ARGS = [
 
 
 def parse(output, **kwargs):
-    p, patterns = None, []
+    r = []
     for l in output.splitlines():
         with suppress(AttributeError, TypeError):
-            r = re.search(r"^\[ .+? \] Th(?:e|is) PE is packed with (.+?)$", l).group(1).split(" or ")
-            if len(r) > 1 and not kwargs['weak']:
-                patterns.append("unknown")  # in this case, cannot decide
-                continue
-            for x in r:
-                patterns.append(x.strip().replace(" ", "-").lower())
+            for x in re.search(r"^\[ .+? \] Th(?:e|is) PE is packed with (.+?)$", l).group(1).split(" or "):
+                r.append(x)
             continue
         if kwargs['weak']:
             if "The PE is possibly packed." in l:
-                patterns.append("unknown")
-            if "Unusual section name found:" in l:
+                r.append("unknown")
+            elif "Unusual section name found:" in l:
                 s = l.split(":", 1)[1].strip()
                 # observed by trial and error: pattern "/[0-9]+" comes from names of sections of the binary that namely
                 #  generate warnings ; Manalyze consider them as "unusual section names", therefore flagging the binary
@@ -59,8 +55,8 @@ def parse(output, **kwargs):
                 if re.search(r"^/[0-9]+$", s):
                     continue
                 if len(s) > 0:
-                    patterns.append(s)  # possibly a string of interest for identifying the packer ; e.g. "petite"
-    return p if len(patterns) == 0 else patterns
+                    r.append(s)  # possibly a string of interest for identifying the packer ; e.g. "petite"
+    return r
 
 
 if __name__ == "__main__":

@@ -10,13 +10,11 @@ def parse(output, **kwargs):
         if l == "Found no known modifier or compiler.":
             return []
         with suppress(AttributeError):
-            r.append(re.search(r"^Packer:\s+(.+)$", l).group(1).lower() \
-                     .replace("'s", "").replace(" ", "_").replace("(", "").replace(")", ""))
+            r.append(re.search(r"^Packer:\s+(.+)$", l).group(1))
             continue
         if kwargs['weak']:
-            for p in [r"^Probably compressed.*$"]:
-                with suppress(AttributeError):
-                    r.append(re.search(p, l).group().lower())
+            with suppress(AttributeError):
+                r.append(re.search(r"^Probably compressed(.*)$", l).group(1))
     return r
 
 

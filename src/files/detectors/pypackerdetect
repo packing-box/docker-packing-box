@@ -9,6 +9,7 @@ from pypackerdetect.__info__ import __author__, __credits__, __license__, __sour
          (__version__, __source__, __author__, __credits__, __license__))
 @catch_exception
 def execute(name, **kwargs):
+    # important note: this tool uses the same signature DB format as PEiD but it also uses heuristics
     return PyPackerDetect(logger=kwargs['logger']).detect(kwargs['path'])
 
 
