@@ -16,7 +16,7 @@ def entropy(filename):
 if __name__ == '__main__':
     parser = ArgumentParser(formatter_class=RawTextHelpFormatter, add_help=False)
     parser.add_argument("target", help="target file or folder")
-    parser.add_argument("-t", "--threshold", default=7., type=float, help="entropy threshold")
+    parser.add_argument("-t", "--threshold", default=7., type=float, help="entropy threshold (default: 7.0)")
     extra = parser.add_argument_group("extra arguments")
     extra.add_argument("-h", "--help", action="help", help="show this help message and exit")
     extra.add_argument("-v", "--verbose", action="store_true", help="display debug information")

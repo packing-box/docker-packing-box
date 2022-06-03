@@ -171,7 +171,7 @@ class Model:
             if not ds.exists():
                 l.error("Bad input dataset (%s)" % ds)
                 return False
-        l.info("Reference dataset:  %s" % ds)
+        l.info("%s dataset:  %s" % (["Reference", "Test"][data_only], ds))
         self._data, self._target = pd.DataFrame(), pd.DataFrame(columns=["label"])
         # start input dataset parsing
         def __parse(exes, label=True):
