@@ -16,6 +16,7 @@ def entropy(filename):
 if __name__ == '__main__':
     parser = ArgumentParser(formatter_class=RawTextHelpFormatter, add_help=False)
     parser.add_argument("target", help="target file or folder")
+    parser.add_argument("-s", "--sort", action="store_true", help="sort by decreasing entropy")
     parser.add_argument("-t", "--threshold", default=7., type=float, help="entropy threshold (default: 7.0)")
     extra = parser.add_argument_group("extra arguments")
     extra.add_argument("-h", "--help", action="help", help="show this help message and exit")
@@ -25,12 +26,21 @@ if __name__ == '__main__':
     a.logger = logging.getLogger()
     a.logger.setLevel([logging.INFO, logging.DEBUG][a.verbose])
     if os.path.isdir(a.target):
+        tmp = []
         for root, dirs, files in os.walk(a.target):
             for f in files:
                 f = os.path.join(root, f)
                 e = entropy(f)
-                m = "%.02f\t%s" % (e, f)
-                [a.logger.debug, print][e > a.threshold](m)
+                m = (e, f)
+                if a.sort:
+                    if e > a.threshold:
+                        tmp.append(m)
+                    else:
+                        a.logger.debug("%.02f\t%s" % m)
+                else:
+                    [a.logger.debug, print][e > a.threshold]("%.02f\t%s" % m)
+        for m in sorted(tmp, key=lambda x: -float(x[0])):
+            print("%.02f\t%s" % m)
     elif os.path.isfile(a.target):
         f = a.target
         e = entropy(f)
