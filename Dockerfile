@@ -15,22 +15,24 @@ RUN (apt -qq update \
  && apt -qq -y autoremove \
  && apt -qq autoclean) 2>&1 > /dev/null \
  || echo -e "\033[1;31m SYSTEM UPGRADE FAILED \033[0m"
-# install common dependencies, libraries and tools
-RUN (apt -qq -y install apt-transport-https apt-utils locales \
+# install common dependencies and libraries
+RUN (apt -qq -y install apt-transport-https apt-utils locale locales \
  && apt -qq -y install bash-completion build-essential clang cmake software-properties-common \
  && apt -qq -y install libavcodec-dev libavformat-dev libavresample-dev libavutil-dev libbsd-dev libboost-regex-dev \
                        libboost-program-options-dev libboost-system-dev libboost-filesystem-dev libc6-dev-i386 \
                        libcairo2-dev libdbus-1-dev libegl1-mesa-dev libelf-dev libffi-dev libfontconfig1-dev \
                        libfreetype6-dev libfuse-dev libgif-dev libgirepository1.0-dev libgl1-mesa-dev libglib2.0-dev \
                        libglu1-mesa-dev libjpeg-dev libpulse-dev libssl-dev libsvm-java libtiff5-dev libudev-dev \
-                       libxcursor-dev libxkbfile-dev libxml2-dev libxrandr-dev  \
- && apt -qq -y install colordiff colortail cython3 dosbox git golang less ltrace tree strace sudo tmate tmux vim xterm \
+                       libxcursor-dev libxkbfile-dev libxml2-dev libxrandr-dev) 2>&1 > /dev/null \
+ || echo -e "\033[1;31m DEPENDENCIES INSTALL FAILED \033[0m"
+# install useful tools
+RUN (apt -qq -y install colordiff colortail cython3 dosbox git golang less ltrace tree strace sudo tmate tmux vim xterm \
  && apt -qq -y install iproute2 nodejs npm python3-setuptools python3-pip swig visidata weka x11-apps yarnpkg zstd \
  && apt -qq -y install curl ffmpeg imagemagick iptables jq psmisc tesseract-ocr unrar unzip wget xdotool xvfb \
  && apt -qq -y install binwalk ent foremost \
  && wget -qO /tmp/bat.deb https://github.com/sharkdp/bat/releases/download/v0.18.2/bat-musl_0.18.2_amd64.deb \
  && dpkg -i /tmp/bat.deb && rm -f /tmp/bat.deb) 2>&1 > /dev/null \
- || echo -e "\033[1;31m DEPENDENCIES INSTALL FAILED \033[0m"
+ || echo -e "\033[1;31m TOOLS INSTALL FAILED \033[0m"
 # configure the locale
 RUN sed -i '/en_US.UTF-8/s/^# //g' /etc/locale.gen && locale-gen
 ENV LANG en_US.UTF-8
