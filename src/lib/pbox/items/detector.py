@@ -12,6 +12,26 @@ __all__ = ["Detector"]
 THRESHOLD = lambda l: round(l / 2. + .5)  # majority vote
 
 
+def decide(results, **kwargs):
+    """ Decision heuristic of the superdetector. """
+    unknown = results.pop("unknown")
+    vmax = max(results.values())
+    m = [k for k, v in results.items() if v == vmax]
+    # trivial when there is only one maxima
+    if len(m) == 1:
+        return m[0]
+    # when multiple maxima, only decide if longest match AND shorter strings are include in the longest match ;
+    #  otherwise, return "undecided"
+    else:
+        best = m[0]
+        for s in m[1:]:
+            if s in best or best in s:
+                best = max([s, best], key=len)
+            else:
+                return "undecided"
+        return best
+
+
 class Detector(Base):
     """ Detector abstraction.
     
@@ -26,7 +46,7 @@ class Detector(Base):
     
     def check(self, *formats, **kwargs):
         """ Checks if the current item is applicable to the given formats. """
-        d_mc, i_mc = getattr(self, "multiclass", True), kwargs.pop('multiclass')
+        d_mc, i_mc = getattr(self, "multiclass", True), kwargs.get('multiclass')
         vote, chk_vote = getattr(self, "vote", True), kwargs.pop('vote', True)
         if super(Detector, self).check(*formats, **kwargs):
             # detector can be disabled either because it cannot vote or because it is not multiclass and detection was
@@ -68,7 +88,9 @@ class Detector(Base):
                 # do not consider Yes|No-detectors if the multiclass option is set
                 if multiclass and not mc:
                     continue
-                label = list(detector.detect(executable, **kwargs))[0][1]
+                label = list(detector.detect(executable, **kwargs))[0]
+                if isinstance(label, list):
+                    label = label[1]
                 if label == -1 and mc:
                     continue
                 # if the multiclass option is unset, convert the result to Yes|No
@@ -78,7 +100,8 @@ class Detector(Base):
                 results[label] += 1
                 details[detector.name] = label
             # select the best label
-            r = (executable, max(results, key=results.get)) + actual_label
+            decision = decide(results, **kwargs)
+            r = (executable, decision) + actual_label
             # apply thresholding
             if results[r[1]] < t:
                 r = (executable, None) + actual_label
