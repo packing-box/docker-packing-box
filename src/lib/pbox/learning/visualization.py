@@ -2,6 +2,7 @@
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 import numpy as np
+from contextlib import suppress
 from math import ceil
 from matplotlib.colors import ListedColormap
 from sklearn.decomposition import PCA
@@ -44,14 +45,17 @@ def image_knn(classifier, logger=None, **params):
     return fig
 
 
-def image_rf(classifier, width=5, fontsize=10, logger=None, **params):
-    n = len(classifier.estimators_)
+def image_rf(rf, width=5, fontsize=10, logger=None, **params):
+    n = len(rf.estimators_)
     rows = ceil(n / width)
     cols = width if rows > 1 else n
-    fig, axes = plt.subplots(nrows=rows, ncols=cols, figsize=2*(cols, rows), dpi=900)
+    fig, axes = plt.subplots(nrows=rows, ncols=cols, figsize=tuple(map(lambda x: 2*x, (cols, rows))), dpi=900)
+    # flatten axes, otherwise it is a matrix of all subplots
+    with suppress(TypeError):
+        axes = [ax for lst in axes for ax in lst]
     params['filled'] = True
     for i in range(n):
-        plot_tree(classifier.estimators_[i], ax=axes[i], **params)
+        plot_tree(rf.estimators_[i], ax=axes[i], **params)
         axes[i].set_title("Estimator: %d" % i, fontsize=fontsize)
     return fig
 
