@@ -8,7 +8,7 @@ from tinyscript.report import *
 from tqdm import tqdm
 
 
-__version__     = "1.0.3"
+__version__     = "1.0.4"
 __doc__         = """
 This tool aims to detect the packer used on an input executable, folder of executables or Dataset.
 """
@@ -46,14 +46,15 @@ if __name__ == '__main__':
                     l = -1
                 if pbar is None and hasattr(e, "len") and e.len > 1:
                     pbar = tqdm(total=e.len, unit="executable")
+                mc = kw['multiclass']
+                not_packed = r is None and mc or r is False and not mc
                 if not args.metrics_only:
-                    mc = kw['multiclass']
-                    disp = "not packed" if (r is None and mc) or (r is False and not mc) else r if mc else "packed"
+                    disp = "not packed" if not_packed else r if mc else "packed"
                     if not args.failures_only or r != l and r != -1:
                         log = [logger.failure, logger.success][r == l] if l != -1 else logger.debug
                         log("{}: {}".format(e, disp))
                 if r != -1:
-                    stats[['tp', 'tn'][r is None] if r == l else ['fp', 'fn'][r is None]] += 1
+                    stats[['tp', 'tn'][not_packed] if r == l else ['fp', 'fn'][not_packed]] += 1
                 if pbar is not None:
                     pbar.update()
         # using part or all of the available detectors
@@ -67,6 +68,7 @@ if __name__ == '__main__':
                 except ValueError:
                     e, r, l = r
                     details = {}
+                logger.debug("final decision: %s" % r)
                 if pbar is None and hasattr(e, "len") and e.len > 1:
                     pbar = tqdm(total=e.len, unit="executable")
                 if not args.metrics_only:
@@ -82,7 +84,9 @@ if __name__ == '__main__':
                         log = [logger.failure, logger.success][r == l] if l != -1 else logger.debug
                         log("{}: {}".format(e, r))
                 if r != -1:
-                    stats[['tp', 'tn'][r is None] if r == l else ['fp', 'fn'][r is None]] += 1
+                    mc = kw['multiclass']
+                    not_packed = r is None and mc or r is False and not mc
+                    stats[['tp', 'tn'][not_packed] if r == l else ['fp', 'fn'][not_packed]] += 1
                 if pbar is not None:
                     pbar.update()
     except Exception as e:
