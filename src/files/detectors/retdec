@@ -10,7 +10,8 @@ def parse(output, **kwargs):
             r.append("unknown")
             continue
         with suppress(AttributeError):
-            r.append(re.sub(r"('s|[()])", "", (re.search(r"^Detected tool\s+:\s+(.+)\s+\(packer\)", l).group(1))))
+            r.append(re.sub(r"('s|[()])", "",
+                            re.search(r"^Detected tool\s+:\s+(.+)\s+\((?:packer|protector|compressor)\)", l).group(1)))
     return r
 
 

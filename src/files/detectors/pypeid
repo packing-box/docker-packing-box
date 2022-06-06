@@ -8,7 +8,7 @@ from pypeid import PEiDScanner
 def execute(name, **kwargs):
     r = PEiDScanner().scan_file(kwargs['path'])
     kwargs['logger'].debug("\n" + pformat(r, indent=4))
-    return r['PEiD'] or ""
+    return r['PEiD'] + [[], ["unknown"]][r['Packed'] == "yes"]
 
 
 if __name__ == "__main__":
