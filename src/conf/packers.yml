@@ -264,6 +264,8 @@ Enigma_Protector:
   status: commercial
 
 Enigma_Virtual_Box:
+  aliases:
+    - (?i)Enigma Protector
   categories:
     - bundler
     - virtualizer
@@ -1098,7 +1100,9 @@ Yoda_Crypter:
 
 Yoda_Protector:
   aliases:
+    # output by Manalyze when matching section name "\\.y(P|0da)"
     - yP
+    - (?i)Y0da
     - (?i)Yodas[_\s]Protector
   categories:
     - compressor
