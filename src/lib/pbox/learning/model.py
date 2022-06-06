@@ -3,6 +3,7 @@ import joblib
 import multiprocessing as mp
 import pandas as pd
 import re
+from _pickle import UnpicklingError
 from inspect import getmembers
 from sklearn.base import is_classifier, TransformerMixin, BaseEstimator
 from sklearn.decomposition import PCA
@@ -24,16 +25,16 @@ from ..common.utils import *
 from ..items.detector import Detector
 
 
-__all__ = ["DumpedModel", "Model", "N_JOBS", "PREPROCESSORS"]
+__all__ = ["open_model", "DumpedModel", "Model", "N_JOBS", "PREPROCESSORS"]
 
 
 FLOAT_FORMAT = "%.6f"
 N_JOBS = mp.cpu_count() // 2
 # FIXME: parametrize all preprocessors, knowing that scalers fail within pipelines (no method '(.*_)?predict')
 PREPROCESSORS = {
-#    'MA':         MaxAbsScaler,
-#    'MM':         MinMaxScaler,
-#    'Norm':       (Normalizer, {'axis': 0}),
+    'MA':         MaxAbsScaler,
+    'MM':         MinMaxScaler,
+    'Norm':       Normalizer,
 #    'OneHot':     (OneHotEncoder, {'drop': "if_binary", 'handle_unknown': "ignore"}),
 #    'Ord':        OrdinalEncoder,
 #    'PT-bc':      (PowerTransformer, {'method': "box-cox"}),
@@ -44,6 +45,19 @@ PREPROCESSORS = {
     'PCA':        (PCA, {'n_components': 2}),
     'Std':        StandardScaler,
 }
+
+
+def open_model(item):
+    """ Open the target model with the right class. """
+    p = config['models'].joinpath(item)
+    if Model.check(item):
+        return Model(item)
+    try:
+        return DumpedModel(item)
+    except FileNotFoundError:
+        raise ValueError("%s does not exist" % item)
+    except UnpicklingError:
+        raise ValueError("%s is not a valid model" % item)
 
 
 class DebugPipeline:
@@ -228,7 +242,7 @@ class Model:
             l.warning("No selectable feature ; this may be due to a model unrelated to the input")
             return False
         # ensure features are sorted and data has its columns sorted too
-        self._features = {k: v for k, v in sorted(self._features.items(), key=lambda x: x[0])}
+        self._features = {k: v for k, v in sorted(self._features.items(), key=lambda x: x[0]) if v != ""}
         self._data = self._data[sorted(self._features.keys())]
         self._target = self._target.fillna("")
         if not multiclass:  # convert to binary class
@@ -316,8 +330,8 @@ class Model:
             m._performance = pd.read_csv(config['models'].joinpath(".performances.csv"), sep=";")
             models.append(m)
         for m in models:
-            p, l = m._performance, len(data)
-            for i in range(p.shape[0] - 1, -1, -1):
+            p, dlen = m._performance, len(data)
+            for i in range(p.shape[0]-1, -1, -1):
                 r = p.iloc[i]
                 d = r['Dataset']
                 try:
@@ -325,9 +339,8 @@ class Model:
                     row = list(r.values)
                 except KeyError:
                     row = [getattr(m, "name", str(m))] + list(r.values)
-                    print(row)
                 if dataset is None:
-                    data.insert(l - 1, row)
+                    data.insert(dlen-1, row)
                 elif d in dataset and isinstance(dataset, (list, tuple)) or dataset == d:
                     data.append(row)
                     break
@@ -403,7 +416,7 @@ class Model:
         """ Show an overview of the model. """
         a, ds, ps = self._metadata['algorithm'], self._metadata['dataset'], self.pipeline.steps
         last_step = ps[-1][1] if isinstance(ps[-1], tuple) else ps[-1]
-        fi, fi_str = getattr([-1], "feature_importances_", None), []
+        fi, fi_str = getattr(last_step, "feature_importances_", None), []
         if fi is not None:
             best_feat = [n for i, n in sorted(zip(fi, sorted(self._features.keys())), key=lambda x: -x[0]) if i > 0.]
             l = max(map(len, best_feat))
@@ -463,12 +476,13 @@ class Model:
         l, n_cpu, ds = self.logger, mp.cpu_count(), kw['dataset']
         try:
             cls = self.algorithm = Algorithm.get(algorithm)
+            kw['preprocessor'] = kw.get('preprocessor') or getattr(cls, "preprocessors", [])
             algo = cls.__class__.__name__
             self._metadata.setdefault('algorithm', {})
             self._metadata['algorithm']['name'] = algo
             self._metadata['algorithm']['description'] = cls.description
             self._metadata['algorithm']['multiclass'] = kw.get('multiclass', False)
-            self._metadata['algorithm']['preprocessors'] = kw.get('preprocessor', False)
+            self._metadata['algorithm']['preprocessors'] = kw['preprocessor']
         except KeyError:
             l.error("%s not available" % algorithm)
             return
@@ -626,7 +640,7 @@ class Model:
     
     @staticmethod
     def validate(folder):
-        f = Path(folder)
+        f = config['models'].joinpath(folder)
         if not f.exists():
             raise ValueError("Folder does not exist")
         if not f.is_dir():

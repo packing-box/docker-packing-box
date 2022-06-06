@@ -35,7 +35,7 @@ class Dataset:
     @logging.bindLogger
     def __init__(self, name="dataset", source_dir=None, load=True, **kw):
         if not re.match(NAMING_CONVENTION, name.basename if isinstance(name, ts.Path) else str(name)):
-            raise ValueError("Bad input name")
+            raise ValueError("Bad input name (%s)" % name)
         self._files = getattr(self.__class__, "_files", True)
         self.path = ts.Path(config['datasets'].joinpath(name), create=load).absolute()
         self.sources = source_dir or PACKING_BOX_SOURCES
@@ -337,7 +337,7 @@ class Dataset:
         self.formats = collapse_formats(*[f for f in expand_formats(*formats) if f in pformats])
         sources = []
         for fmt, src in self.sources.items():
-            if all(c not in expand_formats(fmt) for f in self._formats_exp):
+            if all(f not in expand_formats(fmt) for f in self._formats_exp):
                 continue
             sources.extend(src)
         l.info("Source directories: %s" % ",".join(map(str, set(sources))))
@@ -474,21 +474,25 @@ class Dataset:
             b._remove()
             self._save()
     
-    def select(self, name2=None, query=None, **kw):
+    def select(self, name2=None, query=None, limit=0, **kw):
         """ Select a subset from the current dataset based on multiple criteria. """
         self.logger.debug("selecting a subset of %s based on query '%s'..." % (self.basename, query))
         ds2 = self.__class__(name2)
-        ds2._metadata['sources'] = src = self._metadata['sources'][:]
-        _tmp = {s: 0 for s in src}
+        ds2._metadata['sources'] = self._metadata['sources'][:]
+        _tmp, i = {s: 0 for s in ds2._metadata['sources']}, 0
         for e in self._filter(query, **kw):
-            for s in src:
+            if i >= limit > 0:
+                break
+            for s in ds2._metadata['sources']:
                 if e.realpath.startswith(s):
                     _tmp[s] += 1
                     break
             ds2[Executable(dataset=self, dataset2=ds2, hash=e.hash)] = self[e.hash, True]
+            i += 1
+        # remove sources that, given the selection, have no associated file
         for s, cnt in _tmp.items():
             if cnt == 0:
-                src.remove(s)
+                ds2._metadata['sources'].remove(s)
         ds2._save()
     
     def show(self, limit=10, per_format=False, **kw):
@@ -508,7 +512,7 @@ class Dataset:
             self.logger.warning("Empty dataset")
     
     @backup
-    def update(self, source_dir=".", formats=["All"], labels=None, detect=False, **kw):
+    def update(self, source_dir=".", formats=["All"], n=0, labels=None, detect=False, **kw):
         """ Update the dataset with a folder of binaries, detecting used packers if 'detect' is set to True, otherwise
              packing randomly. If labels are provided, they are used instead of applying packer detection. """
         l, self.formats = self.logger, formats
@@ -527,11 +531,18 @@ class Dataset:
         l.info("Source directories: %s" % ",".join(map(str, set(source_dir))))
         self._metadata.setdefault('formats', [])
         self._metadata['sources'] = list(set(map(str, self._metadata.get('sources', []) + source_dir)))
-        i, n, pbar = -1, sum(1 for _ in self._walk(True, {'All': source_dir}, True)), None
-        for i, e in enumerate(self._walk(True, {'All': source_dir})):
+        i, pbar = -1, None
+        if n > 0:
+            files = [p for p in self._walk(True, {'All': source_dir}, True)]
+            random.shuffle(files)
+            files, total = files[:n], n
+        else:
+            files = self._walk(True, {'All': source_dir})
+            total = sum(1 for _ in self._walk(True, {'All': source_dir}, True))
+        for i, e in enumerate(files):
             # set the progress bar now to not overlap with self._walk's logging
             if pbar is None:
-                pbar = tqdm(total=n, unit="executable")
+                pbar = tqdm(total=total, unit="executable")
             if e.format not in self._metadata['formats']:
                 self._metadata['formats'].append(e.format)
             # precedence: input dictionary of labels > dataset's own labels > detection (if enabled) > discard

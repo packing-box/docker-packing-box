@@ -265,8 +265,14 @@ class FilelessDataset(Dataset):
     Dataset.features = features
     
     @backup
-    def merge(self, name2=None, silent=False, **kw):
+    def merge(self, name2=None, new_name=None, silent=False, **kw):
         """ Merge another dataset with the current one. """
+        if new_name is not None:
+            ds = type(self)(new_name)
+            ds.merge(self.path.basename)
+            ds.merge(name2)
+            ds.path.joinpath("files").remove(False)
+            return
         l = self.logger
         ds2 = Dataset(name2) if Dataset.check(name2) else FilelessDataset(name2)
         cls1, cls2 = self.__class__.__name__, ds2.__class__.__name__
