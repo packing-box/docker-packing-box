@@ -112,20 +112,24 @@ def execute(name, **kwargs):
     return out.decode(errors="ignore"), err.decode(errors="ignore")
 
 
-def normalize(*strings, **kwargs):
+def normalize(*lines, **kwargs):
     """ Normalize the output from a list of values based on the PACKERS list according to a decision heuristic.
     
-    :param strings: list of packer-related strings
+    :param lines: selection of detector's output lines
     """
-    if len(strings) == 0 or strings in [(None, ), ("", )]:
+    if len(lines) == 0 or lines in [(None, ), ("", )]:
         return
     # count results
     d, unknown = {}, 0
-    for s in strings:
+    for l in lines:
         b = False
         for packer, details in PACKERS.items():
-            for pattern, string in product(["(?i)(?:[^a-z]|^)%s(?:[^a-z]|$)" % packer] + details.get('aliases', []),
-                                           [s, re.sub(r"('s|\s|\(|\))", "", s)]):
+            # compose the name-based pattern and append the list of aliases
+            patterns = ["(?i)(?:[^a-z]|^)%s(?:[^a-z]|$)" % packer.replace("_", "(?:[ -_]|)")] + \
+                       details.get('aliases', [])
+            # use the line as is but also a sanitized version
+            strings  = [l, re.sub(r"(\'s|\s|\(|\)|\(\-\)|\[\-\])", "", l)]
+            for pattern, string in product(patterns, strings):
                 if re.search(pattern, string):
                     p = packer.lower()
                     d.setdefault(p, 0)
@@ -137,8 +141,8 @@ def normalize(*strings, **kwargs):
             unknown += 1
     # if no detection, check for suspicions and return "unknown" if found, otherwise return None
     if len(d) == 0:
-        print(unknown)
         if unknown > 0:
+            kwargs['logger'].debug("Suspicions:\n- %s" % "\n- ".join(strings))
             return "unknown"
         return
     vmax = max(d.values())
@@ -283,6 +287,9 @@ def run(name, exec_func=execute, parse_func=lambda x, **kw: x, stderr_func=lambd
     dt = perf_counter() - t1
     # now handle the result if no error
     err = stderr_func(err, **vars(a))
+    msg = DETECTORS[name].get('silent')
+    if msg is not None:
+        err = "\n".join([line for line in err.splitlines() if all(re.search(m, line) is None for m in msg)])
     if parse_stderr:
         out += "\n" + err
         err = ""
