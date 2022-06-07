@@ -16,7 +16,7 @@ RUN (apt -qq update \
  && apt -qq autoclean) 2>&1 > /dev/null \
  || echo -e "\033[1;31m SYSTEM UPGRADE FAILED \033[0m"
 # install common dependencies and libraries
-RUN (apt -qq -y install apt-transport-https apt-utils locale locales \
+RUN (apt -qq -y install apt-transport-https apt-utils \
  && apt -qq -y install bash-completion build-essential clang cmake software-properties-common \
  && apt -qq -y install libavcodec-dev libavformat-dev libavresample-dev libavutil-dev libbsd-dev libboost-regex-dev \
                        libboost-program-options-dev libboost-system-dev libboost-filesystem-dev libc6-dev-i386 \
@@ -25,7 +25,7 @@ RUN (apt -qq -y install apt-transport-https apt-utils locale locales \
                        libglu1-mesa-dev libjpeg-dev libpulse-dev libssl-dev libsvm-java libtiff5-dev libudev-dev \
                        libxcursor-dev libxkbfile-dev libxml2-dev libxrandr-dev) 2>&1 > /dev/null \
  || echo -e "\033[1;31m DEPENDENCIES INSTALL FAILED \033[0m"
-# install useful tools
+# install useful tools (missing: )
 RUN (apt -qq -y install colordiff colortail cython3 dosbox git golang less ltrace tree strace sudo tmate tmux vim xterm \
  && apt -qq -y install iproute2 nodejs npm python3-setuptools python3-pip swig visidata weka x11-apps yarnpkg zstd \
  && apt -qq -y install curl ffmpeg imagemagick iptables jq psmisc tesseract-ocr unrar unzip wget xdotool xvfb \
@@ -34,7 +34,10 @@ RUN (apt -qq -y install colordiff colortail cython3 dosbox git golang less ltrac
  && dpkg -i /tmp/bat.deb && rm -f /tmp/bat.deb) 2>&1 > /dev/null \
  || echo -e "\033[1;31m TOOLS INSTALL FAILED \033[0m"
 # configure the locale
-RUN sed -i '/en_US.UTF-8/s/^# //g' /etc/locale.gen && locale-gen
+RUN apt -qq clean \
+ && apt -qq update \
+ && apt -qq -y install locales \
+ && locale-gen en_US.UTF-8
 ENV LANG en_US.UTF-8
 ENV LANGUAGE en_US:en
 ENV LC_ALL en_US.UTF-8
@@ -91,7 +94,7 @@ RUN (pip3 install poetry sklearn tinyscript tldr thefuck \
  && pip3 freeze - local | grep -v "^\-e" | cut -d = -f 1 | xargs -n1 pip3 install -qU) 2>&1 > /dev/null \
  || echo -e "\033[1;31m PIP PACKAGES UPDATE FAILED \033[0m"
 # +--------------------------------------------------------------------------------------------------------------------+
-# |                     CUSTOMIZE THE BOX (refine the terminal, add folders to PATH and some aliases)                  |
+# |                                     CUSTOMIZE THE BOX (refine the terminal)                                        |
 # +--------------------------------------------------------------------------------------------------------------------+
 FROM base AS customized
 # copy customized files
@@ -100,45 +103,37 @@ RUN for f in `ls /tmp/term/`; do cp "/tmp/term/$f" "/root/.${f##*/}"; done \
  && rm -rf /tmp/term
 # set the base files and folders for further setup
 COPY src/conf/*.yml /opt/
-RUN mkdir -p /mnt/share /opt/bin /opt/detectors /opt/packers /opt/tools /opt/unpackers
+RUN mkdir -p /mnt/share /opt/bin /opt/tools /opt/analyzers /opt/detectors /opt/packers /opt/unpackers \
+                                            /tmp/analyzers /tmp/detectors /tmp/packers /tmp/unpackers
 # +--------------------------------------------------------------------------------------------------------------------+
-# |                           ADD UTILITIES (that are not packers, unpackers or home-made tools)                       |
+# |                                              ADD FRAMEWORK ITEMS                                                   |
 # +--------------------------------------------------------------------------------------------------------------------+
-FROM customized AS utils
-# copy pre-built utils
+FROM customized AS framework
+# copy pre-built utils and tools
 # note: libgtk is required for bytehist, even though it can be used in no-GUI mode
 COPY src/files/utils/* /opt/utils/
 RUN apt -qq -y install libgtk2.0-0:i386 \
  && /opt/utils/tridupdate
-# +--------------------------------------------------------------------------------------------------------------------+
-# |                                                    ADD TOOLS                                                       |
-# +--------------------------------------------------------------------------------------------------------------------+
-FROM utils AS tools
 COPY src/files/tools/* /opt/tools/
+# copy and install pbox (main library for tools) and pboxtools (lightweight library for items)
 COPY src/lib /tmp/lib
 RUN pip3 install /tmp/lib/ 2>&1 > /dev/null \
  && mv /opt/tools/help /opt/tools/?
-# +--------------------------------------------------------------------------------------------------------------------+
-# |                                                  ADD DETECTORS                                                     |
-# +--------------------------------------------------------------------------------------------------------------------+
-FROM tools AS detectors
+# install unpackers
+COPY src/files/analyzers/* /opt/analyzers/
+RUN mv /opt/analyzers/*.zip /tmp/analyzers/ \
+ && /opt/tools/packing-box setup analyzer
+# install detectors (including wrapper scripts)
 COPY src/files/detectors/* /opt/bin/
-RUN mv /opt/bin/userdb.txt /opt/detectors/ \
- && mv /opt/bin/*.zip /tmp/ \
- && mv /opt/bin/*.tar.xz /tmp/ \
+RUN mv /opt/bin/*.txt /opt/detectors/ \
+ && mv /opt/bin/*.tar.xz /tmp/detectors/ \
  && /opt/tools/packing-box setup detector
-# +--------------------------------------------------------------------------------------------------------------------+
-# |                                                  ADD UNPACKERS                                                     |
-# +--------------------------------------------------------------------------------------------------------------------+
-FROM detectors AS unpackers
-#COPY src/files/unpackers/* /tmp/
-RUN /opt/tools/packing-box setup unpacker
-# +--------------------------------------------------------------------------------------------------------------------+
-# |                                                   ADD PACKERS                                                      |
-# +--------------------------------------------------------------------------------------------------------------------+
-FROM unpackers AS packers
-COPY src/files/packers/* /tmp/
+# install packers
+COPY src/files/packers/* /tmp/packers/
 RUN /opt/tools/packing-box setup packer
+# install unpackers
+#COPY src/files/unpackers/* /tmp/unpackers/  # leave this commented as long as src/files/unpackers has no file
+RUN /opt/tools/packing-box setup unpacker
 # ----------------------------------------------------------------------------------------------------------------------
 RUN find /opt/bin -type f -exec chmod +x {} \;
 ENTRYPOINT /opt/tools/startup

@@ -31,34 +31,27 @@ Bintropy:
 
 DIE:
   author: Hors (horsicq)
-  command: /opt/detectors/die_lin64_portable/diec.sh {path}
+  command: $OPT/die_lin64_portable/diec.sh {path}
   description: Detect It Easy (DIE) is a program for determining types of files.
   formats:
     - All
   install:
     - gitr: https://github.com/horsicq/DIE-engine.git
-    - cd:   /tmp/DIE-engine
+    - cd:   $TMP/DIE-engine
     - exec:
       - wget -q https://raw.githubusercontent.com/horsicq/DIE-engine/5ce44b7a9551804f93b2f9ade6d71f4f1fc6922c/build_lin64.sh
       - chmod +x build_lin64.sh
       - ./build_lin64.sh 2>/dev/null
-      - find /tmp/DIE-engine/release -type f -exec tar xzf {} -C /opt/detectors \;
-      - tar xf /tmp/die.tar.xz -C /opt/detectors/die_lin64_portable
-      - cp /tmp/DIE-engine/release_version.txt /opt/detectors/die_lin64_portable/
-      - sed -i 's/\"\?\$\*\"\?/\"\$\*\"/g' /opt/detectors/die_lin64_portable/diec.sh
+      - find $TMP/DIE-engine/release -type f -exec tar xzf {} -C /opt/detectors \;
+      - tar xf $TMP/die.tar.xz -C $OPT/die_lin64_portable
+      - cp $TMP/DIE-engine/release_version.txt $OPT/die_lin64_portable/
+      - sed -i 's/\"\?\$\*\"\?/\"\$\*\"/g' $OPT/die_lin64_portable/diec.sh
   license: mit
   silent:
     - "\\+{1,2} ([a-z]{2,12}|[A-Z]+([-_][A-Z]+)*)"
   source:  https://github.com/horsicq/Detect-It-Easy
   status:  ok
-  version: /opt/detectors/die_lin64_portable/release_version.txt
-
-Exeinfo_PE:
-  description: Exeinfo PE is a program that lets you verify .exe files and check out all their properties. You can also change the file name, directly open the .exe, or simply delete it. Another piece of info provided is the exact size and the point of entry. In short, you can access dozens of different options to edit any Windows executable file.
-  formats:
-    - PE
-  source: https://exeinfo-pe.fr.uptodown.com/windows
-  status: info
+  version: $OPT/die_lin64_portable/release_version.txt
 
 ExeScan:
   comment: Relies on pefile and peutils with a userdb.txt signatures database and also the entropy-based function `peutils.is_probably_packed`.
@@ -69,47 +62,30 @@ ExeScan:
   source: https://github.com/cysinfo/Exescan
   status: info
 
-GetTyp:
-  author: PHaX
-  command: /opt/detectors/gettyp/gt.sh {path}
-  description: GetTyp is a file format detection program for DOS. It detects several formats without looking at the filename. It searches the code for special strings and byte code to identify the fileformat.
-  formats:
-    - MSDOS
-    - PE32
-  install:
-    - unzip: /opt/detectors/gettyp
-  maintained: false
-  references:
-    - https://www.helger.com/gt/gt.htm
-  source:  https://defacto2.net/f/aa2e6ec
-  status:  ok
-  version: <output>
-  vote:    false
-  weak:    true
-
 Language_2000:
   comment: Candidate for integration.
   description: Language 2000 is the ultimate compiler detection utility. Using this program you can determine which compiler used to make your binary file or with which compressor the file is compressed.
   formats:
     - PE
+  maintained: false
   source: https://farrokhi.net/language
   status: info
-  maintained: false
 
 Manalyze:
-  command: /opt/detectors/manalyze/bin/manalyze -p packer {path} 2>/dev/null
+  command: $OPT/manalyze/bin/manalyze -p packer {path} 2>/dev/null
   description: A static analyzer for PE executables.
   formats:
     - MSDOS
     - PE
   install:
     - git:  https://github.com/JusticeRage/Manalyze
-    - exec: mv /tmp/Manalyze /opt/detectors/manalyze
-    - setp: /opt/detectors/manalyze
+    - exec: mv $TMP/Manalyze $OPT/manalyze
+    - setp: $OPT/manalyze
     - make: bin -j5
   source: https://github.com/JusticeRage/Manalyze
   status: ok
   weak:   true
+  vote:   false
 
 MRC:
   description: Mandiant Red Curtain is a free utility for identifying both binary obfuscation mechanisms and other malicious characteristics. It examines a PE file and determines a threat score by evaluating it against criteria such as entropy, indicators of obfuscation, packing signatures and other characteristics to determine whether it requires more extensive investigation.
@@ -123,14 +99,6 @@ MRC:
   source: https://mandiant-red-curtain.apponic.com/download
   status: info
 
-NPEFileAnalyzer:
-  comment: PEiD-like detection.
-  description: NPE File Analyzer is a utility that allow users to view and edit 32bit and 64bit Portable Executable (PE) files, such as .EXE .DLL and .SYS files. This tool provides functions for inspection of unknown binaries, you can analyze sections, resources, import and export tables, relocations, TlsTable, and much more. It has a built-in process manager to analyze running processes and loaded modules.
-  formats:
-    - PE
-  source: https://www.novirusthanks.org/products/npe-file-analyzer/
-  status: info
-
 PackerID:
   comment: This relies on an old userdb.txt. This tool does not perform better than PEiD.
   description: Fork of packerid.py. Used to check PEid databases against files in Python. Additional output types, and formats, digital signature extraction, and disassembly support. Added a userdb.txt that I put together because who doesn't need another one.
@@ -139,16 +107,10 @@ PackerID:
   source: https://github.com/sooshie/packerid
   status: info
 
-PE-Bear:
-  description: PE-bear is a freeware reversing tool for PE files. Its objective is to deliver fast and flexible “first view” for malware analysts, stable and capable to handle malformed PE files.
-  formats:
-    - PE
-  source: https://github.com/hasherezade/pe-bear-releases
-  status: info
-
 PeFrame:
   author: Gianni Amato
   command: /usr/local/bin/peframe {path}
+  comment: TO BE FIXED
   description: Open source tool to perform static analysis on Portable Executable malware and malicious MS Office documents.
   formats:
     - MSDOS
@@ -156,10 +118,14 @@ PeFrame:
   install:
     - pip: git+https://github.com/digitalsleuth/peframe
   license: gpl
+  silent:
+    - "RuntimeWarning: too many matches for string"
+    - "for match in rules"
   source:  https://github.com/guelfoweb/peframe
   status:  ok
   version: <output>
   weak:    true
+  vote:    false
 
 PEiD:
   description: PEiD detects most common packers, cryptors and compilers for PE files.
@@ -186,52 +152,7 @@ PePack:
     - apt: pev
   source: https://github.com/merces/pev
   status: ok
-  vote: false
-
-PEscan:
-  description: pescan is a command line tool to scan portable executable (PE) files to identify how they were constructed.
-  formats:
-    - MSDOS
-    - PE
-  references:
-    - https://tzworks.com/prototype_page.php?proto_id=15
-    - https://www.aldeid.com/wiki/Pescan
-  source: https://tzworks.com/prototypes/pescan/pescan64.v.0.60.lin.tar.gz
-  status: commercial
-
-PETools:
-  description: 
-  formats:
-    - PE
-  install:
-    - wget: https://github.com/petoolse/petools:latest
-    - exec:
-      - mkdir -p /opt/detectors/petools
-      - mv /tmp/petools.7z /opt/detectors/petools/
-    - cd: /opt/detectors/petools/
-    - exec:
-      - 7z x petools.7z
-      - rm -f petools.7z
-      - chmod +x PETools.exe
-  source: https://github.com/petoolse/petools
-  status: gui
-
-PortEx:
-  author: Karsten Philipp Boris Hahn
-  description: Java library to analyse Portable Executable files with a special focus on malware analysis and PE malformation robustness.
-  formats:
-    - MSDOS
-    - PE
-  install:
-    - wget: https://github.com/struppigel/PortEx:latest
-    - exec: mv /tmp/portex.jar /opt/detectors/
-    - cd:   /opt/detectors
-    - java: portex.jar
-  license: apache-2.0
-  source:  https://github.com/katjahahn/PortEx
-  status:  ok
-  version: <output>
-  weak:    true
+  vote:   false
 
 PyPackerDetect:
   comment: Relies on PEiD but also uses custom heuristics (e.g. known packer section names, entrypoint in non-standard section, threshhold of non-standard sections reached, low number of imports and overlapping entrypoint sections).
@@ -247,13 +168,14 @@ PyPackerDetect:
 
 PyPeid:
   author: Koh M. Nakagawa
+  comment: May replace PEiD thanks to its support for Yara rules. TO BE CHECKED
   description: Yet another implementation of PEiD with yara-python.
   formats:
     - MSDOS
     - PE
   install:
     - gitr: https://github.com/FFRI/pypeid.git
-    - cd:   /tmp/pypeid
+    - cd:   $TMP/pypeid
     - exec:
       - poetry build
       - find dist -iname *.whl -exec pip3 install {} \;
@@ -262,7 +184,7 @@ PyPeid:
   source:  https://github.com/FFRI/pypeid
   status:  ok
   version: pypeid:__version__
-  vote: false
+  vote:    false
 
 RDG:
   description: RDG Packer Detector is a detector for packers, Cryptors, Compilers, Packers Scrambler, Joiners, Installers.
@@ -274,18 +196,18 @@ RDG:
 
 RetDec:
   author: Avast
-  command: /opt/detectors/retdec/bin/retdec-fileinfo {path}
+  command: $OPT/retdec/bin/retdec-fileinfo {path}
   description: RetDec is a retargetable machine-code decompiler based on LLVM.
   formats:
     - All
   install:
     - wget:  https://github.com/avast/retdec:latest{ubuntu}
     - untar: /opt/detectors
-    - exec: pathprepend /opt/detectors/retdec/bin
+    - exec: pathprepend $OPT/retdec/bin
   license: mit
   source:  https://github.com/avast/retdec
   status:  ok
-  version: /opt/detectors/retdec/share/retdec/CHANGELOG.md
+  version: $OPT/retdec/share/retdec/CHANGELOG.md
 
 StudPE:
   comment: This tool relies on PEiD signatures.
@@ -296,20 +218,3 @@ StudPE:
     - https://www.amazon.fr/Malware-Forensics-Field-Windows-Systems/dp/1597494720
   source: https://www.cgsoftlabs.ro/studpe.html
   status: info
-
-Unix_File:
-  command: /usr/bin/file {path}
-  comment: This tool is a file analyzer and is only able to detect well-known compressors such as UPX, PEtite or PECompact.
-  description: file tests each argument in an attempt to classify it. There are three sets of tests, performed in this order ; filesystem tests, magic tests, and language tests. The first test that succeeds causes the file type to be printed.
-  formats:
-    - All
-  install:
-    - apt: file
-  references:
-    - https://linux.die.net/man/1/file
-    - https://man.openbsd.org/file.1
-    - https://pubs.opengroup.org/onlinepubs/9699919799/utilities/file.html
-    - https://man.netbsd.org/libmagic.3
-  source: https://launchpad.net/ubuntu/+source/file
-  status: ok
-  vote:   false

@@ -1,0 +1,96 @@
+Exeinfo_PE:
+  description: Exeinfo PE is a program that lets you verify .exe files and check out all their properties. You can also change the file name, directly open the .exe, or simply delete it. Another piece of info provided is the exact size and the point of entry. In short, you can access dozens of different options to edit any Windows executable file.
+  formats:
+    - PE
+  source: https://exeinfo-pe.fr.uptodown.com/windows
+  status: info
+
+GetTyp:
+  author: PHaX
+  description: GetTyp is a file format detection program for DOS. It detects several formats without looking at the filename. It searches the code for special strings and byte code to identify the fileformat.
+  formats:
+    - MSDOS
+    - PE32
+  install:
+    - unzip: $OPT/gettyp
+    - ln:    $OPT/gettyp/gt.sh
+  maintained: false
+  references:
+    - https://www.helger.com/gt/gt.htm
+  source:  https://defacto2.net/f/aa2e6ec
+  status:  ok
+  version: <output>
+
+NPEFileAnalyzer:
+  comment: PEiD-like detection.
+  description: NPE File Analyzer is a utility that allow users to view and edit 32bit and 64bit Portable Executable (PE) files, such as .EXE .DLL and .SYS files. This tool provides functions for inspection of unknown binaries, you can analyze sections, resources, import and export tables, relocations, TlsTable, and much more. It has a built-in process manager to analyze running processes and loaded modules.
+  formats:
+    - PE
+  source: https://www.novirusthanks.org/products/npe-file-analyzer/
+  status: info
+
+PE-Bear:
+  description: PE-bear is a freeware reversing tool for PE files. Its objective is to deliver fast and flexible “first view” for malware analysts, stable and capable to handle malformed PE files.
+  formats:
+    - PE
+  source: https://github.com/hasherezade/pe-bear-releases
+  status: info
+
+PEscan:
+  description: pescan is a command line tool to scan portable executable (PE) files to identify how they were constructed.
+  formats:
+    - MSDOS
+    - PE
+  references:
+    - https://tzworks.com/prototype_page.php?proto_id=15
+    - https://www.aldeid.com/wiki/Pescan
+  source: https://tzworks.com/prototypes/pescan/pescan64.v.0.60.lin.tar.gz
+  status: commercial
+
+PETools:
+  description: PE Tools lets you actively research PE files and processes. Process Viewer and PE files Editor, Dumper, Rebuilder, Comparator, Analyzer are included. PE Tools is an oldschool reverse engineering tool with a long history since 2002. PE Tools was initially inspired by LordPE (yoda).
+  formats:
+    - PE
+  install:
+    - wget: https://github.com/petoolse/petools:latest
+    - exec:
+      - mkdir -p $OPT/petools
+      - mv $TMP/petools.7z $OPT/petools/
+    - cd: $OPT/petools/
+    - exec:
+      - 7z x petools.7z
+      - rm -f petools.7z
+      - chmod +x PETools.exe
+  source: https://github.com/petoolse/petools
+  status: gui
+
+PortEx:
+  author: Karsten Philipp Boris Hahn
+  description: Java library to analyse Portable Executable files with a special focus on malware analysis and PE malformation robustness.
+  formats:
+    - MSDOS
+    - PE
+  install:
+    - wget: https://github.com/struppigel/PortEx:latest
+    - exec: mv $TMP/portex.jar $OPT/
+    - cd:   $OPT
+    - java: portex.jar
+  license: apache-2.0
+  source:  https://github.com/katjahahn/PortEx
+  status:  ok
+  version: <output>
+
+Unix_File:
+  comment: This tool is a file analyzer and is only able to detect well-known compressors such as UPX, PEtite or PECompact.
+  description: file tests each argument in an attempt to classify it. There are three sets of tests, performed in this order ; filesystem tests, magic tests, and language tests. The first test that succeeds causes the file type to be printed.
+  formats:
+    - All
+  install:
+    - apt: file
+  references:
+    - https://linux.die.net/man/1/file
+    - https://man.openbsd.org/file.1
+    - https://pubs.opengroup.org/onlinepubs/9699919799/utilities/file.html
+    - https://man.netbsd.org/libmagic.3
+  source: https://launchpad.net/ubuntu/+source/file
+  status: ok

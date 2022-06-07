@@ -68,8 +68,7 @@ class Detector(Base):
             Runs every known detector on the given executable and decides the label through voting (with a penalty on
              cases where the executable is considered not packed).
         If called from an instance:
-            Runs the detector according to its command line format and checks if the executable has been changed by this
-             execution. """
+            Runs the detector according to its command line format. """
         dslen = kwargs.get('dslen')
         if dslen:
             executable.len = dslen

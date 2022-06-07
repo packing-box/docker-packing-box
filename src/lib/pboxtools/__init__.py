@@ -93,7 +93,7 @@ def execute(name, **kwargs):
         elif v is not None:
             spec += " " + a.option_strings[0] + " " + str(v)
     cmd = DETECTORS[name].get('command', "/usr/bin/%s {path}" % name.lower())
-    exe, opt = cmd.split(" ", 1)
+    exe, opt = cmd.replace("$OPT", "/opt/detectors").split(" ", 1)
     cmd = (exe + "%s " + opt) % spec
     cmd = re.sub("'?\{path\}'?", "'{path}'", cmd)  # this allows to handle input path with whitespaces
     kwargs['logger'].debug("Command format: " + cmd)

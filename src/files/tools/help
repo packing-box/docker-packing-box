@@ -41,7 +41,7 @@ def overview(show=False, format=None, category=None, keep=None):
                 tools.append(row)
         report.append(Section("Tools (%d)" % len(tools)), Table(tools, column_headers=tools_headers))
     descr = {}
-    for cls in ([Detector, Packer, Unpacker] if keep is None else [globals()[keep[:-1].capitalize()]]):
+    for cls in ([Analyzer, Detector, Packer, Unpacker] if keep is None else [globals()[keep[:-1].capitalize()]]):
         r, d = cls.summary(show, format, **({'categories': category} if cls is Packer else {}))
         if cls is Detector:
             table, cols = r[1], ["Multiclass", "Weak Mode", "Superdetector"]

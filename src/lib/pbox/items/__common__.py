@@ -309,9 +309,11 @@ class Base(Item):
             self.logger.debug("Status: %s ; this means that it won't be installed" % self.status)
             return
         self.logger.info("Setting up %s..." % self.cname)
-        tmp, obin, ubin = Path("/tmp"), Path("/opt/bin"), Path("/usr/bin")
+        opt, tmp = Path("/opt/%ss" % self.type), Path("/tmp/%ss" % self.type)
+        obin, ubin = Path("/opt/bin"), Path("/usr/bin")
         result, rm, wget, kw = None, True, False, {'logger': self.logger, 'silent': getattr(self, "silent", [])}
         cwd = os.getcwd()
+        __p = lambda p: p.replace("$TMP", str(tmp)).replace("$OPT", str(opt))
         for cmd in self.install:
             if isinstance(result, Path) and not result.exists():
                 self.logger.critical("Last command's result does not exist (%s) ; current: %s" % (result, cmd))
@@ -319,12 +321,20 @@ class Base(Item):
             name = cmd.pop('name', "")
             if name != "":
                 self.logger.info("> " + name)
+            # extract argument(s)
             cmd, arg = list(cmd.items())[0]
+            try:
+                arg = __p(arg)
+                arg1, arg2 = shlex.split(arg)
+            except AttributeError:
+                arg = [__p(a) for a in arg]  # e.g. exec
+            except ValueError:
+                arg1, arg2 = arg, arg
             # simple install through APT
             if cmd == "apt":
                 kw['silent'] += ["apt does not have a stable CLI interface"]
                 run("apt -qy install %s" % arg, **kw)
-            # change to the given dir (starting from the reference /tmp directory if no command was run before)
+            # change to the given dir (starting from the reference /tmp/[ITEM]s directory if no command was run before)
             elif cmd == "cd":
                 result = (result or tmp).joinpath(arg)
                 if not result.exists():
@@ -332,13 +342,9 @@ class Base(Item):
                     result.mkdir()
                 self.logger.debug("cd '%s'" % result)
                 os.chdir(str(result))
-            # copy a file from the previous location (or /tmp if not defined) to /opt/bin, making the destination file
-            #  executable
+            # copy a file from the previous location (or /tmp/[ITEM]s if not defined) to /opt/bin, making the
+            #  destination file executable
             elif cmd == "copy":
-                try:
-                    arg1, arg2 = shlex.split(arg)
-                except ValueError:
-                    arg1, arg2 = arg, arg
                 src, dst = (result or tmp).joinpath(arg1), ubin.joinpath(arg2)
                 # if /usr/bin/... exists, then save it to /opt/bin/... to superseed it
                 if dst.is_samepath(ubin.joinpath(arg2)) and dst.exists():
@@ -391,10 +397,7 @@ class Base(Item):
                 if cmd == "lwine" and hasattr(self, "gui"):
                     arg = self._gui(result.joinpath(arg), True)
                 else:
-                    try:
-                        arg1, arg2 = shlex.split(arg)
-                    except ValueError:
-                        arg1, arg2 = "/opt/%ss/%s" % (self.type, self.name), arg
+                    arg1 = opt.joinpath(self.name)
                     arg2 = "wine \"%s\" \"$@\"" % arg2 if cmd == "lwine" else "./%s" % arg2
                     arg = "#!/bin/bash\nPWD=\"`pwd`\"\nif [[ \"$1\" = /* ]]; then TARGET=\"$1\"; else " \
                           "TARGET=\"$PWD/$1\"; fi\ncd \"%s\"\n%s \"$TARGET\" \"$2\"\ncd \"$PWD\"" % (arg1, arg2)
@@ -411,20 +414,21 @@ class Base(Item):
                     self.logger.error("Got a file ; should have a folder")
                     return
                 try:
-                    arg, opt = shlex.split(arg)
+                    arg, opts = shlex.split(arg)
                 except ValueError:
-                    opt = None
+                    opts = None
                 os.chdir(str(result))
                 files = [x.filename for x in result.listdir()]
+                make = "make %s" % arg2 if arg2 != arg1 else "make"
                 if "CMakeLists.txt" in files:
                     kw['silent'] += ["Checking out ", "Cloning into ", "Updating "]
                     if run("cmake .", **kw)[-1] == 0:
-                        run("make %s" % opt if opt else "make", **kw)
+                        run(make, **kw)
                 elif "Makefile" in files:
                     if "configure.sh" in files:
                         if run("chmod +x configure.sh", **kw)[-1] == 0:
                             run("./configure.sh", **kw)
-                    if run("make %s" % opt if opt else "make", **kw)[-1] == 0:
+                    if run(make, **kw)[-1] == 0:
                         ok = False
                         with result.joinpath("Makefile").open() as f:
                             for l in f:
@@ -436,7 +440,7 @@ class Base(Item):
                 elif "make.sh" in files:
                     if run("chmod +x make.sh", **kw)[-1] == 0:
                         run("sh -c './make.sh'", **kw)
-                result = result.joinpath(arg)
+                result = result.joinpath(arg1)
             # move the previous location to /usr/bin (if relative path), make it executable if it is a file
             elif cmd == "move":
                 result = (result or tmp).joinpath(arg)
@@ -460,7 +464,7 @@ class Base(Item):
             # manually set the result as a path object to be used in the next command
             elif cmd == "setp":
                 result = tmp.joinpath(arg)
-            # decompress a RAR/TAR/ZIP archive to the given location (absolute or relative to /tmp)
+            # decompress a RAR/TAR/ZIP archive to the given location (absolute or relative to /tmp/[ITEM]s)
             elif cmd in ["unrar", "untar", "unzip"]:
                 ext = "." + cmd[-3:]
                 # for tar, do not use the extension as a check (may be .tar.bz2, .tar.gz, .tar.xz, ...)

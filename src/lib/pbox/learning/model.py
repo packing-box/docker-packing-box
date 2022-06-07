@@ -592,7 +592,7 @@ class Model:
             params.update({'data': self._data, 'target': self._target, 'algo_params': a['parameters']})
         if export:
             destination = str(Path(output_dir).joinpath("%s.png" % self.name))
-            viz(self.classifier, **params).savefig(destination, format="png")
+            viz(self.classifier, **params).savefig(destination, format="png", bbox_inches="tight")
             self.logger.warning("Visualization saved to %s" % destination)
         else:
             print(viz(self.classifier, **params))
