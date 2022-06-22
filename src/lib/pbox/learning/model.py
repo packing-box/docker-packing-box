@@ -1,6 +1,7 @@
 # -*- coding: UTF-8 -*-
 import joblib
 import multiprocessing as mp
+import numpy as np
 import pandas as pd
 import re
 from _pickle import UnpicklingError
@@ -145,7 +146,7 @@ class Model:
         return [accuracy, precision, recall, f_measure, mcc, auc]
     
     def _prepare(self, dataset=None, preprocessor=None, multiclass=False, labels=None, feature=None, data_only=False,
-                 **kw):
+                 unlabeled=False, **kw):
         """ Prepare the Model instance based on the given Dataset/FilelessDataset/CSV/other instance.
         NB: after preparation,
              (1) input data is prepared (NOT preprocessed yet as this is part of the pipeline), according to 4 use cases
@@ -243,8 +244,16 @@ class Model:
             return False
         # ensure features are sorted and data has its columns sorted too
         self._features = {k: v for k, v in sorted(self._features.items(), key=lambda x: x[0]) if v != ""}
-        self._data = self._data[sorted(self._features.keys())]
-        self._target = self._target.fillna("")
+        try:
+            self._data = self._data[sorted(self._features.keys())]
+        except KeyError as e:
+            missing_cols = ast.literal_eval(e.args[0].replace("not in index", ""))
+            for col in missing_cols:
+                self._features[col] = ""
+            self._data = self._data.reindex(columns=sorted(self._features.keys()))
+        if unlabeled:
+            self._target['label'] = np.nan
+        self._data, self._target = self._data.fillna(-1), self._target.fillna("")
         if not multiclass:  # convert to binary class
             self._target.loc[self._target.label == "", "label"] = 0
             self._target.loc[self._target.label != 0, "label"] = 1
@@ -319,6 +328,8 @@ class Model:
         """ Compare the last performance of this model on the given dataset with other ones. """
         l, data, models = self.logger, [], [self]
         l.debug("comparing models...")
+        if isinstance(dataset, list):
+            dataset = [d.path.stem for d in dataset if not isinstance(d, str)]
         if isinstance(model, (list, tuple)):
             models.extend(model)
         elif model is not None:
@@ -327,8 +338,10 @@ class Model:
             class Dummy:
                 def __str__(self): return ""
             m = Dummy()
+            m.name = ""
             m._performance = pd.read_csv(config['models'].joinpath(".performances.csv"), sep=";")
             models.append(m)
+        # compute performance data
         for m in models:
             p, dlen = m._performance, len(data)
             for i in range(p.shape[0]-1, -1, -1):
@@ -339,14 +352,21 @@ class Model:
                     row = list(r.values)
                 except KeyError:
                     row = [getattr(m, "name", str(m))] + list(r.values)
+                # if all performance metrics are 100% AND the dataset name matches this included in the model's name,
+                #  assume it is the reference dataset and discard these metrics
+                if all(x == 1.0 for x in row[2:7]) and m.name.split("_", 1)[0] == d:
+                    continue
+                row = [[v, "-"][v < 0.] if isinstance(v, (int, float)) else v for v in row]
                 if dataset is None:
                     data.insert(dlen-1, row)
                 elif d in dataset and isinstance(dataset, (list, tuple)) or dataset == d:
                     data.append(row)
                     break
         if len(data) == 0:
-            l.warning("No model selected" if dataset is None else "%s not found" % dataset)
+            l.warning("No model selected" if dataset is None else "%s not found for the given model" % \
+                      [dataset[0], "Datasets"][len(dataset) > 1])
             return
+        # display performance data
         ph = PERF_HEADERS
         h = ["Model"] + list(ph.keys())
         data = sorted(data, key=lambda row: (row[0], row[1]))
@@ -443,7 +463,7 @@ class Model:
     
     def test(self, executable, **kw):
         """ Test a single executable or a set of executables and evaluate metrics. """
-        l, ds, a = self.logger, executable, self._metadata['algorithm']
+        l, ds, a, unlab = self.logger, executable, self._metadata['algorithm'], kw.get('unlabeled', False)
         if len(self.pipeline.steps) == 0:
             l.warning("Model shall be trained before testing")
             return
@@ -454,7 +474,9 @@ class Model:
         prediction, dt = benchmark(self.pipeline.predict)(self._data)
         dt = 1000 * dt
         try:
-            proba = self.pipeline.predict_proba(self._data)[:, 1]
+            proba, dt2 = benchmark(self.pipeline.predict_proba)(self._data)
+            dt += 1000 * dt2
+            proba = proba[:, 1]
         except AttributeError:
             proba = None
         ph = PERF_HEADERS
@@ -464,7 +486,7 @@ class Model:
         print(mdv.main(Report(*r).md()))
         if len(self._data) > 0:
             row = {'Model': self.name} if self.__class__ is DumpedModel else {}
-            row['Dataset'] = str(ds)
+            row['Dataset'] = str(ds) + ["", "(unlabeled)"][unlab]
             for k, v in zip(h, m):
                 row[k] = v
             row['Processing Time'] = dt

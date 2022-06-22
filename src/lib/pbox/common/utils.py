@@ -27,12 +27,12 @@ FORMATS = {
 }
 PERF_HEADERS = {
     'Dataset':         lambda x: x,
-    'Accuracy':        lambda x: "%.2f%%" % (x * 100),
-    'Precision':       lambda x: "%.2f%%" % (x * 100),
-    'Recall':          lambda x: "%.2f%%" % (x * 100),
-    'F-Measure':       lambda x: "%.2f%%" % (x * 100),
-    'MCC':             lambda x: "%.2f%%" % (x * 100),
-    'AUC':             lambda x: "%.2f%%" % (x * 100),
+    'Accuracy':        lambda x: "-" if x == "-" else "%.2f%%" % (x * 100),
+    'Precision':       lambda x: "-" if x == "-" else "%.2f%%" % (x * 100),
+    'Recall':          lambda x: "-" if x == "-" else "%.2f%%" % (x * 100),
+    'F-Measure':       lambda x: "-" if x == "-" else "%.2f%%" % (x * 100),
+    'MCC':             lambda x: "-" if x == "-" else "%.2f%%" % (x * 100),
+    'AUC':             lambda x: "-" if x == "-" else "%.2f%%" % (x * 100),
     'Processing Time': lambda x: "%.3fms" % (x * 1000),
 }
 
@@ -198,15 +198,16 @@ def highlight_best(data, headers=None, exclude_cols=[0, -1], formats=None):
         raise ValueError("headers and row lengths mismatch")
     ndata, exc_cols = [], [x % len(headers) for x in exclude_cols]
     maxs = [None if i in exc_cols else 0 for i, _ in enumerate(headers)]
+    fl = lambda f: -1. if f == "-" else float(f)
     # search for best values
     for d in data:
         for i, v in enumerate(d):
             if maxs[i] is None:
                 continue
-            maxs[i] = max(maxs[i], float(v))
+            maxs[i] = max(maxs[i], fl(v))
     # reformat the table, setting bold text for best values
     for d in data:
-        ndata.append([bold((formats or {}).get(k, lambda x: x)(v)) if maxs[i] and float(v) == maxs[i] else \
+        ndata.append([bold((formats or {}).get(k, lambda x: x)(v)) if maxs[i] and fl(v) == maxs[i] else \
                      (formats or {}).get(k, lambda x: x)(v) for i, (k, v) in enumerate(zip(headers, d))])
     return ndata
 

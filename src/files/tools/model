@@ -6,7 +6,7 @@ from tinyscript import *
 
 __author__      = "Alexandre D'Hondt"
 __email__       = "alexandre.dhondt@gmail.com"
-__version__     = "1.0.1"
+__version__     = "1.1.0"
 __copyright__   = ("A. D'Hondt", 2021)
 __license__     = "gpl-3.0"
 __doc__         = """
@@ -44,15 +44,6 @@ def __add_name(parser, optional=False, force=False, joblib=False):
     return parser
 
 
-def __dataset_exists(string):
-    p = config['datasets'].joinpath(string)
-    if Dataset.check(p):
-        return Dataset(p)
-    if FilelessDataset.check(p):
-        return FilelessDataset(p)
-    raise ValueError("Bad dataset")
-
-
 if __name__ == '__main__':
     pp_help = "preprocessor for shaping the data\n- %s\n" % \
               "\n- ".join("%s: %s" % (k.ljust(10), "none" if v is None else v.__name__ \
@@ -60,8 +51,8 @@ if __name__ == '__main__':
               (v[0].__name__, ", ".join("{}={}".format(*i) for i in v[1].items()))) \
               for k, v in sorted(PREPROCESSORS.items(), key=lambda x: x[0] or "none") if k is not None)
     sparsers = parser.add_subparsers(dest="command", help="command to be executed")
-    compare = __add_name(sparsers.add_parser("compare", help="compare the selected model with others"), True)
-    compare.add_argument("-d", "--dataset", type=__dataset_exists, action="extend", nargs="*",
+    compare = __add_name(sparsers.add_parser("compare", help="compare the selected model with others"), joblib=True)
+    compare.add_argument("-d", "--dataset", type=open_dataset, action="extend", nargs="*",
                          help="dataset to be selected for the comparison")
     compare.add_argument("-i", "--include", action="store_true", help="include unformatted models")
     compare.add_argument("-m", "--model", type=open_model, action="extend", nargs="*",
@@ -79,10 +70,11 @@ if __name__ == '__main__':
     test = sparsers.add_parser("test", help="test the model on a given input")
     __add_name(test, joblib=True)
     test.add_argument("executable", help="executable or folder containing executables or dataset or data CSV file")
+    test.add_argument("-u", "--unlabeled", action="store_true", help="do not use assigned labels (if any)")
     test.add_argument("--sep", default=",", choices=",;|\t", help="set the CSV separator",
                       note="required when using input CSV data instead of a Dataset")
     train = sparsers.add_parser("train", help="train a model on the given dataset")
-    train.add_argument("dataset", type=__dataset_exists, help="dataset for training the model")
+    train.add_argument("dataset", type=open_dataset, help="dataset for training the model")
     __add_name(train, True)
     train.add_argument("-a", "--algorithm", choices=[a.name for a in Algorithm.registry], default="dt",
                        help="machine learning algorithm to be used\n- %s\n * supports Grid Search cross-validation\n" %\
