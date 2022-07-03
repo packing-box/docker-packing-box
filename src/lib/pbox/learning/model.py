@@ -293,11 +293,6 @@ class Model:
         ds.logger.debug("> split data and target vectors to train and test subsets")
         self._train.data, self._test.data, self._train.target, self._test.target = \
             train_test_split(self._data, self._target, test_size=.2, random_state=42, stratify=self._target)
-        # prepare for Weka
-        # TODO: to be tested yet
-        if self.algorithm.is_weka():
-            l.debug("> create ARFF train and test files (for Weka)")
-            WekaClassifier.to_arff(self)
         return True
     
     def _save(self):
