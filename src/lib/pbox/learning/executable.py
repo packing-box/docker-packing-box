@@ -12,7 +12,9 @@ __all__ = ["Executable"]
 
 class Executable(Base):
     """ Executable extension for handling features. """
-    _features = {}
+    _boolean_only = False
+    _features     = {}
+    _transformers = {}
     
     def __new__(cls, *parts, **kwargs):
         self = super(Executable, cls).__new__(cls, *parts, **kwargs)
@@ -31,6 +33,12 @@ class Executable(Base):
             if fset is None:
                 Executable._features[self.format] = fset = Features(self.format)
             return fset
+        if name == "_transformers":
+            # populate Executable._transformers with the set of feature transformers and their related functions
+            tset = Executable._transformers
+            if len(tset) == 0:
+                Executable._transformers = tset = Transformers(self._features, self._boolean_only)
+            return tset
         return super(Executable, self).__getattribute__(name)
     
     def __getdata(self):
@@ -45,54 +53,28 @@ class Executable(Base):
     
     @cached_property
     def data(self):
-        if self._transform is None:
-            return self.rawdata
-        data, t, _processed = {}, self._transform, []
-        # define a private shortcut for setting values
-        def __set(n, v):
-            if v is not None:
-                if isinstance(v, bool):
-                    v = int(v)
-                data[n] = v
-        # define a private function for handling lambda functions in dictionaries
-        # this supports multiple formats ; rule of thumb: when a value is a tuple (lambda, str), it is mapped to 
-        #  a transform lambda function and a description for the FEATURE_DESCRIPTIONS dictionary
-        def __transform(features, values):
-            if isinstance(features, tuple) and len(features) == 2:
-                features, descr = features
-                FEATURE_DESCRIPTIONS[features] = descr
-            if isinstance(features, dict):
-                for subname, subvalue in features.items():
-                    if isinstance(subvalue, tuple) and len(subvalue) == 2:
-                        subvalue, descr = subvalue
-                        FEATURE_DESCRIPTIONS[subname] = descr
-                    if isinstance(subvalue, type(lambda: 0)):
-                        subvalue = subvalue(*values)
-                    __set(name, subvalue)
-            elif isinstance(features, type(lambda: 0)):
-                __set(name, features(*values))
-        # this processes a class of transformers and afterwards the "default" class (if not already selected),
-        #  discarding features whose values are computed to None
-        for transform in ([t] + [[], ["default"]][t != "default"]):
-            trans = FEATURE_TRANSFORMERS[transform]
-            # handle simple features
-            for name, value in self.rawdata.items():
-                if name in _processed:
-                    continue
-                if name in trans:
-                    _processed.append(name)
-                    __transform(trans.get(name, value), (value, ))
-                else:  # if no transformer, simply assign the base value
-                    data[name] = value
-            # handle combinations
-            # format: (f1, f2, ...): {new_f1: (lambda_f1, descr1), ...}
-            for combo, features in trans.items():
-                if not isinstance(combo, tuple):
-                    continue
-                name, descr = "_and_".join(combo), "Combination of %s and %s" % (", ".join(combo[:-1]), combo[-1])
-                if isinstance(features, type(lambda: 0)):
-                    features = {name: (features, descr)}
-                __transform(features, (self.rawdata.get(n) for n in combo))
+        data, done, tbd = {k: v for k, v in self.rawdata.items()}, [], {}
+        def _new_features():
+            new_features = feature(self.rawdata)
+            for name2 in list(new_features.keys()):
+                if name2 in data.keys():
+                    tbd[name2] = new_features.pop(name2)
+            data.update(new_features)
+            done.append(name)
+        # compute all derived features (leaving every raw feature as is)
+        for name, feature in self._transformers.items():
+            if name not in data.keys():
+                _new_features()
+        # overwrite or remove raw features
+        for name, feature in self._transformers.items():
+            if name not in done:
+                _new_features()
+        # process the to-be-done computed features that may have clashed with existing values
+        for name, value in tbd.items():
+            data[name] = value
+        # finally, only keep the boolean features if relevant
+        if self._boolean_only:
+            data = {k: v for k, v in data.items() if v.boolean}
         return data
     
     @property
@@ -154,14 +136,4 @@ class Executable(Base):
             # otherwise, reset the data attribute so that it is lazily recomputed at next call
             else:
                 del self.rawdata
-    
-    @property
-    def transform(self):
-        return self._transform
-    
-    @transform.setter
-    def transform(self, value):
-        if value is not None and value not in FEATURE_TRANSFORMERS.keys():
-            raise ValueError("Bad transformer ; shall be one of: " % "|".join(FEATURE_TRANSFORMERS.keys()))
-        self._transform = value
 
