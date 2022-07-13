@@ -12,7 +12,7 @@ from tqdm import tqdm
 from .executable import Executable
 from ..common.config import config
 from ..common.dataset import Dataset
-from ..common.utils import backup
+from ..common.utils import backup, data_to_temp_file, edit_file
 from ..items.packer import Packer
 
 
@@ -78,6 +78,21 @@ class FilelessDataset(Dataset):
             yield e
     Dataset.__iter__ = __iter__
     
+    def _compute_features(self, feature=None, raw=True):
+        """ Convenience funcion for computing the self._data pandas.DataFrame containing the feature values. """
+        pbar = tqdm(total=self._metadata['executables'], unit="executable")
+        if not hasattr(self, "_features"):
+            self._features = {}
+        for exe in self._iter_with_features(feature):
+            h = exe.basename
+            self._features.update(exe.features)
+            d = self[exe.hash, True]
+            d.update(exe.rawdata if raw else exe.data)
+            self[exe.hash] = (d, True)  # True: force updating the row
+            pbar.update()
+        pbar.close()
+    Dataset._compute_features = _compute_features
+    
     def _iter_with_features(self, feature=None):
         """ Convenience generator supplementing __iter__ for ensuring that feaures are also included. """
         if self._files:
@@ -109,18 +124,7 @@ class FilelessDataset(Dataset):
         l.info("Size of dataset:     %s" % ts.human_readable_size(self.path.size))
         self._files = False
         self.path.joinpath("features.json").write_text("{}")
-        self._features = {}
-        pbar = tqdm(total=self._metadata['executables'], unit="executable")
-        if not hasattr(self, "_features"):
-            self._features = {}
-        for exe in self._iter_with_features(feature):
-            h = exe.basename
-            self._features.update(exe.features)
-            d = self[exe.hash, True]
-            d.update(exe.rawdata)
-            self[exe.hash] = (d, True)  # True: force updating the row
-            pbar.update()
-        pbar.close()
+        self._compute_features()
         l.debug("removing files...")
         self.files.remove(error=False)
         l.debug("removing eventual backups...")
@@ -132,8 +136,56 @@ class FilelessDataset(Dataset):
         l.info("Size of new dataset: %s" % ts.human_readable_size(self.path.size))
     Dataset.convert = convert
     
-    def features(self, feature, output_format=None, dpi=200, multiclass=False, raw=True, **kw):
-        """ Plot the distribution of the given feature. """
+    def features(self, feature=None, raw=False, **kw):
+        self._compute_features(feature, raw)
+        with data_to_temp_file(self._data, prefix="dataset-features-") as tmp:
+            edit_file(tmp, logger=self.logger)
+    Dataset.features = features
+    
+    @backup
+    def merge(self, name2=None, new_name=None, silent=False, **kw):
+        """ Merge another dataset with the current one. """
+        if new_name is not None:
+            ds = type(self)(new_name)
+            ds.merge(self.path.basename)
+            ds.merge(name2)
+            ds.path.joinpath("files").remove(False)
+            return
+        l = self.logger
+        ds2 = Dataset(name2) if Dataset.check(name2) else FilelessDataset(name2)
+        cls1, cls2 = self.__class__.__name__, ds2.__class__.__name__
+        if cls1 != cls2:
+            l.error("Cannot merge %s and %s" % (cls1, cls2))
+            return
+        # add rows from the input dataset
+        getattr(l, ["info", "debug"][silent])("Merging rows from %s into %s..." % (ds2.basename, self.basename))
+        if not silent:
+            pbar = tqdm(total=ds2._metadata['executables'], unit="executable")
+        for r in ds2:
+            self[Executable(hash=r.hash, dataset=ds2, dataset2=self)] = r._row._asdict()
+            if not silent:
+                pbar.update()
+        if not silent:
+            pbar.close()
+        # as the previous operation does not update formats and features, do it manually
+        self._metadata.setdefault('formats', [])
+        for fmt in ds2._metadata.get('formats', []):
+            if fmt not in self._metadata['formats']:
+                self._metadata['formats'].append(fmt)
+        self._metadata['counts'] = self._data.label.value_counts().to_dict()
+        self._metadata['executables'] = len(self)
+        self._metadata.setdefault('sources', [])
+        if str(ds2.path) not in self._metadata['sources']:
+            self._metadata['sources'].append(str(ds2.path))
+        if hasattr(self, "_features") and hasattr(ds2, "_features"):
+            d = {k: v for k, v in ds2._features.items()}
+            d.update(self._features)
+            self._features = d
+        self._save()
+    Dataset.merge = merge
+    
+    def plot(self, feature, output_format=None, dpi=200, multiclass=False, raw=True, **kw):
+        """ Plot the distribution of the given feature or multiple features combined. """
         l = self.logger
         if not isinstance(feature, (tuple, list)):
             feature = [feature]
@@ -212,14 +264,14 @@ class FilelessDataset(Dataset):
             return
         # compute percentages
         total = sum(sum(x.values()) for x in counts.values())
-        values = [[] for i in range(len(counts[list(counts.keys())[0]]))]  # series per label (Not packed, Amber, ...)
+        values = [[] for i in range(len(counts[next(iter(counts))]))]  # series per label (Not packed, Amber, ...)
         for v in counts.values():
             for i, sv in enumerate(v.values()):
                 values[i].append(sv)
         percentages = [[100 * x / total for x in l] for l in values]
         # set color palette
         cmap = ["green"] + [list(COLORMAP.keys())[i % len(COLORMAP)] for i in range(len(values) - 1)]
-        labels = list(counts[list(counts.keys())[0]].keys())
+        labels = list(counts[next(iter(counts))].keys())
         # display plot
         plur = ["", "s"][len(feature) > 1]
         x_label, y_label = "Percentages of samples for the selected feature%s" % plur, "Feature value%s" % plur
@@ -262,47 +314,5 @@ class FilelessDataset(Dataset):
             img_name = ["", "combo-"][len(feature) > 1] + feature[0] + "." + output_format
             l.debug("saving image to %s..." % img_name)
             plt.savefig(img_name, img_format=output_format, dpi=dpi, bbox_inches="tight")
-    Dataset.features = features
-    
-    @backup
-    def merge(self, name2=None, new_name=None, silent=False, **kw):
-        """ Merge another dataset with the current one. """
-        if new_name is not None:
-            ds = type(self)(new_name)
-            ds.merge(self.path.basename)
-            ds.merge(name2)
-            ds.path.joinpath("files").remove(False)
-            return
-        l = self.logger
-        ds2 = Dataset(name2) if Dataset.check(name2) else FilelessDataset(name2)
-        cls1, cls2 = self.__class__.__name__, ds2.__class__.__name__
-        if cls1 != cls2:
-            l.error("Cannot merge %s and %s" % (cls1, cls2))
-            return
-        # add rows from the input dataset
-        getattr(l, ["info", "debug"][silent])("Merging rows from %s into %s..." % (ds2.basename, self.basename))
-        if not silent:
-            pbar = tqdm(total=ds2._metadata['executables'], unit="executable")
-        for r in ds2:
-            self[Executable(hash=r.hash, dataset=ds2, dataset2=self)] = r._row._asdict()
-            if not silent:
-                pbar.update()
-        if not silent:
-            pbar.close()
-        # as the previous operation does not update formats and features, do it manually
-        self._metadata.setdefault('formats', [])
-        for fmt in ds2._metadata.get('formats', []):
-            if fmt not in self._metadata['formats']:
-                self._metadata['formats'].append(fmt)
-        self._metadata['counts'] = self._data.label.value_counts().to_dict()
-        self._metadata['executables'] = len(self)
-        self._metadata.setdefault('sources', [])
-        if str(ds2.path) not in self._metadata['sources']:
-            self._metadata['sources'].append(str(ds2.path))
-        if hasattr(self, "_features") and hasattr(ds2, "_features"):
-            d = {k: v for k, v in ds2._features.items()}
-            d.update(self._features)
-            self._features = d
-        self._save()
-    Dataset.merge = merge
+    Dataset.plot = plot
 

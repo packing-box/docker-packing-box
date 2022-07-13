@@ -58,12 +58,10 @@ if __name__ == '__main__':
                         help="destination folder for the exported executables")
     export.add_argument("-n", "--number-executables", dest="n", type=ts.pos_int, default=0,
                         help="number of packed executables to be exported")
-    feat = __add_name(sparsers.add_parser("features", help="plot the distribution of a given feature"))
-    feat.add_argument("feature", choices=list(FEATURE_DESCRIPTIONS.keys()), action="extend", nargs="*",
-                      help="feature identifiers")
-    feat.add_argument("-m", "--multiclass", action="store_true", help="process features using multiple label classes")
-    feat.add_argument("-o", "--output-format", choices=["jpg", "png", "tif", "svg"],
-                      help="image file format for plotting", note="no format means plotting in the terminal")
+    feat = __add_name(sparsers.add_parser("features", help="compute and view features"))
+    feat.add_argument("-f", "--feature", action="extend", nargs="*", help="feature to be selected",
+                      note="can also be a pattern")
+    feat.add_argument("-r", "--raw", action="store_true", help="display raw features only (not transformed ones)")
     fix = __add_name(sparsers.add_parser("fix", help="fix a corrupted dataset"))
     fgroup = fix.add_mutually_exclusive_group()
     fgroup.add_argument("-d", "--detect", action="store_true", help="detect used packer with installed detectors")
@@ -89,6 +87,13 @@ if __name__ == '__main__':
     __add_name(merge, name="name2", help="name of the dataset to merge")
     merge.add_argument("-n", "--new-name", help="name for the new merged dataset",
                        note="if None, the original dataset is overwritten")
+    plot = __add_name(sparsers.add_parser("plot", help="plot the distribution of a given feature or multiple features "
+                                                       "combined"))
+    plot.add_argument("feature", choices=list(FEATURE_DESCRIPTIONS.keys()), action="extend", nargs="*",
+                      help="feature identifiers")
+    plot.add_argument("-m", "--multiclass", action="store_true", help="process features using multiple label classes")
+    plot.add_argument("-o", "--output-format", choices=["jpg", "png", "tif", "svg"],
+                      help="image file format for plotting", note="no format means plotting in the terminal")
     purge = __add_name(sparsers.add_parser("purge", help="purge a dataset"), True)
     purge.add_argument("-b", "--backup", action="store_true", help="only purge backups")
     remove = __add_name(sparsers.add_parser("remove", help="remove executables from a dataset"))

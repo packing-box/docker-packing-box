@@ -3,7 +3,7 @@
 import bintropy
 import pandas as pd
 from pbox import *
-from pbox.common.utils import edit_file
+from pbox.common.utils import edit_file, data_to_temp_file
 from pbox.learning.executable import Executable
 from tinyscript import *
 
@@ -162,6 +162,7 @@ if __name__ == "__main__":
     sparsers = parser.add_subparsers(dest="command", help="command to be executed")
     feat = __add_folder(sparsers.add_parser("features", help="compute features for files matching the regex with the "
                                                              "input labels"))
+    feat.add_argument("-r", "--raw", action="store_true", help="display raw features only (not transformed ones)")
     find = __add_folder(sparsers.add_parser("find", help="find files matching the regex with the input labels"))
     find.add_argument("-d", "--no-display", action="store_false", help="do not display packer label matches")
     plot = __add_folder(sparsers.add_parser("plot", help="plot files matching the regex given the selected labels"),
@@ -177,20 +178,16 @@ if __name__ == "__main__":
                                                  [" with the selected labels", ""][args.label is None])
     if args.command == "features":
         logger.info("Computing features of" + msg)
-        tmp_p = ts.TempPath(prefix="visualizer-edit-", length=8)
-        tmp_f = tmp_p.tempfile("files.csv")
         for file, data in find_files(*ff_args).items():
-            files = []
             logger.info(file)
+            files = []
             for f, l in zip(data['files'], data['labels']):
                 exe = Executable(f)
                 row = {'path': str(f), 'label': LABELS.get(l, l)}
-                row.update(exe.data)
+                row.update(exe.rawdata if args.raw else exe.data)
                 files.append(row)
-            files = pd.DataFrame(files)
-            files.to_csv(str(tmp_f), sep=";", index=False, header=True)
-            edit_file(tmp_f, logger=logger)
-        tmp_p.remove()
+            with data_to_temp_file(pd.DataFrame(files), prefix="visualizer-features-") as tmp:
+                edit_file(tmp, logger=logger)
     elif args.command == "find":
         logger.info("Searching for" + msg)
         for _ in find_files(*ff_args, display=args.no_display, force_display=True, filter_selected=False).keys():

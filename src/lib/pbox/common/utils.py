@@ -2,10 +2,11 @@
 import pandas as pd
 import re
 import yaml
+from contextlib import contextmanager
 from functools import wraps
 from time import perf_counter, time
 from tinyscript import inspect, logging, subprocess
-from tinyscript.helpers import is_file, is_folder, Path
+from tinyscript.helpers import is_file, is_folder, Path, TempPath
 try:  # from Python3.9
     import mdv3 as mdv
 except ImportError:
@@ -15,8 +16,8 @@ from .config import config
 
 
 __all__ = ["aggregate_formats", "backup", "benchmark", "class_or_instance_method", "collapse_formats",
-           "edit_file", "expand_formats", "file_or_folder_or_dataset", "highlight_best", "make_registry", "mdv",
-           "metrics", "shorten_str", "FORMATS", "PERF_HEADERS"]
+           "data_to_temp_file", "edit_file", "expand_formats", "file_or_folder_or_dataset", "highlight_best",
+           "make_registry", "mdv", "metrics", "shorten_str", "FORMATS", "PERF_HEADERS"]
 
 
 FORMATS = {
@@ -93,6 +94,16 @@ def collapse_formats(*formats, **kw):
     if all(x in selected for x in FORMATS['All']):
         selected = ["All"]
     return list(set(selected))
+
+
+@contextmanager
+def data_to_temp_file(data, prefix="temp"):
+    """ Save the given pandas.DataFrame to a temporary file. """
+    p = TempPath(prefix=prefix, length=8)
+    f = p.tempfile("data.csv")
+    data.to_csv(str(f), sep=";", index=False, header=True)
+    yield f
+    p.remove()
 
 
 def edit_file(path, csv_sep=";", **kw):
