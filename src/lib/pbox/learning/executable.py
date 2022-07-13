@@ -29,10 +29,10 @@ class Executable(Base):
     def __getattribute__(self, name):
         if name == "_features":
             # populate Executable._features with the relevant set of features and their related functions
-            fset = Executable._features.get(self.format)
-            if fset is None:
-                Executable._features[self.format] = fset = Features(self.format)
-            return fset
+            eset = Executable._features.get(self.format)
+            if eset is None:
+                Executable._features[self.format] = eset = Extractors(self.format)
+            return eset
         if name == "_transformers":
             # populate Executable._transformers with the set of feature transformers and their related functions
             tset = Executable._transformers
@@ -83,7 +83,7 @@ class Executable(Base):
     
     @cached_property
     def rawdata(self):
-        data = {}
+        data = Features()
         for name, func in self.selection.items():
             if name in data.keys():
                 continue
@@ -102,7 +102,7 @@ class Executable(Base):
             for f2 in data.keys():
                 if re.search(f1, f2, re.I):
                     l.append(f2)
-        return data if len(l) == 0 else {n: f for n, f in data.items() if n in l}
+        return data if len(l) == 0 else Features({n: f for n, f in data.items() if n in l})
     
     @property
     def selection(self):
@@ -132,7 +132,7 @@ class Executable(Base):
             #       self.rawdata will be deleted ; this is logical if we consider that patterns may match only a part of 
             #       already existing data and then provide an incomplete result
             if all(f in self.rawdata.keys() for f in self._selection['post']):
-                self.rawdata = {k: v for k, v in self.rawdata.items() if k in self._selection['post']}
+                self.rawdata = Features({k: v for k, v in self.rawdata.items() if k in self._selection['post']})
             # otherwise, reset the data attribute so that it is lazily recomputed at next call
             else:
                 del self.rawdata
