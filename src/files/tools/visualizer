@@ -81,7 +81,8 @@ def find_files(folder, pattern, selected=None, nbr_not_selected=None, display=Fa
             preffix.setdefault(common, 0)
             preffix[common] += 1
             prev = f.stem
-        preffixes[l] = max(preffix, key=preffix.get)
+        if len(preffix) > 0:
+            preffixes[l] = max(preffix, key=preffix.get)
     # check for label errors
     error = False
     if selected is not None:

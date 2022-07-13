@@ -2,6 +2,7 @@
 import ast
 import lief
 import os
+import yaml
 from bintropy import entropy
 from pygments.lexer import RegexLexer, bygroups, using
 from pygments.token import Error, Keyword, Name, Number, Operator, String, Whitespace
