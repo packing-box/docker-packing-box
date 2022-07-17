@@ -1,35 +1,37 @@
 base_of_code:
   description: Base of Code (reduced to its multiplier of 0x1000 ; -1 means it is not a multiplier)
-  result:      multiplier(base_of_code, 0x1000)
+  result:      base_of_code % 0x1000
 
 is_image_base_standard:
   description: "Is the ImageBase standard (Windows CE: 0x10000, other Windows PE: 0x400000, DLL: 0x10000000)"
-  result:      is_in(image_base, 0x10000, 0x400000, 0x10000000)
+  result:      image_base in (0x10000, 0x400000, 0x10000000)
   source:      https://docs.microsoft.com/en-us/windows/win32/debug/pe-format
 
 is_base_of_code_standard:
   description: Is the BaseOfCode a multiplier of 0x1000
-  result:      is_mult(base_of_code, 0x1000)
+  result:      base_of_code % 0x1000 == 0
 
 is_checksum_null:
   description: Is the checksum set to 0
-  result:      is_0(checksum)
+  result:      checksum == 0
 
 is_os_major_version_%d:
   description: Is the OS major version equal to %d
-  results:     "[is_equal(os_major_version, x) for x in range(4, 7)]"
+  result:      os_major_version == x
+  values:      !!python/object/new:range [4, 7]
 
 is_os_major_version_standard:
   description: Is the OS major version within 4 (<Windows XP) and 10 (Windows 11)
-  result:      is_within(os_major_version, 4, 10)
+  result:      os_major_version in range(4, 11)
 
 is_os_minor_version_%d:
   description: Is the OS minor version equal to %d
-  results:     "[is_equal(os_minor_version, x) for x in range(0, 4)]"
+  result:      os_minor_version == x
+  values:      !!python/object/new:range [0, 4]
 
 is_os_minor_version_standard:
   description: Is the OS minor version within 0 and 3
-  result:      is_within(os_minor_version, 0, 3)
+  result:      os_minor_version in range(0, 4)
 
 is_code_section_90%_of_image_size:
   description: Is the size of the code section greather or equal to 90% of the image size
@@ -37,27 +39,30 @@ is_code_section_90%_of_image_size:
 
 is_size_of_headers_%dB:
   description: Is the size of the headers equal to %dB
-  results:     "[is_equal(size_of_headers, x) for x in (512, 1024, 1536, 4096)]"
+  result:      size_of_headers == x
+  values:      [512, 1024, 1536, 4096]
 
 is_size_of_headers_non_standard:
   description: Is the size of the headers not equal to any of 512B, 1024B, 1536B or 4096B
-  result:      is_not_in(size_of_headers, 512, 1024, 1536, 4096)
+  result:      size_of_headers not in (512, 1024, 1536, 4096)
 
 is_size_of_initializeddata_notnull:
   description: Is the size of initialized data not null
-  result:      is_not_0(size_of_initializeddata)
+  result:      size_of_initializeddata > 0
 
 is_size_of_initializeddata_gte_%dMB:
   description: Is the size of initialized data greater than or equal to %dMB
-  results:     "[is_gte(size_of_initializeddata, x * 1024 * 1024) for x in range(1, 6)]"
+  result:      size_of_initializeddata >= x * 1024 * 1024
+  values:      !!python/object/new:range [1, 6]
 
 is_size_of_uninitializeddata_notnull:
   description: Is the size of uninitialized data not null
-  result:      is_not_0(size_of_uninitializeddata)
+  result:      size_of_uninitializeddata > 0
 
 is_size_of_uninitializeddata_gte_%dMB:
   description: Is the size of uninitialized data greater than or equal to %dMB
-  results:     "[is_gte(size_of_uninitializeddata, x * 1024 * 1024) for x in range(1, 6)]"
+  result:      size_of_uninitializeddata >= x * 1024 * 1024
+  values:      !!python/object/new:range [1, 6]
 
 biggest_section:
   description: Name of the biggest section

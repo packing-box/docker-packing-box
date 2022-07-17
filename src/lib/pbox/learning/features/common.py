@@ -8,29 +8,9 @@ from pygments.lexer import RegexLexer, bygroups, using
 from pygments.token import Error, Keyword, Name, Number, Operator, String, Whitespace
 
 
-__all__ = ["block_entropy", "block_entropy_per_section", "entropy", "section_characteristics",
-           "_FEATURE_OPERATIONS", "_FEATURE_TRANSFORMERS"]
+__all__ = ["block_entropy", "block_entropy_per_section", "entropy", "section_characteristics", "_FEATURE_TRANSFORMERS"]
 
 
-_FEATURE_OPERATIONS = {
-    # single input operations
-    'is_0':       lambda x: x == 0,
-    'is_eq':      lambda x, v: x == v,
-    'is_in':      lambda x, *v: x in v,
-    'is_gt':      lambda x, f: x > f,
-    'is_gte':     lambda x, f: x >= f,
-    'is_lt':      lambda x, f: x < f,
-    'is_lte':     lambda x, f: x <= f,
-    'is_mult':    lambda x, i: x % i == 0,
-    'is_not_in':  lambda x, *v: x not in v,
-    'is_not_0':   lambda x: x != 0,
-    'is_within':  lambda x, v1, v2: v1 <= x <= v2,
-    'multiplier': lambda x, m: x / m if x % m == 0 else -1,
-    'threshold':  lambda x, t, incl=True: x >= t if incl else x > t,
-    # list-applicable operations
-    'mean':       lambda l: mean(l),
-}
-_FEATURE_OPERATIONS['is_equal'] = _FEATURE_OPERATIONS['is_eq']
 with open("/opt/features.yml") as f:
     _FEATURE_TRANSFORMERS = yaml.load(f, Loader=yaml.Loader)
 

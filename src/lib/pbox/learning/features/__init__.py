@@ -1,4 +1,5 @@
 # -*- coding: UTF-8 -*-
+import builtins
 import lief
 import re
 import yaml
@@ -40,6 +41,10 @@ FEATURE_DESCRIPTIONS = {}
 FEATURE_DESCRIPTIONS.update(ELFEATS)
 FEATURE_DESCRIPTIONS.update(PEFEATS)
 
+_EVAL_NAMESPACE = {k: getattr(builtins, k) for k in ["abs", "divmod", "float", "hash", "hex", "id", "int", "len",
+                                                     "list", "max", "min", "oct", "ord", "pow", "range", "round", "set",
+                                                     "str", "sum", "tuple"]}
+
 
 class Extractors(dict):
     """ This class represents the dictionary of features to be extracted for a given list of executable formats. """
@@ -69,20 +74,18 @@ class Feature(dict):
             raise ValueError("%s: 'result' and 'results' shall not be defined at the same time" % self.name)
     
     def __call__(self, rawdata):
-        _eval = lambda x: eval2(x, _FEATURE_OPERATIONS, rawdata)
-        if self.result:
-            return {self.name: _eval(self.result)}
+        _eval = lambda x, d: eval2(x, _EVAL_NAMESPACE, d)
+        values = self.get("values", [])
+        if len(values) == 0:
+            return {self.name: _eval(self.result, rawdata)}
         else:
             d = {}
-            m = re.search(r"(range\(\d+\,\s*\d+\))", self.results)
-            if m:
-                for i, r in zip(eval(m.group(1)), _eval(self.results)):
-                    try:
-                        n = self.name % i
-                        d[n] = r
-                        FEATURE_DESCRIPTIONS[n] = self.description % i
-                    except TypeError:
-                        raise ValueError("%s: bad feature attribute(s) (%%d missing)" % self.name)
+            for v in values:
+                _data = {'x': v}
+                _data.update(rawdata)
+                n = self.name % v
+                d[n] = _eval(self.result, _data)
+                FEATURE_DESCRIPTIONS[n] = self.description % v
             return d
 
 
