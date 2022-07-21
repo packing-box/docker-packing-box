@@ -1,3 +1,5 @@
+# Introduction
+
 The [*Packing Box*](https://github.com/dhondta/docker-packing-box) is a Docker image containing various tools for studying executable packing. It is designed to instrumentalize packers and packing detectors and to create datasets for comparing packing detection techniques.
 
 It aims to provide a single platform for studying packing for more than what we can traditionally see in the literature, that is, techniques applied to Windows PE files. From the box (based on Ubuntu), [Wine](https://www.winehq.org/) is used to handle PE files but it also allows to use the ELF format. Ultimately, it aims to also include the Mach-O format (using [Darling](https://www.darlinghq.org/)).
@@ -6,7 +8,7 @@ It aims to provide a single platform for studying packing for more than what we 
 
 Setting up the [*Packing Box*](https://github.com/dhondta/docker-packing-box) requires installing Docker and cloning this repository. The [`Dockerfile`](https://github.com/dhondta/docker-packing-box/blob/main/Dockerfile) can then be used to build the image.
 
-```session
+```console
 # apt install docker
 [...]
 # git clone https://github.com/dhondta/docker-packing-box
@@ -21,7 +23,7 @@ Successfully tagged dhondta/packing-box:latest
 
 Running the [*Packing Box*](https://github.com/dhondta/docker-packing-box) is done by starting it up with Docker.
 
-```session
+```console
 # docker run -it -h packing-box -v `pwd`:/mnt/share dhondta/packing-box
                               .______      ___       ______  __  ___  __  .__   __.   _______ .______     ______   ___   ___
                               |   _  \    /   \     /      ||  |/  / |  | |  \ |  |  /  _____||   _  \   /  __  \  \  \ /  /
@@ -45,7 +47,7 @@ From inside the box, help can be obtained by using the "`?`" tool. This will dis
 
 - `-i ITEM`: allows to see the particular help of an item from the box
 
-```session
+```console
 # \? -i peid    
                                            .______    _______  __   _______
                                            |   _  \  |   ____||  | |       \

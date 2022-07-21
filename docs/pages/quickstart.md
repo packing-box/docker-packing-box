@@ -1,19 +1,22 @@
+# Quick Start
+
 When running the [Docker image](index.html#run), we are presented with a root shell that starts with a help message like this:
 
-![](https://raw.githubusercontent.com/dhondta/docker-packing-box/main/docs/screenshot.png)
+![](https://raw.githubusercontent.com/dhondta/docker-packing-box/main/docs/pages/imgs/screenshot.png)
+
 
 ## Getting Help
 
-Help can be obtained by using the "`?`" tool. This will display the welcome message seen when starting it. It also has an option `-i ITEM` allowing to see the particular help of an item from the box
+Help can be obtained by using the "`?`" tool. This will display the welcome message seen when starting it. It also has an option `-i ITEM` allowing to see the specific help of an item from the box.
 
-```session
+```console
 # \? -i upx
-                                                                                           __    __  .______   ___   ___
-                                                                                          |  |  |  | |   _  \  \  \ /  /
-                                                                                          |  |  |  | |  |_)  |  \  V  /
-                                                                                          |  |  |  | |   ___/    >   <
-                                                                                          |  `--'  | |  |       /  .  \
-                                                                                           \______/  | _|      /__/ \__\
+                                                         __    __  .______   ___   ___
+                                                        |  |  |  | |   _  \  \  \ /  /
+                                                        |  |  |  | |  |_)  |  \  V  /
+                                                        |  |  |  | |   ___/    >   <
+                                                        |  `--'  | |  |       /  .  \
+                                                         \______/  | _|      /__/ \__\
 
 
 
@@ -33,41 +36,54 @@ Help can be obtained by using the "`?`" tool. This will display the welcome mess
 
 ## Main Tool
 
-From the help message, the section named *Tools* shows the list of availble tools. The main one is `packing-box`.
+From the help message, the section named *Tools* shows the list of available tools. The main one is `packing-box`.
 
-```session
-PackingBox 1.1.0
-Author: Alexandre D'Hondt (alexandre.dhondt@gmail.com)
-Copyright: © 2021 A. D'Hondt
-License: GNU General Public License v3.0
+```console
+# packing-box --help
+PackingBox 1.2.1
+Author   : Alexandre D'Hondt (alexandre.dhondt@gmail.com)
+Copyright: © 2021-2022 A. D'Hondt
+License  : GNU General Public License v3.0
 
 This utility aims to facilitate detectors|packers|unpackers' setup|test according to the related YAML data file.
 
-usage: packing-box [-h] [--help] [-v] {setup,test} ...
+usage: packing-box [-h] [--help] [-v] [-f LOGFILE] [-r] [-s] {clean,config,list,setup,test,workspace} ...
 
 positional arguments:
-  {setup,test}  command to be executed
-    setup       setup something
-    test        test something
+  {clean,config,list,setup,test,workspace}
+                        command to be executed
+    clean               cleanup temporary folders
+    config              set a config option
+    list                list something
+    setup               setup something
+    test                test something
+    workspace           inspect the workspace
 
 extra arguments:
-  -h             show usage message and exit
-  --help         show this help message and exit
-  -v, --verbose  verbose mode (default: False)
+  -h                    show usage message and exit
+  --help                show this help message and exit
+  -v, --verbose         verbose mode (default: False)
+  -f LOGFILE, --logfile LOGFILE
+                        destination log file (default: None)
+  -r, --relative        display relative time (default: False)
+  -s, --syslog          log to /var/log/syslog (default: False)
 
 Usage examples:
+  packing-box config --workspace /home/user/my-workspace
   packing-box setup packer
   packing-box setup detector peid
+  packing-box setup analyzer gettyp
   packing-box test packer upx ezuri midgetpack
   packing-box test -b unpacker upx
-
+  packing-box workspace view
+  packing-box workspace edit MyDataset/data.csv
 ```
 
 The help message of this tool shows some examples for setting up and testing items.
 
 ## Specific Tools
 
-From the *Tools* section in the output of the `?` tool, we also see:
+From the *Tools* section in the output of the `?` tool, we also find:
 
 - `dataset`: for making datasets of packed and not packed executables ; this can also ingest existing datasets provided their labels
 - `detector`: for testing integrated detectors ; this works on various input formats: single executable | folder of executables | dataset

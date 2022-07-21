@@ -72,3 +72,6 @@ TODO
 .mypy_cache
 dataset*/
 experiment*/
+
+# config files
+src/conf/*.yml

@@ -1,0 +1,81 @@
+site_author: dhondta
+site_name: Packing-Box
+site_description: Docker image for studying executable packing
+copyright: Copyright &copy; 2021-2022 Alexandre D'Hondt
+repo_url: https://github.com/dhondta/docker-packing-box
+docs_dir: pages
+nav:
+  - Introduction: index.md
+  - 'Quick Start': quickstart.md
+  - Usage:
+    - Datasets: usage/datasets.md
+    - Detectors: usage/detectors.md
+    - Packers: usage/packers.md
+    - Training: usage/training.md
+    - Analysis: usage/analysis.md
+  - Internals:
+    - Executables: internals/executables.md
+    - Datasets: internals/datasets.md
+    - Items: internals/items.md
+    - Detectors: internals/detectors.md
+    - Packers: internals/packers.md
+    - Unpackers: internals/unpackers.md
+extra:
+  generator: false
+  social:
+    - icon: fontawesome/solid/paper-plane
+      link: mailto:alexandre.dhondt@gmail.com
+      name: Contact Alex
+    - icon: fontawesome/brands/github
+      link: https://github.com/dhondta
+      name: Alex on GitHub
+    - icon: fontawesome/brands/linkedin
+      link: https://www.linkedin.com/in/alexandre-d-2ab2aa14/
+      name: Alex on LinkedIn
+    - icon: fontawesome/brands/twitter
+      link: https://twitter.com/alex_dhondt
+      name: Alex on Twitter
+extra_css:
+  - assets/stylesheets/extra.css
+extra_javascript:
+  - https://unpkg.com/tablesort@5.3.0/dist/tablesort.min.js
+theme:
+  name: material
+  palette:
+    - scheme: default
+      toggle:
+        icon: material/brightness-7 
+        name: Switch to dark mode
+    - scheme: slate
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  logo: imgs/logo.png
+  favicon: imgs/icon.png
+  icon:
+    logo:
+      - imgs/sklearn
+      - imgs/weka
+use_directory_urls: false
+markdown_extensions:
+  - abbr
+  - admonition
+  - attr_list
+  - def_list
+  - footnotes
+  - md_in_html
+  - pymdownx.details
+  - pymdownx.emoji:
+      emoji_index: !!python/name:materialx.emoji.twemoji
+      emoji_generator: !!python/name:materialx.emoji.to_svg
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.tasklist
+  - tables
+  - toc:
+      permalink: true

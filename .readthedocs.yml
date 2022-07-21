@@ -1,8 +1,8 @@
 version: 2
 
 mkdocs:
-  configuration: .mkdocs.yml
-  fail_on_warning: false
+  configuration: docs/mkdocs.yml
 
-formats:
-  - pdf
+python:
+  install:
+    - requirements: docs/requirements.txt
