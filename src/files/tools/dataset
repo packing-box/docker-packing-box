@@ -140,4 +140,9 @@ if __name__ == '__main__':
         ds = (FilelessDataset if getattr(args, "fileless", False) or \
               name and FilelessDataset.check(name) else Dataset)(**vars(args))
         getattr(ds, args.command)(**vars(args))
+        # it may occur that packing fails with a silenced error and that the related executable file remains in the
+        #  files subfolder of the dataset while not handled in data.csv, hence creating an inconsistency ;
+        #  fixing the dataset right after the make command allows to avoid this inconsistency
+        if args.command == "make":
+            ds.fix()
 
