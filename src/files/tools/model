@@ -45,11 +45,6 @@ def __add_name(parser, optional=False, force=False, joblib=False):
 
 
 if __name__ == '__main__':
-    pp_help = "preprocessor for shaping the data\n- %s\n" % \
-              "\n- ".join("%s: %s" % (k.ljust(10), "none" if v is None else v.__name__ \
-              if not isinstance(v, tuple) else "%s with %s" % \
-              (v[0].__name__, ", ".join("{}={}".format(*i) for i in v[1].items()))) \
-              for k, v in sorted(PREPROCESSORS.items(), key=lambda x: x[0] or "none") if k is not None)
     sparsers = parser.add_subparsers(dest="command", help="command to be executed")
     compare = __add_name(sparsers.add_parser("compare", help="compare the selected model with others"), joblib=True)
     compare.add_argument("-d", "--dataset", type=open_dataset, action="extend", nargs="*",
@@ -81,17 +76,13 @@ if __name__ == '__main__':
                             "\n- ".join("%s: %s%s" % (a.name.ljust(4), a.description, ["", "*"][a.parameters.get('cv') \
                             is not None]) for a in Algorithm.registry))
     train.add_argument("-m", "--multiclass", action="store_true", help="train the model using multiple label classes")
-    # TODO: see if other preprocessors are meaningful ; currently enabled: Std, PCA
-    train.add_argument("-p", "--preprocessor", action="extend", nargs="*", choices=PREPROCESSORS.keys(), help=pp_help)
     train.add_argument("-r", "--reset", action="store_true", help="reset the model before (re)training")
     train.add_argument("--cv", default=5, type=ts.pos_int, help="number of Cross-Validation folds")
-    tgroup2 = train.add_mutually_exclusive_group()
-    tgroup2.add_argument("--feature", action="extend", nargs="*", help="list of features to be selected")
+    train.add_argument("--feature", action="extend", nargs="*", help="list of features to be selected")
     train.add_argument("--n-jobs", default=N_JOBS, help="number of jobs to be run in parallel")
     train.add_argument("--param", action="extend", nargs="*", type=lambda x: x.split(","),
                        help="comma-separated list of parameters for the algorithm",
                        note="fixing a parameter with this option disables it from the cross-validation")
-    tgroup2.add_argument("--pattern", help="pattern of features to be selected")
     visualize = sparsers.add_parser("visualize", help="visualize the model")
     __add_name(visualize)
     visualize.add_argument("-e", "--export", action="store_true", help="export to PNG")
