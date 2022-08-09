@@ -1,11 +1,8 @@
 # -*- coding: UTF-8 -*-
-import ast
 import lief
 import os
 import yaml
 from bintropy import entropy
-from pygments.lexer import RegexLexer, bygroups, using
-from pygments.token import Error, Keyword, Name, Number, Operator, String, Whitespace
 
 
 __all__ = ["block_entropy", "block_entropy_per_section", "entropy", "section_characteristics", "_FEATURE_TRANSFORMERS"]
@@ -35,11 +32,11 @@ def _parse_binary(f):
 
 
 # compute (name, data) pair for a Section object
-_chars = lambda s: (s.name, {k: getattr(s, k) for k in CHARACTERISTICS})
+_chars = lambda s: (s.name, {k: getattr(s, k, None) for k in CHARACTERISTICS})
 # compute (name, entropy) pair for a Section object
 _entr = lambda s, bs=0, z=False: (s.name, entropy(s.content, bs, z))
 
-block_entropy = lambda bsize: lambda exe: str(entropy(exe.read_bytes(), bsize, True))
+block_entropy             = lambda bsize: lambda exe: str(entropy(exe.read_bytes(), bsize, True))
 block_entropy_per_section = lambda bsize: _parse_binary(lambda exe: str([_entr(s, bsize, True) for s in exe.sections]))
 section_characteristics   = _parse_binary(lambda exe: str([_chars(s) for s in exe.sections]))
 

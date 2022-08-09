@@ -1,10 +1,6 @@
 # -*- coding: UTF-8 -*-
 import builtins
-import lief
-import re
-import yaml
 from ast import literal_eval
-from statistics import mean
 
 from .common import *
 from .elf import *
