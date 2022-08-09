@@ -675,8 +675,8 @@ class Dataset:
                 continue
             data1.setdefault(fmt, [])
             for c in CAT:
-                data1[fmt].append([c, d[fmt][0], "%.2f" % (100 * (float(d[c][0]) / total)) if total > 0 else 0,
-                                      d[fmt][1], "%.2f" % (100 * (float(d[c][1]) / totalp)) if totalp > 0 else 0])
+                data1[fmt].append([c, d[c][0], "%.2f" % (100 * (float(d[c][0]) / total)) if total > 0 else 0,
+                                      d[c][1], "%.2f" % (100 * (float(d[c][1]) / totalp)) if totalp > 0 else 0])
             data1[fmt].append(["Total", str(total), "", str(totalp), ""])
         # display statistics if any
         if len(data1) > 0:
