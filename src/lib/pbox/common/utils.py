@@ -1,4 +1,5 @@
 # -*- coding: UTF-8 -*-
+import mdv
 import pandas as pd
 import re
 import yaml
@@ -7,17 +8,13 @@ from functools import wraps
 from time import perf_counter, time
 from tinyscript import inspect, logging, subprocess
 from tinyscript.helpers import is_file, is_folder, Path, TempPath
-try:  # from Python3.9
-    import mdv3 as mdv
-except ImportError:
-    import mdv
 
 from .config import config
 
 
 __all__ = ["aggregate_formats", "backup", "benchmark", "class_or_instance_method", "collapse_formats",
            "data_to_temp_file", "edit_file", "expand_formats", "file_or_folder_or_dataset", "highlight_best",
-           "make_registry", "mdv", "metrics", "shorten_str", "FORMATS", "PERF_HEADERS"]
+           "make_registry", "mdv", "metrics", "shorten_str", "ExeFormatDict", "FORMATS", "PERF_HEADERS"]
 
 
 FORMATS = {
@@ -41,14 +38,61 @@ PERF_HEADERS = {
 bold = lambda text: "\033[1m{}\033[0m".format(text)
 
 
+class ExeFormatDict(dict):
+    """ Special dictionary for handling aggregates of sub-dictionaries applying to an executable format, a class of
+         formats (depth 1: PE, ELF, Mach-O) or any format (depth 0: All).
+
+    depth 0: All
+    depth 1: PE, ELF, Mach-O
+    depth 2: PE32, PE64, ELF32, ...
+    """
+    def __init__(self, *args, **kwargs):
+        self.__all = expand_formats("All")
+        self.__get = super(ExeFormatDict, self).__getitem__
+        d = args[0] if len(args) > 0 else {}
+        d.update(kwargs)
+        for i in range(3):
+            self.setdefault(i, {})
+        for k, v in d.items():
+            self[k] = v
+
+    def __delitem__(self, name):
+        depth = 0 if name == "All" else 1 if name in FORMATS.keys() else 2 if name in self.__all else -1
+        if depth == -1:
+            raise ValueError("Unhandled key '%s'" % name)
+        del self.__get(depth)[name]
+
+    def __getitem__(self, name):
+        if name not in self.__all:
+            raise ValueError("Bad executable format")
+        r = self.__get(0)['All']
+        fcls = [k for k in self.__get(1).keys() if name in FORMATS[k]]
+        if len(fcls) > 0:
+            r.update(self.__get(1)[fcls[0]])
+        r.update(self.__get(2).get(name, {}))
+        return r
+
+    def __setitem__(self, name, value):
+        update = False
+        if isinstance(name, (list, tuple)) and len(name) == 2:
+            name, update = name
+        depth = 0 if name == "All" else 1 if name in FORMATS.keys() else 2 if name in self.__all else -1
+        if depth == -1:
+            raise ValueError("Unhandled key '%s'" % name)
+        if update:
+            self.__get(depth)[name].update(value)
+        else:
+            self.__get(depth)[name] = value
+
+
 def aggregate_formats(*formats, **kw):
     """ Aggregate the given input formats. """
     l = []
-    for c in formats:
-        if isinstance(c, (list, tuple)):
-            l.extend(expand_formats(*c))
+    for f in formats:
+        if isinstance(f, (list, tuple)):
+            l.extend(expand_formats(*f))
         else:
-            l.append(c)
+            l.append(f)
     return collapse_formats(*set(l)) if kw.get('collapse', False) else list(set(l))
 
 
@@ -118,12 +162,12 @@ def edit_file(path, csv_sep=";", **kw):
 def expand_formats(*formats, **kw):
     """ 2-depth dictionary-based expansion function for resolving a list of executable formats. """
     selected = []
-    for c in formats:                    # depth 1: e.g. All => ELF,PE OR ELF => ELF32,ELF64
-        for sc in FORMATS.get(c, [c]):   # depth 2: e.g. ELF => ELF32,ELF64
+    for f in formats:                    # depth 1: e.g. All => ELF,PE OR ELF => ELF32,ELF64
+        for sf in FORMATS.get(f, [f]):   # depth 2: e.g. ELF => ELF32,ELF64
             if kw.get('once', False):
-                selected.append(sc)
+                selected.append(sf)
             else:
-                for ssc in FORMATS.get(sc, [sc]):
+                for ssc in FORMATS.get(sf, [sf]):
                     if ssc not in selected:
                         selected.append(ssc)
     return selected
