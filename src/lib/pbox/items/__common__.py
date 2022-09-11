@@ -112,6 +112,12 @@ class Base(Item):
         self._params = {}
         self.__init = False
     
+    def __new__(cls, *args, **kwargs):
+        """ Prevents Base from being instantiated. """
+        if cls is Base:
+            raise TypeError("Base cannot be instantiated directly")
+        return object.__new__(cls, *args, **kwargs)    
+    
     @update_logger
     def _check(self, exe, silent=False):
         """ Check if the given executable can be processed by this item. """
@@ -606,6 +612,11 @@ class Base(Item):
         """ Get the status of item's binary. """
         st = getattr(self, "_status", None)
         return ["not ", ""][b(self.name) in OS_COMMANDS] + "installed" if st is None else st
+    
+    @classmethod
+    def is_variant(cls):
+        """ Simple check for determining if the class is a variant of another class. """
+        return getattr(cls, "parent", None) is not None
     
     @classmethod
     def summary(cls, show=False, format="All", **kwargs):

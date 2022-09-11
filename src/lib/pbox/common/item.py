@@ -41,6 +41,12 @@ class Item:
             return self._logger
         return super(Item, self).__getattribute__(name)
     
+    def __new__(cls, *args, **kwargs):
+        """ Prevents Item from being instantiated. """
+        if cls is Item:
+            raise TypeError("Item cannot be instantiated directly")
+        return object.__new__(cls, *args, **kwargs)    
+    
     def __repr__(self):
         """ Custom string representation for an item. """
         return "<%s %s at 0x%x>" % (self.__class__.__name__, self.type, id(self))
@@ -66,11 +72,6 @@ class Item:
                 return i
         if error:
             raise ValueError("'%s' is not defined" % item)
-    
-    @classmethod
-    def is_variant(cls):
-        """ Simple check for determining if the class is a variant of another class. """
-        return getattr(cls, "parent", None) is not None
     
     @classmethod
     def iteritems(cls):
