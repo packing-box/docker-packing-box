@@ -137,6 +137,7 @@ class FilelessDataset(Dataset):
     Dataset.convert = convert
     
     def features(self, feature=None, raw=False, **kw):
+        Executable._source = kw.get('features_set', "/opt/features.yml")
         self._compute_features(feature, raw)
         with data_to_temp_file(self._data, prefix="dataset-features-") as tmp:
             edit_file(tmp, logger=self.logger)

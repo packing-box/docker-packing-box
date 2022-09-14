@@ -1,15 +1,10 @@
 # -*- coding: UTF-8 -*-
 import lief
 import os
-import yaml
 from bintropy import entropy
 
 
-__all__ = ["block_entropy", "block_entropy_per_section", "entropy", "section_characteristics", "_FEATURE_TRANSFORMERS"]
-
-
-with open("/opt/features.yml") as f:
-    _FEATURE_TRANSFORMERS = yaml.load(f, Loader=yaml.Loader)
+__all__ = ["block_entropy", "block_entropy_per_section", "entropy", "section_characteristics"]
 
 
 # selection of in-scope characteristics of Section objects for an executable parsed by LIEF

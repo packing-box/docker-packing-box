@@ -21,6 +21,7 @@ BN:
 
 BNB:
   base:        !!python/name:sklearn.naive_bayes.BernoulliNB
+  boolean:     true
   description: Bernoulli Naive Bayes
   link:        http://scikit-learn.org/stable/modules/generated/sklearn.naive_bayes.BernoulliNB.html
   multiclass:  false
@@ -30,7 +31,6 @@ BNB:
       binarize:    0.
       fit_prior:   true
       class_prior: null
-  transform:   boolean
 
 D:
   base:        !!python/name:pbox.learning.algorithm.Decorate  # based on weka.classifiers.meta.Decorate

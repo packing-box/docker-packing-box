@@ -14,7 +14,8 @@ class Executable(Base):
     """ Executable extension for handling features. """
     _boolean_only = False
     _features     = {}
-    _transformers = {}
+    _source       = "/opt/features.yml"
+    _transformers = None
     
     def __new__(cls, *parts, **kwargs):
         self = super(Executable, cls).__new__(cls, *parts, **kwargs)
@@ -34,10 +35,10 @@ class Executable(Base):
                 Executable._features[self.format] = eset = Extractors(self.format)
             return eset
         if name == "_transformers":
-            # populate Executable._transformers with the set of feature transformers and their related functions
             tset = Executable._transformers
-            if len(tset) == 0:
-                Executable._transformers = tset = Transformers(self._features, self._boolean_only)
+            if tset is None:
+                # populate Executable._transformers with the set of feature transformers and their related functions
+                Executable._transformers = tset = Transformers(self._features, self._boolean_only, self._source)
             return tset
         return super(Executable, self).__getattribute__(name)
     

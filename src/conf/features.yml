@@ -64,7 +64,3 @@ is_size_of_uninitializeddata_gte_%dMB:
   result:      size_of_uninitializeddata >= x * 1024 * 1024
   values:      !!python/object/new:range [1, 6]
 
-biggest_section:
-  description: Name of the biggest section
-  result:      max([d['size'] for _, d in section_characteristics])
-
