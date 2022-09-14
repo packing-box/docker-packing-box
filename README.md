@@ -1,5 +1,5 @@
-<p align="center"><img src="https://github.com/dhondta/docker-packing-box/raw/main/docs/pages/imgs/logo.png"></p>
-<h1 align="center">Packing Box <a href="https://twitter.com/intent/tweet?text=Packing%20Box%20-%20Docker%20container%20featuring%20a%20CLI%20environment%20with%20packers%20and%20detectors%20for%20studying%20executable%20packing%2c%20including%20machine%20learning%20dataset%20generation%20and%20pipeline%20execution%2e%0ahttps%3a%2f%2fgithub%2ecom%2fdhondta%2fdocker-packing-box&hashtags=docker,container,python,infosec,cybersecurity,malware"><img src="https://img.shields.io/badge/Tweet--lightgrey?logo=twitter&style=social" alt="Tweet" height="20"/></a></h1>
+<p align="center"><img src="https://github.com/packing-box/docker-packing-box/raw/main/docs/pages/imgs/logo.png"></p>
+<h1 align="center">Packing Box <a href="https://twitter.com/intent/tweet?text=Packing%20Box%20-%20Docker%20container%20featuring%20a%20CLI%20environment%20with%20packers%20and%20detectors%20for%20studying%20executable%20packing%2c%20including%20machine%20learning%20dataset%20generation%20and%20pipeline%20execution%2e%0ahttps%3a%2f%2fgithub%2ecom%2fpacking-box%2fdocker-packing-box&hashtags=docker,container,python,infosec,cybersecurity,malware"><img src="https://img.shields.io/badge/Tweet--lightgrey?logo=twitter&style=social" alt="Tweet" height="20"/></a></h1>
 <h3 align="center">Study executable packing easy with this dedicated platform.</h3>
 
 [![Read The Docs](https://readthedocs.org/projects/docker-packing-box/badge/?version=latest)](http://docker-packing-box.readthedocs.io/en/latest/?badge=latest)
@@ -11,7 +11,7 @@ Here is what you can see when you start up the Docker container.
 
 ![](docs/pages/imgs/screenshot.png)
 
-The various items integrated in the Packing-Box are defined in the very declarative and easy-to-use YAML format through different [configuration files](https://github.com/dhondta/docker-packing-box/tree/main/src/conf). This makes shaping the scope for evaluations and machine learning model training straightforward and practical for researchers.
+The various items integrated in the Packing-Box are defined in the very declarative and easy-to-use YAML format through different [configuration files](https://github.com/packing-box/docker-packing-box/tree/main/src/conf). This makes shaping the scope for evaluations and machine learning model training straightforward and practical for researchers.
 
 ## :fast_forward: Quick Start
 
@@ -37,12 +37,12 @@ $ docker run -it -h packing-box -v `pwd`:/mnt/share dhondta/packing-box
 
 ### Items Usage
 
-*Items* are configured through the [YAML configuration files](https://github.com/dhondta/docker-packing-box/tree/main/src/conf). They consist in:
-- [`analyzers.yml`](https://github.com/dhondta/docker-packing-box/blob/main/src/conf/analyzers.yml): utilities for analyzing files or more specifically packer trace
-- [`detectors.yml`](https://github.com/dhondta/docker-packing-box/blob/main/src/conf/detectors.yml): tools for analyzing and deciding whether an executable is packed or not
-- [`packers.yml`](https://github.com/dhondta/docker-packing-box/blob/main/src/conf/packers.yml) and [`unpackers.yml`](https://github.com/dhondta/docker-packing-box/blob/main/src/conf/unpackers.yml): self-explanatory
+*Items* are configured through the [YAML configuration files](https://github.com/packing-box/docker-packing-box/tree/main/src/conf). They consist in:
+- [`analyzers.yml`](https://github.com/packing-box/docker-packing-box/blob/main/src/conf/analyzers.yml): utilities for analyzing files or more specifically packer trace
+- [`detectors.yml`](https://github.com/packing-box/docker-packing-box/blob/main/src/conf/detectors.yml): tools for analyzing and deciding whether an executable is packed or not
+- [`packers.yml`](https://github.com/packing-box/docker-packing-box/blob/main/src/conf/packers.yml) and [`unpackers.yml`](https://github.com/packing-box/docker-packing-box/blob/main/src/conf/unpackers.yml): self-explanatory
 
-From within the Packing-Box, the [`packing-box`](https://github.com/dhondta/docker-packing-box/blob/main/src/files/tools/packing-box) tool allows to setup and test items.
+From within the Packing-Box, the [`packing-box`](https://github.com/packing-box/docker-packing-box/blob/main/src/files/tools/packing-box) tool allows to setup and test items.
 
 **Operation** | **Description** | **Command**
 :---:| --- | ---
@@ -60,14 +60,14 @@ Afterwards, items are available from the console.
 
 ### Mass Packing & Detection
 
-Packers and detectors have their respective dedicated tools for mass operations, [`packer`](https://github.com/dhondta/docker-packing-box/blob/main/src/files/tools/packer) and [`detector`](https://github.com/dhondta/docker-packing-box/blob/main/src/files/tools/detector). They work either on a single file, a complete folder or a special dataset instance (as of the abstraction defined in the [`pbox`](https://github.com/dhondta/docker-packing-box/tree/main/src/lib/pbox) package).
+Packers and detectors have their respective dedicated tools for mass operations, [`packer`](https://github.com/packing-box/docker-packing-box/blob/main/src/files/tools/packer) and [`detector`](https://github.com/packing-box/docker-packing-box/blob/main/src/files/tools/detector). They work either on a single file, a complete folder or a special dataset instance (as of the abstraction defined in the [`pbox`](https://github.com/packing-box/docker-packing-box/tree/main/src/lib/pbox) package).
 
 ```console
 # packer upx path/to/executables --prefix "upx_"
 <<snipped>>
 ```
 
-For the [`detector`](https://github.com/dhondta/docker-packing-box/blob/main/src/files/tools/detector) tool, not selecting any detector will use those selected in [`detectors.yml`](https://github.com/dhondta/docker-packing-box/blob/main/src/conf/detectors.yml) as being part of the "*superdetector*". Moreover, the `--binary` option will consider whether the target executable is packed or not and not is precise packer.
+For the [`detector`](https://github.com/packing-box/docker-packing-box/blob/main/src/files/tools/detector) tool, not selecting any detector will use those selected in [`detectors.yml`](https://github.com/packing-box/docker-packing-box/blob/main/src/conf/detectors.yml) as being part of the "*superdetector*". Moreover, the `--binary` option will consider whether the target executable is packed or not and not is precise packer.
 
 ```console
 # detector path/to/single-executable -d die -d pypackerdetect
@@ -80,19 +80,19 @@ For the [`detector`](https://github.com/dhondta/docker-packing-box/blob/main/src
 
 ### Learning Pipeline
 
-Machine Learning models are fine-tuned through the [YAML configuration files](https://github.com/dhondta/docker-packing-box/tree/main/src/conf). They consist in:
-- [`algorithms.yml`](https://github.com/dhondta/docker-packing-box/blob/main/src/conf/algorithms.yml): the algorithms that are used with their static or dynamic parameters while training models
-- [`features.yml`](https://github.com/dhondta/docker-packing-box/blob/main/src/conf/features.yml): the characteristics to be considered while training and using models
+Machine Learning models are fine-tuned through the [YAML configuration files](https://github.com/packing-box/docker-packing-box/tree/main/src/conf). They consist in:
+- [`algorithms.yml`](https://github.com/packing-box/docker-packing-box/blob/main/src/conf/algorithms.yml): the algorithms that are used with their static or dynamic parameters while training models
+- [`features.yml`](https://github.com/packing-box/docker-packing-box/blob/main/src/conf/features.yml): the characteristics to be considered while training and using models
 
 ![](docs/pages/imgs/machine-learning-pipeline.png)
 
-The *PREPARE* phase, especially *feature engineering*, is fine-tuned with the *features* YAML definition. Note that feature extraction is achieved with the [`pbox`](https://github.com/dhondta/docker-packing-box/tree/main/src/lib/pbox) package of the Packing-Box while feature derivation and transformation is fine-tuned via the *features* YAML file.
+The *PREPARE* phase, especially *feature engineering*, is fine-tuned with the *features* YAML definition. Note that feature extraction is achieved with the [`pbox`](https://github.com/packing-box/docker-packing-box/tree/main/src/lib/pbox) package of the Packing-Box while feature derivation and transformation is fine-tuned via the *features* YAML file.
 
 The *TRAIN* phase is fine-tuned through the *algorithms* YAML file by setting the static and/or cross-validation parameters.
 
 ### Dataset Manipulations
 
-The *PREPARE* phase, especially *dataset generation*, is achieved with the [`dataset`](https://github.com/dhondta/docker-packing-box/blob/main/src/files/tools/dataset) tool.
+The *PREPARE* phase, especially *dataset generation*, is achieved with the [`dataset`](https://github.com/packing-box/docker-packing-box/blob/main/src/files/tools/dataset) tool.
 
 **Operation** | **Description** | **Command**
 :---:| --- | ---
@@ -103,7 +103,7 @@ The *PREPARE* phase, especially *dataset generation*, is achieved with the [`dat
 
 ### Data Visualization
 
-The *VISUALIZE* phase can be performed with the [`dataset`](https://github.com/dhondta/docker-packing-box/blob/main/src/files/tools/dataset) and [`visualizer`](https://github.com/dhondta/docker-packing-box/blob/main/src/files/tools/visualizer) tools.
+The *VISUALIZE* phase can be performed with the [`dataset`](https://github.com/packing-box/docker-packing-box/blob/main/src/files/tools/dataset) and [`visualizer`](https://github.com/packing-box/docker-packing-box/blob/main/src/files/tools/visualizer) tools.
 
 In order to visualize feature values:
 
@@ -134,7 +134,7 @@ folder/
 
 ### Model Manipulations
 
-The *TRAIN* and *PREDICT* phases of the pipeline are achieved with the [`model`](https://github.com/dhondta/docker-packing-box/blob/main/src/files/tools/model) tool. 
+The *TRAIN* and *PREDICT* phases of the pipeline are achieved with the [`model`](https://github.com/packing-box/docker-packing-box/blob/main/src/files/tools/model) tool. 
 
 **Operation** | **Description** | **Command**
 :---:| --- | ---
@@ -147,19 +147,19 @@ The *TRAIN* and *PREDICT* phases of the pipeline are achieved with the [`model`]
 
 You may also like these:
 
-- [Awesome Executable Packing](https://github.com/dhondta/awesome-executable-packing): A curated list of awesome resources related to executable packing.
-- [Bintropy](https://github.com/dhondta/bintropy): Analysis tool for estimating the likelihood that a binary contains compressed or encrypted bytes.
-- [Dataset of packed ELF files](https://github.com/dhondta/dataset-packed-elf): Dataset of ELF samples packed with many different packers.
-- [Dataset of packed PE files](https://github.com/dhondta/dataset-packed-pe): Dataset of PE samples packed with many different packers.
-- [PEiD](https://github.com/dhondta/peid): Python implementation of the Packed Executable iDentifier (PEiD).
-- [PyPackerDetect](https://github.com/dhondta/PyPackerDetect): Packing detection tool for PE files.
+- [Awesome Executable Packing](https://github.com/packing-box/awesome-executable-packing): A curated list of awesome resources related to executable packing.
+- [Bintropy](https://github.com/packing-box/bintropy): Analysis tool for estimating the likelihood that a binary contains compressed or encrypted bytes.
+- [Dataset of packed ELF files](https://github.com/packing-box/dataset-packed-elf): Dataset of ELF samples packed with many different packers.
+- [Dataset of packed PE files](https://github.com/packing-box/dataset-packed-pe): Dataset of PE samples packed with many different packers.
+- [PEiD](https://github.com/packing-box/peid): Python implementation of the Packed Executable iDentifier (PEiD).
+- [PyPackerDetect](https://github.com/packing-box/PyPackerDetect): Packing detection tool for PE files.
 
 
 ## :clap:  Supporters
 
-[![Stargazers repo roster for @dhondta/docker-packing-box](https://reporoster.com/stars/dark/dhondta/docker-packing-box)](https://github.com/dhondta/docker-packing-box/stargazers)
+[![Stargazers repo roster for @packing-box/docker-packing-box](https://reporoster.com/stars/dark/packing-box/docker-packing-box)](https://github.com/packing-box/docker-packing-box/stargazers)
 
-[![Forkers repo roster for @dhondta/docker-packing-box](https://reporoster.com/forks/dark/dhondta/docker-packing-box)](https://github.com/dhondta/docker-packing-box/network/members)
+[![Forkers repo roster for @packing-box/docker-packing-box](https://reporoster.com/forks/dark/packing-box/docker-packing-box)](https://github.com/packing-box/docker-packing-box/network/members)
 
 <p align="center"><a href="#"><img src="https://img.shields.io/badge/Back%20to%20top--lightgrey?style=social" alt="Back to top" height="20"/></a></p>
 
