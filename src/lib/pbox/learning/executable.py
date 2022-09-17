@@ -12,15 +12,18 @@ __all__ = ["Executable"]
 
 class Executable(Base):
     """ Executable extension for handling features. """
-    _boolean_only = False
-    _features     = {}
-    _source       = "/opt/features.yml"
-    _transformers = None
+    _boolean_only  = False
+    _features      = {}
+    _metadata_only = False
+    _source        = "/opt/features.yml"
+    _transformers  = None
     
     def __new__(cls, *parts, **kwargs):
         self = super(Executable, cls).__new__(cls, *parts, **kwargs)
         self._selection, self.transform = {'pre': [], 'post': []}, kwargs.get("transform")
-        self.__getdata()
+        # i.e. dataset commands "show" and "view" only require the executable's metadata, not the data and rawdata
+        if not cls._metadata_only:
+            self.__getdata()
         return self
     
     def __delattr_(self, name):

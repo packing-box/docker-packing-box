@@ -31,7 +31,6 @@ class Executable(Path):
         '^(set[gu]id )?ELF 32-bit ':               "ELF32",
         '^(set[gu]id )?ELF 64-bit ':               "ELF64",
     }
-    _features = {}
 
     def __new__(cls, *parts, **kwargs):
         data, fields = None, ["hash", "label"] + Executable.FIELDS
@@ -41,7 +40,7 @@ class Executable(Path):
             # if reinstantiating an Executable instance, simply immediately return it
             if isinstance(e, Executable):
                 return e
-            # this case arises when a series is passed from Pandas' .itertuples() ; this produces an orphan executable
+            # case (1) arises when a series is passed from Pandas' .itertuples() ; this produces an orphan executable
             if all(hasattr(e, f) for f in fields) and hasattr(e, "_fields"):
                 try:
                     dest = ds1.files.joinpath(e.hash)

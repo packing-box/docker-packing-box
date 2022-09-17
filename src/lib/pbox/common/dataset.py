@@ -571,6 +571,7 @@ class Dataset:
             return -1, path
         # prepare the table of records
         d, h = [], ["Hash", "Path", "Size", "Creation", "Modification", "Label"]
+        Executable._metadata_only = True
         for e in self._filter(query, **kw):
             e = Executable(dataset=self, hash=e.hash)
             i, p = _shorten(e.realpath)
@@ -652,6 +653,7 @@ class Dataset:
                     return i, str(p.relative_to(s))
             return -1, path
         # parse formats, collect counts per size range and list of files
+        Executable._metadata_only = True
         for fmt in formats:
             d = {c: [0, 0] for c in CAT}
             for e in self:
