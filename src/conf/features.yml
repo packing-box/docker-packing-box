@@ -1,66 +1,359 @@
+address_to_rdata_not_conform:
+  description: address pointing to raw data on disk is not conforming with the file alignement
+  result:
+    PE: pefeats[41]
+
 base_of_code:
   description: Base of Code (reduced to its multiplier of 0x1000 ; -1 means it is not a multiplier)
-  result:      base_of_code % 0x1000
+  result:
+    PE: pefeats[10] % 0x1000
 
-is_image_base_standard:
-  description: "Is the ImageBase standard (Windows CE: 0x10000, other Windows PE: 0x400000, DLL: 0x10000000)"
-  result:      image_base in (0x10000, 0x400000, 0x10000000)
-  source:      https://docs.microsoft.com/en-us/windows/win32/debug/pe-format
+byte_%d_after_ep:
+  description: byte %d following the EP
+  result:
+    PE:   pefeats[x+48]
+  values: !!python/object/new:range [0, 64]
 
+checksum:
+  description: Checksum
+  result:
+    PE: pefeats[8]
+
+code_section_x:
+  description: code section is not executable
+  result:
+    PE: pefeats[30]
+
+dll_characteristics_1:
+  description: DLL characteristics 1 (dynamic base)
+  result:
+    PE: pefeats[0]
+
+dll_characteristics_2:
+  description: DLL characteristics 2 (force integrity)
+  result:
+    PE: pefeats[1]
+
+dll_characteristics_3:
+  description: DLL characteristics 3 (nx compat)
+  result:
+    PE: pefeats[2]
+
+dll_characteristics_4:
+  description: DLL characteristics 4 (no isolation)
+  result:
+    PE: pefeats[3]
+
+dll_characteristics_5:
+  description: DLL characteristics 5 (no SEH)
+  result:
+    PE: pefeats[4]
+
+dll_characteristics_6:
+  description: DLL characteristics 6 (no bind)
+  result:
+    PE: pefeats[5]
+
+dll_characteristics_7:
+  description: DLL characteristics 7 (WDM driver)
+  result:
+    PE: pefeats[6]
+
+dll_characteristics_8:
+  description: DLL characteristics 8 (terminal server aware)
+  result:
+    PE:  pefeats[7]
+
+entropy:
+  description: entropy of the whole executable
+  result:
+    All: entropy
+    PE:  pefeats[46]
+
+entropy_code_sections:
+  description: entropy of Code/text sections
+  result:
+    PE: pefeats[42]
+
+entropy_data_section:
+  description: entropy of data section
+  result:
+    PE: pefeats[43]
+
+entropy_pe_header:
+  description: entropy of PE header
+  result:
+    PE: pefeats[45]
+
+entropy_resource_section:
+  description: entropy of resource section
+  result:
+    PE: pefeats[44]
+
+entropy_section_with_ep:
+  description: entropy of section holding the Entry point (EP) of the PE under analysis
+  result:
+    PE: pefeats[47]
+
+ep_ratio:
+  description: ratio between raw data and virtual size for the section of entry point
+  result:
+    PE: pefeats[36]
+
+image_base:
+  description: Image Base
+  result:
+    PE: pefeats[9]
+
+max_ratio_rdata:
+  description: maximum ratio raw data per virtual size among all the sections
+  result:
+    PE: pefeats[39]
+
+min_ratio_rdata:
+  description: minimum ratio raw data per virtual size among all the sections
+  result:
+    PE: pefeats[40]
+
+number_addresses_in_iat:
+  description: number of addresses (corresponds to functions) found in the import address table (IAT)
+  result:
+    PE: pefeats[116]
+
+number_dll_imported:
+  description: number of DLLs imported
+  result:
+    PE: pefeats[112]
+
+number_func_imported_in_idt:
+  description: number of functions imported found in the import table directory (IDT)
+  result:
+    PE: pefeats[113]
+
+number_malicious_api_imported:
+  description: number of malicious APIs imported
+  result:
+    PE: pefeats[114]
+
+number_non_standard_sections:
+  description: number of non-standards sections the PE holds
+  result:
+    PE: pefeats[22]
+
+number_rw_sections:
+  description: number of readable and writable sections
+  result:
+    PE: pefeats[28]
+
+number_rwx_sections:
+  description: number of Writable and Readable and Executable sections the PE holds
+  result:
+    PE: pefeats[29]
+
+number_rx_sections:
+  description: number of readable and executable sections
+  result:
+    PE: pefeats[27]
+
+number_sections_size_0:
+  description: number of sections having their physical size =0 (size on disk)
+  result:
+    PE: pefeats[37]
+
+number_sections_vsize>dsize:
+  description: number of sections having their virtual size greater than their raw data size
+  result:
+    PE: pefeats[38]
+
+number_standard_sections:
+  description: number of standards sections the PE holds
+  result:
+    PE: pefeats[21]
+
+number_w_sections:
+  description: number of Writable sections the PE holds
+  result:
+    PE: pefeats[25]
+
+number_wx_sections:
+  description: number of Writable and Executable sections the PE holds
+  result:
+    PE: pefeats[26]
+
+number_x_sections:
+  description: number of Executable sections the PE holds
+  result:
+    PE: pefeats[24]
+
+number_resources:
+  description: number of resources the PE holds
+  result:
+    PE: pefeats[118]
+
+os_major_version:
+  description: OS Major version
+  result:
+    PE: pefeats[11]
+
+os_minor_version:
+  description: OS Minor version
+  result:
+    PE: pefeats[12]
+
+ratio_malicious_api_imported:
+  description: ratio between the number of malicious APIs imported to the number of all functions imported by the PE
+  result:
+    PE: pefeats[115]
+
+ratio_standard_sections:
+  description: ratio between the number of standards sections found and the number of all sections found in the PE under analysis
+  result:
+    PE: pefeats[23]
+
+section_alignment:
+  description: Section Alignment
+  result:
+    PE: pefeats[20]
+
+size_of_code:
+  description: Size of Code
+  result:
+    PE: pefeats[14]
+
+size_of_headers:
+  description: Size of Headers
+  result:
+    PE: pefeats[15]
+
+size_of_image:
+  description: Size of Image
+  result:
+    PE: pefeats[13]
+
+size_of_initializeddata:
+  description: Size Of InitializedData
+  result:
+    PE: pefeats[16]
+
+size_of_stack_commit:
+  description: Size of Stack Commit
+  result:
+    PE: pefeats[19]
+
+size_of_stackreverse:
+  description: Size Of StackReserve
+  result:
+    PE: pefeats[18]
+
+size_of_uninitializeddata:
+  description: Size Of UninitializedData
+  result:
+    PE: pefeats[17]
+
+# -------------------------------------------------- BOOLEAN FEATURES --------------------------------------------------
 is_base_of_code_standard:
   description: Is the BaseOfCode a multiplier of 0x1000
-  result:      base_of_code % 0x1000 == 0
+  result:
+    PE: base_of_code % 0x1000 == 0
 
 is_checksum_null:
   description: Is the checksum set to 0
-  result:      checksum == 0
+  result:
+    All: checksum == 0
+
+is_code_section_90%_of_image_size:
+  description: Is the size of the code section greather or equal to 90% of the image size
+  result:
+    PE: size_of_code / size_of_image >= .9
+
+is_code_section_not_present:
+  description: code section is not present in the PE under analysis
+  result:
+    PE: pefeats[32]
+
+is_debug_dir_present:
+  description: debug directory is present or not
+  result:
+    PE: pefeats[117]
+
+is_ep_not_in_code_section:
+  description: EP is not in the code section
+  result:
+    PE: pefeats[33]
+
+is_ep_not_in_standard_section:
+  description: EP is not in a standard section
+  result:
+    PE: pefeats[34]
+
+is_ep_not_in_x_section:
+  description: EP is not in an executable section
+  result:
+    PE: pefeats[35]
+
+is_image_base_standard:
+  description: "Is the ImageBase standard (Windows CE: 0x10000, other Windows PE: 0x400000, DLL: 0x10000000)"
+  result:
+    PE: image_base in (0x10000, 0x400000, 0x10000000)
+  source:      https://docs.microsoft.com/en-us/windows/win32/debug/pe-format
 
 is_os_major_version_%d:
   description: Is the OS major version equal to %d
-  result:      os_major_version == x
+  result:
+    PE: os_major_version == x
   values:      !!python/object/new:range [4, 7]
 
 is_os_major_version_standard:
   description: Is the OS major version within 4 (<Windows XP) and 10 (Windows 11)
-  result:      os_major_version in range(4, 11)
+  result:
+    PE: os_major_version in range(4, 11)
 
 is_os_minor_version_%d:
   description: Is the OS minor version equal to %d
-  result:      os_minor_version == x
+  result:
+    PE: os_minor_version == x
   values:      !!python/object/new:range [0, 4]
 
 is_os_minor_version_standard:
   description: Is the OS minor version within 0 and 3
-  result:      os_minor_version in range(0, 4)
-
-is_code_section_90%_of_image_size:
-  description: Is the size of the code section greather or equal to 90% of the image size
-  result:      size_of_code / size_of_image >= .9
+  result:
+    PE: os_minor_version in range(0, 4)
 
 is_size_of_headers_%dB:
   description: Is the size of the headers equal to %dB
-  result:      size_of_headers == x
+  result:
+    PE: size_of_headers == x
   values:      [512, 1024, 1536, 4096]
 
 is_size_of_headers_non_standard:
   description: Is the size of the headers not equal to any of 512B, 1024B, 1536B or 4096B
-  result:      size_of_headers not in (512, 1024, 1536, 4096)
-
-is_size_of_initializeddata_notnull:
-  description: Is the size of initialized data not null
-  result:      size_of_initializeddata > 0
+  result:
+    PE: size_of_headers not in (512, 1024, 1536, 4096)
 
 is_size_of_initializeddata_gte_%dMB:
   description: Is the size of initialized data greater than or equal to %dMB
-  result:      size_of_initializeddata >= x * 1024 * 1024
+  result:
+    PE: size_of_initializeddata >= x * 1024 * 1024
+  values:      !!python/object/new:range [1, 6]
+
+is_size_of_initializeddata_notnull:
+  description: Is the size of initialized data not null
+  result:
+    PE: size_of_initializeddata > 0
+
+is_size_of_uninitializeddata_gte_%dMB:
+  description: Is the size of uninitialized data greater than or equal to %dMB
+  result:
+    PE: size_of_uninitializeddata >= x * 1024 * 1024
   values:      !!python/object/new:range [1, 6]
 
 is_size_of_uninitializeddata_notnull:
   description: Is the size of uninitialized data not null
-  result:      size_of_uninitializeddata > 0
+  result:
+    PE: size_of_uninitializeddata > 0
 
-is_size_of_uninitializeddata_gte_%dMB:
-  description: Is the size of uninitialized data greater than or equal to %dMB
-  result:      size_of_uninitializeddata >= x * 1024 * 1024
-  values:      !!python/object/new:range [1, 6]
+is_x_section_not_code:
+  description: executable section is not a code section
+  result:
+    PE: pefeats[31]
 

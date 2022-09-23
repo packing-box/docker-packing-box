@@ -1,5 +1,6 @@
 # -*- coding: UTF-8 -*-
 import pandas as pd
+import yaml
 from sklearn.metrics import accuracy_score
 from sklearn.utils.validation import check_is_fitted
 from tinyscript.helpers import Path, TempPath
@@ -16,6 +17,8 @@ _sanitize_feature_name = lambda n: n.replace("<", "[lt]").replace(">", "[gt]")
 
 class Algorithm(Item):
     """ Algorithm abstraction. """
+    registry = None
+    
     def is_weka(self):
         """ Simple method for checking if the algorithm is based on a Weka class. """
         return self.base.__base__ is WekaClassifier
@@ -107,5 +110,34 @@ class Logistic(WekaClassifier):
     _weka_base = "weka.classifiers.functions.Logistic"
 
 
-make_registry(Algorithm)
+if Algorithm.registry is None:
+    cls = Algorithm
+    # open the .conf file associated to algorithms
+    cls.registry, glob = [], globals()
+    with Path("/opt/algorithms.yml").open() as f:
+        algos = yaml.load(f, Loader=yaml.Loader)
+    # start parsing items of cls
+    for aclass, items in algos.items():
+        if aclass not in ["Semi-Supervised", "Supervised", "Unsupervised"]:
+            raise ValueError("bad learning algorithm category")
+        dflts = items.pop('defaults', {})
+        dflts['labelling'] = "full" if aclass == "Supervised" else "partial" if aclass == "Semi-Supervised" else "none"
+        for algo, data in items.items():
+            for k, v in dflts.items():
+                if k == "base":
+                    raise ValueError("parameter 'base' cannot have a default value")
+                data.setdefault(k, v)
+            # put the related algorithm in module's globals()
+            if algo not in glob:
+                d = dict(cls.__dict__)
+                for a in ["get", "iteritems", "mro", "registry"]:
+                    d.pop(a, None)
+                glob[algo] = type(algo, (cls, ), d)
+            i = glob[algo]
+            i._instantiable = True
+            # now set attributes from YAML parameters
+            for k, v in data.items():
+                setattr(i, k, v)
+            glob['__all__'].append(algo)
+            cls.registry.append(i())
 

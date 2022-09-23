@@ -6,7 +6,7 @@ from tinyscript import *
 
 __author__      = "Alexandre D'Hondt"
 __email__       = "alexandre.dhondt@gmail.com"
-__version__     = "1.1.0"
+__version__     = "1.2.0"
 __copyright__   = ("A. D'Hondt", 2021)
 __license__     = "gpl-3.0"
 __doc__         = """
@@ -57,7 +57,8 @@ if __name__ == '__main__':
     listm.add_argument("--algorithms", action="store_true", help="show available algorithms instead of models")
     preproc = sparsers.add_parser("preprocess", help="preprocess features and visualize the result")
     __add_name(preproc)
-    preproc.add_argument("-f", "--features-set", default="/opt/features.yml", help="features set's YAML definition")
+    preproc.add_argument("-f", "--features-set", type=ts.file_exists, default="/opt/features.yml",
+                         help="features set's YAML definition")
     __add_name(sparsers.add_parser("purge", help="purge the selected model"))
     rename = sparsers.add_parser("rename", help="rename the selected model")
     __add_name(rename)
@@ -66,7 +67,8 @@ if __name__ == '__main__':
     test = sparsers.add_parser("test", help="test the model on a given input")
     __add_name(test, joblib=True)
     test.add_argument("executable", help="executable or folder containing executables or dataset or data CSV file")
-    test.add_argument("-f", "--features-set", default="/opt/features.yml", help="features set's YAML definition")
+    test.add_argument("-f", "--features-set", type=ts.file_exists, default="/opt/features.yml",
+                      help="features set's YAML definition")
     test.add_argument("-u", "--unlabeled", action="store_true", help="do not use assigned labels (if any)")
     test.add_argument("--sep", default=",", choices=",;|\t", help="set the CSV separator",
                       note="required when using input CSV data instead of a Dataset")
@@ -77,7 +79,8 @@ if __name__ == '__main__':
                        help="machine learning algorithm to be used\n- %s\n * supports Grid Search cross-validation\n" %\
                             "\n- ".join("%s: %s%s" % (a.name.ljust(4), a.description, ["", "*"][a.parameters.get('cv') \
                             is not None]) for a in Algorithm.registry))
-    train.add_argument("-f", "--features-set", default="/opt/features.yml", help="features set's YAML definition")
+    train.add_argument("-f", "--features-set", type=ts.file_exists, default="/opt/features.yml",
+                       help="features set's YAML definition")
     train.add_argument("-m", "--multiclass", action="store_true", help="train the model using multiple label classes")
     train.add_argument("-r", "--reset", action="store_true", help="reset the model before (re)training")
     train.add_argument("--cv", default=5, type=ts.pos_int, help="number of Cross-Validation folds")
@@ -105,6 +108,8 @@ if __name__ == '__main__':
     elif name == "all":
         logger.warning("Model cannot be named 'all' (reserved word)")
     else:
+        if hasattr(args, "features_set"):
+            Features.source = args.features_set  # configure the features set's YAML definition source
         try:
             m = DumpedModel(**vars(args))
         except (KeyError, OSError):

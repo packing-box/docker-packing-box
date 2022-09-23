@@ -185,7 +185,7 @@ def file_or_folder_or_dataset(method):
             nonlocal n, e, l
             # append the (Fileless)Dataset instance itself
             if getattr(i, "is_valid", lambda: False)():
-                for exe in i._iter_with_features(kwargs.get('feature'), kwargs.get('pattern')):
+                for exe in i:
                     e.append(exe)
             # single executable
             elif is_file(i) and i not in e:
@@ -279,13 +279,20 @@ def make_registry(cls):
     with Path("/opt/%ss.yml" % cls.__name__.lower()).open() as f:
         items = yaml.load(f, Loader=yaml.Loader)
     # start parsing items of cls
-    _cache = {}
+    _cache, defaults = {}, items.pop('defaults', {})
     for item, data in items.items():
+        for k, v in defaults.items():
+            if k in ["base", "install", "status", "steps", "variants"]:
+                raise ValueError("parameter '%s' cannot have a default value" % k)
+            data.setdefault(k, v)
         # ensure the related item is available in module's globals()
         #  NB: the item may already be in globals in some cases like pbox.items.packer.Ezuri
         if item not in glob:
-            glob[item] = type(item, (cls, ), dict(cls.__dict__))
+            d = dict(cls.__dict__)
+            del d['registry']
+            glob[item] = type(item, (cls, ), d)
         i = glob[item]
+        i._instantiable = True
         # before setting attributes from the YAML parameters, check for 'base' ; this allows to copy all attributes from
         #  an entry originating from another item class (i.e. copying from Packer's equivalent to Unpacker ; e.g. UPX)
         base = data.get('base')  # i.e. detector|packer|unpacker ; DO NOT pop as 'base' is also used for algorithms
@@ -311,7 +318,10 @@ def make_registry(cls):
         #  variants to the new classes (note that on the contrary of base, a variant inherits the 'status' parameter)
         variants, vilist = data.pop('variants', {}), []
         for vitem in variants.keys():
-            vi = glob[vitem] = type(vitem, (cls, ), dict(cls.__dict__))
+            d = dict(cls.__dict__)
+            del d['registry']
+            vi = glob[vitem] = type(vitem, (cls, ), d)
+            vi._instantiable = True
             vi.parent = item
             vilist.append(vi)
         # now set attributes from YAML parameters

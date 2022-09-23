@@ -71,45 +71,30 @@ class FilelessDataset(Dataset):
     _files = False
     
     def __iter__(self):
-        """ Iterate over the dataset. """
-        for row in self._data.itertuples():
-            e = Executable(row, dataset=self)
-            e._row = row
-            yield e
-    Dataset.__iter__ = __iter__
-    
-    def _compute_features(self, feature=None, raw=True):
-        """ Convenience funcion for computing the self._data pandas.DataFrame containing the feature values. """
-        pbar = tqdm(total=self._metadata['executables'], unit="executable")
+        """ Iterate over dataset's sample executables, computing the features and filling their dictionary too. """
         if not hasattr(self, "_features"):
             self._features = {}
-        for exe in self._iter_with_features(feature):
-            h = exe.basename
+        for row in self._data.itertuples():
+            exe = Executable(row, dataset=self)
+            exe._row = row
             self._features.update(exe.features)
+            yield exe
+    Dataset.__iter__ = __iter__
+    
+    def _compute_features(self):
+        """ Convenience funcion for computing the self._data pandas.DataFrame containing the feature values. """
+        pbar = tqdm(total=self._metadata['executables'], unit="executable")
+        for exe in self:
+            h = exe.basename
             d = self[exe.hash, True]
-            d.update(exe.rawdata if raw else exe.data)
+            d.update(exe.data)
             self[exe.hash] = (d, True)  # True: force updating the row
             pbar.update()
         pbar.close()
     Dataset._compute_features = _compute_features
     
-    def _iter_with_features(self, feature=None):
-        """ Convenience generator supplementing __iter__ for ensuring that feaures are also included. """
-        if self._files:
-            for exe in self:
-                exe.selection = feature
-                if not hasattr(self, "_features"):
-                    self._features = {}
-                self._features.update(exe.features)
-                yield exe
-        else:
-            for exe in self:
-                exe.selection = feature
-                yield exe
-    Dataset._iter_with_features = _iter_with_features
-    
     @backup
-    def convert(self, feature=None, new_name=None, **kw):
+    def convert(self, new_name=None, **kw):
         """ Convert a dataset with files to a dataset without files. """
         l = self.logger
         if not self._files:
@@ -118,7 +103,7 @@ class FilelessDataset(Dataset):
         if new_name is not None:
             ds = Dataset(new_name)
             ds.merge(self.path.basename, silent=True, **kw)
-            ds.convert(feature, **kw)
+            ds.convert(**kw)
             return
         l.info("Converting to fileless dataset...")
         l.info("Size of dataset:     %s" % ts.human_readable_size(self.path.size))
@@ -136,9 +121,8 @@ class FilelessDataset(Dataset):
         l.info("Size of new dataset: %s" % ts.human_readable_size(self.path.size))
     Dataset.convert = convert
     
-    def features(self, feature=None, raw=False, **kw):
-        Executable._source = kw.get('features_set', "/opt/features.yml")
-        self._compute_features(feature, raw)
+    def features(self, **kw):
+        self._compute_features()
         with data_to_temp_file(self._data, prefix="dataset-features-") as tmp:
             edit_file(tmp, logger=self.logger)
     Dataset.features = features
@@ -185,7 +169,7 @@ class FilelessDataset(Dataset):
         self._save()
     Dataset.merge = merge
     
-    def plot(self, feature, output_format=None, dpi=200, multiclass=False, raw=True, **kw):
+    def plot(self, feature, output_format=None, dpi=200, multiclass=False, **kw):
         """ Plot the distribution of the given feature or multiple features combined. """
         l = self.logger
         if not isinstance(feature, (tuple, list)):
@@ -193,10 +177,9 @@ class FilelessDataset(Dataset):
         l.info("Counting values for feature%s %s..." % (["", "s"][len(feature) > 1], ", ".join(feature)))
         # start counting, keeping 'Not packed' counts separate (to prevent it from being sorted with others)
         counts_np, counts, labels, data = {}, {}, [], pandas.DataFrame()
-        for exe in self._iter_with_features(feature):
-            exe_data = getattr(exe, ["data", "rawdata"][raw])
-            data = data.append(exe_data, ignore_index=True)
-            v = tuple(exe_data[f] for f in feature)
+        for exe in self:
+            data = data.append(exe.data, ignore_index=True)
+            v = tuple(exe.data[f] for f in feature)
             counts_np.setdefault(v, 0)
             counts.setdefault(v, {} if multiclass else {'Packed': 0})
             lbl = str(exe.label)

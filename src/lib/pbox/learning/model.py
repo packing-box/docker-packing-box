@@ -20,6 +20,7 @@ from tinyscript.report import *
 from .algorithm import Algorithm, WekaClassifier
 from .dataset import *
 from .executable import Executable
+from .features import Features
 from .visualization import *
 from ..common.config import *
 from ..common.utils import *
@@ -188,8 +189,7 @@ class Model:
                 return False
         l.info("%s dataset:  %s" % (["Reference", "Test"][data_only], ds))
         self._data, self._target = pd.DataFrame(), pd.DataFrame(columns=["label"])
-        Executable._boolean_only = self.algorithm.boolean
-        Executable._source = kw.get('features_set', "/opt/features.yml")
+        Features.boolean_only = self.algorithm.boolean
         # start input dataset parsing
         def __parse(exes, label=True):
             l.info("Computing features...")
