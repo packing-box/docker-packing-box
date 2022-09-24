@@ -1,6 +1,8 @@
 # -*- coding: UTF-8 -*-
+import mdv
 from tinyscript import configparser
 from tinyscript.helpers import ConfigPath, Path
+from tinyscript.report import *
 
 
 __all__ = ["config", "LOG_FORMATS", "NAMING_CONVENTION"]
@@ -9,6 +11,7 @@ LOG_FORMATS = ["%(asctime)s [%(levelname)s] %(message)s", "%(asctime)s [%(leveln
 NAMING_CONVENTION = r"(?i)^[a-z][a-z0-9]*(?:[-_][a-z0-9]+)*$"
 
 
+_rp = lambda v: Path(str(v), expand=True).absolute()
 _ws = lambda s, v: Path(s['workspace'].joinpath(v), create=True, expand=True).absolute()
 
 
@@ -17,6 +20,14 @@ class Config(configparser.ConfigParser):
     DEFAULTS = {
         'main': {
             'workspace': ("~/.packing-box", lambda v: Path(str(v), create=True, expand=True).absolute()),
+        },
+        'definitions': {
+            'algorithms': ("/opt/algorithms.yml", _rp),
+            'analyzers':  ("/opt/analyzers.yml", _rp),
+            'detectors':  ("/opt/detectors.yml", _rp),
+            'features':   ("/opt/features.yml", _rp),
+            'packers':    ("/opt/packers.yml", _rp),
+            'unpackers':  ("/opt/unpackers.yml", _rp),
         },
         'logging': {
             'wine_errors': ("false", lambda v: str(v).lower() in ["1", "true", "y", "yes"]),
@@ -45,17 +56,17 @@ class Config(configparser.ConfigParser):
             for opt, val in options.items():
                 try:
                     val, func = val
-                except TypeError:
-                    pass
+                except ValueError:
+                    func = None
                 s = super().__getitem__(section)
                 if opt not in s:
-                    s[opt] = val
+                    s[opt] = val if func is None else str(func(val))
     
     def __getitem__(self, option):
-        for name in self.sections():
-            sec = super().__getitem__(name)
+        for section in self.sections():
+            sec = super().__getitem__(section)
             if option in sec:
-                o = Config.DEFAULTS[name][option]
+                o = Config.DEFAULTS[section][option]
                 return (o[1] if isinstance(o, tuple) and len(o) > 1 else str)(sec[option])
         h = self.HIDDEN
         if option in h:
@@ -72,23 +83,40 @@ class Config(configparser.ConfigParser):
         for section in self.sections():
             s = super().__getitem__(section)
             if option in s:
-                s[option] = str(value)
+                try:
+                    _, func = Config.DEFAULTS[section][option]
+                except ValueError:
+                    func = lambda x: x
+                s[option] = str(func(value))
                 return
         raise KeyError(option)
     
     def items(self):
-        for opt in sorted(x for x in self):
-            yield opt, self[opt]
+        for option in sorted(x for x in self):
+            yield option, self[option]
     
     def iteroptions(self):
-        opts = []
+        options = []
+        for section in self.sections():
+            for option, value in super().__getitem__(section).items():
+                o = Config.DEFAULTS[section][option]
+                options.append((option, o[1] if isinstance(o, tuple) and len(o) > 1 else str, value))
+        for o, f, v in sorted(options, key=lambda x: x[0]):
+            yield o, f, v
+    
+    def overview(self):
+        r = []
         for name in self.sections():
             sec = super().__getitem__(name)
+            r.append(Section(name.capitalize()))
+            mlen = 0
+            for opt in sec.keys():
+                mlen = max(mlen, len(opt))
+            l = []
             for opt, val in sec.items():
-                o = Config.DEFAULTS[name][opt]
-                opts.append((opt, o[1] if isinstance(o, tuple) and len(o) > 1 else str, val))
-        for o, v, f in sorted(opts, key=lambda x: x[0]):
-            yield o, v, f
+                l.append("%s = %s" % (opt.ljust(mlen), str(val)))
+            r.append(List(l))
+        print(mdv.main(Report(*r).md()))
     
     def save(self):
         with self.path.open('w') as f:

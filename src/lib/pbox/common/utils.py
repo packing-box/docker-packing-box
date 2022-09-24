@@ -276,7 +276,7 @@ def make_registry(cls):
             setattr(i, k, v)
     # open the .conf file associated to cls (i.e. Detector, Packer, ...)
     cls.registry, glob = [], inspect.getparentframe().f_back.f_globals
-    with Path("/opt/%ss.yml" % cls.__name__.lower()).open() as f:
+    with Path(config[cls.__name__.lower() + "s"]).open() as f:
         items = yaml.load(f, Loader=yaml.Loader)
     # start parsing items of cls
     _cache, defaults = {}, items.pop('defaults', {})
@@ -305,7 +305,7 @@ def make_registry(cls):
                 if base == cls.__name__ and bcls in [None, item]:
                     raise ValueError("%s cannot point to itself" % item)
                 if base not in _cache.keys():
-                    with Path("/opt/%ss.yml" % base.lower()).open() as f:
+                    with Path(config[base.lower() + "s"]).open() as f:
                         _cache[base] = yaml.load(f, Loader=yaml.Loader)
                 for k, v in _cache[base].get(bcls, {}).items():
                     # do not process these keys as they shall be different from an item class to another anyway

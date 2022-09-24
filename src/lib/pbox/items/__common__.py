@@ -112,12 +112,6 @@ class Base(Item):
         self._params = {}
         self.__init = False
     
-    def __new__(cls, *args, **kwargs):
-        """ Prevents Base from being instantiated. """
-        if cls is Base:
-            raise TypeError("Base cannot be instantiated directly")
-        return object.__new__(cls, *args, **kwargs)    
-    
     @update_logger
     def _check(self, exe, silent=False):
         """ Check if the given executable can be processed by this item. """
@@ -315,7 +309,7 @@ class Base(Item):
             self.logger.debug("Status: %s ; this means that it won't be installed" % self.status)
             return
         self.logger.info("Setting up %s..." % self.cname)
-        opt, tmp = Path("/opt/%ss" % self.type), Path("/tmp/%ss" % self.type)
+        opt, tmp = Path(config[self.type + "s"]), Path("/tmp/%ss" % self.type)
         obin, ubin = Path("/opt/bin"), Path("/usr/bin")
         result, rm, wget, kw = None, True, False, {'logger': self.logger, 'silent': getattr(self, "silent", [])}
         cwd = os.getcwd()
@@ -599,7 +593,7 @@ class Base(Item):
                 h, label = getattr(self, self.type[:-2])(str(tmp), include_hash=True)
                 if h not in hl:
                     hl.append(h)
-                getattr(self.logger, "failure" if label is None else "warning" if label is False else "success")(n)
+                getattr(self.logger, "failure" if label == "" else "warning" if label is None else "success")(n)
                 self.logger.debug("Label: %s" % label)
             if len(l) > 1 and len(hl) == 1:
                 self.logger.warning("Packing gave the same hash for all the tested files: %s" % hl[0])

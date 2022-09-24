@@ -8,6 +8,7 @@ from tinyscript.helpers.expressions import WL_NODES  # note: eval2 is bound to t
 from .common import *
 from .elf import *
 from .pe import *
+from ...common.config import config
 from ...common.utils import expand_formats, FORMATS
 
 
@@ -89,7 +90,7 @@ class Features(dict):
     """ This class parses the YAML definitions of features to be derived from the extracted ones. """
     boolean_only = False
     registry     = None
-    source       = "/opt/features.yml"
+    source       = config['features']
     
     @logging.bindLogger
     def __init__(self, exe):
