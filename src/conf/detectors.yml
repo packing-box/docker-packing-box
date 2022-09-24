@@ -1,3 +1,8 @@
+defaults:
+  maintained: true
+  multiclass: true
+
+
 Analyze_PE:
   comment: Relies on pefile and peutils with a userdb.txt signatures database.
   description: Wraps around various tools and provides some additional checks/information to produce a centralized report of a PE file.
