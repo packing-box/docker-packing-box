@@ -71,6 +71,9 @@ class Detector(Base):
             Runs the detector according to its command line format. """
         label, multiclass, dslen = kwargs.get('label'), kwargs.get('multiclass', True), kwargs.get('dslen')
         exe = Executable(executable)
+        if exe.format is None:  # format is not in the executable SIGNATURES of pbox.common.executable
+            self.logger.debug("'%s' is not a valid executable" % exe)
+            raise ValueError
         if dslen:
             exe.len = dslen
         actual_label = [(label if multiclass else label != "", ), ()][label is None]

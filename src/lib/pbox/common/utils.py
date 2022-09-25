@@ -237,12 +237,17 @@ def file_or_folder_or_dataset(method):
             _extend_e(a)
         # then handle the list
         kwargs['silent'] = kwargs.get('silent', False)
+        if len(e) == 0:
+            raise ValueError("No executable selected")
         for exe in e:
             kwargs['dslen'] = len(e)
             # this is useful for a decorated method that handles the difference between the computed and actual labels
             lbl = l.get(Path(exe).stem)
             kwargs['label'] = [lbl, None][str(lbl) in ["nan" ,"None"]]
-            yield method(self, exe, *args, **kwargs)
+            try:
+                yield method(self, exe, *args, **kwargs)
+            except ValueError:
+                pass
             kwargs['silent'] = True
     return _wrapper
 
