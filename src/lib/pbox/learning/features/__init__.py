@@ -23,6 +23,7 @@ class Feature(dict):
     def __init__(self, idict, **kwargs):
         self.setdefault("name", "undefined")
         self.setdefault("description", "")
+        self.setdefault("keep", True)
         self.setdefault("result", None)
         super(Feature, self).__init__(idict, **kwargs)
         self['boolean'] = any(self['name'].startswith(p) for p in ["is_", "has_"])
@@ -113,6 +114,10 @@ class Features(dict):
                         if n > 10:
                             raise ValueError("Too much iterations of '%s'" % name)
                         todo[name] = n + 1
+            # once converged, we can get rid of features that should not be kept
+            for name, feature in Features.registry[exe.format].items():
+                if not feature.keep:
+                    self.pop(name, None)
     
     def __getitem__(self, name):
         value = super(Features, self).__getitem__(name)
