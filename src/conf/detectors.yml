@@ -1,6 +1,8 @@
 defaults:
   maintained: true
   multiclass: true
+  vote:       false
+  weak:       false
 
 
 Analyze_PE:
@@ -57,6 +59,7 @@ DIE:
   source:  https://github.com/horsicq/Detect-It-Easy
   status:  ok
   version: $OPT/die_lin64_portable/release_version.txt
+  vote:    true
 
 ExeScan:
   comment: Relies on pefile and peutils with a userdb.txt signatures database and also the entropy-based function `peutils.is_probably_packed`.
@@ -90,7 +93,6 @@ Manalyze:
   source: https://github.com/JusticeRage/Manalyze
   status: ok
   weak:   true
-  vote:   false
 
 MRC:
   description: Mandiant Red Curtain is a free utility for identifying both binary obfuscation mechanisms and other malicious characteristics. It examines a PE file and determines a threat score by evaluating it against criteria such as entropy, indicators of obfuscation, packing signatures and other characteristics to determine whether it requires more extensive investigation.
@@ -130,7 +132,6 @@ PeFrame:
   status:  ok
   version: <output>
   weak:    true
-  vote:    false
 
 PEiD:
   description: PEiD detects most common packers, cryptors and compilers for PE files.
@@ -147,6 +148,7 @@ PEiD:
     - https://github.com/wolfram77web/app-peid
   source: https://github.com/dhondta/peid
   status: ok
+  vote:   true
 
 PePack:
   description: Check if a PE file is packed. This tool belongs to pev, an open source, full-featured, multiplatform command line toolkit to work with PE (Portable Executables) binaries.
@@ -157,7 +159,6 @@ PePack:
     - apt: pev
   source: https://github.com/merces/pev
   status: ok
-  vote:   false
 
 PyPackerDetect:
   comment: Relies on PEiD but also uses custom heuristics (e.g. known packer section names, entrypoint in non-standard section, threshhold of non-standard sections reached, low number of imports and overlapping entrypoint sections).
@@ -169,6 +170,7 @@ PyPackerDetect:
     - pip: pypackerdetect
   source: https://github.com/dhondta/PyPackerDetect
   status: ok
+  vote:   true
   weak:   true
 
 PyPeid:
@@ -189,7 +191,6 @@ PyPeid:
   source:  https://github.com/FFRI/pypeid
   status:  ok
   version: pypeid:__version__
-  vote:    false
 
 RDG:
   description: RDG Packer Detector is a detector for packers, Cryptors, Compilers, Packers Scrambler, Joiners, Installers.
@@ -213,6 +214,7 @@ RetDec:
   source:  https://github.com/avast/retdec
   status:  ok
   version: $OPT/retdec/share/retdec/CHANGELOG.md
+  vote:    true
 
 StudPE:
   comment: This tool relies on PEiD signatures.

@@ -47,7 +47,7 @@ class Packer(Base):
         # check: is this packer able to process the input executable ?
         exe = Executable(executable)
         if not self._check(exe):
-            return (None, False) if include_hash else False
+            return (None, None) if include_hash else None
         # now pack the input executable, taking its SHA256 in order to check for changes
         h, self._error, self._bad = exe.hash, None, False
         label = self.run(exe, **kwargs)
@@ -58,7 +58,7 @@ class Packer(Base):
         if self._error:
             err = self._error.replace(str(exe) + ": ", "").replace(self.name + ": ", "").strip()
             self.logger.debug("not packed (%s)" % err)
-            return (h, None) if include_hash else None
+            return (h, "") if include_hash else ""
         # frequent behaviors ;
         # if packed file's hash was not changed OR a custom failure condition from the packer's definition is met,
         #  then change packer's state to "BAD" ; this will trigger a count at the dataset level and disable the packer
@@ -72,7 +72,7 @@ class Packer(Base):
                         self.logger.debug("not packed (failure condition met: %s=%s)" % (a, str(v)))
                         break
             self._bad = True
-            return (h, None) if include_hash else None
+            return (h, "") if include_hash else ""
         # if packing succeeded, we can return packer's label
         self.logger.debug("packed successfully")
         return (exe.hash, label) if include_hash else label

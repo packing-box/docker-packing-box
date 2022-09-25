@@ -1,224 +1,276 @@
-AB:
-  base:        !!python/name:sklearn.ensemble.AdaBoostClassifier
-  description: Adaptive Boosting
-  link:        https://scikit-learn.org/stable/modules/generated/sklearn.ensemble.AdaBoostClassifier.html
-  parameters:
-    static:
-      algorithm:      SAMME.R
-      base_estimator: !!python/object:sklearn.tree.DecisionTreeClassifier {max_depth=1}
-      learning_rate:  1.
-      n_estimators:   50
-      random_state:   42
+Supervised:
+  AB:
+    base:        !!python/name:sklearn.ensemble.AdaBoostClassifier
+    description: Adaptive Boosting
+    link:        https://scikit-learn.org/stable/modules/generated/sklearn.ensemble.AdaBoostClassifier.html
+    parameters:
+      static:
+        algorithm:      SAMME.R
+        base_estimator: !!python/object:sklearn.tree.DecisionTreeClassifier {max_depth=1}
+        learning_rate:  1.
+        n_estimators:   50
+        random_state:   42
 
-BN:
-  base:        !!python/name:pbox.learning.algorithm.BayesNet  # based on weka.classifiers.bayes.BayesNet
-  description: Bayesian Network
-  link:        https://weka.sourceforge.io/doc.stable/weka/classifiers/bayes/BayesNet.html
-  parameters:
-    static:
-      E: weka.classifiers.bayes.net.estimate.SimpleEstimator  # estimator algorithm
-      Q: weka.classifiers.bayes.net.search.SearchAlgorithm    # search algorithm
+  BN:
+    base:        !!python/name:pbox.learning.algorithm.BayesNet  # based on weka.classifiers.bayes.BayesNet
+    description: Bayesian Network
+    link:        https://weka.sourceforge.io/doc.stable/weka/classifiers/bayes/BayesNet.html
+    parameters:
+      static:
+        E: weka.classifiers.bayes.net.estimate.SimpleEstimator  # estimator algorithm
+        Q: weka.classifiers.bayes.net.search.SearchAlgorithm    # search algorithm
 
-BNB:
-  base:        !!python/name:sklearn.naive_bayes.BernoulliNB
-  boolean:     true
-  description: Bernoulli Naive Bayes
-  link:        http://scikit-learn.org/stable/modules/generated/sklearn.naive_bayes.BernoulliNB.html
-  multiclass:  false
-  parameters:
-    static:
-      alpha:       1.
-      binarize:    0.
-      fit_prior:   true
-      class_prior: null
+  BNB:
+    base:        !!python/name:sklearn.naive_bayes.BernoulliNB
+    boolean:     true
+    description: Bernoulli Naive Bayes
+    link:        http://scikit-learn.org/stable/modules/generated/sklearn.naive_bayes.BernoulliNB.html
+    multiclass:  false
+    parameters:
+      static:
+        alpha:       1.
+        binarize:    0.
+        fit_prior:   true
+        class_prior: null
 
-D:
-  base:        !!python/name:pbox.learning.algorithm.Decorate  # based on weka.classifiers.meta.Decorate
-  description: Decorate
-  link:        https://weka.sourceforge.io/doc.stable/weka/classifiers/meta/Decorate.html
-  parameters:
-    static:
-      E: 15                          # desired size of ensemble
-      R: 1.0                         # factor that determines number of artificial examples to generate
-      S: 42                          # random number seed
-      I: 50                          # number of iterations
-      W: weka.classifiers.trees.J48  # full name of base classifier
+  D:
+    base:        !!python/name:pbox.learning.algorithm.Decorate  # based on weka.classifiers.meta.Decorate
+    description: Decorate
+    link:        https://weka.sourceforge.io/doc.stable/weka/classifiers/meta/Decorate.html
+    parameters:
+      static:
+        E: 15                          # desired size of ensemble
+        R: 1.0                         # factor that determines number of artificial examples to generate
+        S: 42                          # random number seed
+        I: 50                          # number of iterations
+        W: weka.classifiers.trees.J48  # full name of base classifier
 
-DL85:
-  base:        !!python/name:dl85.DL85Classifier
-  description: DL8.5 (optimal decision tree)
-  link:        https://dl85.readthedocs.io/en/latest/
-  multiclass:  false
-  parameters:
-    static:
-      iterative:  true
-      time_limit: 60
-    cv:
-      max_depth: !!python/object/new:range [3, 6]
-  preprocessors:
-    - Std
+  DL85:
+    base:        !!python/name:dl85.DL85Classifier
+    description: DL8.5 (optimal decision tree)
+    link:        https://dl85.readthedocs.io/en/latest/
+    multiclass:  false
+    parameters:
+      static:
+        iterative:  true
+        time_limit: 60
+      cv:
+        max_depth: !!python/object/new:range [3, 6]
+    preprocessors:
+      - Std
 
-DT:
-  base:        !!python/name:sklearn.tree.DecisionTreeClassifier
-  description: Decision Tree
-  link:        https://scikit-learn.org/stable/modules/generated/sklearn.tree.DecisionTreeClassifier.html
-  parameters:
-    static:
-      class_weight:   null
-      criterion:      entropy
-      max_features:   null
-      max_leaf_nodes: null
-      splitter:       best
-      random_state:   42
-    cv:
-      max_depth:         !!python/object/new:range [2, 13, 2]
-  preprocessors:
-    - Std
+  DT:
+    base:        !!python/name:sklearn.tree.DecisionTreeClassifier
+    description: Decision Tree
+    link:        https://scikit-learn.org/stable/modules/generated/sklearn.tree.DecisionTreeClassifier.html
+    parameters:
+      static:
+        class_weight:   null
+        criterion:      entropy
+        max_features:   null
+        max_leaf_nodes: null
+        splitter:       best
+        random_state:   42
+      cv:
+        max_depth:         !!python/object/new:range [2, 13, 2]
+    preprocessors:
+      - Std
 
-GB:
-  base:        !!python/name:sklearn.ensemble.GradientBoostingClassifier
-  description: Gradient Boosting
-  link:        https://scikit-learn.org/stable/modules/generated/sklearn.ensemble.GradientBoostingClassifier.html
-  parameters:
-    static:
-      n_estimators: 30
-      random_state: 42
-    cv:
-      max_depth: !!python/object/new:range [3, 8]
-  preprocessors:
-    - Std
+  GB:
+    base:        !!python/name:sklearn.ensemble.GradientBoostingClassifier
+    description: Gradient Boosting
+    link:        https://scikit-learn.org/stable/modules/generated/sklearn.ensemble.GradientBoostingClassifier.html
+    parameters:
+      static:
+        n_estimators: 30
+        random_state: 42
+      cv:
+        max_depth: !!python/object/new:range [3, 8]
+    preprocessors:
+      - Std
 
-GNB:
-  base:        !!python/name:sklearn.naive_bayes.GaussianNB
-  description: Gaussian Naive Bayes
-  link:        http://scikit-learn.org/stable/modules/generated/sklearn.naive_bayes.GaussianNB.html
-  parameters:
-    static:
-      priors: null
-  preprocessors:
-    - Std
+  GNB:
+    base:        !!python/name:sklearn.naive_bayes.GaussianNB
+    description: Gaussian Naive Bayes
+    link:        http://scikit-learn.org/stable/modules/generated/sklearn.naive_bayes.GaussianNB.html
+    parameters:
+      static:
+        priors: null
+    preprocessors:
+      - Std
 
-J48:
-  base:        !!python/name:pbox.learning.algorithm.J48  # based on weka.classifiers.trees.J48
-  description: Decision Tree (J48)
-  link:        https://weka.sourceforge.io/doc.stable/weka/classifiers/trees/J48.html
-  parameters:
-    static:
-      C: 0.25  # confidence threshold for pruning
-      M: 2     # minimum number of instances per leaf
-      N: 3     # number of folds for reduced error pruning ; one fold is used as pruning set
-      Q: 42    # random number seed
-  preprocessors:
-    - Std
+  J48:
+    base:        !!python/name:pbox.learning.algorithm.J48  # based on weka.classifiers.trees.J48
+    description: Decision Tree (J48)
+    link:        https://weka.sourceforge.io/doc.stable/weka/classifiers/trees/J48.html
+    parameters:
+      static:
+        C: 0.25  # confidence threshold for pruning
+        M: 2     # minimum number of instances per leaf
+        N: 3     # number of folds for reduced error pruning ; one fold is used as pruning set
+        Q: 42    # random number seed
+    preprocessors:
+      - Std
 
-kNN:
-  base:        !!python/name:sklearn.neighbors.KNeighborsClassifier
-  description: k-Nearest Neighbors
-  link:        http://scikit-learn.org/stable/modules/generated/sklearn.neighbors.KNeighborsClassifier.html
-  parameters:
-    static:
-      leaf_size:   30
-      metric:      minkowski
-    cv:
-      n_neighbors: !!python/object/new:range [1, 10, 2]
-      p:           [1, 2]                        # euclidian distance
-      weights:     ["distance", "uniform"]
-  preprocessors:
-    - Std
-    - PCA
+  kNN:
+    base:        !!python/name:sklearn.neighbors.KNeighborsClassifier
+    description: k-Nearest Neighbors
+    link:        http://scikit-learn.org/stable/modules/generated/sklearn.neighbors.KNeighborsClassifier.html
+    parameters:
+      static:
+        leaf_size:   30
+        metric:      minkowski
+      cv:
+        n_neighbors: !!python/object/new:range [1, 10, 2]
+        p:           [1, 2]                        # euclidian distance
+        weights:     ["distance", "uniform"]
+    preprocessors:
+      - Std
+      - PCA
 
-LP:
-  base:        !!python/name:sklearn.linear_model.Perceptron
-  description: Linear Perceptron
-  link:        https://scikit-learn.org/stable/modules/generated/sklearn.linear_model.Perceptron.html
-  parameters:
-    static:
-      max_iter:     1000
-      random_state: 42
-  preprocessors:
-    - Std
+  LP:
+    base:        !!python/name:sklearn.linear_model.Perceptron
+    description: Linear Perceptron
+    link:        https://scikit-learn.org/stable/modules/generated/sklearn.linear_model.Perceptron.html
+    parameters:
+      static:
+        max_iter:     1000
+        random_state: 42
+    preprocessors:
+      - Std
 
-LR:
-  base:        !!python/name:pbox.learning.algorithm.Logistic  # based on weka.classifiers.functions.Logistic
-  description: Logistic Regression
-  link:        https://weka.sourceforge.io/doc.stable/weka/classifiers/functions/Logistic.html
-  parameters:
-    static:
-      M: -1  # maximum number of iterations (-1: until convergence)
-  preprocessors:
-    - Std
+  LR:
+    base:        !!python/name:pbox.learning.algorithm.Logistic  # based on weka.classifiers.functions.Logistic
+    description: Logistic Regression
+    link:        https://weka.sourceforge.io/doc.stable/weka/classifiers/functions/Logistic.html
+    parameters:
+      static:
+        M: -1  # maximum number of iterations (-1: until convergence)
+    preprocessors:
+      - Std
 
-LSVC:
-  base:        !!python/name:sklearn.svm.LinearSVC
-  description: Linear Support Vector Classification
-  link:       http://scikit-learn.org/stable/modules/generated/sklearn.svm.LinearSVC.html
-  parameters:
-    static:
-      dual:         true
-      loss:         squared_hinge
-      penalty:      l2
-      random_state: 42
-      tol:          !!float 1e-4
-    cv:
-      C: !!python/object/new:numpy.logspace [-1, 4, 6]
-  preprocessors:
-    - Std
+  LSVC:
+    base:        !!python/name:sklearn.svm.LinearSVC
+    description: Linear Support Vector Classification
+    link:       http://scikit-learn.org/stable/modules/generated/sklearn.svm.LinearSVC.html
+    parameters:
+      static:
+        dual:         true
+        loss:         squared_hinge
+        penalty:      l2
+        random_state: 42
+        tol:          !!float 1e-4
+      cv:
+        C: !!python/object/new:numpy.logspace [-1, 4, 6]
+    preprocessors:
+      - Std
 
-MLP:
-  base:        !!python/name:sklearn.neural_network.MLPClassifier
-  description: Multi-Layer Perceptron
-  link:        http://scikit-learn.org/stable/modules/generated/sklearn.neural_network.MLPClassifier.html
-  parameters:
-    static:
-      activation:         relu
-      alpha:              !!float 1e-4
-      hidden_layer_sizes: !!python/tuple [10, 2]
-      random_state:       42
-      solver:             adam
-  preprocessors:
-    - Std
+  MLP:
+    base:        !!python/name:sklearn.neural_network.MLPClassifier
+    description: Multi-Layer Perceptron
+    link:        http://scikit-learn.org/stable/modules/generated/sklearn.neural_network.MLPClassifier.html
+    parameters:
+      static:
+        activation:         relu
+        alpha:              !!float 1e-4
+        hidden_layer_sizes: !!python/tuple [10, 2]
+        random_state:       42
+        solver:             adam
+    preprocessors:
+      - Std
 
-MNB:
-  base:        !!python/name:sklearn.naive_bayes.MultinomialNB
-  description: Multinomial Naive Bayes
-  link:        http://scikit-learn.org/stable/modules/generated/sklearn.naive_bayes.MultinomialNB.html
-  parameters:
-    static:
-      alpha:       1.
-      fit_prior:   true
-      class_prior: null
+  MNB:
+    base:        !!python/name:sklearn.naive_bayes.MultinomialNB
+    description: Multinomial Naive Bayes
+    link:        http://scikit-learn.org/stable/modules/generated/sklearn.naive_bayes.MultinomialNB.html
+    parameters:
+      static:
+        alpha:       1.
+        fit_prior:   true
+        class_prior: null
 
-RF:
-  base:        !!python/name:sklearn.ensemble.RandomForestClassifier
-  description: Random Forest
-  link:        http://scikit-learn.org/stable/modules/generated/sklearn.ensemble.RandomForestClassifier.html
-  parameters:
-    static:
-      max_depth:    null
-      max_features: sqrt
-      random_state: 42
-    cv:
-      criterion:    ["entropy", "gini"]
-      max_depth:    !!python/object/new:range [4, 11]
-      n_estimators: [10, 20, 30, 40]
-  preprocessors:
-    - Std
+  RF:
+    base:        !!python/name:sklearn.ensemble.RandomForestClassifier
+    description: Random Forest
+    link:        http://scikit-learn.org/stable/modules/generated/sklearn.ensemble.RandomForestClassifier.html
+    parameters:
+      static:
+        max_depth:    null
+        max_features: sqrt
+        random_state: 42
+      cv:
+        criterion:    ["entropy", "gini"]
+        max_depth:    !!python/object/new:range [4, 11]
+        n_estimators: [10, 20, 30, 40]
+    preprocessors:
+      - Std
 
-SVM:
-  base:        !!python/name:sklearn.svm.SVC
-  description: Support Vector Machine
-  link:        https://scikit-learn.org/stable/modules/generated/sklearn.svm.SVC.html
-  parameters:
-    static:
-      C:            1.
-      degree:       3
-      gamma:        auto
-      kernel:       rbf
-      probability:  true
-      random_state: 42
-    cv:
-      C:     !!python/object/new:numpy.logspace [4, 6, 3]
-      gamma: !!python/object/new:numpy.logspace [-3, -1, 3]
-  preprocessors:
-    - Std
+  SVM:
+    base:        !!python/name:sklearn.svm.SVC
+    description: Support Vector Machine
+    link:        https://scikit-learn.org/stable/modules/generated/sklearn.svm.SVC.html
+    parameters:
+      static:
+        C:            1.
+        degree:       3
+        gamma:        auto
+        kernel:       rbf
+        probability:  true
+        random_state: 42
+      cv:
+        C:     !!python/object/new:numpy.logspace [4, 6, 3]
+        gamma: !!python/object/new:numpy.logspace [-3, -1, 3]
+    preprocessors:
+      - Std
+
+Unsupervised:
+  AC:
+    base:        !!python/name:sklearn.cluster.AgglomerativeClustering
+    description: Agglomerative Clustering
+    link:        https://scikit-learn.org/stable/modules/generated/sklearn.cluster.AgglomerativeClustering.html
+
+  AP:
+    base:        !!python/name:sklearn.cluster.AffinityPropagation
+    description: Affinity Propagation clustering
+    link:        https://scikit-learn.org/stable/modules/generated/sklearn.cluster.AffinityPropagation.html
+
+  Birch:
+    base:        !!python/name:sklearn.cluster.Birch
+    description: BIRCH clustering
+    link:        https://scikit-learn.org/stable/modules/generated/sklearn.cluster.Birch.html
+
+  DBSCAN:
+    base:        !!python/name:sklearn.cluster.DBSCAN
+    description: Density-Based Spatial Clustering of Applications with Noise
+    link:        https://scikit-learn.org/stable/modules/generated/sklearn.cluster.DBSCAN.html
+
+  KMeans:
+    base:        !!python/name:sklearn.cluster.KMeans
+    description: K-Means clustering
+    link:        https://scikit-learn.org/stable/modules/generated/sklearn.cluster.KMeans.html
+
+  MBKMeans:
+    base:        !!python/name:sklearn.cluster.MiniBatchKMeans
+    description: Mini-Batch K-Means clustering
+    link:        https://scikit-learn.org/stable/modules/generated/sklearn.cluster.MiniBatchKMeans.html
+
+  MS:
+    base:        !!python/name:sklearn.cluster.MeanShift
+    description: Mean Shift
+    link:        https://scikit-learn.org/stable/modules/generated/sklearn.cluster.MeanShift.html
+
+  OPTICS:
+    base:        !!python/name:sklearn.cluster.OPTICS
+    description: Ordering Points To Identify the Clustering Structure
+    link:        https://scikit-learn.org/stable/modules/generated/sklearn.cluster.OPTICS.html
+
+  PCA:
+    base:        !!python/name:sklearn.decomposition.PCA
+    description: Principal Component Analysis
+    link:        https://scikit-learn.org/stable/modules/generated/sklearn.decomposition.PCA.html
+
+  SC:
+    base:        !!python/name:sklearn.cluster.SpectralClustering
+    description: Spectral Clustering
+    link:        https://scikit-learn.org/stable/modules/generated/sklearn.cluster.SpectralClustering.html
 

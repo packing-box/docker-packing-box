@@ -30,31 +30,34 @@ if __name__ == '__main__':
     logging.configLogger(logger, ["INFO", "DEBUG"][args.verbose], fmt=LOG_FORMATS[args.verbose], relative=True)
     kw = {'debug': args.verbose > 0, 'verbose': args.verbose > 1, 'multiclass': not args.binary,
           'silent': args.verbose == 0, 'threshold': args.threshold, 'weak': args.weak}
-    stats, pbar = {'fn': 0, 'fp': 0, 'tn': 0, 'tp': 0}, None
+    stats, cmatrix, pbar = {}, {'fn': 0, 'fp': 0, 'tn': 0, 'tp': 0}, None
     try:
         # using a single detector
         if len(args.detector or []) == 1:
             logger.name = "detector"
-            for r in Detector.get(args.detector[0]).detect(args.executable, **kw):
-                # (executable, computed label, actual label) 
+            for out in Detector.get(args.detector[0]).detect(args.executable, **kw):
+                # ([exe]cutable, [r]esulting label of detector, actual [l]abel) 
                 try:
-                    e, r, l = r             # when actual label given beforehand (e.g. for performance check)
+                    exe, r, l = out               # when actual label given beforehand (e.g. for performance check)
                 except TypeError:
-                    e, r, l = None, -1, -1  # when r == -1, meaning that the executable could not be handled
+                    exe, r, l = None, None, None  # when r == None, meaning that the executable could not be handled
                 except ValueError:
-                    e, r = r                # when no actual label provided but detection worked
-                    l = -1
-                if pbar is None and hasattr(e, "len") and e.len > 1:
-                    pbar = tqdm(total=e.len, unit="executable")
+                    exe, r = out                  # when no actual label provided but detection worked
+                    l = None
+                if pbar is None and hasattr(exe, "len") and exe.len > 1:
+                    pbar = tqdm(total=exe.len, unit="executable")
                 mc = kw['multiclass']
-                not_packed = r is None and mc or r is False and not mc
+                not_packed = r == "" and mc or r is False and not mc
                 if not args.metrics_only:
                     disp = "not packed" if not_packed else r if mc else "packed"
-                    if not args.failures_only or r != l and r != -1:
-                        log = [logger.failure, logger.success][r == l] if l != -1 else logger.debug
-                        log("{}: {}".format(e, disp))
-                if r != -1:
-                    stats[['tp', 'tn'][not_packed] if r == l else ['fp', 'fn'][not_packed]] += 1
+                    if not args.failures_only or r != l and r is not None and l is not None:
+                        log = [logger.failure, logger.success][r == l] if l is not None else logger.debug
+                        log("{}: {}".format(exe, disp))
+                if l is None:
+                    stats.setdefault(r, 0)
+                    stats[r] += 1
+                elif r is not None:
+                    cmatrix[['tp', 'tn'][not_packed] if r == l else ['fp', 'fn'][not_packed]] += 1
                 if pbar is not None:
                     pbar.update()
         # using part or all of the available detectors
@@ -62,15 +65,15 @@ if __name__ == '__main__':
             logger.name = "superdetector"
             if len(args.detector or []) != 0:
                 kw['select'] = args.detector
-            for r in Detector.detect(args.executable, **kw):
+            for out in Detector.detect(args.executable, **kw):
                 try:
-                    e, r, l, details = r
+                    exe, r, l, details = out
                 except ValueError:
-                    e, r, l = r
+                    exe, r, l = out
                     details = {}
-                logger.debug("final decision: %s" % r)
-                if pbar is None and hasattr(e, "len") and e.len > 1:
-                    pbar = tqdm(total=e.len, unit="executable")
+                logger.debug("final decision: %s" % ("not packed" if r == "" else str(r)))
+                if pbar is None and hasattr(exe, "len") and exe.len > 1:
+                    pbar = tqdm(total=exe.len, unit="executable")
                 if not args.metrics_only:
                     mlen = 0
                     for name in details.keys():
@@ -81,12 +84,15 @@ if __name__ == '__main__':
                     if msg != "Decisions:":
                         logger.warning(msg)
                     if not args.failures_only or r != l:
-                        log = [logger.failure, logger.success][r == l] if l != -1 else logger.debug
-                        log("{}: {}".format(e, r))
-                if r != -1:
-                    mc = kw['multiclass']
-                    not_packed = r is None and mc or r is False and not mc
-                    stats[['tp', 'tn'][not_packed] if r == l else ['fp', 'fn'][not_packed]] += 1
+                        log = [logger.failure, logger.success][r == l] if l is not None else logger.debug
+                        log("{}: {}".format(exe, r))
+                mc = kw['multiclass']
+                not_packed = r == "" and mc or r is False and not mc
+                if l is None:
+                    stats.setdefault(r, 0)
+                    stats[r] += 1
+                elif r is not None:
+                    cmatrix[['tp', 'tn'][not_packed] if r == l else ['fp', 'fn'][not_packed]] += 1
                 if pbar is not None:
                     pbar.update()
     except Exception as e:
@@ -96,18 +102,30 @@ if __name__ == '__main__':
         sys.exit(1)
     if pbar is not None:
         pbar.close()
-    ph, h, m = PERF_HEADERS, ["Accuracy", "Precision", "Recall", "F-Measure"], metrics(**stats)
+    ph, h, m = PERF_HEADERS, ["Accuracy", "Precision", "Recall", "F-Measure"], metrics(**cmatrix)
     m = [ph[k](v) if v >= 0 else "-" for k, v in zip(h, m)]
-    n = sum(stats.values())
+    n = sum(cmatrix.values())
+    logger.debug(cmatrix)
+    logger.debug(stats)
+    r = [Section("Detection results: ")]
     if n > 0:
         if args.metrics_only:
             print(",".join(m))
         elif n == 1:
             print(r)
         else:
-            r = Section("Detection results: "), Table([m], column_headers=h)
+            r.append(Table([m], column_headers=h))
             print(mdv.main(Report(*r).md()))
     else:
         if args.metrics_only:
             print("-,-,-,-")
+        else:
+            data, tot = [], sum(stats.values())
+            np = stats.pop("", 0)
+            if np > 0:
+                data.append(["not-packed", np, "%.2f" % (100 * np / tot)])
+            for l, c in sorted(stats.items(), key=lambda x: x[0]):
+                data.append([l, c, "%.2f%%" % (100 * c / tot)])
+            r.append(Table(data, column_headers=["Label", "Count", "Percentage"]))
+            print(mdv.main(Report(*r).md()))
 

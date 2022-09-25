@@ -6,6 +6,7 @@ from sklearn.utils.validation import check_is_fitted
 from tinyscript.helpers import Path, TempPath
 from weka.classifiers import Classifier
 
+from ..common.config import config
 from ..common.item import Item
 from ..common.utils import make_registry
 
@@ -114,14 +115,14 @@ if Algorithm.registry is None:
     cls = Algorithm
     # open the .conf file associated to algorithms
     cls.registry, glob = [], globals()
-    with Path("/opt/algorithms.yml").open() as f:
+    with Path(config['algorithms']).open() as f:
         algos = yaml.load(f, Loader=yaml.Loader)
     # start parsing items of cls
-    for aclass, items in algos.items():
-        if aclass not in ["Semi-Supervised", "Supervised", "Unsupervised"]:
+    for category, items in algos.items():
+        if category not in ["Semi-Supervised", "Supervised", "Unsupervised"]:
             raise ValueError("bad learning algorithm category")
         dflts = items.pop('defaults', {})
-        dflts['labelling'] = "full" if aclass == "Supervised" else "partial" if aclass == "Semi-Supervised" else "none"
+        dflts['labelling'] = {'Supervised': "full", 'Semi-Supervised': "partial", 'Unsupervised': "none"}[category]
         for algo, data in items.items():
             for k, v in dflts.items():
                 if k == "base":

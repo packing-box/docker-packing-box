@@ -505,6 +505,14 @@ class Model:
         except KeyError:
             l.error("%s not available" % algorithm)
             return
+        # check that, if the algorithm is supervised, it has full labels
+        if cls.labelling == "full" and ds.labelling < 1.:
+            l.error("'%s' won't work with a dataset that is not fully labelled" % algo)
+            return
+        # check that, if the algorithm is semi-supervised, it is not labelled at all
+        if cls.labelling == "partial" and ds.labelling == 0.:
+            l.error("'%s' won't work with a dataset that is not labelled" % algo)
+            return
         l.info("Selected algorithm: %s" % cls.description)
         if n_jobs > n_cpu:
             l.warning("Maximum n_jobs is %d" % n_cpu)
@@ -525,13 +533,16 @@ class Model:
             l.warning("You can remove it first with the following command: model purge %s" % self.name)
             return
         if not getattr(cls, "multiclass", True) and kw.get('multiclass', False):
-            l.error("%s does not support multiclass" % algo)
+            l.error("'%s' does not support multiclass" % algo)
             return
-        # get classifer and grid search parameters
-        params = cls.parameters.get('static')
+        # get classifer and parameters
+        params = cls.parameters.get('static', cls.parameters if cls.labelling == "none" else None)
         if isinstance(cls, WekaClassifier):
             params['model'] = self
         param_grid = {k: list(v) if isinstance(v, range) else v for k, v in cls.parameters.get('cv', {}).items()}
+        if cls.labelling == "none" and len(param_grid) > 0:
+            l.error("'%s' does not support grid search (while CV parameters are specified)" % algo)
+            return
         # apply user-defined parameters
         if param is not None:
             for p in param:

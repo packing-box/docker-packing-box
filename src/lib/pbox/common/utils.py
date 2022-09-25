@@ -194,7 +194,7 @@ def file_or_folder_or_dataset(method):
                 e.append(i)
             # normal folder or FilelessDataset's path or Dataset's files path
             elif is_folder(i):
-                for f in Path(i).listdir():
+                for f in Path(i).walk(filter_func=lambda p: p.is_file()):
                     f.dataset = None
                     if str(f) not in e:
                         e.append(f)
@@ -240,8 +240,8 @@ def file_or_folder_or_dataset(method):
         for exe in e:
             kwargs['dslen'] = len(e)
             # this is useful for a decorated method that handles the difference between the computed and actual labels
-            lbl = l.get(Path(exe).stem, -1)
-            kwargs['label'] = [lbl, None][str(lbl) == "nan"]
+            lbl = l.get(Path(exe).stem)
+            kwargs['label'] = [lbl, None][str(lbl) in ["nan" ,"None"]]
             yield method(self, exe, *args, **kwargs)
             kwargs['silent'] = True
     return _wrapper

@@ -214,7 +214,7 @@ class Base(Item):
         retval = self.name
         use_output = False
         benchm, verb = kwargs.get('benchmark', False), kwargs.get('verbose', False) and getattr(self, "verbose", False)
-        binary, weak = kwargs.get('binary', False), kwargs.get('weak')
+        binary, weak = kwargs.get('binary', False), kwargs.get('weak', False)
         extra_opt = "" if kwargs.get('extra_opt') is None else kwargs['extra_opt'] + " "
         kw = {'logger': self.logger, 'silent': []}
         if not config['wine_errors']:
@@ -226,8 +226,7 @@ class Base(Item):
                            .replace("{{executable.extension}}", _str(executable.extension)) \
                            .replace("{{executable.stem}}", _str(executable.dirname.joinpath(executable.stem)))
         kw['silent'].extend(list(map(_repl, getattr(self, "silent", []))))
-        output = None
-        cwd = os.getcwd()
+        output, cwd = "", os.getcwd()
         for step in getattr(self, "steps", ["%s %s%s" % (self.name.replace("_" ,"-"), extra_opt, _str(executable))]):
             if self.name in step:
                 i, opt = step.index(self.name), ""
@@ -235,7 +234,7 @@ class Base(Item):
                     opt += " --benchmark"
                 if binary:
                     opt += " --binary"
-                if weak is not None and weak:
+                if weak:
                     opt += " --weak"
                 step = step[:i] + self.name + opt + step[i+len(self.name):]
             attempts = []
@@ -243,7 +242,7 @@ class Base(Item):
             step = _repl(step)
             # now, replace a previous output and handle it as the return value
             if "{{output}}" in step:
-                step = step.replace("{{output}}", ensure_str(output or ""))
+                step = step.replace("{{output}}", output)
                 use_output = True
             # then, search for parameter patterns
             m = re.search(PARAM_PATTERN, step)
@@ -295,7 +294,7 @@ class Base(Item):
                         retval += "[%s]" % param
                     break
         os.chdir(cwd)
-        r = (output or None) if use_output or getattr(self, "use_output", False) else retval
+        r = output if use_output or getattr(self, "use_output", False) else retval
         if benchm:
             r = (r, dt)
         return r

@@ -36,11 +36,11 @@ class Detector(Base):
     """ Detector abstraction.
     
     Extra methods:
-      .detect(executable, multiclass, **kwargs) [str]
+      .detect(executable, **kwargs) [str]
     
     Overloaded methods:
       .check(*formats, **kwargs)
-      .test(executable, multiclass, **kwargs)
+      .test(executable, **kwargs)
     """
     use_output = True
     
@@ -63,57 +63,51 @@ class Detector(Base):
     @class_or_instance_method
     @file_or_folder_or_dataset
     @update_logger
-    def detect(self, executable, multiclass=True, **kwargs):
+    def detect(self, executable, **kwargs):
         """ If called from the class:
             Runs every known detector on the given executable and decides the label through voting (with a penalty on
              cases where the executable is considered not packed).
         If called from an instance:
             Runs the detector according to its command line format. """
-        dslen = kwargs.get('dslen')
+        label, multiclass, dslen = kwargs.get('label'), kwargs.get('multiclass', True), kwargs.get('dslen')
+        exe = Executable(executable)
         if dslen:
-            executable.len = dslen
-        l = kwargs.get('label')
-        actual_label = [(), (l if multiclass else l is not None, )]['label' in kwargs]
+            exe.len = dslen
+        actual_label = [(label if multiclass else label != "", ), ()][label is None]
         if isinstance(self, type):
-            registry = [d for d in kwargs.get('select', Detector.registry) \
-                        if d.check(Executable(executable).format, multiclass=multiclass, **kwargs)]
+            registry = [d for d in kwargs.get('select', Detector.registry) if d.check(exe.format, **kwargs)]
             l, t = len(registry), kwargs.get('threshold', THRESHOLD) or THRESHOLD
             t = t(l) if isinstance(t, type(lambda: 0)) else t
             if not 0 < t <= l:
                 raise ValueError("Bad threshold value, not in [1., %d]" % l)
-            results, details = {None: -l + t}, {}
+            results, details = {'unknown': -l + t}, {}
             for detector in registry:
-                mc = getattr(detector, "multiclass", True)
-                # do not consider Yes|No-detectors if the multiclass option is set
-                if multiclass and not mc:
-                    continue
-                label = list(detector.detect(executable, **kwargs))[0]
-                if isinstance(label, list):
+                label = list(detector.detect(exe, **kwargs))[0]
+                if isinstance(label, (list, tuple)):
                     label = label[1]
-                if label == -1 and mc:
+                if label is None:
                     continue
                 # if the multiclass option is unset, convert the result to Yes|No
-                if not multiclass and mc:
-                    label = label is not None
+                if not multiclass:
+                    label = label != ""
                 results.setdefault(label, 0)
                 results[label] += 1
                 details[detector.name] = label
             # select the best label
             decision = decide(results, **kwargs)
-            r = (executable, decision) + actual_label
+            r = (exe, decision) + actual_label
             # apply thresholding
             if results[r[1]] < t:
-                r = (executable, None) + actual_label
+                r = (exe, "") + actual_label
             if kwargs.get("debug", False):
                 r += (details, )
             return r
         else:
-            e = executable if isinstance(executable, Executable) else Executable(executable)
-            if not self.check(e.format, multiclass=multiclass, vote=False, **kwargs) or \
-               e.extension[1:] in getattr(self, "exclude", {}).get(e.format, []):
-                return -1
+            if not self.check(exe.format, vote=False, **kwargs) or \
+               exe.extension[1:] in getattr(self, "exclude", {}).get(exe.format, []):
+                return
             # try to detect a packer on the input executable
-            label = self.run(e, **kwargs)
+            label = self.run(exe, **kwargs)
             if kwargs.get('verbose', False):
                 print("")
             # if packer detection succeeded, we can return packer's label
@@ -122,28 +116,28 @@ class Detector(Base):
             else:
                 self.logger.debug("did not detect anything")
             if not multiclass:
-                label = label is not None if getattr(self, "multiclass", True) else label.lower() == "true"
+                label = label != "" if getattr(self, "multiclass", True) else label.lower() == "true"
             if dslen:
-                e.len = dslen
-            return (e, label) + actual_label
+                exe.len = dslen
+            return (exe, label) + actual_label
     
     @file_or_folder_or_dataset
     @update_logger
-    def test(self, executable, multiclass=True, **kwargs):
+    def test(self, executable, **kwargs):
         """ Tests the given item on some executable files. """
+        label, multiclass = kwargs.get('label'), kwargs.get('multiclass', True)
         self._test(kwargs.get('silent', False))
-        label = self.detect(executable, multiclass, **kwargs)
-        real = realv = kwargs.get('label', -1)
+        label2 = self.detect(executable, **kwargs)
         if multiclass:
-            if label is None:
+            if label2 == "":
                 msg = "{} is not packed".format(executable)
             else:
-                msg = "{} is packed with {}".format(executable, label)
+                msg = "{} is packed with {}".format(executable, label2)
         else:
-            msg = "{} is {}packed".format(executable, ["not ", ""][label])
-        if real != -1:
-            msg += " ({})".format("not packed" if realv in [None, False] else "packed" if realv is True else realv)
-        (self.logger.warning if real == -1 else [self.logger.failure, self.logger.success][label == realv])(msg)
+            msg = "{} is {}packed".format(executable, ["not ", ""][label2])
+        if label is not None:
+            msg += " ({})".format("not packed" if label in ["", True] else "packed" if label is True else label)
+        (self.logger.warning if label is None else [self.logger.failure, self.logger.success][label == label2])(msg)
 
 
 # dynamically makes Detector's registry of child classes from the dictionary of detectors
