@@ -1,6 +1,6 @@
 # -*- coding: UTF-8 -*-
 from tinyscript import functools, logging
-
+from tinyscript.helpers import set_exception
 from tinyscript.report import *
 
 
@@ -8,6 +8,8 @@ __all__ = ["update_logger", "Item"]
 
 
 _fmt_name = lambda x: (x or "").lower().replace("_", "-")
+
+set_exception("NotInstantiable", "TypeError")
 
 
 def update_logger(m):
@@ -19,8 +21,17 @@ def update_logger(m):
     return _wrapper
 
 
-class Item:
+class MetaItem(type):
+    def __getattribute__(self, name):
+        if name in ["get", "iteritems", "mro", "registry"] and self._instantiable:
+            raise AttributeError(name)
+        return super(MetaItem, self).__getattribute__(name)
+
+
+class Item(metaclass=MetaItem):
     """ Item abstraction. """
+    _instantiable = False
+    
     def __init__(self):
         self.cname = self.__class__.__name__
         self.name = _fmt_name(self.__class__.__name__)
@@ -43,9 +54,9 @@ class Item:
     
     def __new__(cls, *args, **kwargs):
         """ Prevents Item from being instantiated. """
-        if cls is Item:
-            raise TypeError("Item cannot be instantiated directly")
-        return object.__new__(cls, *args, **kwargs)    
+        if cls._instantiable:
+            return object.__new__(cls, *args, **kwargs)
+        raise NotInstantiable("%s cannot be instantiated directly" % cls.__name__)
     
     def __repr__(self):
         """ Custom string representation for an item. """
