@@ -5,9 +5,7 @@ from ast import literal_eval
 from tinyscript import logging
 from tinyscript.helpers.expressions import WL_NODES  # note: eval2 is bound to the builtins, hence not imported
 
-from .common import *
-from .elf import *
-from .pe import *
+from .extractors import Extractors
 from ...common.config import config
 from ...common.utils import expand_formats, FORMATS
 
@@ -15,53 +13,10 @@ from ...common.utils import expand_formats, FORMATS
 __all__ = ["Features"]
 
 
-EXTRACTORS = {
-    'All': {
-        '256B_block_entropy':             block_entropy(256),
-        '256B_block_entropy_per_section': block_entropy_per_section(256),
-        '512B_block_entropy':             block_entropy(512),
-        '512B_block_entropy_per_section': block_entropy_per_section(512),
-        'entropy':                        lambda exe: entropy(exe.read_bytes()),
-        'section_characteristics':        section_characteristics,
-    },
-    'ELF': {
-        'elfeats': elfeats,
-    },
-    #'Mach-O': {  #TODO
-    #    'mofeats': mofeats,
-    #},
-    'MSDOS': {
-        'pefeats': pefeats,
-    },
-    'PE': {
-        'pefeats': pefeats,
-    },
-}
-WL_EXTRA_NODES = ("arg", "arguments", "keyword", "lambda")
-
 _EVAL_NAMESPACE = {k: getattr(builtins, k) for k in ["abs", "divmod", "float", "hash", "hex", "id", "int", "len",
                                                      "list", "max", "min", "oct", "ord", "pow", "range", "round", "set",
                                                      "str", "sum", "tuple", "type"]}
-
-
-class Extractors(dict):
-    """ This class represents the dictionary of features to be extracted for a given list of executable formats. """
-    registry = None
-    
-    def __init__(self, exe):
-        # parse YAML features definition once
-        if Extractors.registry is None:
-            Extractors.registry = {}
-            # consider most specific features first, then intermediate classes and finally the collapsed class "All"
-            for clist in [expand_formats("All"), list(FORMATS.keys())[1:], ["All"]]:
-                for c in clist:
-                    for name, func in EXTRACTORS.get(c, {}).items():
-                        for c2 in expand_formats(c):
-                            Extractors.registry.setdefault(c2, {})
-                            Extractors.registry[c2].setdefault(name, func)
-        if exe is not None:
-            for name, func in Extractors.registry.get(exe.format, {}).items():
-                self[name] = func(exe)
+WL_EXTRA_NODES = ("arg", "arguments", "keyword", "lambda")
 
 
 class Feature(dict):
@@ -94,7 +49,7 @@ class Features(dict):
     
     @logging.bindLogger
     def __init__(self, exe):
-        self._extractors = Extractors(exe)
+        self._rawdata = Extractors(exe)
         # parse YAML features definition once
         if Features.registry is None:
             # open the target YAML-formatted features set only once
@@ -144,7 +99,7 @@ class Features(dict):
             for name, feature in Features.registry[exe.format].items():
                 if not Features.boolean_only or Features.boolean_only and feature.boolean:
                     try:
-                        self[name] = feature(self._extractors, True)
+                        self[name] = feature(self._rawdata, True)
                     except NameError:
                         todo[name] = 1
             # then process what could not be computed yet until every feature has a value (eventually based on newly

@@ -1,9 +1,8 @@
 # -*- coding: UTF-8 -*-
-import re
 from contextlib import suppress
 from functools import cached_property
 
-from .features import *
+from .features import Features
 from ..common.executable import Executable as Base
 
 
@@ -13,6 +12,7 @@ __all__ = ["Executable"]
 class Executable(Base):
     """ Executable extension for handling features. """
     def __new__(cls, *parts, **kwargs):
+        Features(None)  # lazily populate Features.registry at first instantiation
         self = super(Executable, cls).__new__(cls, *parts, **kwargs)
         if hasattr(self, "_dataset"):
             fields = Executable.FIELDS + ["hash", "label", "Index"]
@@ -20,7 +20,6 @@ class Executable(Base):
                 d = self._dataset._data[self._dataset._data.hash == self.hash].iloc[0].to_dict()
                 f = {a: v for a, v in d.items() if a not in fields if str(v) != "nan"}
                 if len(f) > 0:
-                    Features(None)
                     setattr(self, "data", f)
         return self
     
@@ -30,6 +29,5 @@ class Executable(Base):
     
     @property
     def features(self):
-        Features(None)  # ensure Features.registry is populated
         return {n: f.description for n, f in Features.registry[self.format].items()}
 

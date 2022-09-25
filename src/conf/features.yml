@@ -11,7 +11,7 @@ base_of_code:
 byte_%d_after_ep:
   description: byte %d following the EP
   result:
-    PE:   pefeats[x+48]
+    PE: pefeats[x+48]
   values: !!python/object/new:range [0, 64]
 
 checksum:

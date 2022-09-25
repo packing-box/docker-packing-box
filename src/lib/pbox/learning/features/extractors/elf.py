@@ -1,6 +1,4 @@
 # -*- coding: UTF-8 -*-
-from ast import literal_eval
-from collections import OrderedDict
 from elftools.elf.elffile import ELFFile
 
 
