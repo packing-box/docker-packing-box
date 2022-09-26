@@ -2,6 +2,21 @@ GZEXE:
   base:   packer
   status: ok
 
+RetDec-Unpacker:
+  base:   detector[RetDec]
+  install:
+    - wget:  https://github.com/avast/retdec:latest{ubuntu}
+    - untar: /opt/detectors
+    - ln:    bin/retdec-unpacker
+  packers:
+    - MPRESS
+    - UPX
+  source: https://github.com/avast/retdec/tree/master/src/unpackertool
+  steps:
+    - /opt/detectors/retdec/bin/retdec-unpacker {{excutable}}
+    - mv {{executable}}-unpacked {{executable}}
+  status: ok
+
 Unipacker:
   description: Automatic and platform-independent unpacker for Windows binaries based on emulation.
   formats:
