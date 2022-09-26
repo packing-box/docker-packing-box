@@ -62,7 +62,7 @@ PETools:
       - mv $TMP/petools.7z $OPT/petools/
     - cd: $OPT/petools/
     - exec:
-      - 7z x petools.7z
+      - 7z x petools.7z -y
       - rm -f petools.7z
       - chmod +x PETools.exe
   source: https://github.com/petoolse/petools
