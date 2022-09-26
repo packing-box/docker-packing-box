@@ -308,7 +308,7 @@ class Base(Item):
             self.logger.debug("Status: %s ; this means that it won't be installed" % self.status)
             return
         self.logger.info("Setting up %s..." % self.cname)
-        opt, tmp = Path(config[self.type + "s"]), Path("/tmp/%ss" % self.type)
+        opt, tmp = Path("/opt/%ss" % self.type), Path("/tmp/%ss" % self.type)
         obin, ubin = Path("/opt/bin"), Path("/usr/bin")
         result, rm, wget, kw = None, True, False, {'logger': self.logger, 'silent': getattr(self, "silent", [])}
         cwd = os.getcwd()
