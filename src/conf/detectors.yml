@@ -209,7 +209,6 @@ RetDec:
   install:
     - wget:  https://github.com/avast/retdec:latest{ubuntu}
     - untar: /opt/detectors
-    - exec: pathprepend $OPT/retdec/bin
   license: mit
   source:  https://github.com/avast/retdec
   status:  ok
