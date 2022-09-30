@@ -25,6 +25,7 @@ EXTRACTORS = {
         '512B_block_entropy_per_section': block_entropy_per_section(512),
         'entropy':                        lambda exe: entropy(exe.read_bytes()),
         'section_characteristics':        section_characteristics,
+        'standard_sections':              standard_sections,
     },
     'ELF': {
         'elfeats': elfeats,
