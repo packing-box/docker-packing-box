@@ -527,17 +527,19 @@ class Dataset:
             source_dir = [source_dir]
         def _update(e):
             # precedence: input dictionary of labels > dataset's own labels > detection (if enabled) > discard
-            h, l = e.hash, labels.get(h)
+            h = e.hash
+            l = labels.get(h)
+            # executable does not exist yet => create it without a label
+            if h not in self:
+                self[e] = None
             # label is found in the input labels dictionary => update
             if l is not None:
                 self[h] = (l, True)
-            else:
-                # label was not found but is already labelled => leave as is
-                if e.label is not None:
-                    pass
-                # label was not found and is not set yet and detection is enabled => detect
-                elif detect:
-                    self[h] = (Detector.detect(e), True)
+            # label was not found and is not set yet and detection is enabled => detect
+            elif e.label is not None:
+                pass
+            elif detect:
+                self[h] = (Detector.detect(e), True)
         # case (1) source directories provided, eventually with labels => ingest samples
         #           labels available   => packed / not packed
         #           labels unavailable => not labelled
