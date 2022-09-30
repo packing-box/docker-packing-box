@@ -27,6 +27,7 @@ class Feature(dict):
         self.setdefault("description", "")
         self.setdefault("keep", True)
         self.setdefault("result", None)
+        self.setdefault("values", [])
         super(Feature, self).__init__(idict, **kwargs)
         self['boolean'] = any(self['name'].startswith(p) for p in ["is_", "has_"])
         self.__dict__ = self
@@ -36,9 +37,10 @@ class Feature(dict):
     def __call__(self, data, silent=False):
         try:
             return eval2(self.result, _EVAL_NAMESPACE, data, whitelist_nodes=WL_NODES + WL_EXTRA_NODES)
-        except:
+        except Exception as e:
             if not silent:
                 self.parent.logger.warning("Bad expression: %s" % self.result)
+                self.parent.logger.error(str(e))
                 self.parent.logger.debug("Variables:\n- %s" % \
                                          "\n- ".join("%s(%s)=%s" % (k, type(v).__name__, v) for k, v in data.items()))
             raise
@@ -68,7 +70,6 @@ class Features(dict, metaclass=MetaFeatures):
     
     @logging.bindLogger
     def __init__(self, exe):
-        self._rawdata = Extractors(exe)
         # parse YAML features definition once
         if Features.registry is None:
             # open the target YAML-formatted features set only once
@@ -81,7 +82,7 @@ class Features(dict, metaclass=MetaFeatures):
                 for i in data_all.items():
                     params.setdefault(*i)
                 r = params.pop('result', {})
-                v = params.pop('values', {})
+                v = params.pop('values', [])
                 # consider most specific features first, then intermediate classes and finally the collapsed class "All"
                 for clist in [expand_formats("All"), list(FORMATS.keys())[1:], ["All"]]:
                     for c in clist:
@@ -113,6 +114,7 @@ class Features(dict, metaclass=MetaFeatures):
                                     Features.registry.setdefault(c2, {})
                                     Features.registry[c2][feat.name] = feat
         if exe is not None:
+            self._rawdata = Extractors(exe)
             todo, counts = deque(), {}
             # compute features based on the extracted values first
             for name, feature in Features.registry[exe.format].items():
@@ -126,12 +128,15 @@ class Features(dict, metaclass=MetaFeatures):
             while len(todo) > 0:
                 feature = todo.popleft()
                 n = feature.name
+                d = {}
+                d.update(self._rawdata)
+                d.update(self)
                 try:
-                    self[n] = feature(self._rawdata, **self)
+                    self[n] = feature(d)
                 except NameError:
                     # every feature dependency has already been seen, but yet feature computation fails
                     if all(name2 in counts for name2 in feature.dependencies):
-                        todo.setdefault(n, 0)
+                        counts.setdefault(n, 0)
                         counts[n] += 1
                     else:
                         for name2 in feature.dependencies:

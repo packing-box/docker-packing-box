@@ -52,7 +52,7 @@ _entr = lambda s, bs=0, z=False: (s.name, entropy(s.content, bs, z))
 
 block_entropy             = lambda bsize: lambda exe: entropy(exe.read_bytes(), bsize, True)
 block_entropy_per_section = lambda bsize: _parse_binary(lambda exe: [_entr(s, bsize, True) for s in exe.sections])
-section_characteristics   = _parse_binary(lambda exe: [_chars(s) for s in exe.sections])
+section_characteristics   = _parse_binary(lambda exe: {n: d for n, d in [_chars(s) for s in exe.sections]})
 standard_sections         = _parse_binary(lambda exe: [s.name for s in exe.sections if s.name in \
                                                        STD_SECTIONS.get(exe.format.name, [])])
 
