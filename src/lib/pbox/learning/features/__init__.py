@@ -2,8 +2,10 @@
 import builtins
 import yaml
 from ast import literal_eval
-from tinyscript import logging
-from tinyscript.helpers.expressions import WL_NODES  # note: eval2 is bound to the builtins, hence not imported
+from collections import deque
+from functools import cached_property
+from tinyscript import logging, re
+from tinyscript.helpers.expressions import WL_NODES
 
 from .extractors import Extractors
 from ...common.config import config
@@ -14,8 +16,8 @@ __all__ = ["Features"]
 
 
 _EVAL_NAMESPACE = {k: getattr(builtins, k) for k in ["abs", "divmod", "float", "hash", "hex", "id", "int", "len",
-                                                     "list", "max", "min", "oct", "ord", "pow", "range", "round", "set",
-                                                     "str", "sum", "tuple", "type"]}
+                                                     "list", "max", "min", "oct", "ord", "pow", "range", "range2",
+                                                     "round", "set", "str", "sum", "tuple", "type"]}
 WL_EXTRA_NODES = ("arg", "arguments", "keyword", "lambda")
 
 
@@ -40,9 +42,25 @@ class Feature(dict):
                 self.parent.logger.debug("Variables:\n- %s" % \
                                          "\n- ".join("%s(%s)=%s" % (k, type(v).__name__, v) for k, v in data.items()))
             raise
+    
+    @cached_property
+    def dependencies(self):
+        return list(set([x for x in re.split(r"[\s\.\[\]\(\)]", self.result or "") if x in Features]))
 
 
-class Features(dict):
+class MetaFeatures(type):
+    """ This metaclass allows to iterate feature names over the class-bound registry of features. """
+    def __iter__(self):
+        Features(None)  # trigger registry's lazy initialization
+        temp = []
+        for features in self.registry.values():
+            for name in features.keys():
+                if name not in temp:
+                    yield name
+                    temp.append(name)
+
+
+class Features(dict, metaclass=MetaFeatures):
     """ This class parses the YAML definitions of features to be derived from the extracted ones. """
     boolean_only = False
     registry     = None
@@ -95,28 +113,36 @@ class Features(dict):
                                     Features.registry.setdefault(c2, {})
                                     Features.registry[c2][feat.name] = feat
         if exe is not None:
-            todo = {}
+            todo, counts = deque(), {}
             # compute features based on the extracted values first
             for name, feature in Features.registry[exe.format].items():
-                if not Features.boolean_only or Features.boolean_only and feature.boolean:
+                # compute only if it has the keep=True flag ; otherwise, it will be lazily computed on need
+                if (not Features.boolean_only or Features.boolean_only and feature.boolean) and feature.keep:
                     try:
                         self[name] = feature(self._rawdata, True)
                     except NameError:
-                        todo[name] = 1
-            # then process what could not be computed yet until every feature has a value (eventually based on newly
-            #  computed features)
+                        todo.append(feature)
+            # then lazily compute features until we converge in a state where all the required features are computed
             while len(todo) > 0:
-                for name in list(todo.keys()):
-                    n = todo.pop(name, 1)
-                    try:
-                        self[name] = Features.registry[exe.format][name](self)
-                    except NameError:
-                        if n > 10:
-                            raise ValueError("Too much iterations of '%s'" % name)
-                        todo[name] = n + 1
-            # once converged, we can get rid of features that should not be kept
-            for name, feature in Features.registry[exe.format].items():
-                if not feature.keep:
+                feature = todo.popleft()
+                n = feature.name
+                try:
+                    self[n] = feature(self._rawdata, **self)
+                except NameError:
+                    # every feature dependency has already been seen, but yet feature computation fails
+                    if all(name2 in counts for name2 in feature.dependencies):
+                        todo.setdefault(n, 0)
+                        counts[n] += 1
+                    else:
+                        for name2 in feature.dependencies:
+                            # compute the dependency in priority
+                            todo.appendleft(Features.registry[exe.format][name2])
+                            counts.setdefault(name2, 0)
+                    if counts[n] > 10:
+                        raise ValueError("Too much iterations of '%s'" % n)
+            # once converged, ensure that we did not leave a feature that should be kept
+            for name in self:
+                if not Features.registry[exe.format][name].keep:
                     self.pop(name, None)
     
     def __getitem__(self, name):
