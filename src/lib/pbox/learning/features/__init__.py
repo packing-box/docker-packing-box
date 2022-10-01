@@ -36,7 +36,7 @@ class Feature(dict):
     
     def __call__(self, data, silent=False):
         try:
-            return eval2(self.result, _EVAL_NAMESPACE, data, whitelist_nodes=WL_NODES + WL_EXTRA_NODES)
+            return eval2(self.result, data, {}, whitelist_nodes=WL_NODES + WL_EXTRA_NODES)
         except Exception as e:
             if not silent:
                 self.parent.logger.warning("Bad expression: %s" % self.result)
@@ -124,13 +124,15 @@ class Features(dict, metaclass=MetaFeatures):
                         self[name] = feature(self._rawdata, True)
                     except NameError:
                         todo.append(feature)
+                    except ValueError:  # occurs when FobiddenNodeError is thrown
+                        continue
             # then lazily compute features until we converge in a state where all the required features are computed
             while len(todo) > 0:
                 feature = todo.popleft()
                 n = feature.name
                 d = {}
-                d.update(self._rawdata)
-                d.update(self)
+                for ns in [_EVAL_NAMESPACE, self._rawdata, self]:
+                    d.update(ns)
                 try:
                     self[n] = feature(d)
                 except NameError:
@@ -145,6 +147,8 @@ class Features(dict, metaclass=MetaFeatures):
                             counts.setdefault(name2, 0)
                     if counts[n] > 10:
                         raise ValueError("Too much iterations of '%s'" % n)
+                except ValueError:  # occurs when FobiddenNodeError is thrown
+                    continue
             # once converged, ensure that we did not leave a feature that should be kept
             for name in self:
                 if not Features.registry[exe.format][name].keep:
