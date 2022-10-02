@@ -2,27 +2,35 @@
 import lief
 import os
 from bintropy import entropy
+from capstone import *
+
+from .elf import STD_SECTIONS as STD_SEC_ELF
+from .pe import STD_SECTIONS as STD_SEC_PE
 
 
-__all__ = ["block_entropy", "block_entropy_per_section", "entropy", "section_characteristics", "standard_sections"]
+__all__ = ["block_entropy", "block_entropy_per_section", "disassemble_256B_after_ep", "entropy",
+           "section_characteristics", "standard_sections"]
 
 
 # selection of in-scope characteristics of Section objects for an executable parsed by LIEF
 CHARACTERISTICS = ["characteristics", "entropy", "numberof_line_numbers", "numberof_relocations", "offset", "size",
                    "sizeof_raw_data", "virtual_size"]
-STD_SECTIONS = {
-    # https://www.cs.cmu.edu/afs/cs/academic/class/15213-f00/docs/elf.pdf
-    'ELF': [".bss", ".comment", ".conflict", ".data", ".data1", ".debug", ".dynamic", ".dynstr", ".fini", ".got",
-            ".gptab", ".hash", ".init", ".interp", ".liblist", ".line", ".lit4", ".lit8", ".note", ".plt", ".reginfo",
-            ".rodata", ".rodata1", ".sbss", ".sdata", ".shstrtab", ".strtab", ".symtab", ".tdesc", ".text"],
-    # https://github.com/roussieau/masterthesis/blob/master/src/detector/tools/pefeats/pefeats.cpp
-    'PE': [".bss",".cormeta", ".data", ".debug", ".debug$F", ".debug$P", ".debug$S", ".debug$T", ".drective", ".edata",
-           ".idata", ".idlsym", ".pdata", ".rdata", ".reloc", ".rsrc", ".sbss", ".sdata", ".srdata", ".sxdata", ".text",
-           ".tls", ".tls$", ".vsdata", ".xdata"]
+STD_SECTIONS = {'ELF': STD_SEC_ELF, 'PE': STD_SEC_PE}
+
+CS2CS_MODE = {
+    CS_ARCH_ARM:   {32: CS_MODE_ARM, 64: CS_MODE_ARM},
+    CS_ARCH_ARM64: {32: CS_MODE_ARM, 64: CS_MODE_ARM},
+    CS_ARCH_MIPS:  {32: CS_MODE_MIPS32, 64: CS_MODE_MIPS64},
+    CS_ARCH_PPC:   {32: CS_MODE_32, 64: CS_MODE_64},
+    CS_ARCH_X86:   {32: CS_MODE_32, 64: CS_MODE_64},
 }
-# possible relocation sections for the ELF format
-for x in STD_SECTIONS['ELF'][:]:
-    STD_SECTIONS['ELF'].append(".rel" + x)
+LIEF2CS_ARCH = {
+    lief.ELF.ARCH.ARM:    {32: CS_ARCH_ARM, 64: CS_ARCH_ARM64},
+    lief.ELF.ARCH.MIPS:   {32: CS_ARCH_MIPS, 64: CS_ARCH_MIPS},
+    lief.ELF.ARCH.PPC:    {32: CS_ARCH_PPC, 64: CS_ARCH_PPC},
+    lief.ELF.ARCH.i386:   {32: CS_ARCH_X86, 64: CS_ARCH_X86},
+    lief.ELF.ARCH.x86_64: {32: CS_ARCH_X86, 64: CS_ARCH_X86},
+}
 
 __cache = {}
 
@@ -43,6 +51,16 @@ def _parse_binary(f):
             __cache[str(executable)] = binary
         return f(binary, *args, **kwargs)
     return _wrapper
+
+
+@_parse_binary
+def disassemble_Nbytes_after_ep(binary, n=256):
+    addr = binary.header.entrypoint
+    idc  = {lief.ELF.ELF_CLASS.CLASS32: 32, lief.ELF.ELF_CLASS.CLASS64: 64}[binary.header.identity_class]
+    arch = LIEF2CS_ARCH[binary.header.machine_type][idc]
+    mode = CS2CS_MODE[arch][idc]
+    code = bytes(binary.get_content_from_virtual_address(addr, n))
+    return [i.mnemonic for i in Cs(arch, mode).disasm(code, addr)]
 
 
 # compute (name, data) pair for a Section object

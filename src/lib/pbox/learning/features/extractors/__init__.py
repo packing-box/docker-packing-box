@@ -24,6 +24,7 @@ EXTRACTORS = {
         '512B_block_entropy':             block_entropy(512),
         '512B_block_entropy_per_section': block_entropy_per_section(512),
         'entropy':                        lambda exe: entropy(exe.read_bytes()),
+        'disassemble_256B_after_ep':      disassemble_256B_after_ep,
         'section_characteristics':        section_characteristics,
         'standard_sections':              standard_sections,
     },
