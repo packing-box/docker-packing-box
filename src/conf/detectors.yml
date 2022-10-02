@@ -94,6 +94,16 @@ Manalyze:
   status: ok
   weak:   true
 
+MPESM:
+  comment: Mnemonic PE Signature Matching
+  description: MPESM uses a weighted distance metric to compare assembly mnemonics of a PE file to those in a signature in order to help determine the compiler/packer/cryptor that likely generated the file.
+  formats:
+    - Mach-O
+    - PE
+  maintained: false
+  source: https://github.com/vmware-archive/tic/tree/master/mpesm
+  status: info
+
 MRC:
   description: Mandiant Red Curtain is a free utility for identifying both binary obfuscation mechanisms and other malicious characteristics. It examines a PE file and determines a threat score by evaluating it against criteria such as entropy, indicators of obfuscation, packing signatures and other characteristics to determine whether it requires more extensive investigation.
   formats:
