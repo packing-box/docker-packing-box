@@ -871,6 +871,21 @@ Silent_Packer:
     - copy: silent-packer
   source: https://github.com/SilentVoid13/Silent_Packer
 
+SimpleDpack:
+  categories:
+    - compressor
+  formats:
+    - PE32
+  install:
+    - wget: https://github.com/YuriSizuku/SimpleDpack:latest{SimpleDpack.exe}
+    - wine: SimpleDpack.exe
+  status: gui
+  variants:
+    SimpleDpack64:
+      install:
+        - wget: https://github.com/YuriSizuku/SimpleDpack:latest{SimpleDpack64.exe}
+        - wine: SimpleDpack64.exe
+
 SmartPacker:
   categories:
     - bundler
