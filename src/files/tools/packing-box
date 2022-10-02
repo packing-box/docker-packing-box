@@ -122,6 +122,7 @@ if __name__ == '__main__':
             selected = list(map(lambda x: x.lower(), getattr(args, args.type)))
             for item in reg:
                 if item.name in (selected or [x.name for x in reg if x.status in item.__class__._enabled]):
+                    selected.remove(item.name)
                     try:
                         r = getattr(item, args.command)(**vars(args))
                     except Exception as e:
@@ -132,4 +133,6 @@ if __name__ == '__main__':
                     if ts.is_generator(r):
                         for i in r:
                             pass
+            for name in selected:
+                logger.warning("'%s' not found" % name)
 
