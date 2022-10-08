@@ -1,49 +1,23 @@
 # -*- coding: UTF-8 -*-
-import builtins
 import yaml
-from ast import literal_eval
 from collections import deque
 from functools import cached_property
 from tinyscript import logging, re
-from tinyscript.helpers.expressions import WL_NODES
 
 from .extractors import Extractors
 from ...common.config import config
-from ...common.utils import expand_formats, FORMATS
+from ...common.utils import dict2, expand_formats, FORMATS
 
 
 __all__ = ["Features"]
 
 
-_EVAL_NAMESPACE = {k: getattr(builtins, k) for k in ["abs", "divmod", "float", "hash", "hex", "id", "int", "len",
-                                                     "list", "max", "min", "oct", "ord", "pow", "range", "range2",
-                                                     "round", "set", "str", "sum", "tuple", "type"]}
-WL_EXTRA_NODES = ("arg", "arguments", "keyword", "lambda")
+class Feature(dict2):
+    _fields = {'keep': True, 'values': []}
 
-
-class Feature(dict):
     def __init__(self, idict, **kwargs):
-        self.setdefault("name", "undefined")
-        self.setdefault("description", "")
-        self.setdefault("keep", True)
-        self.setdefault("result", None)
-        self.setdefault("values", [])
         super(Feature, self).__init__(idict, **kwargs)
-        self['boolean'] = any(self['name'].startswith(p) for p in ["is_", "has_"])
-        self.__dict__ = self
-        if self.result is None:
-            raise ValueError("%s: 'result' shall be defined" % self.name)
-    
-    def __call__(self, data, silent=False):
-        try:
-            return eval2(self.result, data, {}, whitelist_nodes=WL_NODES + WL_EXTRA_NODES)
-        except Exception as e:
-            if not silent:
-                self.parent.logger.warning("Bad expression: %s" % self.result)
-                self.parent.logger.error(str(e))
-                self.parent.logger.debug("Variables:\n- %s" % \
-                                         "\n- ".join("%s(%s)=%s" % (k, type(v).__name__, v) for k, v in data.items()))
-            raise
+        self['boolean'] = self.__dict__['boolean'] = any(self['name'].startswith(p) for p in ["is_", "has_"])
     
     @cached_property
     def dependencies(self):

@@ -1,21 +1,28 @@
 # -*- coding: UTF-8 -*-
+import builtins
 import mdv
 import pandas as pd
 import re
 import yaml
+from ast import literal_eval
 from contextlib import contextmanager
 from functools import wraps
 from time import perf_counter, time
 from tinyscript import inspect, logging, subprocess
 from tinyscript.helpers import is_file, is_folder, Path, TempPath
+from tinyscript.helpers.expressions import WL_NODES
 
 from .config import config
 
 
 __all__ = ["aggregate_formats", "backup", "benchmark", "class_or_instance_method", "collapse_formats",
-           "data_to_temp_file", "edit_file", "expand_formats", "file_or_folder_or_dataset", "highlight_best",
+           "data_to_temp_file", "dict2", "edit_file", "expand_formats", "file_or_folder_or_dataset", "highlight_best",
            "make_registry", "mdv", "metrics", "shorten_str", "ExeFormatDict", "FORMATS", "PERF_HEADERS"]
 
+_EVAL_NAMESPACE = {k: getattr(builtins, k) for k in ["abs", "divmod", "float", "hash", "hex", "id", "int", "len",
+                                                     "list", "max", "min", "oct", "ord", "pow", "range", "range2",
+                                                     "round", "set", "str", "sum", "tuple", "type"]}
+WL_EXTRA_NODES = ("arg", "arguments", "keyword", "lambda")
 
 FORMATS = {
     'All':    ["ELF", "Mach-O", "MSDOS", "PE"],
@@ -36,6 +43,34 @@ PERF_HEADERS = {
 
 
 bold = lambda text: "\033[1m{}\033[0m".format(text)
+
+
+class dict2(dict):
+    """ Simple extension of dict for defining callable items. """
+    def __init__(self, idict, **kwargs):
+        self.setdefault("name", "undefined")
+        self.setdefault("description", "")
+        self.setdefault("result", None)
+        for f, v in getattr(self.__class__, "_fields", {}).items():
+            self.setdefault(f, v)
+        super(Modifier, self).__init__(idict, **kwargs)
+        self.__dict__ = self
+        if self.result is None:
+            raise ValueError("%s: 'result' shall be defined" % self.name)
+    
+    def __call__(self, data, silent=False):
+        d = {}
+        d.update(_EVAL_NAMESPACE)
+        d.update(data)
+        try:
+            return eval2(self.result, d, {}, whitelist_nodes=WL_NODES + WL_EXTRA_NODES)
+        except Exception as e:
+            if not silent:
+                self.parent.logger.warning("Bad expression: %s" % self.result)
+                self.parent.logger.error(str(e))
+                self.parent.logger.debug("Variables:\n- %s" % \
+                                         "\n- ".join("%s(%s)=%s" % (k, type(v).__name__, v) for k, v in d.items()))
+            raise
 
 
 class ExeFormatDict(dict):
