@@ -174,7 +174,7 @@ class Dataset:
         """ Yield executables' hashes from the dataset using Pandas' query language. """
         i = -1
         try:
-            for i, row in enumerate(self._data.query(query or "tuple()").itertuples()):
+            for i, row in enumerate(self._data.query(query or "()").itertuples()):
                 yield row
             if i == -1:
                 self.logger.warning("No data selected")
@@ -182,7 +182,7 @@ class Dataset:
             self.logger.error("Invalid query syntax ; %s" % e)
         except SyntaxError:
             self.logger.error("Invalid query syntax ; please checkout Pandas' documentation for more information")
-        except pd.core.computation.ops.UndefinedVariableError as e:
+        except pd.errors.UndefinedVariableError as e:
             self.logger.error(e)
             self.logger.info("Possible values:\n%s" % "".join("- %s\n" % n for n in self._data.columns))
     
