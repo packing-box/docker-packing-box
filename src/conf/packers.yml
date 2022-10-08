@@ -879,6 +879,7 @@ SimpleDpack:
   install:
     - wget: https://github.com/YuriSizuku/SimpleDpack:latest{SimpleDpack.exe}
     - wine: SimpleDpack.exe
+  source: https://github.com/YuriSizuku/SimpleDpack
   status: gui
   variants:
     SimpleDpack64:
