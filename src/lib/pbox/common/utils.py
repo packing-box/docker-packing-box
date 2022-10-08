@@ -53,7 +53,7 @@ class dict2(dict):
         self.setdefault("result", None)
         for f, v in getattr(self.__class__, "_fields", {}).items():
             self.setdefault(f, v)
-        super(Modifier, self).__init__(idict, **kwargs)
+        super(dict2, self).__init__(idict, **kwargs)
         self.__dict__ = self
         if self.result is None:
             raise ValueError("%s: 'result' shall be defined" % self.name)

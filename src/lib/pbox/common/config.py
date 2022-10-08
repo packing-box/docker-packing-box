@@ -26,6 +26,7 @@ class Config(configparser.ConfigParser):
             'analyzers':  ("/opt/analyzers.yml", _rp),
             'detectors':  ("/opt/detectors.yml", _rp),
             'features':   ("/opt/features.yml", _rp),
+            'modifiers':  ("/opt/modifiers.yml", _rp),
             'packers':    ("/opt/packers.yml", _rp),
             'unpackers':  ("/opt/unpackers.yml", _rp),
         },

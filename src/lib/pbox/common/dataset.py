@@ -258,6 +258,22 @@ class Dataset:
             for c in candidates:
                 yield c
     
+    @backup
+    def alter(self, new_name=None, percentage=.1, **kw):
+        """ Alter executables with some given modifiers. """
+        l = self.logger
+        if not self._files:
+            l.warning("Modifiers only work on a normal dataset (not on a fileless one)")
+            return
+        if new_name is not None:
+            ds = Dataset(new_name)
+            ds.merge(self.path.basename, silent=True, **kw)
+            ds.alter(**kw)
+            return
+        l.info("Altering the dataset...")
+        #TODO: apply alterations here
+        self._save()
+    
     def edit(self, **kw):
         """ Edit the data CSV file. """
         self.logger.debug("editing dataset's data.csv...")
