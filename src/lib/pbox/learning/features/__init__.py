@@ -105,8 +105,8 @@ class Features(dict, metaclass=MetaFeatures):
                 feature = todo.popleft()
                 n = feature.name
                 d = {}
-                for ns in [_EVAL_NAMESPACE, self._rawdata, self]:
-                    d.update(ns)
+                d.update(self._rawdata)
+                d.update(self)
                 try:
                     self[n] = feature(d)
                 except NameError:

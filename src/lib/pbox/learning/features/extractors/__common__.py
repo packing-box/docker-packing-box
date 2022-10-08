@@ -8,7 +8,7 @@ from .elf import STD_SECTIONS as STD_SEC_ELF
 from .pe import STD_SECTIONS as STD_SEC_PE
 
 
-__all__ = ["block_entropy", "block_entropy_per_section", "disassemble_Nbytes_after_ep", "entropy",
+__all__ = ["block_entropy", "block_entropy_per_section", "disassemble_Nbytes_after_ep", "entropy", "parse_binary",
            "section_characteristics", "standard_sections"]
 
 
@@ -39,7 +39,7 @@ LIEF2CS_ARCH = {
 __cache = {}
 
 
-def _parse_binary(f):
+def parse_binary(f):
     def _wrapper(executable, *args, **kwargs):
         if str(executable) in __cache:
             binary = __cache[str(executable)]
@@ -57,7 +57,7 @@ def _parse_binary(f):
     return _wrapper
 
 
-@_parse_binary
+@parse_binary
 def disassemble_Nbytes_after_ep(binary, n=256):
     ep   = binary.abstract.header.entrypoint
     idc  = [32, 64][binary.abstract.header.is_64]
@@ -72,8 +72,8 @@ _chars = lambda s: (s.name, {k: getattr(s, k, None) for k in CHARACTERISTICS})
 _entr = lambda s, bs=0, z=False: (s.name, entropy(s.content, bs, z))
 
 block_entropy             = lambda bsize: lambda exe: entropy(exe.read_bytes(), bsize, True)
-block_entropy_per_section = lambda bsize: _parse_binary(lambda exe: [_entr(s, bsize, True) for s in exe.sections])
-section_characteristics   = _parse_binary(lambda exe: {n: d for n, d in [_chars(s) for s in exe.sections]})
-standard_sections         = _parse_binary(lambda exe: [s.name for s in exe.sections if s.name in \
-                                                       STD_SECTIONS.get(exe.format.name, [])])
+block_entropy_per_section = lambda bsize: parse_binary(lambda exe: [_entr(s, bsize, True) for s in exe.sections])
+section_characteristics   = parse_binary(lambda exe: {n: d for n, d in [_chars(s) for s in exe.sections]})
+standard_sections         = parse_binary(lambda exe: [s.name for s in exe.sections if s.name in \
+                                                      STD_SECTIONS.get(exe.format.name, [])])
 
