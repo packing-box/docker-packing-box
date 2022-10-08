@@ -1,20 +1,20 @@
 # -*- coding: UTF-8 -*-
-import lief
 import os
 from bintropy import entropy
 from capstone import *
+from lief import parse, ARCHITECTURES, ELF, MachO, PE
 
 from .elf import STD_SECTIONS as STD_SEC_ELF
 from .pe import STD_SECTIONS as STD_SEC_PE
 
 
-__all__ = ["block_entropy", "block_entropy_per_section", "disassemble_256B_after_ep", "entropy",
+__all__ = ["block_entropy", "block_entropy_per_section", "disassemble_Nbytes_after_ep", "entropy",
            "section_characteristics", "standard_sections"]
 
 
 # selection of in-scope characteristics of Section objects for an executable parsed by LIEF
-CHARACTERISTICS = ["characteristics", "entropy", "numberof_line_numbers", "numberof_relocations", "offset", "size",
-                   "sizeof_raw_data", "virtual_size"]
+CHARACTERISTICS = ["characteristics", "entropy", "flags", "numberof_line_numbers", "numberof_relocations", "offset",
+                   "original_size", "size", "sizeof_raw_data", "type", "virtual_size"]
 STD_SECTIONS = {'ELF': STD_SEC_ELF, 'PE': STD_SEC_PE}
 
 CS2CS_MODE = {
@@ -25,11 +25,15 @@ CS2CS_MODE = {
     CS_ARCH_X86:   {32: CS_MODE_32, 64: CS_MODE_64},
 }
 LIEF2CS_ARCH = {
-    lief.ELF.ARCH.ARM:    {32: CS_ARCH_ARM, 64: CS_ARCH_ARM64},
-    lief.ELF.ARCH.MIPS:   {32: CS_ARCH_MIPS, 64: CS_ARCH_MIPS},
-    lief.ELF.ARCH.PPC:    {32: CS_ARCH_PPC, 64: CS_ARCH_PPC},
-    lief.ELF.ARCH.i386:   {32: CS_ARCH_X86, 64: CS_ARCH_X86},
-    lief.ELF.ARCH.x86_64: {32: CS_ARCH_X86, 64: CS_ARCH_X86},
+    ARCHITECTURES.ARM:   {32: CS_ARCH_ARM,   64: CS_ARCH_ARM64},
+    ARCHITECTURES.ARM64: {32: CS_ARCH_ARM,   64: CS_ARCH_ARM64},
+    ARCHITECTURES.INTEL: {32: CS_ARCH_X86,   64: CS_ARCH_X86},
+    ARCHITECTURES.MIPS:  {32: CS_ARCH_MIPS,  64: CS_ARCH_MIPS},
+    ARCHITECTURES.PPC:   {32: CS_ARCH_PPC,   64: CS_ARCH_PPC},
+    ARCHITECTURES.SPARC: {32: CS_ARCH_SPARC, 64: CS_ARCH_SPARC},
+    ARCHITECTURES.SYSZ:  {32: CS_ARCH_SYSZ,  64: CS_ARCH_SYSZ},
+    ARCHITECTURES.X86:   {32: CS_ARCH_X86,   64: CS_ARCH_X86},
+    ARCHITECTURES.XCORE: {32: CS_ARCH_XCORE, 64: CS_ARCH_XCORE},
 }
 
 __cache = {}
@@ -43,7 +47,7 @@ def _parse_binary(f):
             # try to parse the binary first ; capture the stderr messages from LIEF
             tmp_fd, null_fd = os.dup(2), os.open(os.devnull, os.O_RDWR)
             os.dup2(null_fd, 2)
-            binary = lief.parse(str(executable))
+            binary = parse(str(executable))
             os.dup2(tmp_fd, 2)  # restore stderr
             os.close(null_fd)
             if binary is None:
@@ -55,12 +59,11 @@ def _parse_binary(f):
 
 @_parse_binary
 def disassemble_Nbytes_after_ep(binary, n=256):
-    addr = binary.header.entrypoint
-    idc  = {lief.ELF.ELF_CLASS.CLASS32: 32, lief.ELF.ELF_CLASS.CLASS64: 64}[binary.header.identity_class]
-    arch = LIEF2CS_ARCH[binary.header.machine_type][idc]
-    mode = CS2CS_MODE[arch][idc]
-    code = bytes(binary.get_content_from_virtual_address(addr, n))
-    return [i.mnemonic for i in Cs(arch, mode).disasm(code, addr)]
+    ep   = binary.abstract.header.entrypoint
+    idc  = [32, 64][binary.abstract.header.is_64]
+    arch = LIEF2CS_ARCH[binary.abstract.header.architecture][idc]
+    mode = CS2CS_MODE.get(arch, {}).get(idc, CS_MODE_LITTLE_ENDIAN)
+    return [i.mnemonic for i in Cs(arch, mode).disasm(bytes(binary.get_content_from_virtual_address(ep, n)), ep)]
 
 
 # compute (name, data) pair for a Section object
