@@ -29,8 +29,9 @@ class Dataset:
     [name]
       +-- files
       |     +-- {executables, renamed to their SHA256 hashes}
-      +-- data.csv          # metadata and labels of the executable
-      +-- metadata.json     # simple statistics about the dataset
+      +-- data.csv            # metadata and labels of the executable
+      +-- metadata.json       # simple statistics about the dataset
+      +-- (alterations.json)  # if the dataset was altered, this contains the hashes of the altered executables
     """
     @logging.bindLogger
     def __init__(self, name="dataset", source_dir=None, load=True, **kw):
@@ -191,7 +192,7 @@ class Dataset:
         self.logger.debug("loading dataset '%s'..." % self.basename)
         if self._files:
             self.files.mkdir(exist_ok=True)
-        for n in ["data", "metadata"] + [["features"], []][self._files]:
+        for n in ["alterations", "data", "metadata"] + [["features"], []][self._files]:
             p = self.path.joinpath(n + [".json", ".csv"][n == "data"])
             if n == "data":
                 try:
@@ -225,7 +226,7 @@ class Dataset:
             self._remove()
             return
         self._metadata['executables'] = len(self)
-        for n in ["data", "metadata"] + [["features"], []][self._files]:
+        for n in ["alterations", "data", "metadata"] + [["features"], []][self._files]:
             if n == "data":
                 self._data = self._data.sort_values("hash")
                 fields = ["hash"] + Executable.FIELDS + ["label"]
@@ -233,8 +234,10 @@ class Dataset:
                 c = fields[:-1] + fnames + [fields[-1]]
                 self._data.to_csv(str(self.path.joinpath("data.csv")), sep=";", columns=c, index=False, header=True)
             else:
-                with self.path.joinpath(n + ".json").open('w+') as f:
-                    json.dump(getattr(self, "_" + n), f, indent=2)
+                attr = getattr(self, "_" + n)
+                if len(attr) > 0:
+                    with self.path.joinpath(n + ".json").open('w+') as f:
+                        json.dump(attr, f, indent=2)
         self.__change = False
     
     def _walk(self, walk_all=False, sources=None, silent=False):
@@ -270,8 +273,34 @@ class Dataset:
             ds.merge(self.path.basename, silent=True, **kw)
             ds.alter(**kw)
             return
-        l.info("Altering the dataset...")
-        #TODO: apply alterations here
+        # keep previous alteration percentage into account
+        a = self._metadata.get('altered', .0)
+        p = min(1. - a, percentage)
+        p_ = round(p * 100, 0)
+        if p != percentage:
+            if p == .0:
+                l.warning("Nothing more to alter")
+                return
+            else:
+                l.warning("Setting alterations percentage to %d" % p_)
+        l.info("Altering %d%% of the dataset..." % p_)
+        hashes = self._data.hash.values[:]
+        # randomly sort hashes
+        if p < 1.:
+            random.shuffle(hashes)
+        # then apply alterations until the desired percentage is reached
+        n, c = int(round(len(self)*p, 0)), 0
+        for h in hashes:
+            if any(h in self._alterations.values()):
+                continue
+            exe = Executable(dataset=self, hash=h)
+            for a in Modifiers(exe):
+                self._alterations.setdefault(a, [])
+                self._alterations[a].append(h)
+            c += 1
+            if c >= n:
+                break
+        self._metadata['altered'] = a + c / len(self)
         self._save()
     
     def edit(self, **kw):
@@ -520,8 +549,11 @@ class Dataset:
                       "**Format(s)**:    %s" % ", ".join(self._metadata['formats']),
                       "**Packer(s)**:    %s" % ", ".join(self._metadata['counts'].keys()),
                       "**Size**:         %s" % ts.human_readable_size(self.path.size),
-                      "**Labelled**:     %.2f%%" % self.labelling,
-                      "**With files**:   %s" % ["no", "yes"][self._files]])
+                      "**Labelled**:     %.2f%%" % self.labelling])
+            if len(self._alterations) > 0:
+                c.append("**Altered**:      %d%%" % (int(round(100 * self._metadata['altered'], 0))))
+                c.append("**Alterations**:  %s" % ", ".join(self._alterations.keys()))
+            c.append("**With files**:   %s" % ["no", "yes"][self._files])
             r = Report(Section("Dataset characteristics"), c)
             r.extend(self.overview)
             print(mdv.main(r.md()))

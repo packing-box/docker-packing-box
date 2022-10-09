@@ -2,6 +2,12 @@
 import yaml
 from tinyscript import logging, re
 
+from .elf import *
+from .elf import __all__ as __elf__
+from .macho import *
+from .macho import __all__ as __macho__
+from .pe import *
+from .pe import __all__ as __pe__
 from ...common.config import config
 from ...common.utils import dict2, expand_formats, FORMATS
 
@@ -47,8 +53,13 @@ class Modifiers(list):
             for name, modifier in Modifiers.registry[exe.format].items():
                 if not modifier.apply:
                     continue
+                d = {'executable': exe}
+                md = __elf__ if exe.format in expand_formats("ELF") else \
+                     __macho__ if exe.format in expand_formats("Mach-O") \
+                     __pe__ if exe.format in expand_formats("PE") else []
+                d.update({k: globals()[k] for k in md})
                 try:
-                    modifier(exe)
+                    modifier(d)
                     self.append(name)
                 except Exception as e:
                     self.logger.warning("%s: %s" % (name, str(e)))
