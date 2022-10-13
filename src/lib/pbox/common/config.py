@@ -5,10 +5,14 @@ from tinyscript.helpers import ConfigPath, Path
 from tinyscript.report import *
 
 
-__all__ = ["config", "LOG_FORMATS", "NAMING_CONVENTION"]
+__all__ = ["config", "LOG_FORMATS", "NAMING_CONVENTION", "PACKING_BOX_SOURCES"]
 
 LOG_FORMATS = ["%(asctime)s [%(levelname)s] %(message)s", "%(asctime)s [%(levelname)-8s] %(name)-16s - %(message)s"]
 NAMING_CONVENTION = r"(?i)^[a-z][a-z0-9]*(?:[-_][a-z0-9]+)*$"
+PACKING_BOX_SOURCES = {
+    'ELF': ["/sbin", "/usr/bin"],
+    'PE':  ["/root/.wine/drive_c/windows", "/root/.wine32/drive_c/windows"],
+}
 
 
 _rp = lambda v: Path(str(v), expand=True).absolute()

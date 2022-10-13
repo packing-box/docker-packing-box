@@ -13,14 +13,10 @@ from .utils import *
 from ..items import *
 
 
-__all__ = ["Dataset", "PACKING_BOX_SOURCES"]
+__all__ = ["Dataset"]
 
 
 BACKUP_COPIES = 3
-PACKING_BOX_SOURCES = {
-    'ELF': ["/sbin", "/usr/bin"],
-    'PE':  ["/root/.wine/drive_c/windows", "/root/.wine32/drive_c/windows"],
-}
 
 
 class Dataset:

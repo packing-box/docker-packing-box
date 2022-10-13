@@ -58,18 +58,27 @@ class dict2(dict):
         if self.result is None:
             raise ValueError("%s: 'result' shall be defined" % self.name)
     
-    def __call__(self, data, silent=False):
+    def __call__(self, data, silent=False, **kwargs):
         d = {}
         d.update(_EVAL_NAMESPACE)
         d.update(data)
         try:
-            return eval2(self.result, d, {}, whitelist_nodes=WL_NODES + WL_EXTRA_NODES)
+            e = eval2(self.result, d, {}, whitelist_nodes=WL_NODES + WL_EXTRA_NODES)
+            if len(kwargs) == 0:
+                return e
         except Exception as e:
             if not silent:
                 self.parent.logger.warning("Bad expression: %s" % self.result)
                 self.parent.logger.error(str(e))
                 self.parent.logger.debug("Variables:\n- %s" % \
                                          "\n- ".join("%s(%s)=%s" % (k, type(v).__name__, v) for k, v in d.items()))
+            raise
+        try:
+            return e(**kwargs)
+        except Exception as e:
+            if not silent:
+                self.parent.logger.warning("Bad function: %s" % self.result)
+                self.parent.logger.error(str(e))
             raise
 
 

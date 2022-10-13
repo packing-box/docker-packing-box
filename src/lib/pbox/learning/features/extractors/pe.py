@@ -7,7 +7,7 @@ __all__ = ["pefeats", "STD_SECTIONS"]
 
 
 # This list is computed taking binaries into account from:
-#  - ~/.wine/drive_c/windows/system32 (Wine)
+#  - ~/.wine/drive_c/windows/system32, ~/.wine/drive_c/windows/syswow64 (Wine)
 #  - https://github.com/packing-box/dataset-packed-pe/tree/master/not-packed (set of standard not packed PE files)
 #  - https://github.com/roussieau/masterthesis/blob/master/src/detector/tools/pefeats/pefeats.cpp (hardcoded list)
 STD_SECTIONS = """
