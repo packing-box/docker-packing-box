@@ -558,8 +558,9 @@ class Base(Item):
                     result = tmp.joinpath(self.name + Path(url.path).extension)
                     run("wget -q -O %s %s" % (result, arg.replace("%%", "%")), **kw)[-1]
                 wget = True
-        self.logger.debug("cd %s" % cwd)
-        os.chdir(cwd)
+        if cwd != os.getcwd():
+            self.logger.debug("cd %s" % cwd)
+            os.chdir(cwd)
         if rm:
             run("rm -rf %s" % tmp.joinpath(self.name), **kw)
     
