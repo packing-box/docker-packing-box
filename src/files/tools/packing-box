@@ -119,9 +119,9 @@ if __name__ == '__main__':
         else:
             cls = args.type.capitalize()
             reg = globals()[cls].registry
-            selected = list(map(lambda x: x.lower(), getattr(args, args.type)))
+            selected = list(map(lambda x: x.lower(), getattr(args, args.type))) or [x.name for x in reg if x.is_enabled]
             for item in reg:
-                if item.name in (selected or [x.name for x in reg if x.status in item.__class__._enabled]):
+                if item.name in selected:
                     if item.name in selected:
                         selected.remove(item.name)
                     try:
