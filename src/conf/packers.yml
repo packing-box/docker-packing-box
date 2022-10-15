@@ -643,7 +643,7 @@ PE-Packer:
   formats:
     - PE32
   install:
-    - wget: https://github.com/czs108/PE-Packer:latest{beta-win}
+    - wget: https://github.com/czs108/PE-Packer:41583213{beta-win}
     - unzip: /opt/packers/pepacker
     - wine: PE-Packer.exe
   references:
