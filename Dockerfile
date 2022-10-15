@@ -1,9 +1,9 @@
 # +--------------------------------------------------------------------------------------------------------------------+
 # |                                         CREATE THE BOX BASED ON UBUNTU                                             |
 # +--------------------------------------------------------------------------------------------------------------------+
-FROM ubuntu:20.04 AS base
+FROM ubuntu:22.04 AS base
 MAINTAINER Alexandre DHondt <alexandre.dhondt@gmail.com>
-LABEL version="1.1.0"
+LABEL version="1.2.0"
 LABEL source="https://github.com/dhondta/packing-box"
 ENV DEBIAN_FRONTEND noninteractive
 ENV TERM xterm-256color
@@ -18,14 +18,14 @@ RUN (apt -qq update \
 # install common dependencies and libraries
 RUN (apt -qq -y install apt-transport-https apt-utils \
  && apt -qq -y install bash-completion build-essential clang cmake software-properties-common \
- && apt -qq -y install libavcodec-dev libavformat-dev libavresample-dev libavutil-dev libbsd-dev libboost-regex-dev \
-                       libboost-program-options-dev libboost-system-dev libboost-filesystem-dev libc6-dev-i386 \
-                       libcairo2-dev libdbus-1-dev libegl1-mesa-dev libelf-dev libffi-dev libfontconfig1-dev \
-                       libfreetype6-dev libfuse-dev libgif-dev libgirepository1.0-dev libgl1-mesa-dev libglib2.0-dev \
-                       libglu1-mesa-dev libjpeg-dev libpulse-dev libssl-dev libsvm-java libtiff5-dev libudev-dev \
-                       libxcursor-dev libxkbfile-dev libxml2-dev libxrandr-dev) 2>&1 > /dev/null \
+ && apt -qq -y install libavcodec-dev libavformat-dev libavutil-dev libbsd-dev libboost-regex-dev \
+                       libgirepository1.0-dev libelf-dev libffi-dev libfontconfig1-dev libgif-dev libjpeg-dev \
+ && apt -qq -y install libboost-program-options-dev libboost-system-dev libboost-filesystem-dev libc6-dev-i386 \
+                       libcairo2-dev libdbus-1-dev libegl1-mesa-dev libfreetype6-dev libfuse-dev libgl1-mesa-dev \
+                       libglib2.0-dev libglu1-mesa-dev libpulse-dev libssl-dev libsvm-dev libsvm-java libtiff5-dev \
+                       libudev-dev libxcursor-dev libxkbfile-dev libxml2-dev libxrandr-dev) 2>&1 > /dev/null \
  || echo -e "\033[1;31m DEPENDENCIES INSTALL FAILED \033[0m"
-# install useful tools (missing: )
+# install useful tools
 RUN (apt -qq -y install colordiff colortail cython3 dosbox git golang less ltrace tree strace sudo tmate tmux vim xterm \
  && apt -qq -y install iproute2 nodejs npm python3-setuptools python3-pip swig visidata weka x11-apps yarnpkg zstd \
  && apt -qq -y install curl ffmpeg imagemagick iptables jq psmisc tesseract-ocr unrar unzip wget xdotool xvfb \
@@ -33,6 +33,7 @@ RUN (apt -qq -y install colordiff colortail cython3 dosbox git golang less ltrac
  && wget -qO /tmp/bat.deb https://github.com/sharkdp/bat/releases/download/v0.18.2/bat-musl_0.18.2_amd64.deb \
  && dpkg -i /tmp/bat.deb && rm -f /tmp/bat.deb) 2>&1 > /dev/null \
  || echo -e "\033[1;31m TOOLS INSTALL FAILED \033[0m"
+RUN go mod init && go env -w GO111MODULE=auto
 # configure the locale
 RUN apt -qq clean \
  && apt -qq update \
@@ -49,7 +50,7 @@ ENV LC_ALL en_US.UTF-8
 RUN (dpkg --add-architecture i386 \
  && wget -nc https://dl.winehq.org/wine-builds/winehq.key \
  && apt-key add winehq.key \
- && add-apt-repository 'deb https://dl.winehq.org/wine-builds/ubuntu/ focal main' \
+ && add-apt-repository 'deb https://dl.winehq.org/wine-builds/ubuntu/ impish main' \
  && apt -qq update \
  && apt -qq -y install --install-recommends winehq-stable wine32 winetricks \
  && wineboot) 2>&1 > /dev/null \
@@ -89,7 +90,8 @@ RUN (apt -qq -y install --install-recommends clang mingw-w64 \
 # && make lkm && make lkm_install) 2>&1 > /dev/null \
 # || echo -e "\033[1;31m DARLING INSTALL FAILED \033[0m"
 # install/update Python packages
-RUN (pip3 install poetry sklearn tinyscript tldr thefuck \
+ENV PIP_ROOT_USER_ACTION ignore
+RUN (pip3 install --ignore-installed poetry sklearn tinyscript tldr thefuck \
  && pip3 install angr capstone dl8.5 pandas pefile pyelftools weka \
  && pip3 freeze - local | grep -v "^\-e" | cut -d = -f 1 | xargs -n1 pip3 install -qU) 2>&1 > /dev/null \
  || echo -e "\033[1;31m PIP PACKAGES UPDATE FAILED \033[0m"
