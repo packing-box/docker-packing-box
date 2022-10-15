@@ -529,32 +529,31 @@ class Base(Item):
                 else:
                     url, tag = ts.urlparse(arg), ""
                     parts = url.path.split(":")
-                    if len(parts) == 2 and parts[1].startswith("latest"):
-                        arg = None
+                    if len(parts) == 2:
                         path, tag = parts
-                        resp = json.loads(run("curl -s https://api.github.com/repos%s/releases/latest" % path)[0])
-                        for pattern in [r"(latest)(?:\[(\d)\])?$", r"(latest)(?:\{(.*?)\})$"]:
-                            try:
-                                tag, idx = re.match(pattern, tag).groups()
-                                # case 1: https://github.com/username/repo:latest ; get the 1st file from latest release
-                                if idx is None:
-                                    idx = "0"
-                                # case 2: https://github.com/username/repo:latest[X] ; get Xth file from latest release
-                                if idx.isdigit():
-                                    arg = resp['assets'][int(idx)]['browser_download_url']
-                                # case 3: https://github.com/username/repo:latest{pattern} ; get file based on pattern
-                                else:
-                                    for asset in resp['assets']:
-                                        link = asset['browser_download_url']
-                                        if re.search(idx, ts.urlparse(link).path.split("/")[-1]):
-                                            arg = link
-                                            break
-                                break
-                            except:
-                                continue
+                        arg, idx, regex = None, None, r"([a-zA-Z0-9]+(?:[-_\.][a-zA-Z0-9]+)*)(?:\[(\d)\]|\{(.*?)\})?$"
+                        try:
+                            tag, idx, pattern = re.match(regex, tag).groups()
+                        except AttributeError:
+                            pass
+                        resp = json.loads(run("curl -Ls https://api.github.com/repos%s/releases/%s" % (path, tag))[0])
+                        # case 1: https://github.com/username/repo:TAG{pattern} ; get file based on pattern
+                        if pattern is not None:
+                            for asset in resp['assets']:
+                                link = asset['browser_download_url']
+                                if re.search(pattern, ts.urlparse(link).path.split("/")[-1]):
+                                    arg = link
+                                    break
+                        # case 2: https://github.com/username/repo:TAG[X] ; get Xth file from the selected release
+                        else:
+                            # if https://github.com/username/repo:TAG, get the 1st file from the selected release
+                            if idx is None:
+                                idx = "0"
+                            if idx.isdigit():
+                                arg = resp['assets'][int(idx)]['browser_download_url']
                         if arg is None:
-                            raise ValueError("Bad tag for latest release URL: %s" % tag)
-                    if url.netloc == "github.com" and tag == "latest":
+                            raise ValueError("Bad tag for the release URL: %s" % tag)
+                    if url.netloc == "github.com" and tag != "":
                         url = ts.urlparse(arg)
                     result = tmp.joinpath(self.name + Path(url.path).extension)
                     run("wget -q -O %s %s" % (result, arg.replace("%%", "%")), **kw)[-1]
@@ -601,15 +600,20 @@ class Base(Item):
             d.remove()
     
     @property
+    def is_enabled(self):
+        """ Simple check for determining if the class is enabled. """
+        return self.status in self.__class__._enabled
+    
+    @property
+    def is_variant(self):
+        """ Simple check for determining if the class is a variant of another class. """
+        return getattr(self.__class__, "parent", None) is not None
+    
+    @property
     def status(self):
         """ Get the status of item's binary. """
         st = getattr(self, "_status", None)
         return ["not ", ""][b(self.name) in OS_COMMANDS] + "installed" if st is None else st
-    
-    @classmethod
-    def is_variant(cls):
-        """ Simple check for determining if the class is a variant of another class. """
-        return getattr(cls, "parent", None) is not None
     
     @classmethod
     def summary(cls, show=False, format="All", **kwargs):
@@ -619,7 +623,7 @@ class Base(Item):
         for item in cls.registry:
             s, ic = item.status, expand_formats(*getattr(item, "formats", ["All"]))
             # check if item is enabled, if it applies to the selected formats and if it is a variant
-            if not show and (s in STATUS_DISABLED or item.is_variant()) or \
+            if not show and (s in STATUS_DISABLED or item.is_variant) or \
                all(c not in expand_formats(format) for c in ic):
                 continue
             # now, if keyword-arguments were given, exclude items that do not have the given values set
