@@ -122,6 +122,8 @@ class Executable(Path):
         for ftype, fmt in Executable.SIGNATURES.items():
             if len(ftype) > l and is_filetype(str(self), ftype):
                 best_fmt, l = fmt, len(ftype)
+        if best_fmt is None:
+            raise ValueError("'%s' has signature '%s' which is not supported" % (self, self.filetype))
         return best_fmt
     
     @cached_property
