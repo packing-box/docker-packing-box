@@ -89,9 +89,9 @@ class Features(dict, metaclass=MetaFeatures):
                                     Features.registry[c2][feat.name] = feat
         if exe is not None:
             self._rawdata = Extractors(exe)
-            todo, counts = deque(), {}
+            todo, counts, reg = deque(), {}, Features.registry[exe.format]
             # compute features based on the extracted values first
-            for name, feature in Features.registry[exe.format].items():
+            for name, feature in reg.items():
                 # compute only if it has the keep=True flag ; otherwise, it will be lazily computed on need
                 if (not Features.boolean_only or Features.boolean_only and feature.boolean) and feature.keep:
                     try:
@@ -115,17 +115,26 @@ class Features(dict, metaclass=MetaFeatures):
                         counts.setdefault(n, 0)
                         counts[n] += 1
                     else:
+                        bad = False
                         for name2 in feature.dependencies:
-                            # compute the dependency in priority
-                            todo.appendleft(Features.registry[exe.format][name2])
+                            if name2 not in reg:
+                                del reg[n]
+                                if n in counts:
+                                    del counts[n]
+                                bad = True
+                                break
+                        if not bad:
+                            for name2 in feature.dependencies:
+                                # compute the dependency in priority
+                                todo.appendleft(reg[name2])
                             counts.setdefault(name2, 0)
-                    if counts[n] > 10:
+                    if not bad and counts[n] > 10:
                         raise ValueError("Too much iterations of '%s'" % n)
                 except ValueError:  # occurs when FobiddenNodeError is thrown
                     continue
             # once converged, ensure that we did not leave a feature that should be kept
             for name in self:
-                if not Features.registry[exe.format][name].keep:
+                if not reg[name].keep:
                     self.pop(name, None)
     
     def __getitem__(self, name):
