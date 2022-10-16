@@ -582,6 +582,8 @@ class Model:
         # now fit the (best) classifier and predict labels
         l.debug("> fitting the classifier...")
         self.pipeline.fit(self._train.data, self._train.target.values.ravel())
+        if cls.labelling == "none":
+            return
         l.debug("> making predictions...")
         d = []
         try:

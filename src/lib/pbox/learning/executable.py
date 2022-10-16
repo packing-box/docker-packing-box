@@ -29,5 +29,6 @@ class Executable(Base):
     
     @property
     def features(self):
-        return {n: f.description for n, f in Features.registry[self.format].items()}
+        if self.format is not None:
+            return {n: f.description for n, f in Features.registry[self.format].items()}
 

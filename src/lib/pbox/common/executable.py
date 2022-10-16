@@ -17,7 +17,7 @@ class Executable(Path):
     (2) dataset-bound (its data is used to populate attributes based on the executable's hash)
     (3) dataset-bound, with a new destination dataset
     """
-    FIELDS = ["realpath", "filetype", "format", "size", "ctime", "mtime"]
+    FIELDS = ["realpath", "format", "size", "ctime", "mtime"]
     HASH = "sha256"  # possible values: hashlib.algorithms_available
     # NB: the best signature matched is the longest
     SIGNATURES = {
@@ -122,8 +122,6 @@ class Executable(Path):
         for ftype, fmt in Executable.SIGNATURES.items():
             if len(ftype) > l and is_filetype(str(self), ftype):
                 best_fmt, l = fmt, len(ftype)
-        if best_fmt is None:
-            raise ValueError("'%s' has signature '%s' which is not supported" % (self, self.filetype))
         return best_fmt
     
     @cached_property
