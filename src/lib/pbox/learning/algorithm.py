@@ -122,6 +122,9 @@ if Algorithm.registry is None:
         if category not in ["Semi-Supervised", "Supervised", "Unsupervised"]:
             raise ValueError("bad learning algorithm category")
         dflts = items.pop('defaults', {})
+        dflts.setdefault('boolean', False)
+        dflts.setdefault('multiclass', True)
+        dflts.setdefault('parameters', {})
         dflts['labelling'] = {'Supervised': "full", 'Semi-Supervised': "partial", 'Unsupervised': "none"}[category]
         for algo, data in items.items():
             for k, v in dflts.items():
