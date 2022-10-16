@@ -246,7 +246,7 @@ class Dataset:
             for src in srcs:
                 for exe in ts.Path(src, expand=True).walk(filter_func=lambda x: x.is_file(), sort=False):
                     exe = Executable(exe, dataset=self)
-                    if exe.format not in self._formats_exp or exe.stem in packers:
+                    if exe.format is None or exe.format not in self._formats_exp or exe.stem in packers:
                         continue  # ignore unrelated files and packers themselves
                     if walk_all:
                         yield exe
@@ -254,8 +254,8 @@ class Dataset:
                         candidates.append(exe)
         if len(candidates) > 0 and not walk_all:
             random.shuffle(candidates)
-            for c in candidates:
-                yield c
+            for exe in candidates:
+                yield exe
     
     @backup
     def alter(self, new_name=None, percentage=.1, **kw):
@@ -547,9 +547,9 @@ class Dataset:
                       "**Size**:         %s" % ts.human_readable_size(self.path.size),
                       "**Labelled**:     %.2f%%" % self.labelling])
             if len(self._alterations) > 0:
-                c.append("**Altered**:      %d%%" % (int(round(100 * self._metadata['altered'], 0))))
-                c.append("**Alterations**:  %s" % ", ".join(self._alterations.keys()))
-            c.append("**With files**:   %s" % ["no", "yes"][self._files])
+                c._data.append("**Altered**:      %d%%" % (int(round(100 * self._metadata['altered'], 0))))
+                c._data.append("**Alterations**:  %s" % ", ".join(self._alterations.keys()))
+            c._data.append("**With files**:   %s" % ["no", "yes"][self._files])
             r = Report(Section("Dataset characteristics"), c)
             r.extend(self.overview)
             print(mdv.main(r.md()))

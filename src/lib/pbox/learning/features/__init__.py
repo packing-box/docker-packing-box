@@ -87,7 +87,7 @@ class Features(dict, metaclass=MetaFeatures):
                                 for c2 in expand_formats(c):
                                     Features.registry.setdefault(c2, {})
                                     Features.registry[c2][feat.name] = feat
-        if exe is not None:
+        if exe is not None and exe.format in Features.registry:
             self._rawdata = Extractors(exe)
             todo, counts, reg = deque(), {}, Features.registry[exe.format]
             # compute features based on the extracted values first
@@ -110,12 +110,12 @@ class Features(dict, metaclass=MetaFeatures):
                 try:
                     self[n] = feature(d)
                 except NameError:
+                    bad = False
                     # every feature dependency has already been seen, but yet feature computation fails
                     if all(name2 in counts for name2 in feature.dependencies):
                         counts.setdefault(n, 0)
                         counts[n] += 1
                     else:
-                        bad = False
                         for name2 in feature.dependencies:
                             if name2 not in reg:
                                 del reg[n]
@@ -128,7 +128,7 @@ class Features(dict, metaclass=MetaFeatures):
                                 # compute the dependency in priority
                                 todo.appendleft(reg[name2])
                             counts.setdefault(name2, 0)
-                    if not bad and counts[n] > 10:
+                    if counts.get(n, 0) > 10:
                         raise ValueError("Too much iterations of '%s'" % n)
                 except ValueError:  # occurs when FobiddenNodeError is thrown
                     continue
