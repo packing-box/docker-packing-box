@@ -336,11 +336,15 @@ class Dataset:
         self._data = self._data.drop_duplicates()
         for exe in self.files.listdir(ts.is_executable):
             h = exe.basename
-            if h not in self._data.hash.values:
+            if Executable(exe).format is None:  # unsupported or bad format (e.g. Bash script)
+                del self[h]
+            elif h not in self._data.hash.values:
                 del self[h]
         for exe in self:
             h = exe.hash
-            if not self.files.joinpath(h).exists():
+            if exe.format is None:
+                del self[h]
+            elif not self.files.joinpath(h).exists():
                 del self[h]
         self._save()
     
