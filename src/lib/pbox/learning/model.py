@@ -582,25 +582,24 @@ class Model:
         # now fit the (best) classifier and predict labels
         l.debug("> fitting the classifier...")
         self.pipeline.fit(self._train.data, self._train.target.values.ravel())
-        if cls.labelling == "none":
-            return
-        l.debug("> making predictions...")
-        d = []
-        try:
-            prob1 = self.pipeline.predict_proba(self._train.data)[:, 1]
-            prob2 = self.pipeline.predict_proba(self._test.data)[:, 1]
-        except AttributeError:
-            prob1 = prob2 = None
-        ph = PERF_HEADERS
-        h = list(ph.keys())[1:-1]
-        m1 = self._metrics(self._train.target, self.pipeline.predict(self._train.data), prob1)
-        m1 = [ph[k](v) if v >= 0 else "-" for k, v in zip(h, m1)]
-        d.append(["Train"] + m1)
-        m2 = self._metrics(self._test.target, self.pipeline.predict(self._test.data), prob2)
-        m2 = [ph[k](v) if v >= 0 else "-" for k, v in zip(h, m2)]
-        d.append(["Test"] + m2)
-        h = ["."] + h
-        print(mdv.main(Report(Title("Name: %s" % self.name), Table(d, column_headers=h)).md()))
+        if cls.labelling != "none":
+            l.debug("> making predictions...")
+            d = []
+            try:
+                prob1 = self.pipeline.predict_proba(self._train.data)[:, 1]
+                prob2 = self.pipeline.predict_proba(self._test.data)[:, 1]
+            except AttributeError:
+                prob1 = prob2 = None
+            ph = PERF_HEADERS
+            h = list(ph.keys())[1:-1]
+            m1 = self._metrics(self._train.target, self.pipeline.predict(self._train.data), prob1)
+            m1 = [ph[k](v) if v >= 0 else "-" for k, v in zip(h, m1)]
+            d.append(["Train"] + m1)
+            m2 = self._metrics(self._test.target, self.pipeline.predict(self._test.data), prob2)
+            m2 = [ph[k](v) if v >= 0 else "-" for k, v in zip(h, m2)]
+            d.append(["Test"] + m2)
+            h = ["."] + h
+            print(mdv.main(Report(Title("Name: %s" % self.name), Table(d, column_headers=h)).md()))
         l.info("Parameters:\n- %s" % "\n- ".join("%s = %s" % p for p in params.items()))
         self._metadata['algorithm']['parameters'] = params
         self._save()
