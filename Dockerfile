@@ -3,68 +3,62 @@
 # +--------------------------------------------------------------------------------------------------------------------+
 FROM ubuntu:22.04 AS base
 MAINTAINER Alexandre DHondt <alexandre.dhondt@gmail.com>
-LABEL version="1.2.0"
+LABEL version="2.0.0"
 LABEL source="https://github.com/dhondta/packing-box"
-ENV DEBIAN_FRONTEND noninteractive
-ENV TERM xterm-256color
-# add a test user (for apps that require a non-privileged user)
-RUN useradd test -p test
+ENV DEBCONF_NOWARNINGS yes \
+    DEBIAN_FRONTEND noninteractive \
+    TERM xterm-256color \
+    LANG en_US.UTF-8 \
+    LANGUAGE en_US:en \
+    LC_ALL en_US.UTF-8 \
+    PIP_ROOT_USER_ACTION ignore
 # apply upgrade
-RUN (apt -qq update \
- && apt -qq -y upgrade \
- && apt -qq -y autoremove \
- && apt -qq autoclean) 2>&1 > /dev/null \
+RUN (echo "debconf debconf/frontend select Noninteractive" | debconf-set-selections \
+ && apt-get -qq update \
+ && apt-get -qq -y upgrade \
+ && apt-get -qq -y autoremove \
+ && apt-get -qq autoclean) 2>&1 > /dev/null \
  || echo -e "\033[1;31m SYSTEM UPGRADE FAILED \033[0m"
 # install common dependencies and libraries
-RUN (apt -qq -y install apt-transport-https apt-utils \
- && apt -qq -y install bash-completion build-essential clang cmake software-properties-common \
- && apt -qq -y install libavcodec-dev libavformat-dev libavutil-dev libbsd-dev libboost-regex-dev \
+RUN (apt-get -qq -y install apt-transport-https apt-utils \
+ && apt-get -qq -y install add-apt-key bash-completion build-essential clang cmake software-properties-common \
+ && apt-get -qq -y install libavcodec-dev libavformat-dev libavutil-dev libbsd-dev libboost-regex-dev \
                        libgirepository1.0-dev libelf-dev libffi-dev libfontconfig1-dev libgif-dev libjpeg-dev \
- && apt -qq -y install libboost-program-options-dev libboost-system-dev libboost-filesystem-dev libc6-dev-i386 \
+ && apt-get -qq -y install libboost-program-options-dev libboost-system-dev libboost-filesystem-dev libc6-dev-i386 \
                        libcairo2-dev libdbus-1-dev libegl1-mesa-dev libfreetype6-dev libfuse-dev libgl1-mesa-dev \
                        libglib2.0-dev libglu1-mesa-dev libpulse-dev libssl-dev libsvm-dev libsvm-java libtiff5-dev \
                        libudev-dev libxcursor-dev libxkbfile-dev libxml2-dev libxrandr-dev) 2>&1 > /dev/null \
+# && apt-get -qq -y install libgtk2.0-0:i386 \
  || echo -e "\033[1;31m DEPENDENCIES INSTALL FAILED \033[0m"
 # install useful tools
-RUN (apt -qq -y install colordiff colortail cython3 dosbox git golang less ltrace tree strace sudo tmate tmux vim xterm \
- && apt -qq -y install iproute2 nodejs npm python3-setuptools python3-pip swig visidata weka x11-apps yarnpkg zstd \
- && apt -qq -y install curl ffmpeg imagemagick iptables jq psmisc tesseract-ocr unrar unzip wget xdotool xvfb \
- && apt -qq -y install binwalk ent foremost \
+RUN (apt-get -qq -y install colordiff colortail cython3 dosbox git golang kmod less ltrace tree strace sudo tmate tmux \
+ && apt-get -qq -y install iproute2 nodejs npm python3-setuptools python3-pip swig vim weka x11-apps yarnpkg zstd \
+ && apt-get -qq -y install curl ffmpeg imagemagick iptables psmisc tesseract-ocr unrar unzip wget xdotool xterm xvfb \
+ && apt-get -qq -y install binwalk ent foremost jq visidata \
  && wget -qO /tmp/bat.deb https://github.com/sharkdp/bat/releases/download/v0.18.2/bat-musl_0.18.2_amd64.deb \
  && dpkg -i /tmp/bat.deb && rm -f /tmp/bat.deb) 2>&1 > /dev/null \
  || echo -e "\033[1;31m TOOLS INSTALL FAILED \033[0m"
-RUN go mod init && go env -w GO111MODULE=auto
-# configure the locale
-RUN apt -qq clean \
- && apt -qq update \
- && apt -qq -y install locales \
- && locale-gen en_US.UTF-8
-ENV LANG en_US.UTF-8
-ENV LANGUAGE en_US:en
-ENV LC_ALL en_US.UTF-8
-# configure iptables
-#RUN addgroup no-internet \
-# && iptables -I OUTPUT 1 -m owner --gid-owner no-internet -j DROP \
-# && ip6tables -I OUTPUT 1 -m owner --gid-owner no-internet -j DROP
+RUN go mod init pbox 2>&1 > /dev/null
 # install wine (for running Windows software on Linux)
 RUN (dpkg --add-architecture i386 \
- && wget -nc https://dl.winehq.org/wine-builds/winehq.key \
- && apt-key add winehq.key \
- && add-apt-repository 'deb https://dl.winehq.org/wine-builds/ubuntu/ impish main' \
- && apt -qq update \
- && apt -qq -y install --install-recommends winehq-stable wine32 winetricks \
- && wineboot) 2>&1 > /dev/null \
+ && wget -qnc https://dl.winehq.org/wine-builds/ubuntu/dists/jammy/winehq-jammy.sources \
+ && mv winehq-jammy.sources /etc/apt/sources.list.d/ \
+ && wget -qnc https://dl.winehq.org/wine-builds/winehq.key \
+ && mv winehq.key /usr/share/keyrings/winehq-archive.key \
+ && apt-get -qq -y install --install-recommends winehq-devel winehq-stable wine32 winetricks \
+ && Xvfb "${DISPLAY}" -screen 0 "${SCREENSIZE}x16" & wineboot) 2>&1 > /dev/null \
  || echo -e "\033[1;31m WINE INSTALL FAILED \033[0m"
 # install dosemu (for emulating DOS programs on Linux)
-RUN apt-key adv --recv-keys --keyserver keyserver.ubuntu.com 6D9CD73B401A130336ED0A56EBE1B5DED2AD45D6 \
+RUN (add-apt-key --keyserver keyserver.ubuntu.com 6D9CD73B401A130336ED0A56EBE1B5DED2AD45D6 \
  && add-apt-repository ppa:dosemu2/ppa -y \
- && apt -qq update \
- && apt -qq -y install dosemu2
+ && apt-get -qq update \
+ && apt-get -qq -y install dosemu2) 2>&1 > /dev/null \
+ || echo -e "\033[1;31m DOSEMU2 INSTALL FAILED \033[0m"
 # install mono (for running .NET apps on Linux)
-RUN (apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys 3FA7E0328081BFF6A14DA29AA6A19B38D3D831EF \
+RUN (add-apt-key --keyserver keyserver.ubuntu.com 3FA7E0328081BFF6A14DA29AA6A19B38D3D831EF \
  && apt-add-repository 'deb https://download.mono-project.com/repo/ubuntu stable-focal main' \
- && apt -qq update \
- && apt -qq -y install mono-complete mono-vbnc) 2>&1 > /dev/null \
+ && apt-get -qq update \
+ && apt-get -qq -y install mono-complete mono-vbnc) 2>&1 > /dev/null \
  || echo -e "\033[1;31m MONO INSTALL FAILED \033[0m"
 # install .NET core
 RUN (wget -qO /tmp/dotnet-install.sh https://dot.net/v1/dotnet-install.sh \
@@ -75,7 +69,7 @@ RUN (wget -qO /tmp/dotnet-install.sh https://dot.net/v1/dotnet-install.sh \
  && ln -s /root/.dotnet/dotnet /usr/bin/dotnet) 2>&1 > /dev/null \
  || echo -e "\033[1;31m DOTNET INSTALL FAILED \033[0m"
 # install MingW
-RUN (apt -qq -y install --install-recommends clang mingw-w64 \
+RUN (apt-get -qq -y install --install-recommends clang mingw-w64 \
  && git clone https://github.com/tpoechtrager/wclang \
  && cd wclang \
  && cmake -DCMAKE_INSTALL_PREFIX=_prefix_ . \
@@ -84,59 +78,90 @@ RUN (apt -qq -y install --install-recommends clang mingw-w64 \
  && cd /tmp && rm -rf wclang) 2>&1 > /dev/null \
  || echo -e "\033[1;31m MINGW INSTALL FAILED \033[0m"
 # install darling (for running MacOS software on Linux)
-#RUN (apt -qq -y install cmake clang bison flex pkg-config linux-headers-generic gcc-multilib \
+#RUN (apt-get -qq -y install cmake clang bison flex pkg-config linux-headers-generic gcc-multilib \
 # && cd /tmp/ && git clone --recursive https://github.com/darlinghq/darling.git && cd darling \
 # && mkdir build && cd build && cmake .. && make && make install \
 # && make lkm && make lkm_install) 2>&1 > /dev/null \
 # || echo -e "\033[1;31m DARLING INSTALL FAILED \033[0m"
-# install/update Python packages
-ENV PIP_ROOT_USER_ACTION ignore
-RUN (pip3 install --ignore-installed poetry sklearn tinyscript tldr thefuck \
- && pip3 install angr capstone dl8.5 pandas pefile pyelftools weka \
- && pip3 freeze - local | grep -v "^\-e" | cut -d = -f 1 | xargs -n1 pip3 install -qU) 2>&1 > /dev/null \
- || echo -e "\033[1;31m PIP PACKAGES UPDATE FAILED \033[0m"
+# +--------------------------------------------------------------------------------------------------------------------+
+# |           HARDEN THE BOX (confgure L4 and L7 firewalls, create an evil user and a no-internet group))              |
+# +--------------------------------------------------------------------------------------------------------------------+
+FROM base AS hardened
+ARG USER=user
+# configure iptables
+RUN groupadd --gid 666 no-internet \
+ && useradd --uid 666 --gid 666 -m evil \
+ && iptables -I OUTPUT 1 -m evil --gid-owner no-internet -j DROP \
+ && ip6tables -I OUTPUT 1 -m evil --gid-owner no-internet -j DROP
+# add a non-privileged account
+RUN groupadd --gid 1000 $USER \
+ && groupadd docker \
+ && useradd --uid 1000 --gid 1000 -m $USER \
+ && usermod -aG docker $USER \
+ && apt-get -qq update \
+ && apt-get -qq install -y sudo \
+ && echo $USER ALL=\(root\) NOPASSWD:ALL > /etc/sudoers.d/$USER \
+ && chmod 0440 /etc/sudoers.d/$USER
 # +--------------------------------------------------------------------------------------------------------------------+
 # |                                     CUSTOMIZE THE BOX (refine the terminal)                                        |
 # +--------------------------------------------------------------------------------------------------------------------+
-FROM base AS customized
+FROM hardened AS customized
+ARG USER=user
+ARG UOPT=/home/$USER/.opt
+ENV TERM xterm-256color
+# switch to the unprivileged account
+USER $USER
 # copy customized files
-COPY src/term /tmp/term
-RUN for f in `ls /tmp/term/`; do cp "/tmp/term/$f" "/root/.${f##*/}"; done \
+COPY --chown=$USER:$USER src/term /tmp/term
+RUN for f in `ls /tmp/term/`; do cp "/tmp/term/$f" "/home/$USER/.${f##*/}"; done \
  && rm -rf /tmp/term
-# set the base files and folders for further setup
-COPY src/conf/*.yml /opt/
-RUN mkdir -p /mnt/share /opt/bin /opt/tools /opt/analyzers /opt/detectors /opt/packers /opt/unpackers \
-                                            /tmp/analyzers /tmp/detectors /tmp/packers /tmp/unpackers
+# set the base files and folders for further setup (explicitly create ~/.cache/pip to avoid it not being owned by user)
+COPY --chown=$USER:$USER src/conf/*.yml $UOPT/
+RUN sudo mkdir -p /mnt/share \
+ && mkdir -p $UOPT/bin $UOPT/tools $UOPT/analyzers $UOPT/detectors $UOPT/packers $UOPT/unpackers \
+                                 /tmp/analyzers /tmp/detectors /tmp/packers /tmp/unpackers \
+ && sudo chown $USER:$USER /mnt/share
+# install/update Python packages (install dl8.5 with root separately to avoid wheel's build failure)
+RUN pip3 -qq install --user --no-warn-script-location --ignore-installed meson poetry sklearn tinyscript tldr thefuck \
+ && pip3 -qq install --user --no-warn-script-location angr capstone dl8.5 pandas pefile pyelftools weka \
+ || echo -e "\033[1;31m PIP PACKAGES UPDATE FAILED \033[0m"
 # +--------------------------------------------------------------------------------------------------------------------+
 # |                                              ADD FRAMEWORK ITEMS                                                   |
 # +--------------------------------------------------------------------------------------------------------------------+
 FROM customized AS framework
+ARG USER=user
+ARG UOPT=/home/$USER/.opt
+ARG FILES=src/files
+ARG PBOX=$UOPT/tools/packing-box
+USER $USER
+ENV TERM xterm-256color
 # copy pre-built utils and tools
 # note: libgtk is required for bytehist, even though it can be used in no-GUI mode
-COPY src/files/utils/* /opt/utils/
-RUN apt -qq -y install libgtk2.0-0:i386 \
- && /opt/utils/tridupdate
-COPY src/files/tools/* /opt/tools/
+COPY --chown=$USER:$USER $FILES/utils/* $UOPT/utils/
+RUN sudo $UOPT/utils/tridupdate
+COPY --chown=$USER:$USER $FILES/tools/* $UOPT/tools/
+RUN mv $UOPT/tools/help $UOPT/tools/?
 # copy and install pbox (main library for tools) and pboxtools (lightweight library for items)
-COPY src/lib /tmp/lib
-RUN pip3 install /tmp/lib/ 2>&1 > /dev/null \
- && mv /opt/tools/help /opt/tools/?
+COPY --chown=$USER:$USER src/lib /tmp/lib
+RUN pip3 -qq install --user --no-warn-script-location /tmp/lib/ \
+ && rm -rf /tmp/lib
 # install unpackers
-COPY src/files/analyzers/* /opt/analyzers/
-RUN mv /opt/analyzers/*.zip /tmp/analyzers/ \
- && /opt/tools/packing-box setup analyzer
+COPY --chown=$USER:$USER $FILES/analyzers/* $UOPT/analyzers/
+RUN mv $UOPT/analyzers/*.zip /tmp/analyzers/ \
+ && $PBOX setup analyzer
 # install detectors (including wrapper scripts)
-COPY src/files/detectors/* /opt/bin/
-RUN mv /opt/bin/*.txt /opt/detectors/ \
- && mv /opt/bin/*.tar.xz /tmp/detectors/ \
- && /opt/tools/packing-box setup detector
+COPY --chown=$USER:$USER $FILES/detectors/* $UOPT/bin/
+RUN mv $UOPT/bin/*.txt $UOPT/detectors/ \
+ && mv $UOPT/bin/*.tar.xz /tmp/detectors/ \
+ && $PBOX setup detector
 # install packers
-COPY src/files/packers/* /tmp/packers/
-RUN /opt/tools/packing-box setup packer
+COPY --chown=$USER:$USER $FILES/packers/* /tmp/packers/
+RUN $PBOX setup packer
 # install unpackers
-#COPY src/files/unpackers/* /tmp/unpackers/  # leave this commented as long as src/files/unpackers has no file
-RUN /opt/tools/packing-box setup unpacker
+#COPY ${FILES}/unpackers/* /tmp/unpackers/  # leave this commented as long as $FILES/unpackers has no file
+RUN $PBOX setup unpacker
 # ----------------------------------------------------------------------------------------------------------------------
-RUN find /opt/bin -type f -exec chmod +x {} \;
-ENTRYPOINT /opt/tools/startup
+RUN find $UOPT/bin -type f -exec chmod +x {} \;
+ENV UOPT=$UOPT
+ENTRYPOINT $UOPT/tools/startup
 WORKDIR /mnt/share

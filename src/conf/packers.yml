@@ -16,7 +16,7 @@ APack:
     - MSDOS
   install:
     - wget: https://www.ibsensoftware.com/files/apack-1.00.zip
-    - unzip: /opt/packers/apack
+    - unzip: $OPT/apack
     - wine: apackw.exe
   source: https://www.ibsensoftware.com/download.html
   status: broken
@@ -92,7 +92,7 @@ Amber:
     - PE
   install:
     - wget: https://github.com/EgeBalci/amber:latest{linux_amd64}
-    - unzip: /opt/packers/
+    - unzip: $OPT/
     - ln: amber
   references:
     - https://pentest.blog/introducing-new-packing-method-first-reflective-pe-packer
@@ -144,8 +144,8 @@ BeRo:
   formats:
     - PE32
   install:
-    - copy: bep.exe /opt/packers/beroexepacker.exe
-    - setp: /opt/packers/
+    - copy: bep.exe $OPT/beroexepacker.exe
+    - setp: $OPT/
     - wine: beroexepacker.exe
   source: https://blog.rosseaux.net/page/875fbe6549aa072b5ee0ac9cefff4827/BeRoEXEPacker
 
@@ -168,7 +168,7 @@ ConfuserEx:
     - .NET
   install:
     - wget: https://github.com/mkaring/ConfuserEx:latest{ConfuserEx-CLI}
-    - unzip: /opt/packers/confuserex
+    - unzip: $OPT/confuserex
     - mono: Confuser.CLI.exe
   references:
     - https://github.com/yck1509/ConfuserEx
@@ -194,7 +194,7 @@ DotNetZ:
   formats:
     - .NET
   install:
-    - unzip: /opt/packers
+    - unzip: $OPT
     - wine: netz-bin/netz.exe
   references:
     - https://mindlocksite.wordpress.com/2017/01/19/analyse-netz-packer/
@@ -222,7 +222,7 @@ EXE32Pack:
     - PE32
   install:
     - wget: http://www.magicnotes.com/steelbytes/exe32pack.zip
-    - unzip: /opt/packers
+    - unzip: $OPT
     - wine: exe32pack.exe
   source: https://exe32pack.apponic.com
 
@@ -234,8 +234,8 @@ EXE_Stealth:
   formats:
     - PE
   install:
-    - copy: exestealth.exe /opt/packers/exestealth.exe
-    - setp: /opt/packers/
+    - copy: exestealth.exe $OPT/exestealth.exe
+    - setp: $OPT/
     - wine: exestealth.exe
   references:
     - http://www.webtoolmaster.com/exestealth-tutorial.htm
@@ -288,7 +288,7 @@ Eronana_Packer:
     - PE32
   install:
     - wget: https://github.com/Eronana/packer/releases/download/packer/packer.zip
-    - unzip: /opt/packers/eronana-packer
+    - unzip: $OPT/eronana-packer
     - wine: packer.exe
   references:
     - https://github.com/Eronana/compressor/tree/d6f5d893d8296823bb265830f8f451e5cd43b285
@@ -310,7 +310,7 @@ eXPressor:
     - PE64
   install:
     - wget: http://www.cgsoftlabs.ro/zip/eXPressor.zip
-    - unzip: /opt/packers/eronana-packer
+    - unzip: $OPT/eronana-packer
     - wine: packer.exe
   references:
     - https://github.com/chesvectain/PackingData
@@ -325,10 +325,9 @@ Ezuri:
     - ELF
   install:
     - wget: https://github.com/guitmz/ezuri/archive/master.zip
-    - unzip: /opt/packers
-    - cd: /opt/packers/ezuri-master
-    - exec: go build -o ezuri .
-    - lsh: /opt/packers/ezuri-master ezuri
+    - unzip: $OPT
+    - go: $OPT/ezuri-master github.com/guitmz/ezuri
+    - lsh: $OPT/ezuri-master ezuri
   references:
     - https://www.guitmz.com/linux-elf-runtime-crypter/
     - https://github.com/f0wl/ezuri_unpack
@@ -349,8 +348,8 @@ FSG:
     # click on "Open" (this starts packing)
     - click 380 210 (3)
   install:
-    - copy: fsg.exe /opt/packers/fsg.exe
-    - setp: /opt/packers/
+    - copy: fsg.exe $OPT/fsg.exe
+    - setp: $OPT/
     - wine: fsg.exe
   references:
     - https://www.aldeid.com/wiki/Category:Digital-Forensics/Computer-Forensics/Anti-Reverse-Engineering/Packers/FSG
@@ -390,11 +389,11 @@ hXOR-Packer:
   formats:
     - PE
   install:
-    - exec: rm -rf "/opt/packers/hXOR-Packer v0.1" /opt/packers/hxor-packer
+    - exec: rm -rf "$OPT/hXOR-Packer v0.1" $OPT/hxor-packer
     - wget: https://github.com/rurararura/hXOR-Packer:latest{hXOR-Packer}
-    - unzip: /opt/packers
-    - exec: mv "/opt/packers/hXOR-Packer v0.1" /opt/packers/hxor-packer
-    - exec: chmod +x /opt/packers/hxor-packer/packer.exe
+    - unzip: $OPT
+    - md: "$OPT/hXOR-Packer v0.1"
+    - exec: chmod +x $OPT/hxor-packer/packer.exe
     - lwine: packer.exe
   references:
     - https://github.com/rurararura/hXOR-Packer
@@ -433,7 +432,7 @@ Kkrunchy:
     - PE32
   install:
     - wget: http://www.farbrausch.de/~fg/kkrunchy/kkrunchy_023a2.zip
-    - unzip: /opt/packers
+    - unzip: $OPT
     - wine: kkrunchy_k7.exe
   references:
     - https://github.com/fireeye/capa-rules/blob/master/anti-analysis/packer/kkrunchy/packed-with-kkrunchy.yml
@@ -461,14 +460,14 @@ M0dern_P4cker:
     - ELF64
   install:
     - apt: libcapstone-dev
-    - exec: rm -rf /opt/packers/m0dern_p4cker-e24a1d47dae1acb0cc3dc4d2fb42a61662bc210c /opt/packers/m0dern_p4cker
+    - exec: rm -rf $OPT/m0dern_p4cker-e24a1d47dae1acb0cc3dc4d2fb42a61662bc210c $OPT/m0dern_p4cker
     - wget: https://github.com/n4sm/m0dern_p4cker/archive/e24a1d47dae1acb0cc3dc4d2fb42a61662bc210c.zip
-    - unzip: /opt/packers
-    - exec: mv /opt/packers/m0dern_p4cker-e24a1d47dae1acb0cc3dc4d2fb42a61662bc210c/packer@git /opt/packers/m0dern_p4cker
-    - exec: rm -rf /opt/packers/m0dern_p4cker-e24a1d47dae1acb0cc3dc4d2fb42a61662bc210c
-    - cd: /opt/packers/m0dern_p4cker
+    - unzip: $OPT
+    - exec: mv $OPT/m0dern_p4cker-e24a1d47dae1acb0cc3dc4d2fb42a61662bc210c/packer@git $OPT/m0dern_p4cker
+    - exec: rm -rf $OPT/m0dern_p4cker-e24a1d47dae1acb0cc3dc4d2fb42a61662bc210c
+    - cd: $OPT/m0dern_p4cker
     - make: main
-    - lsh: /opt/packers/m0dern_p4cker main
+    - lsh: $OPT/m0dern_p4cker main
   source: https://github.com/n4sm/m0dern_p4cker
   steps:
     - m0dern-p4cker {{executable}} {{stub[not|xorp]}}
@@ -494,7 +493,7 @@ MEW:
     - export DST
     - timeout 60s bash -c 'while [ -f "${DST%/*}/temp" ]; do sleep .1; done'
   install:
-    - unzip: /opt/packers/mew
+    - unzip: $OPT/mew
     - wine: mew11.exe
   references:
     - https://webscene.ir/tools/show/Mew-packer-11-SE-1.2
@@ -512,7 +511,7 @@ MPRESS:
     - PE
     - Mach-O
   install:
-    - unzip: /opt/packers/mpress
+    - unzip: $OPT/mpress
     - wine: mpress.exe
   references:
     - https://www.autohotkey.com/mpress/mpress_web.htm
@@ -574,7 +573,7 @@ Muncho:
     - Mach-O
   install:
     - wget: ftp://ftp.untergrund.net/users/irokos/titan/titan-muncho-0.01b.zip
-    - unzip: /opt/packers/muncho
+    - unzip: $OPT/muncho
   references:
     - https://www.pouet.net/prod.php?which=51324
   source: https://demozoo.org/productions/175774/
@@ -610,7 +609,7 @@ NetCrypt:
     - .NET
   install:
     - wget: https://github.com/friedkiwi/netcrypt:latest{netcrypt}
-    - unzip: /opt/packers/netcrypt
+    - unzip: $OPT/netcrypt
     - wine: SimplePacker.exe
   source: https://github.com/friedkiwi/netcrypt
 
@@ -644,7 +643,7 @@ PE-Packer:
     - PE32
   install:
     - wget: https://github.com/czs108/PE-Packer:41583213{beta-win}
-    - unzip: /opt/packers/pepacker
+    - unzip: $OPT/pepacker
     - wine: PE-Packer.exe
   references:
     - https://zenodo.org/record/4698355
@@ -708,7 +707,7 @@ PEShield:
   formats:
     - PE32
   install:
-    - unzip: /opt/packers/peshield
+    - unzip: $OPT/peshield
     - wine: peshield.exe
   references:
     - http://protools.narod.ru/packers.htm
@@ -735,7 +734,7 @@ PEtite:
     - PE32
   install:
     - wget: https://www.un4seen.com/files/petite24.zip
-    - unzip: /opt/packers/petite
+    - unzip: $OPT/petite
     - wine: petite.exe
   references:
     - https://www.aldeid.com/wiki/Category:Digital-Forensics/Computer-Forensics/Anti-Reverse-Engineering/Packers/Petite
@@ -826,7 +825,7 @@ RLPack:
     # click on "OK" if a dialog box is displayed telling that the security certificate will be stripped
     - click 510 420 (3)
   install:
-    - unzip: /opt/packers/rlpack
+    - unzip: $OPT/rlpack
     - wine: RLPack.exe
   references:
     - https://storage.ey.md/Technology%%20Related/Programming%%20%%26%%20Reversing/Tuts4You%%20Collection/Unpacking%%20Tutorials/RLPack%%201.21%%20%%28Unpacking%%29.rar
@@ -851,7 +850,7 @@ Shiva:
     - ELF
   install:
     - wget: https://dl.packetstormsecurity.net/crypt/linux/shiva-0.95.tar.gz
-    - untar: /opt/packers
+    - untar: $OPT
     - ln: shiva
   references:
     - https://docplayer.net/86668430-Modern-linux-malware-exposed.html
@@ -917,7 +916,7 @@ Telock:
     # click on "Open" (this requires a bit of time to return to the main window)
     - click 590 420 (2)
   install:
-    - unzip: /opt/packers/telock
+    - unzip: $OPT/telock
     - wine: telock.exe
   references:
     - http://beatrix2004.free.fr/TELOCK98.pdf
@@ -934,7 +933,7 @@ TheArk:
     - PE32
   install:
     - wget: https://github.com/aaaddress1/theArk:latest{Release}
-    - unzip: /opt/packers/theark
+    - unzip: $OPT/theark
     - wine: theArk.exe
   source: https://github.com/aaaddress1/theArk
 
@@ -986,8 +985,8 @@ UPX:
     - PE64
   install:
     - wget: https://github.com/upx/upx:latest{amd64_linux}
-    - untar: /opt/packers
-    - ln: /opt/packers/upx-3.96-amd64_linux/upx
+    - untar: $OPT
+    - ln: $OPT/upx-3.96-amd64_linux/upx
   references:
     - https://linux.die.net/man/1/upx
     - https://github.com/fireeye/capa-rules/blob/master/anti-analysis/packer/upx/packed-with-upx.yml
@@ -1012,28 +1011,28 @@ UPX:
     UPX-3.91:
       install:
         - wget: https://github.com/upx/upx/releases/download/v3.91/upx-3.91-amd64_linux.tar.bz2
-        - untar: /opt/packers
-        - ln: /opt/packers/upx-3.91-amd64_linux/upx
+        - untar: $OPT
+        - ln: $OPT/upx-3.91-amd64_linux/upx
     UPX-3.92:
       install:
         - wget: https://github.com/upx/upx/releases/download/v3.92/upx-3.92-amd64_linux.tar.xz
-        - untar: /opt/packers
-        - ln: /opt/packers/upx-3.92-amd64_linux/upx
+        - untar: $OPT
+        - ln: $OPT/upx-3.92-amd64_linux/upx
     UPX-3.93:
       install:
         - wget: https://github.com/upx/upx/releases/download/v3.93/upx-3.93-amd64_linux.tar.xz
-        - untar: /opt/packers
-        - ln: /opt/packers/upx-3.93-amd64_linux/upx
+        - untar: $OPT
+        - ln: $OPT/upx-3.93-amd64_linux/upx
     UPX-3.94:
       install:
         - wget: https://github.com/upx/upx/releases/download/v3.94/upx-3.94-amd64_linux.tar.xz
-        - untar: /opt/packers
-        - ln: /opt/packers/upx-3.94-amd64_linux/upx
+        - untar: $OPT
+        - ln: $OPT/upx-3.94-amd64_linux/upx
     UPX-3.95:
       install:
         - wget: https://github.com/upx/upx/releases/download/v3.95/upx-3.95-amd64_linux.tar.xz
-        - untar: /opt/packers
-        - ln: /opt/packers/upx-3.95-amd64_linux/upx
+        - untar: $OPT
+        - ln: $OPT/upx-3.95-amd64_linux/upx
 
 Ward:
   categories:
@@ -1043,12 +1042,12 @@ Ward:
   formats:
     - ELF
   install:
-    - exec: rm -rf /opt/packers/ward-master
+    - exec: rm -rf $OPT/ward-master
     - wget: https://github.com/ex0dus-0x/ward/archive/refs/heads/master.zip
-    - unzip: /opt/packers/
-    - cd: /opt/packers/ward-master
+    - unzip: $OPT/
+    - cd: $OPT/ward-master
     - make: ward cli
-    - ln: /opt/packers/ward-master/ward
+    - ln: $OPT/ward-master/ward
   silent:
     - "go:"
   source: https://github.com/ex0dus-0x/ward
@@ -1079,8 +1078,8 @@ Xor_Packer:
     - PE
   install:
     - wget: https://github.com/nqntmqmqmb/xorPacker/raw/master/xorPacker/bin/Debug/xorPacker.exe
-    - exec: mv /tmp/xor-packer.exe /opt/packers/
-    - cd: /opt/packers
+    - exec: mv /tmp/xor-packer.exe $OPT/
+    - cd: $OPT
     - mono: xor-packer.exe
   source: https://github.com/nqntmqmqmb/xorPacker
   status: broken
@@ -1109,7 +1108,7 @@ Yoda_Crypter:
     # FIXME: .5 second may surely be too few for bigger executables
     - key Return (.1) [x3]
   install:
-    - unzip: /opt/packers/yoda_crypter
+    - unzip: $OPT/yoda_crypter
     - wine: yC.exe
   source: https://sourceforge.net/projects/yodap
   status: ok
@@ -1130,7 +1129,7 @@ Yoda_Protector:
   formats:
     - PE32
   install:
-    - unzip: /opt/packers/yoda_protector
+    - unzip: $OPT/yoda_protector
     - wine: yP.exe
   source: http://yodap.sourceforge.net
   status: gui

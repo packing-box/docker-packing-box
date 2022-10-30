@@ -278,7 +278,6 @@ Unsupervised:
         tol:          !!float 1e-4
         algorithm:    lloyd
 
-
   MBKMeans:
     base:        !!python/name:sklearn.cluster.MiniBatchKMeans
     description: Mini-Batch K-Means clustering

@@ -4,7 +4,7 @@ from pboxtools import *
 
 
 ARGS = [
-    [("-d", "--db"), {'default': "/opt/detectors/userdb.txt", 'help': "signatures database"}],
+    [("-d", "--db"), {'default': "~/.opt/detectors/userdb.txt", 'help': "signatures database"}],
 ]
 
 

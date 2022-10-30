@@ -30,5 +30,5 @@ if __name__ == "__main__":
                         help="destination image (BMP, JPG or PNG)")
     initialize()
     logger.info("Making bytes histogram of %s to %s..." % (args.input, args.output))
-    ts.execute_and_log("xvfb-run /opt/utils/bytehist_orig -n -s %s %s" % (args.output, args.input))
+    ts.execute_and_log("xvfb-run ~/.opt/utils/bytehist_orig -n -s %s %s" % (args.output, args.input))
 

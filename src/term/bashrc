@@ -263,9 +263,10 @@ export DOTNET_CLI_TELEMETRY_OPTOUT=1
 export XDG_RUNTIME_DIR=/tmp/runtime-root
 
 # add relevant folders to PATH
-pathprepend /opt/bin
-pathprepend /opt/tools
-pathprepend /opt/utils
+pathprepend $HOME/.opt/tools
+pathprepend $HOME/.opt/utils
+pathprepend $HOME/.opt/bin
+pathprepend $HOME/.local/bin
 
 # thefuck alias
 eval "$(thefuck --alias)"

@@ -6,7 +6,7 @@ from peid.__info__ import __author__, __license__, __source__, __version__
 
 
 ARGS = [
-    [("-d", "--db"), {'default': "/opt/detectors/userdb.txt", 'help': "signatures database"}],
+    [("-d", "--db"), {'default': "~/.opt/detectors/userdb.txt", 'help': "signatures database"}],
 ]
 
 

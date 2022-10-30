@@ -18,14 +18,16 @@ pip-upgrade() {
 
 # packing-box update command (development)
 pbox-update() {
-  cp -f /mnt/share/src/files/tools/* /opt/tools/
-  mv -f /opt/tools/help /opt/tools/?
-  cp -f /mnt/share/src/conf/*.yml /opt/
+  local OPT=$HOME/.opt
+  cp -f /mnt/share/src/files/tools/* $OPT/tools/
+  mv -f $OPT/tools/help $OPT/tools/?
+  cp -f /mnt/share/src/conf/*.yml $OPT/
   for F in /mnt/share/src/term/*; do
-    cp -f "$F" "/root/.${F##*/}"
+    cp -f "$F" "$HOME/.${F##*/}"
   done
-  source /root/.bashrc
-  find /mnt/share/src/files/detectors/ -type f \( ! -iname \"*\.*\" \) -exec cp -f {} /opt/bin/ \;
-  mv -f /opt/bin/userdb*.txt /opt/detectors/
-  pip3 install --upgrade /mnt/share/src/lib/ -q > /dev/null
+  source $HOME/.bashrc
+  find /mnt/share/src/files/detectors/ -type f \( ! -iname \"*\.*\" \) -exec cp -f {} $OPT/bin/ \;
+  mv -f $OPT/bin/userdb*.txt $OPT/detectors/
+  pip3 -qq install --user --no-warn-script-location --upgrade pip
+  pip3 -qq install --user --no-warn-script-location --upgrade /mnt/share/src/lib/
 }

@@ -49,7 +49,7 @@ DIE:
       - wget -q https://raw.githubusercontent.com/horsicq/DIE-engine/5ce44b7a9551804f93b2f9ade6d71f4f1fc6922c/build_lin64.sh
       - chmod +x build_lin64.sh
       - ./build_lin64.sh 2>/dev/null
-      - find $TMP/DIE-engine/release -type f -exec tar xzf {} -C /opt/detectors \;
+      - find $TMP/DIE-engine/release -type f -exec tar xzf {} -C $OPT \;
       - tar xf $TMP/die.tar.xz -C $OPT/die_lin64_portable
       - cp $TMP/DIE-engine/release_version.txt $OPT/die_lin64_portable/
       - sed -i 's/\"\?\$\*\"\?/\"\$\*\"/g' $OPT/die_lin64_portable/diec.sh
@@ -195,7 +195,7 @@ PyPeid:
     - cd:   $TMP/pypeid
     - exec:
       - poetry build
-      - find dist -iname *.whl -exec pip3 install {} \;
+      - find dist -iname *.whl -exec pip3 -qq install --user --no-warn-script-location --ignore-installed {} \;
   license: apache-2.0
   maintained: false
   source:  https://github.com/FFRI/pypeid
@@ -218,7 +218,7 @@ RetDec:
     - All
   install:
     - wget:  https://github.com/avast/retdec:latest{ubuntu}
-    - untar: /opt/detectors
+    - untar: $OPT
   license: mit
   source:  https://github.com/avast/retdec
   status:  ok

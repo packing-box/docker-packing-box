@@ -6,7 +6,7 @@ from argparse import ArgumentParser, RawTextHelpFormatter
 from ast import literal_eval
 from contextlib import suppress
 from itertools import product
-from os.path import abspath, exists, isfile
+from os.path import abspath, exists, expanduser, isfile
 from pprint import pformat
 from shlex import split
 from subprocess import call, Popen, PIPE
@@ -20,9 +20,9 @@ __all__ = ["catch_exception", "json", "literal_eval", "pformat", "re", "run", "s
 
 
 DETECTORS      = None
-DETECTORS_FILE = "/opt/detectors.yml"
+DETECTORS_FILE = "~/.opt/detectors.yml"
 PACKERS        = None
-PACKERS_FILE   = "/opt/packers.yml"
+PACKERS_FILE   = "~/.opt/packers.yml"
 
 # source: https://docs.github.com/en/github/creating-cloning-and-archiving-repositories/licensing-a-repository
 LICENSES = {
@@ -93,7 +93,7 @@ def execute(name, **kwargs):
         elif v is not None:
             spec += " " + a.option_strings[0] + " " + str(v)
     cmd = DETECTORS[name].get('command', "/usr/bin/%s {path}" % name.lower())
-    exe, opt = cmd.replace("$OPT", "/opt/detectors").split(" ", 1)
+    exe, opt = cmd.replace("$OPT", expanduser("~/.opt/detectors")).split(" ", 1)
     cmd = (exe + "%s " + opt) % spec
     cmd = re.sub("'?\{path\}'?", "'{path}'", cmd)  # this allows to handle input path with whitespaces
     kwargs['logger'].debug("Command format: " + cmd)
@@ -225,7 +225,7 @@ def run(name, exec_func=execute, parse_func=lambda x, **kw: x, stderr_func=lambd
     a.orig_args, a._orig_args = {}, spec_opt
     for opt in spec_opt:
         n = opt.dest
-        a.orig_args[n] = getattr(a, n)
+        a.orig_args[n] = expanduser(getattr(a, n))
         delattr(a, n)
     if binary_only:
         a.binary = True
@@ -238,11 +238,11 @@ def run(name, exec_func=execute, parse_func=lambda x, **kw: x, stderr_func=lambd
         exit(1)
     # load related dictionaries
     DETECTORS_FILE = a.detectors_file
-    with open(DETECTORS_FILE) as f:
+    with open(expanduser(DETECTORS_FILE)) as f:
         DETECTORS = safe_load(f.read())
     if normalize_output:
         PACKERS_FILE = a.packers_file
-        with open(PACKERS_FILE) as f:
+        with open(expanduser(PACKERS_FILE)) as f:
             PACKERS = safe_load(f.read())
     # handle version display
     if a.version:
@@ -264,7 +264,7 @@ def run(name, exec_func=execute, parse_func=lambda x, **kw: x, stderr_func=lambd
                 if v == "<output>":
                     out, err = execute(name, version=True, exit=False, logger=a.logger)
                     out += err
-                #  - file path ; e.g. /opt/detectors/detector_name/version.txt
+                #  - file path ; e.g. ~/.opt/detectors/detector_name/version.txt
                 elif isfile(v):
                     with open(v) as f:
                         out = f.read().strip()

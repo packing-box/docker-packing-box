@@ -1,4 +1,5 @@
 # -*- coding: UTF-8 -*-
+from os.path import expanduser
 from tinyscript import b, colored as _c, ensure_str, json, logging, os, random, re, shlex, subprocess, ts
 from tinyscript.helpers import execute_and_log as run, execute as run2, Path
 from tinyscript.report import *
@@ -308,11 +309,11 @@ class Base(Item):
             self.logger.debug("Status: %s ; this means that it won't be installed" % self.status)
             return
         self.logger.info("Setting up %s..." % self.cname)
-        opt, tmp = Path("/opt/%ss" % self.type), Path("/tmp/%ss" % self.type)
-        obin, ubin = Path("/opt/bin"), Path("/usr/bin")
+        opt, tmp = Path("~/.opt/%ss" % self.type, expand=True), Path("/tmp/%ss" % self.type)
+        obin, ubin = Path("~/.opt/bin", create=True, expand=True), Path("~/.local/bin", create=True, expand=True)
         result, rm, wget, kw = None, True, False, {'logger': self.logger, 'silent': getattr(self, "silent", [])}
         cwd = os.getcwd()
-        __p = lambda p: p.replace("$TMP", str(tmp)).replace("$OPT", str(opt))
+        __p = lambda p: expanduser(p.replace("$TMP", str(tmp)).replace("$OPT", str(opt)))
         for cmd in self.install:
             if isinstance(result, Path) and not result.exists():
                 self.logger.critical("Last command's result does not exist (%s) ; current: %s" % (result, cmd))
@@ -341,19 +342,18 @@ class Base(Item):
                     result.mkdir()
                 self.logger.debug("cd '%s'" % result)
                 os.chdir(str(result))
-            # copy a file from the previous location (or /tmp/[ITEM]s if not defined) to /opt/bin, making the
+            # copy a file from the previous location (or /tmp/[ITEM]s if not defined) to ~/.opt/bin, making the
             #  destination file executable
             elif cmd == "copy":
                 src, dst = (result or tmp).joinpath(arg1), ubin.joinpath(arg2)
-                # if /usr/bin/... exists, then save it to /opt/bin/... to superseed it
+                # if ~/.local/bin/... exists, then save it to ~/.opt/bin/... to superseed it
                 if dst.is_samepath(ubin.joinpath(arg2)) and dst.exists():
                     dst = obin.joinpath(arg2)
                 if run("cp %s'%s' '%s'" % (["", "-r "][src.is_dir()], src, dst), **kw)[-1] == 0 and dst.is_file():
                     run("chmod +x '%s'" % dst, **kw)
                 if arg1 == self.name:
                     rm = False
-            # execute the given command as is, with no pre-/post-condition, not altering the result state variable
-            #  (if a list of commands is given, execute them all
+            # execute the given shell command or the given list of shell commands
             elif cmd == "exec":
                 result = None
                 if not isinstance(arg, list):
@@ -364,7 +364,16 @@ class Base(Item):
             elif cmd in ["git", "gitr"]:
                 result = (result or tmp).joinpath(Path(ts.urlparse(arg).path).stem)
                 result.remove(False)
-                run("git clone -q %s%s '%s'" % (["", "--recursive "][cmd == "gitr"], arg, result), **kw)
+                run("git clone --quiet %s%s '%s'" % (["", "--recursive "][cmd == "gitr"], arg, result), **kw)
+            # go build the target
+            elif cmd == "go":
+                result = result if arg1 == arg else Path(arg1, expand=True)
+                cwd2 = os.getcwd()
+                os.chdir(str(result))
+                result.joinpath("go.mod").remove(False)
+                run("go mod init '%s'" % arg2, silent=["creating new go.mod", "add module requirements", "go mod tidy"])
+                run("go build -o %s ." % self.name)
+                os.chdir(cwd2)
             # create a shell script to execute Bash code and make it executable
             elif cmd in ["java", "mono", "sh", "wine"]:
                 r, txt, tgt = ubin.joinpath(self.name), "#!/bin/bash\n", (result or opt).joinpath(arg)
@@ -386,7 +395,7 @@ class Base(Item):
                 except PermissionError:
                     self.logger.error("bash: %s: Permission denied" % r)
                 result = r
-            # make a symbolink link in /usr/bin (if relative path) relatively to the previous considered location
+            # make a symbolink link in ~/.local/bin (if relative path) relatively to the previous considered location
             elif cmd == "ln":
                 r = ubin.joinpath(self.name)
                 r.remove(False)
@@ -396,7 +405,7 @@ class Base(Item):
                 if cmd == "lwine" and hasattr(self, "gui"):
                     arg = self._gui(result.joinpath(arg), True)
                 else:
-                    arg1 = opt.joinpath(self.name)
+                    arg1 = opt.joinpath(self.name) if arg == arg1 == arg2 else arg1
                     arg2 = "wine \"%s\" \"$@\"" % arg2 if cmd == "lwine" else "./%s" % arg2
                     arg = "#!/bin/bash\nPWD=\"`pwd`\"\nif [[ \"$1\" = /* ]]; then TARGET=\"$1\"; else " \
                           "TARGET=\"$PWD/$1\"; fi\ncd \"%s\"\n%s \"$TARGET\" \"$2\"\ncd \"$PWD\"" % (arg1, arg2)
@@ -440,11 +449,17 @@ class Base(Item):
                     if run("chmod +x make.sh", **kw)[-1] == 0:
                         run("sh -c './make.sh'", **kw)
                 result = result.joinpath(arg1)
-            # move the previous location to /usr/bin (if relative path), make it executable if it is a file
+            # rename the current directory and change to the new one
+            elif cmd == "md":
+                result, cwd2 = (result or tmp).joinpath(arg), os.getcwd()
+                os.chdir(cwd if cwd != cwd2 else str(tmp))
+                run("mv -f '%s' '%s'" % (cwd2, result), **kw)
+                os.chdir(str(result))
+            # move the previous location to ~/.local/bin (if relative path), make it executable if it is a file
             elif cmd == "move":
                 result = (result or tmp).joinpath(arg)
                 r = ubin.joinpath(self.name)
-                # if /usr/bin/... exists, then save it to /opt/bin/... to superseed it
+                # if ~/.local/bin/... exists, then save it to ~/.opt/bin/... to superseed it
                 if r.is_samepath(ubin.joinpath(self.name)) and r.exists():
                     r = obin.joinpath(self.name)
                 if run("mv -f '%s' '%s'" % (result, r), **kw)[-1] == 0 and r.is_file():
@@ -452,7 +467,7 @@ class Base(Item):
                 result = r
             # simple install through PIP
             elif cmd == "pip":
-                run("pip3 -q install %s" % arg, **kw)
+                run("pip3 -qq install --user --no-warn-script-location --ignore-installed %s" % arg, **kw)
             # remove a given directory (then bypassing the default removal at the end of all commands)
             elif cmd == "rm":
                 run("rm -rf '%s'" % Path(arg).absolute(), **kw)
@@ -476,9 +491,11 @@ class Base(Item):
                 if cmd[-3:] == "tar" and (not result.exists() or result.extension == ".tar.xz") and result2.exists():
                     ext, result = ".tar.xz", result2
                 if result.extension == ext:
-                    # decompress to the target folder but also to a temp folder (for debugging purpose)
-                    r, t, first = tmp.joinpath(arg), ts.TempPath(prefix="%s-setup-" % self.type, length=8), True
-                    for d in [r, t]:
+                    # decompress to the target folder but also to a temp folder if needed (for debugging purpose)
+                    paths, first = [tmp.joinpath(arg)], True
+                    if kw.get('verbose', False):
+                        paths.append(ts.TempPath(prefix="%s-setup-" % self.type, length=8))
+                    for d in paths:
                         run_func = run if first else run2
                         if ext == ".tar.bz2":
                             run_func("bunzip2 -f '%s'" % result, **(kw if first else {}))
