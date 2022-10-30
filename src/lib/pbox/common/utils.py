@@ -4,7 +4,6 @@ import mdv
 import pandas as pd
 import re
 import yaml
-from ast import literal_eval
 from contextlib import contextmanager
 from functools import wraps
 from time import perf_counter, time

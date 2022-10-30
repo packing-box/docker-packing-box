@@ -4,7 +4,6 @@ from tinyscript import hashlib
 from .__common__ import *
 from ..common.executable import Executable
 from ..common.item import update_logger
-from ..common.utils import make_registry
 
 
 # this list is filled in with subclasses at the end of this module
@@ -41,6 +40,6 @@ class Unpacker(Base):
         return label
 
 
-# dynamically makes Unpacker's registry of child classes from the dictionary of unpackers
-make_registry(Unpacker)
+# dynamically makes Unpacker's registry of child classes from the default dictionary of unpackers (~/.opt/unpackers.yml)
+Unpacker.source = None
 

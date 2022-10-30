@@ -1,11 +1,9 @@
 # -*- coding: UTF-8 -*-
 from tinyscript import b, ensure_str, hashlib, random, re, subprocess
-from tinyscript.helpers import execute_and_log as run
 
 from .__common__ import Base, PARAM_PATTERN
 from ..common.executable import Executable
 from ..common.item import update_logger
-from ..common.utils import make_registry
 
 
 # this list is filled in with subclasses at the end of this module
@@ -122,6 +120,6 @@ class Ezuri(Packer):
         return "%s[key:%s;iv:%s]" % (self.name, Ezuri.key, Ezuri.iv)
 # ----------------------------------------------------------------------------------------------------------------------
 
-# dynamically makes Packer's registry of child classes from the dictionary of packers
-make_registry(Packer)
+# dynamically makes Packer's registry of child classes from the default dictionary of packers (~/.opt/packers.yml)
+Packer.source = None
 

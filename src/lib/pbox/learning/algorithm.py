@@ -7,8 +7,8 @@ from tinyscript.helpers import Path, TempPath
 from weka.classifiers import Classifier
 
 from ..common.config import config
-from ..common.item import Item
-from ..common.utils import make_registry
+from ..common.item import Item, MetaItem
+
 
 __all__ = ["Algorithm", "WekaClassifier"]
 
@@ -16,10 +16,61 @@ __all__ = ["Algorithm", "WekaClassifier"]
 _sanitize_feature_name = lambda n: n.replace("<", "[lt]").replace(">", "[gt]")
 
 
-class Algorithm(Item):
+class MetaAlgorithm(MetaItem):
+    def __getattribute__(self, name):
+        # this masks some attributes for child classes (e.g. Algorithm.registry can be accessed, but when the registry
+        #  of child classes is computed, the child classes, e.g. RF, won't be able to access RF.registry)
+        if name in ["get", "iteritems", "mro", "registry", "source"] and self._instantiable:
+            raise AttributeError(name)
+        return super(MetaItem, self).__getattribute__(name)
+
+    @property
+    def source(self):
+        return self._source
+
+    @source.setter
+    def source(self, path):
+        if '%ss' % self.__name__.lower() not in config:
+            return
+        p = Path(str(path or config['algorithms']))
+        if hasattr(self, "_source") and self._source == p:
+            return
+        cls, self._source = Algorithm, p
+        # open the .conf file associated to algorithms
+        cls.registry, glob = [], globals()
+        with p.open() as f:
+            algos = yaml.load(f, Loader=yaml.Loader)
+        # start parsing items of cls
+        for category, items in algos.items():
+            if category not in ["Semi-Supervised", "Supervised", "Unsupervised"]:
+                raise ValueError("bad learning algorithm category")
+            dflts = items.pop('defaults', {})
+            dflts.setdefault('boolean', False)
+            dflts.setdefault('multiclass', True)
+            dflts.setdefault('parameters', {})
+            dflts['labelling'] = {'Supervised': "full", 'Semi-Supervised': "partial", 'Unsupervised': "none"}[category]
+            for algo, data in items.items():
+                for k, v in dflts.items():
+                    if k == "base":
+                        raise ValueError("parameter 'base' cannot have a default value")
+                    data.setdefault(k, v)
+                # put the related algorithm in module's globals()
+                if algo not in glob:
+                    d = dict(cls.__dict__)
+                    for a in ["get", "iteritems", "mro", "registry"]:
+                        d.pop(a, None)
+                    glob[algo] = type(algo, (cls, ), d)
+                i = glob[algo]
+                i._instantiable = True
+                # now set attributes from YAML parameters
+                for k, v in data.items():
+                    setattr(i, "_" + k if k == "source" else k, v)
+                glob['__all__'].append(algo)
+                cls.registry.append(i())
+
+
+class Algorithm(Item, metaclass=MetaAlgorithm):
     """ Algorithm abstraction. """
-    registry = None
-    
     def is_weka(self):
         """ Simple method for checking if the algorithm is based on a Weka class. """
         return self.base.__base__ is WekaClassifier
@@ -111,37 +162,6 @@ class Logistic(WekaClassifier):
     _weka_base = "weka.classifiers.functions.Logistic"
 
 
-if Algorithm.registry is None:
-    cls = Algorithm
-    # open the .conf file associated to algorithms
-    cls.registry, glob = [], globals()
-    with Path(config['algorithms']).open() as f:
-        algos = yaml.load(f, Loader=yaml.Loader)
-    # start parsing items of cls
-    for category, items in algos.items():
-        if category not in ["Semi-Supervised", "Supervised", "Unsupervised"]:
-            raise ValueError("bad learning algorithm category")
-        dflts = items.pop('defaults', {})
-        dflts.setdefault('boolean', False)
-        dflts.setdefault('multiclass', True)
-        dflts.setdefault('parameters', {})
-        dflts['labelling'] = {'Supervised': "full", 'Semi-Supervised': "partial", 'Unsupervised': "none"}[category]
-        for algo, data in items.items():
-            for k, v in dflts.items():
-                if k == "base":
-                    raise ValueError("parameter 'base' cannot have a default value")
-                data.setdefault(k, v)
-            # put the related algorithm in module's globals()
-            if algo not in glob:
-                d = dict(cls.__dict__)
-                for a in ["get", "iteritems", "mro", "registry"]:
-                    d.pop(a, None)
-                glob[algo] = type(algo, (cls, ), d)
-            i = glob[algo]
-            i._instantiable = True
-            # now set attributes from YAML parameters
-            for k, v in data.items():
-                setattr(i, k, v)
-            glob['__all__'].append(algo)
-            cls.registry.append(i())
+# initialize the registry of algorithms from the default source (~/.opt/algorithms.yml)
+Algorithm.source = None
 

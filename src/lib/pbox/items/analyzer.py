@@ -2,7 +2,6 @@
 from .__common__ import *
 from ..common.executable import Executable
 from ..common.item import update_logger
-from ..common.utils import make_registry
 
 
 # this list is filled in with subclasses at the end of this module
@@ -30,6 +29,6 @@ class Analyzer(Base):
         return output
 
 
-# dynamically makes Analyzer's registry of child classes from the dictionary of analyzers
-make_registry(Analyzer)
+# dynamically makes Analyzer's registry of child classes from the default dictionary of analyzers (~/.opt/analyzers.yml)
+Analyzer.source = None
 

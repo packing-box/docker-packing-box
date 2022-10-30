@@ -2,7 +2,7 @@
 from .__common__ import *
 from ..common.executable import Executable
 from ..common.item import update_logger
-from ..common.utils import class_or_instance_method, file_or_folder_or_dataset, make_registry
+from ..common.utils import class_or_instance_method, file_or_folder_or_dataset
 
 
 # this list is filled in with subclasses at the end of this module
@@ -143,6 +143,6 @@ class Detector(Base):
         (self.logger.warning if label is None else [self.logger.failure, self.logger.success][label == label2])(msg)
 
 
-# dynamically makes Detector's registry of child classes from the dictionary of detectors
-make_registry(Detector)
+# dynamically makes Detector's registry of child classes from the default dictionary of detectors (~/.opt/detectors.yml)
+Detector.source = None
 

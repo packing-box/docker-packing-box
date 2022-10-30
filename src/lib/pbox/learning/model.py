@@ -5,8 +5,6 @@ import numpy as np
 import pandas as pd
 import re
 from _pickle import UnpicklingError
-from inspect import getmembers
-from sklearn.base import is_classifier, TransformerMixin, BaseEstimator
 from sklearn.decomposition import PCA
 from sklearn.feature_selection import VarianceThreshold
 from sklearn.metrics import confusion_matrix, matthews_corrcoef, roc_auc_score
@@ -24,7 +22,6 @@ from .features import Features
 from .visualization import *
 from ..common.config import *
 from ..common.utils import *
-from ..items.detector import Detector
 
 
 __all__ = ["open_model", "DumpedModel", "Model", "N_JOBS", "PREPROCESSORS"]
