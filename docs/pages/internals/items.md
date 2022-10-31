@@ -84,160 +84,165 @@ All these statuses are shown with dedicated special colored characters in the he
 
 ## Installation
 
-The installation can be mechanized by using various directives in the same style as [Ansible](https://www.ansible.com/). However, it works in a slightly different way as, for the sake of conciness, an install step's state can depend on the previous command's result. The following directives are implemented:
+The installation can be mechanized by using various directives in the same style as [Ansible](https://www.ansible.com/). However, it works in a slightly different way as, for the sake of conciness, an install step's state can depend on the previous command's result.
+
+In the directives hereafter, some "environment variables" (NOT real environment variables as they are only applicable in the scope of the installation tool) can be used in order to shorten arguments:
+
+- *$OPT*: `~/.opt/[ITEM]s` (e.g. `/tmp/packers`)
+- *$TMP*: `/tmp/[ITEM]s` (e.g. `/tmp/detectors`)
+
+
+The following directives are implemented:
 
 ### `apt` / `pip`
 
+> Simple install through APT or PIP.
+
 - **Argument(s)**: package name
-- **Run**: installs the required package through APT/PIP
 - **State**: unchanged
 
 ### `cd`
 
-- **Argument(s)**: target directory
-- **Run**: changes the current directory to the given target
+> Change to the given directory.
+
+If a relative path is given, it is first joined to the path from the last state if available or to the temporary path (meaning, in this scope, `/tmp/[ITEM]s`).
+
+- **Argument(s)**: target absolute/relative path
 - **State**: target directory
 
 ### `copy`
 
-- **Argument(s)**: target | source destination
+> Copy the given source file/directory to the given destination file/directory.
 
-    - source is absolute or relative to previous *State* if defined or `/tmp`
-    - destination is absolute or relative to `/usr/bin` ; if it exists in `/usr/bin`, it is created in `/opt/bin` instead in order to take precedence
+If the source is a relative path, it is first joined to the path from the last state if available or to the temporary path (meaning, in this scope, `/tmp/[ITEM]s`). If the destination is a relative path, it is joined to `~/.local/bin`. If it already exists, it is then joined to `~/.opt/bin`. If the destination is a file, make it executable.
 
-- **Run**:
-
-    1. copies a file or a folder (recursively) from the specified *source* to the specified *destination* (equal to *source*, if *destination* is not provided)
-    2. if the destination is a file, makes it executable
-
+- **Argument(s)**: source absolute/relative path, destination absolute/relative path
 - **State**: unchanged
 - **Examples**:
 
-    - `copy: test` (non-existing file): `cp /tmp/test /usr/bin/test`, `chmod +x /usr/bin/test`
-    - `copy: test` (existing file): `cp /tmp/test /opt/bin/test`, `chmod +x /usr/bin/test`
-    - `copy: test /opt/test_folder` (folder): `cp -r /tmp/test /opt/test_folder`
+    - `copy: test` (non-existing packer): `cp /tmp/packers/test ~/.local/bin/test`, `chmod +x ~/.local/bin/test`
+    - `copy: test` (existing file): `cp /tmp/test /opt/bin/test`, `chmod +x ~/.local/bin/test`
+    - `copy: test /opt/test_folder` (folder): `cp -r /tmp/test ~/.opt/packers/test_folder`
 
 ### `exec`
 
-- **Argument(s)**: shell command
-- **Run**: executes a shell command
-- **State**: `None`
+> Execute the given shell command or the given list of shell commands.
+
+- **Argument(s)**: shell command(s)
+- **State**: `None` (resets the state)
 
 ### `git` / `gitr`
 
+> Git clone a project (recursively if `gitr`).
+
+The target folder is computed relatively to the last state if any, otherwise to the temporary path (meaning, in this scope, `/tmp/[ITEM]s`).
+
 - **Argument(s)**: URL of the target repository
-- **Run**: git-clones the repository, recursively if using `gitr`, to either the current state's directory or, if `None`, `/tmp` joined with the name of the repository
 - **State**: target folder of the cloned repository
 - **Examples**:
 
-    - `gitr: https://github.com/user/test.git` (no state): `git clone -q --recursive https://github.com/user/test.git /tmp/test`
-    - `git: https://github.com/user/test.git` (state is `/opt/packers`): `git clone -q https://github.com/user/test.git /opt/packers/test`
+    - `gitr: https://github.com/user/test.git` (no state): `git clone -q --recursive https://github.com/user/test.git /tmp/packers/test`
+    - `git: https://github.com/user/test.git` (state is `/opt/packers`): `git clone -q https://github.com/user/test.git ~/.opt/packers/test`
+
+### `go`
+
+> Build a Go project, moving to the source directory and then coming back to the initial directory.
+
+If no source directory is given, take the directory from the current state.
+
+- **Argument(s)**: (source directory, ) URL of the target repository (without `https://`)
+- **State**: target folder of the Go project
+
+### `java` / `mono` / `sh` / `wine`
+
+> Create a shell script to execute the given target with its intepreter/launcher and make it executable.
+
+The launcher script is created at `~/.local/bin/[NAME]`. If relative path is given for the target, it is set relatively to the previous state if any, otherwise to `~/.opt/[ITEM]s`.
+
+- **Argument(s)**: command (\\n-separated)
+- **State**: `~/.local/bin/[NAME]`
+- **Examples**:
+
+    - `wine: test_1.exe` (state is `~/.opt/analyzers/test_inst`, the tool is named *Test* in the YAML file): `echo -en 'wine ~/.opt/analyzers/test_inst/test_1.exe \"$@\"' > ~/.local/bin/test`, `chmod +x ~/.local/bin/test`
+    - `sh: /tmp/test.sh` (same as before): `echo -en '#!/bin/bash\n/tmp/test.sh' > ~/.local/bin/test`, `chmod +x ~/.local/bin/test`
 
 ### `ln`
 
+> Create a symbolic link at `~/.local/bin/[NAME]` pointing to the given source.
+
+This is set relatively to the previous state if any, otherwise to `~/.opt/[ITEM]s`.
+
 - **Argument(s)**: source
-
-    - absolute
-    - relative path of the tool being installed
-
-- **Run**: creates a symlink pointing on either the current state's directory or, if `None`, `/tmp` joined with the argument and targeting `/usr/bin/[item_name_attribute]`
-- **State**: `/usr/bin/[item_name_attribute]`
+- **State**: `~/.local/bin/[NAME]`
 - **Examples**:
 
     - `ln: test_v1.23` (no state, the tool is defined as "*Test*" in the YAML): `ln -s /tmp/test_v1.23 /usr/bin/test`
     - `ln: /other/path/test_v1.23` (state: `/opt/packers`, same name as before): `ln -s /opt/packers/test_v1.23 /usr/bin/test`
 
-### `lsh`
+### `lsh` / `lwine`
 
-- **Argument(s)**: tool_name | source tool_name
+> Create a shell script to execute the given target from its source directory with its intepreter/launcher and make it executable.
 
-    - tool's name, for being called from within the shell script
-    - source is the folder where the shell script is located
+The launcher script is created at `~/.local/bin/[NAME]`. When executed, the script changes the directory to the source one, executes the target and then comes back to the original directory. If the source directory is not speficied, it is set to `~/.opt/[ITEM]s/[NAME]`.
 
-- **Run**:
-
-    1. creates a launcher shell script to `/usr/bin/[item_name_attribute]` that changes its directory to either `/opt/[type]s/[tool_name]` or from the given source, using the binary named as `[tool_name]`
-    2. makes the shell script executable
-
-- **State**: `/usr/bin/[item_name_attribute]`
+- **Argument(s)**: (source directory, ) target script/executable
+- **State**: `~/.local/bin/[NAME]`
 - **Examples**:
 
-    - `lsh: test_v1.23` (the tool is defined as packer named "*Test*" in the YAML): `echo -en "[...]cd /opt/packers/test\n./test_v1.23 $TARGET $2\ncd $PWD" > /usr/bin/test`, `chmod +x /usr/bin/test`
-    - `lsh: /other/source test_v1.23` (same as before): `echo -en "[...]cd /other/source\n./test_v1.23 $TARGET $2\ncd $PWD" > /usr/bin/test`, `chmod +x /usr/bin/test`
+    - `lsh: test_v1.23` (the tool is defined as packer named "*Test*" in the YAML): `echo -en "[...]cd /opt/packers/test\n./test_v1.23 $TARGET $2\ncd $PWD" > ~/.local/bin/[NAME]/bin/test`, `chmod +x ~/.local/bin/[NAME]/bin/test`
+    - `lsh: /other/source test_v1.23` (same as before): `echo -en "[...]cd /other/source\n./test_v1.23 $TARGET $2\ncd $PWD" > ~/.local/bin/[NAME]/bin/test`, `chmod +x ~/.local/bin/[NAME]/bin/test`
 
 This is useful when a tool needs to be run from its own folder, e.g. because it depends on relative resources.
 
 ### `make`
 
-- **Argument(s)**: new_state make_options
-- **Run**: Depending on the build file found in the current *State* folder:
+> Compile a project.
 
-    - `CMakeLists.txt`:
-    
-        1. run `cmake`
-        2. run `make`
-    
-    - `Makefile`:
-    
-        1. run `configure.sh` (if exists)
-        2. `make`
-        3. `make install`
-    
-    - `make.sh`:
-    
-        1. `chmod +x make.sh`
-        2. `sh -c make.sh`
+Compilation is done based on a build file found in the directory from the current state. The result is the build target joined to the current state. If build options are set as the second argument, they are appended to the `make` command.
 
-- **State**: previous state joined with new state
+3 different formats of build files are supported:
 
-### `move`
+- `CMakeLists.txt`: `cmake` is run first then `make`.
+- `Makefile`: `configure.sh` is run first if it exists then `make` then `make install`.
+- `make.sh`: the script's flags are set to executable and then run with `sh -c make.sh`.
 
-- **Argument(s)**: target file
-- **Run**: 
+- **Argument(s)**: build target (, build options)
+- **State**: previous state joined with the build target
 
-    1. moves the target to `/usr/bin[item_name_attribute]` ; if it exists, it is created in `/opt/bin` instead in order to take precedence
-    2. if the destination is a file, makes it executable
+### `md`
 
-- **State**: `/usr/bin/[item_name_attribute]`
+> Rename the current working directory and change to the new one.
+
+The destination folder is computed relatively to the last state if any, otherwise to the temporary path (meaning, in this scope, `/tmp/[ITEM]s`).
+
+- **Argument(s)**: destination folder
+- **State**: destination folder
 
 ### `rm`
 
-- **Argument(s)**: file_or_folder
-- **Run**: removes the given file or folder
+> Remove the target location.
+
+By default, after every installation, `/tmp/[ITEM]s/[NAME]` gets removed. When this directive is used, it overrides this default removal.
+
+- **Argument(s)**: target file/folder
 - **State**: unchanged
 
-### `set`
+### `set` / `setp`
 
-- **Argument(s)**: new_state
-- **Run**: sets the current state to the new state
+> Manually set the result to be used in the next command. 
+
+If `setp` is used, the input argument is joined with `/tmp/[ITEM]s`, therefore giving a `p`ath object.
+
+- **Argument(s)**: new state
 - **State**: new state
-
-### `setp`
-
-- **Argument(s)**: new_state_path
-- **Run**: sets the current state as `/tmp` joined to the new state
-- **State**: `/tmp` joined to the new state
-
-### `sh` / `wine`
-
-Similar to `lsh`, except that it handles commands in a launcher script that does not change its directory where the target item lies.
-
-- **Argument(s)**: command_(\\n-separated)
-- **Run**: 
-
-    1. creates a launcher shell script to `/usr/bin/[item_name_attribute]` (Bash script or Wine launcher), including the given command(s)
-    2. makes the shell script executable
-
-- **State**: `/usr/bin/[item_name_attribute]`
-- **Examples**:
-
-    - `wine: test_1.exe` (state is `/opt/test_inst`, the tool is named *Test* in the YAML file): `echo -en 'wine /opt/test_inst/test_1.exe \"$@\"' > /usr/bin/test`, `chmod +x /usr/bin/test`
-    - `sh: /tmp/test.sh` (same as before): `echo -en '#!/bin/bash\n/tmp/test.sh' > /usr/bin/test`, `chmod +x /usr/bin/test`
 
 ### `unrar` / `untar` / `unzip`
 
+> Decompress a RAR/TAR/ZIP archive to the given location.
+
+The path to the archive is taken from the state, i.e. when it has been downloaded with a previous command. The destination folder is computed relatively to `/tmp/[ITEM]s`. If the verbose mode is enabled, the archive is also decompressed to a temporary path (i.e. `/tmp/[ITEM]-setup-[RANDOM_8_CHARS]`) for debugging purpose. If the command that downloaded the archive was `wget`, the archive is removed after decompression.
+
 - **Argument(s)**: output folder
-- **Run**: decompresses an archive at a location based on the previous state (or `/tmp/[tool_name_attribute].[archive_extension]` if not defined) to the given folder, depending on the archive format:
 - **State**: deepest single folder from the output folder (e.g. if `/tmp/test` and there s `test_v1.23` decompressed inside, the new state will be `/tmp/test/test_v1.23`)
 - **Examples**:
 
@@ -247,9 +252,18 @@ Similar to `lsh`, except that it handles commands in a launcher script that does
 
 ### `wget`
 
+> Download a resource.
+
+It can possibly download 2-stage generated download links (in this case, the list is handled by downloading the URL from the first element then matching the second element in the URL's found in the downloaded Web page). If the target URL points to GitHub and includes a descriptor for the target release, GitHub's API is used to identify the available releases and the descriptor selects the right one.
+
+Release descriptors:
+
+- `https://github.com/username/repo:TAG{pattern}`: the selected release is the first match for the given `pattern`
+- `https://github.com/username/repo:TAG[X]`: the selected release is the `X`th from the list of releases
+- `https://github.com/username/repo:TAG`: the selected release is the first one from the list of releases
+
 - **Argument(s)**: URL
-- **Run**: downloads the target URL
-- **State**: downloaded file to the `/tmp` folder
+- **State**: downloaded file at `/tmp/[ITEM]s/[NAME].[EXT]`
 - **Examples**:
 
     - `wget: ĥttps://example.com/test_v1.23.zip`: `wget -q -O /tmp/test_v1.23.zip ĥttps://example.com/test_v1.23.zip`
