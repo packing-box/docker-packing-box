@@ -469,6 +469,7 @@ M0dern_P4cker:
     - make: main
     - lsh: $OPT/m0dern_p4cker main
   source: https://github.com/n4sm/m0dern_p4cker
+  status: ok
   steps:
     - m0dern-p4cker {{executable}} {{stub[not|xorp]}}
 
@@ -692,7 +693,7 @@ PELock:
     # click "Protect file"
     - click 380 590 (2)
   install:
-    - unzip: /root/.wine/drive_c/Program Files (x86)/pelock
+    - unzip: /root/.wine/drive_c/Program\ Files\ (x86)/pelock
     - lwine: PELock.exe
   references:
     - https://github.com/PELock/PELock-Software-Protection-and-Licensing-SDK

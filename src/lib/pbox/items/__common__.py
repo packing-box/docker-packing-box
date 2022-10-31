@@ -374,7 +374,7 @@ class Base(Item):
                 run("go mod init '%s'" % arg2, silent=["creating new go.mod", "add module requirements", "go mod tidy"])
                 run("go build -o %s ." % self.name)
                 os.chdir(cwd2)
-            # create a shell script to execute Bash code and make it executable
+            # create a shell script to execute the given target with its intepreter/launcher and make it executable
             elif cmd in ["java", "mono", "sh", "wine"]:
                 r, txt, tgt = ubin.joinpath(self.name), "#!/bin/bash\n", (result or opt).joinpath(arg)
                 if cmd == "java":
@@ -395,17 +395,19 @@ class Base(Item):
                 except PermissionError:
                     self.logger.error("bash: %s: Permission denied" % r)
                 result = r
-            # make a symbolink link in ~/.local/bin (if relative path) relatively to the previous considered location
+            #  create a symbolink link in ~/.local/bin (if relative path) relatively to the previous considered location
             elif cmd == "ln":
                 r = ubin.joinpath(self.name)
                 r.remove(False)
                 run("ln -s '%s' '%s'" % ((result or tmp).joinpath(arg), r), **kw)
                 result = r
+            # create a shell script to execute the given target from its source directory with its intepreter/launcher
+            #  and make it executable
             elif cmd in ["lsh", "lwine"]:
                 if cmd == "lwine" and hasattr(self, "gui"):
                     arg = self._gui(result.joinpath(arg), True)
                 else:
-                    arg1 = opt.joinpath(self.name) if arg == arg1 == arg2 else arg1
+                    arg1 = opt.joinpath(self.name) if arg == arg1 == arg2 else Path(arg1, expand=True)
                     arg2 = "wine \"%s\" \"$@\"" % arg2 if cmd == "lwine" else "./%s" % arg2
                     arg = "#!/bin/bash\nPWD=\"`pwd`\"\nif [[ \"$1\" = /* ]]; then TARGET=\"$1\"; else " \
                           "TARGET=\"$PWD/$1\"; fi\ncd \"%s\"\n%s \"$TARGET\" \"$2\"\ncd \"$PWD\"" % (arg1, arg2)
@@ -416,15 +418,11 @@ class Base(Item):
                     run("chmod +x '%s'" % result, **kw)
                 except PermissionError:
                     self.logger.error("bash: %s: Permission denied" % result)
-            # compile a C project
+            # compile a project with Make
             elif cmd == "make":
                 if not result.is_dir():
                     self.logger.error("Got a file ; should have a folder")
                     return
-                try:
-                    arg, opts = shlex.split(arg)
-                except ValueError:
-                    opts = None
                 os.chdir(str(result))
                 files = [x.filename for x in result.listdir()]
                 make = "make %s" % arg2 if arg2 != arg1 else "make"
@@ -449,22 +447,12 @@ class Base(Item):
                     if run("chmod +x make.sh", **kw)[-1] == 0:
                         run("sh -c './make.sh'", **kw)
                 result = result.joinpath(arg1)
-            # rename the current directory and change to the new one
+            # rename the current working directory and change to the new one
             elif cmd == "md":
                 result, cwd2 = (result or tmp).joinpath(arg), os.getcwd()
                 os.chdir(cwd if cwd != cwd2 else str(tmp))
                 run("mv -f '%s' '%s'" % (cwd2, result), **kw)
                 os.chdir(str(result))
-            # move the previous location to ~/.local/bin (if relative path), make it executable if it is a file
-            elif cmd == "move":
-                result = (result or tmp).joinpath(arg)
-                r = ubin.joinpath(self.name)
-                # if ~/.local/bin/... exists, then save it to ~/.opt/bin/... to superseed it
-                if r.is_samepath(ubin.joinpath(self.name)) and r.exists():
-                    r = obin.joinpath(self.name)
-                if run("mv -f '%s' '%s'" % (result, r), **kw)[-1] == 0 and r.is_file():
-                    run("chmod +x '%s'" % r, **kw)
-                result = r
             # simple install through PIP
             elif cmd == "pip":
                 run("pip3 -qq install --user --no-warn-script-location --ignore-installed %s" % arg, **kw)
@@ -473,16 +461,13 @@ class Base(Item):
                 run("rm -rf '%s'" % Path(arg).absolute(), **kw)
                 rm = False
             # manually set the result to be used in the next command
-            elif cmd == "set":
-                result = arg
-            # manually set the result as a path object to be used in the next command
-            elif cmd == "setp":
-                result = tmp.joinpath(arg)
+            elif cmd in ["set", "setp"]:
+                result = arg if cmd == "set" else tmp.joinpath(arg)
             # decompress a RAR/TAR/ZIP archive to the given location (absolute or relative to /tmp/[ITEM]s)
             elif cmd in ["unrar", "untar", "unzip"]:
                 ext = "." + cmd[-3:]
                 # for tar, do not use the extension as a check (may be .tar.bz2, .tar.gz, .tar.xz, ...)
-                if ext == ".tar":
+                if ext == ".tar" and isinstance(result, Path):
                     ext = result.extension
                 if result is None:
                     result = tmp.joinpath("%s%s" % (self.name, ext))
@@ -509,10 +494,10 @@ class Base(Item):
                         # log execution (run) the first time, not afterwards (run2)
                         run_func(cmd, **(kw if first else {}))
                         first = False
-                    # in case of wget, cleanup the archive
+                    # in case of wget, clean up the archive
                     if wget:
                         result.remove()
-                    result = r
+                    result = paths[0]
                     # if the result is a dir, cd to subfolder as long as there is only one subfolder in the current one,
                     #  this makes 'result' point to the most relevant folder within the unpacked archive
                     if result and result.is_dir():
