@@ -1,6 +1,5 @@
 site_author: dhondta
-site_name: Packing-Box
-site_description: Docker image for studying executable packing
+site_name: Packing Box - Docker image for studying executable packing
 copyright: Copyright &copy; 2021-2022 Alexandre D'Hondt
 repo_url: https://github.com/dhondta/docker-packing-box
 docs_dir: pages
