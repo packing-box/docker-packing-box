@@ -11,7 +11,7 @@ LOG_FORMATS = ["%(asctime)s [%(levelname)s] %(message)s", "%(asctime)s [%(leveln
 NAMING_CONVENTION = r"(?i)^[a-z][a-z0-9]*(?:[-_][a-z0-9]+)*$"
 PACKING_BOX_SOURCES = {
     'ELF': ["/sbin", "/usr/bin"],
-    'PE':  ["/root/.wine/drive_c/windows", "/root/.wine32/drive_c/windows"],
+    'PE':  ["~/.wine/drive_c/windows", "~/.wine32/drive_c/windows"],
 }
 
 

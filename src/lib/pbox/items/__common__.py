@@ -15,10 +15,10 @@ __all__ = ["Base"]
 
 # for a screenshot: "xwd -display $DISPLAY -root -silent | convert xwd:- png:screenshot.png"
 GUI_SCRIPT = """#!/bin/bash
-source /root/.bash_xvfb
+source ~/.bash_xvfb
 {{preamble}}
 SRC="$1"
-DST="/root/.wine/drive_c/users/root/Temp/${1##*/}"
+DST="~/.wine/drive_c/users~/Temp/${1##*/}"
 FILE="c:\\\\users\\\\root\\\\Temp\\\\${1##*/}"
 cp -f "$SRC" "$DST"
 wine "$EXE" &
@@ -63,28 +63,28 @@ TEST_FILES = {
         "/usr/lib/sudo/sudoers.so",
     ],
     'MSDOS': [
-        "/root/.wine/drive_c/windows/rundll.exe",
-        "/root/.wine/drive_c/windows/syswow64/gdi.exe",
-        "/root/.wine/drive_c/windows/syswow64/user.exe",
-        "/root/.wine/drive_c/windows/syswow64/mouse.drv",
-        "/root/.wine/drive_c/windows/syswow64/winaspi.dll",
+        "~/.wine/drive_c/windows/rundll.exe",
+        "~/.wine/drive_c/windows/syswow64/gdi.exe",
+        "~/.wine/drive_c/windows/syswow64/user.exe",
+        "~/.wine/drive_c/windows/syswow64/mouse.drv",
+        "~/.wine/drive_c/windows/syswow64/winaspi.dll",
     ],
     'PE32': [
-        "/root/.wine/drive_c/windows/winhlp32.exe",
-        "/root/.wine/drive_c/windows/syswow64/plugplay.exe",
-        "/root/.wine/drive_c/windows/syswow64/winemine.exe",
-        "/root/.wine/drive_c/windows/twain_32.dll",
-        "/root/.wine/drive_c/windows/twain_32/sane.ds",
-        "/root/.wine/drive_c/windows/syswow64/msscript.ocx",
-        "/root/.wine/drive_c/windows/syswow64/msgsm32.acm",
+        "~/.wine/drive_c/windows/winhlp32.exe",
+        "~/.wine/drive_c/windows/syswow64/plugplay.exe",
+        "~/.wine/drive_c/windows/syswow64/winemine.exe",
+        "~/.wine/drive_c/windows/twain_32.dll",
+        "~/.wine/drive_c/windows/twain_32/sane.ds",
+        "~/.wine/drive_c/windows/syswow64/msscript.ocx",
+        "~/.wine/drive_c/windows/syswow64/msgsm32.acm",
     ],
     'PE64': [
-        "/root/.wine/drive_c/windows/hh.exe",
-        "/root/.wine/drive_c/windows/system32/spoolsv.exe",
-        "/root/.wine/drive_c/windows/system32/dmscript.dll",
-        "/root/.wine/drive_c/windows/twain_64/gphoto2.ds",
-        "/root/.wine/drive_c/windows/system32/msscript.ocx",
-        "/root/.wine/drive_c/windows/system32/msadp32.acm",
+        "~/.wine/drive_c/windows/hh.exe",
+        "~/.wine/drive_c/windows/system32/spoolsv.exe",
+        "~/.wine/drive_c/windows/system32/dmscript.dll",
+        "~/.wine/drive_c/windows/twain_64/gphoto2.ds",
+        "~/.wine/drive_c/windows/system32/msscript.ocx",
+        "~/.wine/drive_c/windows/system32/msadp32.acm",
     ],
 }
 
@@ -501,11 +501,10 @@ class Base(Item):
                     # if the result is a dir, cd to subfolder as long as there is only one subfolder in the current one,
                     #  this makes 'result' point to the most relevant folder within the unpacked archive
                     if result and result.is_dir():
-                        ld = list(t.listdir())
+                        ld = list(result.listdir())
                         while len(ld) == 1 and ld[0].is_dir():
-                            bn = ld[0].basename
-                            result, t = result.joinpath(bn), t.joinpath(bn)
-                            ld = list(t.listdir())
+                            result = result.joinpath(ld[0].basename)
+                            ld = list(result.listdir())
                 else:
                     raise ValueError("%s is not a %s file" % (result, ext.lstrip(".").upper()))
             # download a resource, possibly downloading 2-stage generated download links (in this case, the list is
