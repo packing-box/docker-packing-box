@@ -987,7 +987,7 @@ UPX:
   install:
     - wget: https://github.com/upx/upx:latest{amd64_linux}
     - untar: $OPT
-    - ln: $OPT/upx-3.96-amd64_linux/upx
+    - ln: upx
   references:
     - https://linux.die.net/man/1/upx
     - https://github.com/fireeye/capa-rules/blob/master/anti-analysis/packer/upx/packed-with-upx.yml
@@ -1034,6 +1034,11 @@ UPX:
         - wget: https://github.com/upx/upx/releases/download/v3.95/upx-3.95-amd64_linux.tar.xz
         - untar: $OPT
         - ln: $OPT/upx-3.95-amd64_linux/upx
+    UPX-3.96:
+      install:
+        - wget: https://github.com/upx/upx/releases/download/v3.96/upx-3.96-amd64_linux.tar.xz
+        - untar: $OPT
+        - ln: $OPT/upx-3.96-amd64_linux/upx
 
 Ward:
   categories:
