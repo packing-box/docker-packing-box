@@ -13,21 +13,26 @@ pip-upgrade() {
   sudo pip3 freeze - local \
     | grep -v "^\-e" \
     | cut -d = -f 1 \
-    | xargs -n1 sudo pip3 install -U
+    | xargs -n1 pip3 install -U
 }
 
 # packing-box update command (development)
 pbox-update() {
-  local OPT=$HOME/.opt
-  cp -f /mnt/share/src/files/tools/* $OPT/tools/
-  mv -f $OPT/tools/help $OPT/tools/?
-  cp -f /mnt/share/src/conf/*.yml $OPT/
-  for F in /mnt/share/src/term/*; do
+  if [ $EUID -ne 0 ]; then
+    local OPT=$HOME/.opt
+    cp -f /mnt/share/src/files/tools/* $OPT/tools/
+    mv -f $OPT/tools/help $OPT/tools/?
+    cp -f /mnt/share/src/conf/*.yml $OPT/
+    cp -f "/mnt/share/src/term/profile" "$HOME/.profile"
+  fi
+  for F in /mnt/share/src/term/[^profile]*; do
     cp -f "$F" "$HOME/.${F##*/}"
   done
   source $HOME/.bashrc
-  find /mnt/share/src/files/detectors/ -type f \( ! -iname \"*\.*\" \) -exec cp -f {} $OPT/bin/ \;
-  mv -f $OPT/bin/userdb*.txt $OPT/detectors/
-  pip3 -qq install --user --no-warn-script-location --upgrade pip
-  pip3 -qq install --user --no-warn-script-location --upgrade /mnt/share/src/lib/
+  if [ $EUID -ne 0 ]; then
+    find /mnt/share/src/files/detectors/ -type f \( ! -iname \"*\.*\" \) -exec cp -f {} $OPT/bin/ \;
+    mv -f $OPT/bin/userdb*.txt $OPT/detectors/
+    pip3 -qq install --user --no-warn-script-location --upgrade pip
+    pip3 -qq install --user --no-warn-script-location --upgrade /mnt/share/src/lib/
+  fi
 }

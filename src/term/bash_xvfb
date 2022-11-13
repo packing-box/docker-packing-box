@@ -63,10 +63,12 @@ ps -eaf | grep -v grep | grep Xvfb >/dev/null
 if [ $? -eq 1 ]; then
   export DISPLAY=":42"
   export SCREENSIZE="1024x768"
-  grep -qF 'DISPLAY=' /etc/environment || echo 'DISPLAY=' >> /etc/environment
-  grep -qF 'SCREENSIZE=' /etc/environment || echo 'SCREENSIZE=' >> /etc/environment
-  sed -i "s/DISPLAY=.*/DISPLAY=\"$DISPLAY\"/g" /etc/environment
-  sed -i "s/SCREENSIZE=.*/SCREENSIZE=\"$SCREENSIZE\"/g" /etc/environment
-  Xvfb "${DISPLAY}" -screen 0 "${SCREENSIZE}x16" &
+  grep -qF 'DISPLAY=' /etc/environment || echo 'DISPLAY=' | sudo tee -a /etc/environment > /dev/null
+  grep -qF 'SCREENSIZE=' /etc/environment || echo 'SCREENSIZE=' | sudo tee -a /etc/environment > /dev/null
+  sudo sed -i "s/DISPLAY=.*/DISPLAY=\"$DISPLAY\"/g" /etc/environment
+  sudo sed -i "s/SCREENSIZE=.*/SCREENSIZE=\"$SCREENSIZE\"/g" /etc/environment
+  if [ $EUID -ne 0 ]; then
+    sudo Xvfb "${DISPLAY}" -screen 0 "${SCREENSIZE}x16" &
+  fi
 fi
 

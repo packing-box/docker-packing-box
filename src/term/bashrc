@@ -269,4 +269,6 @@ pathprepend $HOME/.opt/bin
 pathprepend $HOME/.local/bin
 
 # thefuck alias
-eval "$(thefuck --alias)"
+if [ $EUID -ne 0 ]; then
+  eval "$(thefuck --alias)"
+fi
