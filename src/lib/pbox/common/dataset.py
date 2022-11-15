@@ -311,7 +311,7 @@ class Dataset:
     def export(self, destination="export", n=0, **kw):
         """ Export packed executables to the given destination folder. """
         self.logger.info("Exporting packed executables of %s to '%s'..." % (self.basename, destination))
-        l, tmp = [e for e in self if e.label is not None and e.label != ""], []
+        l, tmp = [e for e in self if e.label not in [NOT_PACKED, NOT_LABELLED]], []
         n = min(n, len(l))
         if n > 0:
             random.shuffle(l)
@@ -393,10 +393,11 @@ class Dataset:
         if n == 0:
             n = len(list(self._walk(n <= 0, silent=True)))
         # get executables to be randomly packed or not
+        n1 = self._metadata.get('executables', 0)
         CBAD, CGOOD = n // 3, n // 3
         i, cbad, cgood, pbar = 0, {p: CBAD for p in packers}, {p: CGOOD for p in packers}, None
         for exe in self._walk(n <= 0):
-            label = short_label = ""
+            label = short_label = NOT_PACKED
             to_be_packed = pack_all or random.randint(0, len(packers) if balance else 1)
             # check 1: are there already samples enough?
             if i >= n > 0:
@@ -432,7 +433,7 @@ class Dataset:
                     if len(self._data) > 0 and exe.hash in self._data.hash.values:
                         l.debug("already packed before (%s)" % exe)
                         continue
-                    if label == "" or p._bad:
+                    if label == NOT_PACKED or p._bad:
                         # if we reached the limit of GOOD packing occurrences, then we consider the packer as GOOD again
                         if cgood[p] <= 0:
                             p._bad, cbad[p] = False, n // 3
@@ -448,7 +449,7 @@ class Dataset:
                         else:
                             cgood[p] -= 1   # update GOOD counter
                             cbad[p] = CBAD  # reset BAD counter
-                        label = ""
+                        label = NOT_PACKED
                         continue
                     else:  # consider short label (e.g. "midgetpack", not "midgetpack[<password>]")
                         short_label = label.split("[")[0]
@@ -458,21 +459,20 @@ class Dataset:
                     old_h.rename(exe.destination)
                 except FileNotFoundError:
                     pass
-            if not pack_all or (pack_all and short_label is not None and short_label != ""):
+            if not pack_all or (pack_all and short_label not in [NOT_PACKED, NOT_LABELLED]):
                 self[exe] = short_label
-            if label is not None and label != "" or not pack_all:
+            if label not in [NOT_PACKED, NOT_LABELLED] or not pack_all:
                 i += 1
                 pbar.update()
         if pbar:
             pbar.close()
-        if i < n - 1:
+        ls = len(self)
+        if ls > 0:
+            p = sorted(list(set([lb for lb in self._data.label.values if isinstance(lb, str)])))
+            l.info("Used packers: %s" % ", ".join(_ for _ in p if _ != NOT_PACKED))
+            l.info("#Executables: %d" % ls)
+        if ls - n1 < n:
             l.warning("Found too few candidate executables")
-        else:
-            ls = len(self)
-            if ls > 0:
-                p = sorted(list(set([lb for lb in self._data.label.values if isinstance(lb, str)])))
-                l.info("Used packers: %s" % ", ".join(_ for _ in p if _ != ""))
-                l.info("#Executables: %d" % ls)
         # finally, save dataset's metadata and labels to JSON files
         self._save()
     
@@ -547,7 +547,7 @@ class Dataset:
         if len(self) > 0:
             c = List(["**#Executables**: %d" % self._metadata['executables'],
                       "**Format(s)**:    %s" % ", ".join(self._metadata['formats']),
-                      "**Packer(s)**:    %s" % ", ".join(self._metadata['counts'].keys()),
+                      "**Packer(s)**:    %s" % ", ".join(x for x in self._metadata['counts'].keys() if x != NOT_PACKED),
                       "**Size**:         %s" % ts.human_readable_size(self.path.size),
                       "**Labelled**:     %.2f%%" % self.labelling])
             if len(self._alterations) > 0:
@@ -576,16 +576,17 @@ class Dataset:
         def _update(e):
             # precedence: input dictionary of labels > dataset's own labels > detection (if enabled) > discard
             h = e.hash
-            l = labels.get(h)
+            lbl = labels.get(h)
             # executable does not exist yet => create it without a label
             if h not in self:
-                self[e] = None
-            # label is found in the input labels dictionary => update
-            if l is not None:
-                self[h] = (l, True)
-            # label was not found and is not set yet and detection is enabled => detect
-            elif e.label is not None:
+                self[e] = NOT_LABELLED
+            # label is found in the input labels dictionary and is not already NOT_LABELLED => update
+            if lbl != NOT_LABELLED:
+                self[h] = (lbl, True)
+            # label was already set before => keep the former label
+            elif e.label != NOT_LABELLED:
                 pass
+            # label was not found and is not set yet and detection is enabled => detect
             elif detect:
                 self[h] = (Detector.detect(e), True)
         # case (1) source directories provided, eventually with labels => ingest samples
@@ -645,7 +646,7 @@ class Dataset:
             if i >= 0:
                 p = "[%d]/%s" % (i, p)
             d.append([e.hash, p, ts.human_readable_size(e.size), e.ctime.strftime("%d/%m/%y"),
-                      e.mtime.strftime("%d/%m/%y"), "" if str(e.label) in ["nan", "None"] else e.label])
+                      e.mtime.strftime("%d/%m/%y"), e.label])
         if len(d) == 0:
             return
         r = [Text("Sources:\n%s" % "\n".join("[%d] %s" % (i, s) for i, s in enumerate(src))),
@@ -687,7 +688,7 @@ class Dataset:
     @property
     def labelling(self):
         """ Get the percentage of labels set. """
-        return 100 * sum(self._metadata['counts'].values()) / len(self)
+        return 100 * sum(self._metadata['counts'].values()) / self._metadata['executables']
     
     @property
     def labels(self):
@@ -734,16 +735,15 @@ class Dataset:
             for e in self:
                 if fmt != "All" and e.format != fmt:
                     continue
-                l, s = "none" if str(e.label) in ["nan", "None"] else "not packed" if str(e.label) == "" else e.label, \
-                       size_cat(e.size)
+                l, s = "not packed" if str(e.label) == NOT_PACKED else e.label, size_cat(e.size)
                 # not labelled
-                if str(e.label).lower() in ["nan", "none"]:
+                if e.label == NOT_LABELLED:
                     d[s][0] += 1
-                    l = "-"
+                    l = "?"
                 # not packed
-                elif e.label == "":
+                elif e.label == NOT_PACKED:
                     d[s][1] += 1
-                    l = ""
+                    l = "-"
                 # packed
                 else:
                     d[s][2] += 1
@@ -815,7 +815,7 @@ class Dataset:
         r.append(Text("**Sources**:\n\n%s" % "\n".join("[%d] %s" % (i, s) for i, s in enumerate(src))))
         # display files if any
         if len(data2) > 0:
-            r.append(Section("Executables per label and format"))
+            r.append(Section("Executables' metadata and labels"))
             for fmt in formats:
                 fmt = fmt if self.__per_format else "All"
                 if fmt in data2:

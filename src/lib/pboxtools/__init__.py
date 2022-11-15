@@ -24,6 +24,8 @@ DETECTORS_FILE = "~/.opt/detectors.yml"
 PACKERS        = None
 PACKERS_FILE   = "~/.opt/packers.yml"
 
+NOT_LABELLED, NOT_PACKED = "?-"
+
 # source: https://docs.github.com/en/github/creating-cloning-and-archiving-repositories/licensing-a-repository
 LICENSES = {
     'afl-3.0': "Academic Free License v3.0",
@@ -118,7 +120,7 @@ def normalize(*lines, **kwargs):
     :param lines: selection of detector's output lines
     """
     if len(lines) == 0 or lines in [(None, ), ("", )]:
-        return
+        return NOT_PACKED
     # count results
     d, unknown = {}, 0
     for l in lines:
@@ -139,32 +141,33 @@ def normalize(*lines, **kwargs):
         # collected strings that could not be matched by a packer name or related pattern are considered suspicious
         if not b:
             unknown += 1
-    # if no detection, check for suspicions and return "unknown" if found, otherwise return None
+    # if no detection, check for suspicions and return "unknown" if found, otherwise return NOT_PACKED
     if len(d) == 0:
         if unknown > 0:
             kwargs['logger'].debug("Suspicions:\n- %s" % "\n- ".join(strings))
             return "unknown"
-        return
+        return NOT_PACKED
     vmax = max(d.values())
     m = [k for k, v in d.items() if v == vmax]
     kwargs['logger'].debug("Matches: %s\n" % d)
-    # trivial when no cndidate ; consider unknown count
+    # trivial when no candidate ; consider unknown count
     if len(m) == 0:
         if unknown > 0:
             return "unknown"
-        return
+        return NOT_PACKED
     # trivial when there is only one maxima
     elif len(m) == 1:
         return m[0]
     # when multiple maxima, only decide if longest match AND shorter strings are include in the longest match ;
-    #  otherwise, return "undecided"
+    #  otherwise, return NOT_LABELLED
     else:
         best = m[0]
         for s in m[1:]:
             if s in best or best in s:
                 best = max([s, best], key=len)
             else:
-                return "undecided"
+                # undecided
+                return NOT_LABELLED
         return best
 
 

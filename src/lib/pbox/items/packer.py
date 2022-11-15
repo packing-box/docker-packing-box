@@ -2,6 +2,7 @@
 from tinyscript import b, ensure_str, hashlib, random, re, subprocess
 
 from .__common__ import Base, PARAM_PATTERN
+from ..common.config import NOT_PACKED
 from ..common.executable import Executable
 from ..common.item import update_logger
 
@@ -56,7 +57,7 @@ class Packer(Base):
         if self._error:
             err = self._error.replace(str(exe) + ": ", "").replace(self.name + ": ", "").strip()
             self.logger.debug("not packed (%s)" % err)
-            return (h, "") if include_hash else ""
+            return (h, NOT_PACKED) if include_hash else NOT_PACKED
         # frequent behaviors ;
         # if packed file's hash was not changed OR a custom failure condition from the packer's definition is met,
         #  then change packer's state to "BAD" ; this will trigger a count at the dataset level and disable the packer

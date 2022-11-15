@@ -11,10 +11,11 @@ from tinyscript import inspect, logging, subprocess
 from tinyscript.helpers import is_file, is_folder, Path, TempPath
 from tinyscript.helpers.expressions import WL_NODES
 
-from .config import config
+from .config import *
+from .executable import Executable
 
 
-__all__ = ["aggregate_formats", "backup", "benchmark", "class_or_instance_method", "collapse_formats",
+__all__ = ["aggregate_formats", "backup", "benchmark", "bin_label", "class_or_instance_method", "collapse_formats",
            "data_to_temp_file", "dict2", "edit_file", "expand_formats", "file_or_folder_or_dataset", "highlight_best",
            "make_registry", "mdv", "metrics", "shorten_str", "ExeFormatDict", "FORMATS", "PERF_HEADERS"]
 
@@ -41,6 +42,8 @@ PERF_HEADERS = {
 }
 
 
+bin_label = lambda l: {NOT_LABELLED.lower(): -1, 'false': 0, NOT_PACKED.lower(): 0, 'true': 1, None: None} \
+                      .get(l.lower(), 1)
 bold = lambda text: "\033[1m{}\033[0m".format(text)
 
 
@@ -228,46 +231,45 @@ def file_or_folder_or_dataset(method):
             nonlocal n, e, l
             # append the (Fileless)Dataset instance itself
             if getattr(i, "is_valid", lambda: False)():
+                if not kwargs['silent']:
+                    self.logger.debug("input is a (Fileless)Dataset structure")
                 for exe in i:
                     e.append(exe)
+                return True
             # single executable
-            elif is_file(i) and i not in e:
-                i = Path(i)
-                i.dataset = None
-                e.append(i)
+            elif is_file(i):
+                if not kwargs['silent']:
+                    self.logger.debug("input is a single executable")
+                if i not in e:
+                    i = Path(i)
+                    i.dataset = None
+                    e.append(i)
+                return True
             # normal folder or FilelessDataset's path or Dataset's files path
             elif is_folder(i):
+                if not kwargs['silent']:
+                    self.logger.debug("input is a folder of executables")
                 for f in Path(i).walk(filter_func=lambda p: p.is_file()):
                     f.dataset = None
                     if str(f) not in e:
                         e.append(f)
+                return True
             else:
                 i = config['datasets'].joinpath(i)
                 # check if it has the structure of a dataset
                 if i.joinpath("files").is_dir() and not i.joinpath("features.json").exists() and \
-                   all(i.joinpath(f).is_file() for f in ["data.csv", "metadata.json"]) or \
-                   not i.joinpath("files").exists() and \
-                   all(i.joinpath(f).is_file() for f in ["data.csv", "features.json", "metadata.json"]):
+                   all(i.joinpath(f).is_file() for f in ["data.csv", "metadata.json"]):
+                    if not kwargs['silent']:
+                        self.logger.debug("input is Dataset from %s" % config['datasets'])
                     data = pd.read_csv(str(i.joinpath("data.csv")), sep=";")
-                    l = {e.hash: e.label for e in data.itertuples()}
+                    l = {exe.hash: exe.label for exe in data.itertuples()}
                     dataset = i.basename
-                    # if so, move to the dataset's "files" folder
-                    if not i.joinpath("files").exists():
-                        for h in data.hash.values:
-                            p = i.joinpath(h)
-                            if p not in e:
-                                e.append(p)
-                        return True
-                    else:
-                        i = i.joinpath("files")
-                if is_folder(i):
-                    for f in i.listdir():
+                    for f in i.joinpath("files").listdir():
                         f.dataset = dataset
                         if str(f) not in e:
                             e.append(f)
-                else:
-                    return False
-            return True
+                    return True
+            return False
         # use the extension function to parse:
         # - positional arguments up to the last valid file/folder
         # - then the 'file' keyword-argument
@@ -279,19 +281,22 @@ def file_or_folder_or_dataset(method):
         for a in kwargs.pop('file', []):
             _extend_e(a)
         # then handle the list
-        kwargs['silent'] = kwargs.get('silent', False)
-        if len(e) == 0:
-            raise ValueError("No executable selected")
-        for exe in e:
+        i, kwargs['silent'] = -1, kwargs.get('silent', False)
+        for i, exe in enumerate(e):
+            exe = Executable(exe)
+            if exe.format is None:  # format is not in the executable SIGNATURES of pbox.common.executable
+                self.logger.debug("'%s' is not a valid executable" % exe)
+                continue
             kwargs['dslen'] = len(e)
             # this is useful for a decorated method that handles the difference between the computed and actual labels
-            lbl = l.get(Path(exe).stem)
-            kwargs['label'] = [lbl, None][str(lbl) in ["nan" ,"None"]]
+            kwargs['label'] = l.get(Path(exe).stem, NOT_LABELLED)
             try:
                 yield method(self, exe, *args, **kwargs)
-            except ValueError:
-                pass
+            except ValueError as err:
+                self.logger.exception(err)
             kwargs['silent'] = True
+        if i == -1:
+            self.logger.error("No (valid) executable selected")
     return _wrapper
 
 

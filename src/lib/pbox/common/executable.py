@@ -5,6 +5,8 @@ from magic import from_file
 from tinyscript import classproperty, hashlib, shutil
 from tinyscript.helpers import is_filetype, Path
 
+from .config import NOT_LABELLED
+
 
 __all__ = ["Executable"]
 
@@ -14,7 +16,7 @@ class Executable(Path):
     
     Can be initialized in many different ways:
     (1) orphan executable (not coming from a dataset)
-    (2) dataset-bound (its data is used to populate attributes based on the executable's hash)
+    (2) dataset-bound (data is used to populate attributes based on the ; this does not require the file)
     (3) dataset-bound, with a new destination dataset
     """
     FIELDS = ["realpath", "format", "size", "ctime", "mtime"]
@@ -78,7 +80,7 @@ class Executable(Path):
             # case (3)
             if ds2 is not None and ds2._files:
                 self._destination = ds2.files.joinpath(h)
-        self.label = kwargs.pop('label', getattr(self, "label", None))
+        self.label = kwargs.pop('label', getattr(self, "label", NOT_LABELLED))
         return self
     
     def copy(self, extension=False):
