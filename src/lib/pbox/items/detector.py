@@ -71,10 +71,11 @@ class Detector(Base):
             #  able to output a non-multiclass result (no packer label becomes False, otherwise True)
             if (not chk_vote or vote) and not (not d_mc and i_mc):
                 return True
+            s = ["", " (%s)" % self.name][not kwargs.get('debug', False)]
             if chk_vote and not vote:
-                self.logger.warning("not allowed to vote")
+                self.logger.warning("not allowed to vote" + s)
             if not d_mc and i_mc:
-                self.logger.warning("does not support multiclass")
+                self.logger.warning("does not support multiclass" + s)
         return False
     
     @class_or_instance_method

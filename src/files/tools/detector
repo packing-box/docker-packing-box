@@ -8,7 +8,7 @@ from tinyscript.report import *
 from tqdm import tqdm
 
 
-__version__     = "1.1.0"
+__version__     = "1.1.1"
 __doc__         = """
 This tool aims to detect the packer used on an input executable, folder of executables or Dataset.
 """
@@ -34,7 +34,8 @@ if __name__ == '__main__':
     stats, cmatrix, pbar, errored = {}, {'fn': 0, 'fp': 0, 'tn': 0, 'tp': 0}, None, False
     single, mc = len(args.detector) == 1, kw['multiclass']
     logger.name = "detector" if single else "superdetector"
-    kw['select'], kw['vote'] = args.detector, not single
+    args.detector = [d for d in args.detector if d.check(**kw)]
+    kw['select'], kw['vote'] = args.detector, args.detector == 0
     try:
         for out in Detector.detect(args.executable, **kw):
             # ([exe]cutable, [r]esulting label of detector, actual [l]abel, [d]etails) 
@@ -62,9 +63,10 @@ if __name__ == '__main__':
                 log = [logger.warning if r == [-1, NOT_LABELLED][mc] else logger.failure if r != l else \
                        logger.success, logger.debug][l in [-1, NOT_LABELLED]]
                 log("{}: {}".format(exe, decision))
-            stats.setdefault(r, 0)
-            stats[r] += 1
-            cmatrix[['tp', 'tn'][decision == "not packed"] if r == l else ['fp', 'fn'][decision == "not packed"]] += 1
+            stats.setdefault(decision, 0)
+            stats[decision] += 1
+            if l not in [-1, NOT_LABELLED]:
+                cmatrix[['tp', 'tn'][r == 0] if r == l else ['fp', 'fn'][r == 0]] += 1
             if pbar is not None:
                 pbar.update()
     except Exception as e:
@@ -79,7 +81,7 @@ if __name__ == '__main__':
     n = sum(cmatrix.values())
     r = [Section("Detection results: ")]
     if n > 0:
-        logger.debug(cmatrix)
+        logger.debug("Confusion Matrix: %s" % cmatrix)
         if args.metrics_only:
             print(",".join(m))
         elif n == 1:
@@ -93,10 +95,6 @@ if __name__ == '__main__':
             print("-,-,-,-")
         else:
             data, tot = [], sum(stats.values())
-            for k in [None, "not-packed", "undecided", "unknown"]:
-                n = stats.pop(k, 0)
-                if n > 0:
-                    data.append([{None: "none", '': "not-packed"}.get(k, k), n, "%.2f%%" % (100 * n / tot)])
             for l, c in sorted(stats.items(), key=lambda x: x[0].lower()):
                 data.append([l, c, "%.2f%%" % (100 * c / tot)])
             if len(data) > 0:
