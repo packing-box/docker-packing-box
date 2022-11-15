@@ -106,7 +106,8 @@ class FilelessDataset(Dataset):
             ds.convert(**kw)
             return
         l.info("Converting to fileless dataset...")
-        l.info("Size of dataset:     %s" % ts.human_readable_size(self.path.size))
+        s1 = self.path.size
+        l.info("Size of dataset:     %s" % ts.human_readable_size(s1))
         self._files = False
         self.path.joinpath("features.json").write_text("{}")
         self._compute_features()
@@ -118,7 +119,8 @@ class FilelessDataset(Dataset):
         except AttributeError:
             pass
         self._save()
-        l.info("Size of new dataset: %s" % ts.human_readable_size(self.path.size))
+        s2 = self.path.size
+        l.info("Size of new dataset: %s (compression factor: %d)" % (ts.human_readable_size(s2), int(s1/s2)))
     Dataset.convert = convert
     
     def features(self, **kw):

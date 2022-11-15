@@ -130,6 +130,9 @@ class Model:
     
     def _metrics(self, target, prediction, proba):
         """ Metrics computation method. """
+        if self.labelling < 100.:
+            self.logger.warning("cannot compute metrics ; there is unlabelled data")
+            return [-1] * 6
         self.logger.debug("computing metrics...")
         kw = {} if self._metadata['algorithm']['multiclass'] else {'labels': [0, 1]}
         cmatrix = confusion_matrix(target, prediction, **kw)
@@ -144,7 +147,7 @@ class Model:
         return [accuracy, precision, recall, f_measure, mcc, auc]
     
     def _prepare(self, dataset=None, preprocessor=None, multiclass=False, labels=None, feature=None, data_only=False,
-                 unlabeled=False, **kw):
+                 unlabelled=False, **kw):
         """ Prepare the Model instance based on the given Dataset/FilelessDataset/CSV/other instance.
         NB: after preparation,
              (1) input data is prepared (NOT preprocessed yet as this is part of the pipeline), according to 4 use cases
@@ -250,7 +253,7 @@ class Model:
             for col in missing_cols:
                 self._features[col] = ""
             self._data = self._data.reindex(columns=sorted(self._features.keys()))
-        if unlabeled:
+        if unlabelled:
             self._target['label'] = np.nan
         self._data, self._target = self._data.fillna(-1), self._target.fillna("")
         if not multiclass:  # convert to binary class
@@ -457,7 +460,7 @@ class Model:
     
     def test(self, executable, **kw):
         """ Test a single executable or a set of executables and evaluate metrics. """
-        l, ds, a, unlab = self.logger, executable, self._metadata['algorithm'], kw.get('unlabeled', False)
+        l, ds, a, unlab = self.logger, executable, self._metadata['algorithm'], kw.get('unlabelled', False)
         if len(self.pipeline.steps) == 0:
             l.warning("Model shall be trained before testing")
             return
@@ -480,7 +483,7 @@ class Model:
         print(mdv.main(Report(*r).md()))
         if len(self._data) > 0:
             row = {'Model': self.name} if self.__class__ is DumpedModel else {}
-            row['Dataset'] = str(ds) + ["", "(unlabeled)"][unlab]
+            row['Dataset'] = str(ds) + ["", "(unlabelled)"][unlab]
             for k, v in zip(h, m):
                 row[k] = v
             row['Processing Time'] = dt

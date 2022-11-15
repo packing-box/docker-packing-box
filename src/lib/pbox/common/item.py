@@ -117,6 +117,17 @@ class MetaItem(type):
                 _setattr(vi, vdata)
                 glob['__all__'].append(vitem)
                 self.registry.append(vi())
+    
+    @property
+    def logger(self):
+        # important note: ' + " "' allows to fix a name clash with loggers ; e.g. when running the 'detector' tool with
+        #                  a single detector, its logger gets the name 'detector', taking precedence on the logger of
+        #                  the Detector class => adding " " gives a different string, yet displaying the same word.
+        n = self.__name__.lower() + " "
+        if not hasattr(self, "__logger"):
+            self.__logger = logging.getLogger(n)
+            logging.setLogger(n)
+        return self.__logger
 
 
 class Item(metaclass=MetaItem):
@@ -173,10 +184,10 @@ class Item(metaclass=MetaItem):
     
     @property
     def logger(self):
-        if getattr(self, "_logger", None) is None:
-            self._logger = logging.getLogger(self.name)
-            logging.setLogger(self.name)
-        return self._logger
+        if not hasattr(self, "__logger"):
+            self.__logger = logging.getLogger(self.name)
+        logging.setLogger(self.name)
+        return self.__logger
     
     @property
     def source(self):
