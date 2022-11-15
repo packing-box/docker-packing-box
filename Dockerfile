@@ -8,13 +8,15 @@ LABEL source="https://github.com/dhondta/packing-box"
 ENV DEBCONF_NOWARNINGS yes \
     DEBIAN_FRONTEND noninteractive \
     TERM xterm-256color \
-    LANG en_US.UTF-8 \
-    LANGUAGE en_US:en \
-    LC_ALL en_US.UTF-8 \
     PIP_ROOT_USER_ACTION ignore
+# configure locale
+RUN (apt-get -qq update \
+ && apt-get -qq -y install locales \
+ && locale-gen en_US.UTF-8) 2>&1 > /dev/null \
+ || echo -e "\033[1;31m LOCALE CONFIGURATION FAILED \033[0m"
 # apply upgrade
 RUN (echo "debconf debconf/frontend select Noninteractive" | debconf-set-selections \
- && apt-get -qq update \
+ && apt-get -qq -y install dialog apt-utils \
  && apt-get -qq -y upgrade \
  && apt-get -qq -y autoremove \
  && apt-get -qq autoclean) 2>&1 > /dev/null \
@@ -22,7 +24,7 @@ RUN (echo "debconf debconf/frontend select Noninteractive" | debconf-set-selecti
 # install common dependencies and libraries
 RUN (apt-get -qq -y install apt-transport-https apt-utils \
  && apt-get -qq -y install add-apt-key bash-completion build-essential clang cmake software-properties-common \
- && apt-get -qq -y install libavcodec-dev libavformat-dev libavutil-dev libbsd-dev libboost-regex-dev \
+ && apt-get -qq -y install libavcodec-dev libavformat-dev libavutil-dev libbsd-dev libboost-regex-dev libcapstone-dev \
                        libgirepository1.0-dev libelf-dev libffi-dev libfontconfig1-dev libgif-dev libjpeg-dev \
  && apt-get -qq -y install libboost-program-options-dev libboost-system-dev libboost-filesystem-dev libc6-dev-i386 \
                        libcairo2-dev libdbus-1-dev libegl1-mesa-dev libfreetype6-dev libfuse-dev libgl1-mesa-dev \
@@ -32,31 +34,27 @@ RUN (apt-get -qq -y install apt-transport-https apt-utils \
  || echo -e "\033[1;31m DEPENDENCIES INSTALL FAILED \033[0m"
 # install useful tools
 RUN (apt-get -qq -y install colordiff colortail cython3 dosbox git golang kmod less ltrace tree strace sudo tmate tmux \
- && apt-get -qq -y install iproute2 nodejs npm python3-setuptools python3-pip swig vim weka x11-apps yarnpkg zstd \
- && apt-get -qq -y install curl ffmpeg imagemagick iptables psmisc tesseract-ocr unrar unzip wget xdotool xterm xvfb \
- && apt-get -qq -y install binwalk ent foremost jq visidata \
+ && apt-get -qq -y install iproute2 nftables nodejs npm python3-setuptools python3-pip swig vim weka x11-apps yarnpkg \
+ && apt-get -qq -y install curl ffmpeg imagemagick psmisc tesseract-ocr unrar unzip wget zstd \
+ && apt-get -qq -y install binwalk ent foremost jq visidata xdotool xterm xvfb \
  && wget -qO /tmp/bat.deb https://github.com/sharkdp/bat/releases/download/v0.18.2/bat-musl_0.18.2_amd64.deb \
- && dpkg -i /tmp/bat.deb && rm -f /tmp/bat.deb) 2>&1 > /dev/null \
+ && dpkg -i /tmp/bat.deb \
+ && rm -f /tmp/bat.deb) 2>&1 > /dev/null \
  || echo -e "\033[1;31m TOOLS INSTALL FAILED \033[0m"
 RUN go mod init pbox 2>&1 > /dev/null
 # install wine (for running Windows software on Linux)
 RUN (dpkg --add-architecture i386 \
- && wget -qnc https://dl.winehq.org/wine-builds/ubuntu/dists/jammy/winehq-jammy.sources \
- && mv winehq-jammy.sources /etc/apt/sources.list.d/ \
- && wget -qnc https://dl.winehq.org/wine-builds/winehq.key \
- && mv winehq.key /usr/share/keyrings/winehq-archive.key \
- && apt-get -qq -y install --install-recommends winehq-devel winehq-stable wine32 winetricks \
- && Xvfb "${DISPLAY}" -screen 0 "${SCREENSIZE}x16" & wineboot) 2>&1 > /dev/null \
+ && wget -O /etc/apt/keyrings/winehq-archive.key https://dl.winehq.org/wine-builds/winehq.key \
+ && wget -NP /etc/apt/sources.list.d/ https://dl.winehq.org/wine-builds/ubuntu/dists/jammy/winehq-jammy.sources \
+ && apt-get -qq update
+ && apt-get -qq -y install --install-recommends winehq-stable wine32 winetricks) 2>&1 > /dev/null \
  || echo -e "\033[1;31m WINE INSTALL FAILED \033[0m"
-# install dosemu (for emulating DOS programs on Linux)
-RUN (add-apt-key --keyserver keyserver.ubuntu.com 6D9CD73B401A130336ED0A56EBE1B5DED2AD45D6 \
- && add-apt-repository ppa:dosemu2/ppa -y \
- && apt-get -qq update \
- && apt-get -qq -y install dosemu2) 2>&1 > /dev/null \
- || echo -e "\033[1;31m DOSEMU2 INSTALL FAILED \033[0m"
 # install mono (for running .NET apps on Linux)
 RUN (add-apt-key --keyserver keyserver.ubuntu.com 3FA7E0328081BFF6A14DA29AA6A19B38D3D831EF \
- && apt-add-repository 'deb https://download.mono-project.com/repo/ubuntu stable-focal main' \
+ && apt-key export D3D831EF | gpg --dearmour -o /usr/share/keyrings/mono.gpg \
+ && apt-key del D3D831EF \
+ && echo "deb [arch=amd64 signed-by=/usr/share/keyrings/mono.gpg] https://download.mono-project.com/repo/ubuntu " \
+         "stable-focal main" | tee /etc/apt/sources.list.d/mono.list \
  && apt-get -qq update \
  && apt-get -qq -y install mono-complete mono-vbnc) 2>&1 > /dev/null \
  || echo -e "\033[1;31m MONO INSTALL FAILED \033[0m"
@@ -73,31 +71,34 @@ RUN (apt-get -qq -y install --install-recommends clang mingw-w64 \
  && git clone https://github.com/tpoechtrager/wclang \
  && cd wclang \
  && cmake -DCMAKE_INSTALL_PREFIX=_prefix_ . \
- && make && make install \
+ && make \
+ && make install \
  && mv _prefix_/bin/* /usr/local/bin/ \
- && cd /tmp && rm -rf wclang) 2>&1 > /dev/null \
+ && cd /tmp \
+ && rm -rf wclang) 2>&1 > /dev/null \
  || echo -e "\033[1;31m MINGW INSTALL FAILED \033[0m"
 # install darling (for running MacOS software on Linux)
 #RUN (apt-get -qq -y install cmake clang bison flex pkg-config linux-headers-generic gcc-multilib \
-# && cd /tmp/ && git clone --recursive https://github.com/darlinghq/darling.git && cd darling \
-# && mkdir build && cd build && cmake .. && make && make install \
-# && make lkm && make lkm_install) 2>&1 > /dev/null \
+# && cd /tmp/ \
+# && git clone --recursive https://github.com/darlinghq/darling.git \
+# && cd darling \
+# && mkdir build \
+# && cd build \
+# && cmake .. \
+# && make \
+# && make install \
+# && make lkm \
+# && make lkm_install) 2>&1 > /dev/null \
 # || echo -e "\033[1;31m DARLING INSTALL FAILED \033[0m"
 # +--------------------------------------------------------------------------------------------------------------------+
 # |           HARDEN THE BOX (confgure L4 and L7 firewalls, create an evil user and a no-internet group))              |
 # +--------------------------------------------------------------------------------------------------------------------+
 FROM base AS hardened
 ARG USER=user
-# configure iptables
-RUN groupadd --gid 666 no-internet \
- && useradd --uid 666 --gid 666 -m evil \
- && iptables -I OUTPUT 1 -m evil --gid-owner no-internet -j DROP \
- && ip6tables -I OUTPUT 1 -m evil --gid-owner no-internet -j DROP
 # add a non-privileged account
 RUN groupadd --gid 1000 $USER \
- && groupadd docker \
  && useradd --uid 1000 --gid 1000 -m $USER \
- && usermod -aG docker $USER \
+ && usermod -aG $USER $USER \
  && apt-get -qq update \
  && apt-get -qq install -y sudo \
  && echo $USER ALL=\(root\) NOPASSWD:ALL > /etc/sudoers.d/$USER \
@@ -109,8 +110,13 @@ FROM hardened AS customized
 ARG USER=user
 ARG UOPT=/home/$USER/.opt
 ENV TERM xterm-256color
+# copy customized files for root
+COPY src/term/[^profile]* /tmp/term/
+RUN for f in `ls /tmp/term/`; do cp "/tmp/term/$f" "/root/.${f##*/}"; done \
+ && rm -rf /tmp/term
 # switch to the unprivileged account
 USER $USER
+RUN (wineboot &) 2>&1 > /dev/null
 # copy customized files
 COPY --chown=$USER:$USER src/term /tmp/term
 RUN for f in `ls /tmp/term/`; do cp "/tmp/term/$f" "/home/$USER/.${f##*/}"; done \
@@ -122,8 +128,8 @@ RUN sudo mkdir -p /mnt/share \
                                  /tmp/analyzers /tmp/detectors /tmp/packers /tmp/unpackers \
  && sudo chown $USER:$USER /mnt/share
 # install/update Python packages (install dl8.5 with root separately to avoid wheel's build failure)
-RUN pip3 -qq install --user --no-warn-script-location --ignore-installed meson poetry sklearn tinyscript tldr thefuck \
- && pip3 -qq install --user --no-warn-script-location angr capstone dl8.5 pandas pefile pyelftools weka \
+RUN pip3 -qq install --user --no-warn-script-location --ignore-installed meson poetry scikit-learn tinyscript tldr \
+ && pip3 -qq install --user --no-warn-script-location angr capstone dl8.5 pandas pefile pyelftools thefuck weka \
  || echo -e "\033[1;31m PIP PACKAGES UPDATE FAILED \033[0m"
 # +--------------------------------------------------------------------------------------------------------------------+
 # |                                              ADD FRAMEWORK ITEMS                                                   |
