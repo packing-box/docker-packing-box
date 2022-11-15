@@ -326,8 +326,8 @@ Ezuri:
   install:
     - wget: https://github.com/guitmz/ezuri/archive/master.zip
     - unzip: $OPT
-    - go: $OPT/ezuri-master github.com/guitmz/ezuri
-    - lsh: $OPT/ezuri-master ezuri
+    - go: github.com/guitmz/ezuri
+    - lsh: ezuri
   references:
     - https://www.guitmz.com/linux-elf-runtime-crypter/
     - https://github.com/f0wl/ezuri_unpack
@@ -392,7 +392,6 @@ hXOR-Packer:
     - exec: rm -rf "$OPT/hXOR-Packer v0.1" $OPT/hxor-packer
     - wget: https://github.com/rurararura/hXOR-Packer:latest{hXOR-Packer}
     - unzip: $OPT
-    - md: "$OPT/hXOR-Packer v0.1"
     - exec: chmod +x $OPT/hxor-packer/packer.exe
     - lwine: packer.exe
   references:
@@ -463,11 +462,9 @@ M0dern_P4cker:
     - exec: rm -rf $OPT/m0dern_p4cker-e24a1d47dae1acb0cc3dc4d2fb42a61662bc210c $OPT/m0dern_p4cker
     - wget: https://github.com/n4sm/m0dern_p4cker/archive/e24a1d47dae1acb0cc3dc4d2fb42a61662bc210c.zip
     - unzip: $OPT
-    - exec: mv $OPT/m0dern_p4cker-e24a1d47dae1acb0cc3dc4d2fb42a61662bc210c/packer@git $OPT/m0dern_p4cker
-    - exec: rm -rf $OPT/m0dern_p4cker-e24a1d47dae1acb0cc3dc4d2fb42a61662bc210c
-    - cd: $OPT/m0dern_p4cker
+    - cd: packer@git
     - make: main
-    - lsh: $OPT/m0dern_p4cker main
+    - lsh: $OPT/m0dern-p4cker/packer@git main
   source: https://github.com/n4sm/m0dern_p4cker
   status: ok
   steps:
@@ -779,7 +776,7 @@ Pakkero:
     - ELF
   install:
     - wget: https://github.com/89luca89/pakkero/releases/download/0.7.0/pakkero_linux_amd64
-    - cd: /tmp
+    - cd: $TMP
     - copy: pakkero
   source: https://github.com/89luca89/pakkero
   status: ok
