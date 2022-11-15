@@ -11,7 +11,7 @@ except ImportError:
 
 
 __script__      = "packing-box"
-__version__     = "1.1.1"
+__version__     = "1.1.2"
 __description__ = "Display this help message or packer's help"
 
 
@@ -65,8 +65,9 @@ def overview(show=False, format=None, category=None, keep=None):
 
 
 if __name__ == '__main__':
+    valid_categories = tuple(sorted(set(c for p in Packer.registry for c in getattr(p, "categories", [])))) + ("All", )
     megs = [parser.add_mutually_exclusive_group() for i in range(4)]
-    megs[0].add_argument("-c", "--category", default="All", help="filter on a category of packers")
+    megs[0].add_argument("-c", "--category", choices=valid_categories, help="filter on a category of packers")
     megs[1].add_argument("-f", "--format", default="All", help="filter on a format of executables")
     for i in range(4):
         megs[i].add_argument("-i", "--item", help="get help for a particular detector, packer or unpacker")
