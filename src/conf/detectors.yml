@@ -53,6 +53,7 @@ DIE:
       - tar xf $TMP/die.tar.xz -C $OPT/die_lin64_portable
       - cp $TMP/DIE-engine/release_version.txt $OPT/die_lin64_portable/
       - sed -i 's/\"\?\$\*\"\?/\"\$\*\"/g' $OPT/die_lin64_portable/diec.sh
+    - rm: $TMP/DIE-engine
   license: mit
   silent:
     - "\\+{1,2} ([a-z]{2,12}|[A-Z]+([-_][A-Z]+)*)"
