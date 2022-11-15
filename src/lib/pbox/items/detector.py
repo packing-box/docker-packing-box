@@ -1,35 +1,52 @@
 # -*- coding: UTF-8 -*-
 from .__common__ import *
+from ..common.config import *
 from ..common.executable import Executable
 from ..common.item import update_logger
-from ..common.utils import class_or_instance_method, file_or_folder_or_dataset
+from ..common.utils import bin_label, class_or_instance_method, file_or_folder_or_dataset
 
 
 # this list is filled in with subclasses at the end of this module
 __all__ = ["Detector"]
 
 
-THRESHOLD = lambda l: round(l / 2. + .5)  # majority vote
+THRESHOLDS = {
+    'absolute-majority': lambda l: round(l / 2. + .5),
+}
 
 
 def decide(results, **kwargs):
-    """ Decision heuristic of the superdetector. """
-    unknown = results.pop("unknown")
-    vmax = max(results.values())
+    """ Decision heuristic of the superdetector.
+    
+    Voting, if not defined, is based on the majority. It can be set via the 'threshold' option, e.g. "absolute-majority"
+     will require a label to get more than the half of all the total votes.
+    Note: 'threshold' can be set either as a static integer or as a lambda function depending on the number of voters
+    """
+    l, t = kwargs['n_detectors'], THRESHOLDS.get(kwargs.get('threshold'), 0)
+    t = t(l) if isinstance(t, type(lambda: 0)) else t
+    if not 0 <= t <= l:
+        raise ValueError("Bad threshold value %.2f, not in [0, %d]" % (t, l))
+    vmax = max(results.values())  # best count
+    # if the voting heuristic provides a threshold that no label could satisfy, then the superdetector cannot decide
+    if vmax < t:
+        return NOT_LABELLED
     m = [k for k, v in results.items() if v == vmax]
     # trivial when there is only one maxima
     if len(m) == 1:
-        return m[0]
+        r = m[0]
     # when multiple maxima, only decide if longest match AND shorter strings are include in the longest match ;
-    #  otherwise, return "undecided"
+    #  otherwise, return NOT_LABELLED (undecided)
     else:
         best = m[0]
         for s in m[1:]:
             if s in best or best in s:
                 best = max([s, best], key=len)
             else:
-                return "undecided"
-        return best
+                r = NOT_LABELLED
+        r = best
+    # apply threshold, keeping NOT_LABELLED if it is the result
+    #  (default thresholding is a simple majority, hence threshold == 0 as the majority is handled using the best count)
+    return NOT_PACKED if results.get(r, l) < t else r
 
 
 class Detector(Base):
@@ -47,7 +64,7 @@ class Detector(Base):
     def check(self, *formats, **kwargs):
         """ Checks if the current item is applicable to the given formats. """
         d_mc, i_mc = getattr(self, "multiclass", True), kwargs.get('multiclass')
-        vote, chk_vote = getattr(self, "vote", True), kwargs.pop('vote', True)
+        vote, chk_vote = getattr(self, "vote", True), kwargs.get('vote', True)
         if super(Detector, self).check(*formats, **kwargs):
             # detector can be disabled either because it cannot vote or because it is not multiclass and detection was
             #  requested as multiclass (note that, on the other side, a multiclass-capable detector shall always be
@@ -55,57 +72,59 @@ class Detector(Base):
             if (not chk_vote or vote) and not (not d_mc and i_mc):
                 return True
             if chk_vote and not vote:
-                self.logger.debug("not allowed to vote")
+                self.logger.warning("not allowed to vote")
             if not d_mc and i_mc:
-                self.logger.debug("does not support multiclass")
+                self.logger.warning("does not support multiclass")
         return False
     
     @class_or_instance_method
     @file_or_folder_or_dataset
     @update_logger
     def detect(self, executable, **kwargs):
-        """ If called from the class:
+        """ Detects the packing label(s) of a target executable, folder/dataset of executables, applying the decision
+             heuristic if used as a class (superdetecor).
+        
+        If called from the class:
             Runs every known detector on the given executable and decides the label through voting (with a penalty on
              cases where the executable is considered not packed).
+        
         If called from an instance:
-            Runs the detector according to its command line format. """
+            Runs the detector according to its command line format and outputs its label.
+        
+        Important note: Detectors are assumed to ouptut
+          - binaryclass: NOT_LABELLED, False or True
+          - multiclass:  NOT_LABELLED, NOT_PACKED, "unknown" or "[packer-label]"
+        """
         label, multiclass, dslen = kwargs.get('label'), kwargs.get('multiclass', True), kwargs.get('dslen')
         exe = Executable(executable)
-        if exe.format is None:  # format is not in the executable SIGNATURES of pbox.common.executable
-            self.logger.debug("'%s' is not a valid executable" % exe)
-            raise ValueError
+        # in binaryclass, transform the output to -1|0|1
+        actual_label = label if multiclass else bin_label(label)
         if dslen:
             exe.len = dslen
-        actual_label = [(label if multiclass else label != "", ), ()][label is None]
+        # case (1) called from the class => apply all the in-scope detectors (applicable and with vote=True)
         if isinstance(self, type):
             registry = [d for d in kwargs.get('select', Detector.registry) if d.check(exe.format, **kwargs)]
-            l, t = len(registry), kwargs.get('threshold', THRESHOLD) or THRESHOLD
-            t = t(l) if isinstance(t, type(lambda: 0)) else t
-            if not 0 < t <= l:
-                raise ValueError("Bad threshold value, not in [1., %d]" % l)
-            results, details = {'unknown': -l + t}, {}
+            l = kwargs['n_detectors'] = len(registry)
+            results, details = {'unknown': -l} if multiclass else {}, {}
+            # step 1: collect trings per packer and suspicions
+            kwargs['silent'] = True
             for detector in registry:
                 label = list(detector.detect(exe, **kwargs))[0]
                 if isinstance(label, (list, tuple)):
                     label = label[1]
-                if label is None:
-                    continue
-                # if the multiclass option is unset, convert the result to Yes|No
-                if not multiclass:
-                    label = label != ""
                 results.setdefault(label, 0)
                 results[label] += 1
                 details[detector.name] = label
-            # select the best label
+            # step 2: make a decision on the label
             decision = decide(results, **kwargs)
-            r = (exe, decision) + actual_label
-            # apply thresholding
-            if results[r[1]] < t:
-                r = (exe, "") + actual_label
+            # format the result, appending details if in debug mode
+            r = exe, decision, actual_label
             if kwargs.get("debug", False):
                 r += (details, )
             return r
+        # case (2) called from an instance => apply the selected detector if relevant
         else:
+            kwargs.pop('vote', None)
             if not self.check(exe.format, vote=False, **kwargs) or \
                exe.extension[1:] in getattr(self, "exclude", {}).get(exe.format, []):
                 return
@@ -118,11 +137,12 @@ class Detector(Base):
                 label = label.strip()
             else:
                 self.logger.debug("did not detect anything")
+            # if binary classification, convert the result to 1|0 (Yes|No)
             if not multiclass:
-                label = label != "" if getattr(self, "multiclass", True) else label.lower() == "true"
+                label = bin_label(label)
             if dslen:
                 exe.len = dslen
-            return (exe, label) + actual_label
+            return exe, label, actual_label
     
     @file_or_folder_or_dataset
     @update_logger
@@ -138,9 +158,10 @@ class Detector(Base):
                 msg = "{} is packed with {}".format(executable, label2)
         else:
             msg = "{} is {}packed".format(executable, ["not ", ""][label2])
-        if label is not None:
+        if label != NOT_LABELLED:
             msg += " ({})".format("not packed" if label in ["", True] else "packed" if label is True else label)
-        (self.logger.warning if label is None else [self.logger.failure, self.logger.success][label == label2])(msg)
+        l = self.logger
+        (l.warning if label == NOT_LABELLED else [l.failure, l.success][label == label2])(msg)
 
 
 # dynamically makes Detector's registry of child classes from the default dictionary of detectors (~/.opt/detectors.yml)

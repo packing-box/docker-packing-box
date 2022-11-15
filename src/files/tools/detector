@@ -8,7 +8,7 @@ from tinyscript.report import *
 from tqdm import tqdm
 
 
-__version__     = "1.0.5"
+__version__     = "1.1.0"
 __doc__         = """
 This tool aims to detect the packer used on an input executable, folder of executables or Dataset.
 """
@@ -19,7 +19,7 @@ __description__ = "Detect the packer used on an input executable/folder/dataset"
 if __name__ == '__main__':
     parser.add_argument("executable", help="executable or folder containing executables or dataset")
     parser.add_argument("-b", "--binary", action="store_true", help="only consider if packed or not")
-    parser.add_argument("-d", "--detector", action="extend", nargs="*", type=Detector.get,
+    parser.add_argument("-d", "--detector", action="extend", nargs="*", type=Detector.get, default=[],
                         help="detector(s) to be used", note="Uses the superdetector by default")
     grp = parser.add_mutually_exclusive_group()
     grp.add_argument("-f", "--failures-only", action="store_true", help="output failures only")
@@ -31,75 +31,42 @@ if __name__ == '__main__':
                          relative=True)
     kw = {'debug': args.verbose > 0, 'verbose': args.verbose > 1, 'multiclass': not args.binary,
           'silent': args.verbose == 0, 'threshold': args.threshold, 'weak': args.weak}
-    stats, cmatrix, pbar = {}, {'fn': 0, 'fp': 0, 'tn': 0, 'tp': 0}, None
+    stats, cmatrix, pbar, errored = {}, {'fn': 0, 'fp': 0, 'tn': 0, 'tp': 0}, None, False
+    single, mc = len(args.detector) == 1, kw['multiclass']
+    logger.name = "detector" if single else "superdetector"
+    kw['select'], kw['vote'] = args.detector, not single
     try:
-        # using a single detector
-        if len(args.detector or []) == 1:
-            logger.name = "detector"
-            for out in Detector.get(args.detector[0]).detect(args.executable, **kw):
-                # ([exe]cutable, [r]esulting label of detector, actual [l]abel) 
-                try:
-                    exe, r, l = out               # when actual label given beforehand (e.g. for performance check)
-                except TypeError:
-                    exe, r, l = None, None, None  # when r == None, meaning that the executable could not be handled
-                except ValueError:
-                    exe, r = out                  # when no actual label provided but detection worked
-                    l = None
-                if pbar is None and hasattr(exe, "len") and exe.len > 1:
-                    pbar = tqdm(total=exe.len, unit="executable")
-                mc = kw['multiclass']
-                not_packed = r == "" and mc or r is False and not mc
-                if not args.metrics_only:
-                    disp = "not packed" if not_packed else r if mc else "packed"
-                    if not args.failures_only or r != l and r is not None and l is not None:
-                        log = [logger.failure, logger.success][r == l] if l is not None else logger.debug
-                        log("{}: {}".format(exe, disp))
-                if l is None:
-                    stats.setdefault(r, 0)
-                    stats[r] += 1
-                    if r in [None, "undecided"]:
-                        logger.warning("%s => %s" % (exe, str(r)))
-                elif r is not None:
-                    cmatrix[['tp', 'tn'][not_packed] if r == l else ['fp', 'fn'][not_packed]] += 1
-                if pbar is not None:
-                    pbar.update()
-        # using part or all of the available detectors
-        else:
-            logger.name = "superdetector"
-            if len(args.detector or []) != 0:
-                kw['select'] = args.detector
-            for out in Detector.detect(args.executable, **kw):
-                try:
-                    exe, r, l, details = out
-                except ValueError:
-                    exe, r, l = out
-                    details = {}
-                logger.debug("final decision: %s" % ("not packed" if r == "" else str(r)))
-                if pbar is None and hasattr(exe, "len") and exe.len > 1:
-                    pbar = tqdm(total=exe.len, unit="executable")
-                if not args.metrics_only:
-                    mlen = 0
-                    for name in details.keys():
-                        mlen = max(mlen, len(name))
-                    msg = "Decisions:"
-                    for name, label in details.items():
-                        msg += ("\n{: <%d}: {}" % mlen).format(name, label or "-")
-                    if msg != "Decisions:":
-                        logger.warning(msg)
-                    if not args.failures_only or r != l:
-                        log = [logger.failure, logger.success][r == l] if l is not None else logger.debug
-                        log("{}: {}".format(exe, r))
-                mc = kw['multiclass']
-                not_packed = r == "" and mc or r is False and not mc
-                if l is None:
-                    stats.setdefault(r, 0)
-                    stats[r] += 1
-                    if r in [None, "undecided", "unknown"]:
-                        logger.warning("%s: %s" % (exe, str(r)))
-                elif r is not None:
-                    cmatrix[['tp', 'tn'][not_packed] if r == l else ['fp', 'fn'][not_packed]] += 1
-                if pbar is not None:
-                    pbar.update()
+        for out in Detector.detect(args.executable, **kw):
+            # ([exe]cutable, [r]esulting label of detector, actual [l]abel, [d]etails) 
+            details = {}
+            if kw['debug']:
+                exe, r, l, details = out
+            else:
+                exe, r, l = out
+            decision = "not labelled" if r == [-1, NOT_LABELLED][mc] else \
+                       "not packed" if r == [0, NOT_PACKED][mc] else ["packed", r][mc]
+            if not single:
+                logger.debug("final decision: %s" % decision)
+            if pbar is None and hasattr(exe, "len") and exe.len > 1:
+                pbar = tqdm(total=exe.len, unit="executable")
+            if not single and not args.metrics_only:
+                mlen = 0
+                for name in details.keys():
+                    mlen = max(mlen, len(name))
+                msg = "Decisions:"
+                for name, label in details.items():
+                    msg += ("\n{: <%d}: {}" % mlen).format(name, label)
+                if msg != "Decisions:":
+                    logger.warning(msg)
+            if not args.failures_only or r != l:
+                log = [logger.warning if r == [-1, NOT_LABELLED][mc] else logger.failure if r != l else \
+                       logger.success, logger.debug][l in [-1, NOT_LABELLED]]
+                log("{}: {}".format(exe, decision))
+            stats.setdefault(r, 0)
+            stats[r] += 1
+            cmatrix[['tp', 'tn'][decision == "not packed"] if r == l else ['fp', 'fn'][decision == "not packed"]] += 1
+            if pbar is not None:
+                pbar.update()
     except Exception as e:
         (logger.exception if args.verbose > 0 else logger.error)(e)
         if args.metrics_only:
@@ -121,7 +88,7 @@ if __name__ == '__main__':
             r.append(Table([m], column_headers=h))
             print(mdv.main(Report(*r).md()))
     else:
-        logger.debug(stats)
+        logger.debug("Statistics: %s" % stats)
         if args.metrics_only:
             print("-,-,-,-")
         else:
@@ -132,6 +99,7 @@ if __name__ == '__main__':
                     data.append([{None: "none", '': "not-packed"}.get(k, k), n, "%.2f%%" % (100 * n / tot)])
             for l, c in sorted(stats.items(), key=lambda x: x[0].lower()):
                 data.append([l, c, "%.2f%%" % (100 * c / tot)])
-            r.append(Table(data, column_headers=["Label", "Count", "Percentage"]))
-            print(mdv.main(Report(*r).md()))
+            if len(data) > 0:
+                r.append(Table(data, column_headers=["Label", "Count", "Percentage"]))
+                print(mdv.main(Report(*r).md()))
 
