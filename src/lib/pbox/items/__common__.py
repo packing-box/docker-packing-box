@@ -4,7 +4,7 @@ from tinyscript import b, colored as _c, ensure_str, json, logging, os, random, 
 from tinyscript.helpers import execute_and_log as run, execute as run2, Path
 from tinyscript.report import *
 
-from ..common.config import config
+from ..common.config import *
 from ..common.executable import Executable
 from ..common.item import *
 from ..common.utils import *
@@ -367,11 +367,11 @@ class Base(Item):
                 run("git clone --quiet %s%s '%s'" % (["", "--recursive "][cmd == "gitr"], arg, result), **kw)
             # go build the target
             elif cmd == "go":
-                result = result if arg1 == arg else Path(arg1, expand=True)
+                result = result if arg2 == arg else Path(arg2, expand=True)
                 cwd2 = os.getcwd()
                 os.chdir(str(result))
                 result.joinpath("go.mod").remove(False)
-                run("go mod init '%s'" % arg2, silent=["creating new go.mod", "add module requirements", "go mod tidy"])
+                run("go mod init '%s'" % arg1, silent=["creating new go.mod", "add module requirements", "go mod tidy"])
                 run("go build -o %s ." % self.name)
                 os.chdir(cwd2)
             # create a shell script to execute the given target with its intepreter/launcher and make it executable
@@ -399,7 +399,7 @@ class Base(Item):
             elif cmd == "ln":
                 r = ubin.joinpath(self.name)
                 r.remove(False)
-                run("ln -s '%s' '%s'" % ((result or tmp).joinpath(arg), r), **kw)
+                run("ln -fs '%s' '%s'" % ((result or tmp).joinpath(arg), r), **kw)
                 result = r
             # create a shell script to execute the given target from its source directory with its intepreter/launcher
             #  and make it executable
@@ -449,7 +449,7 @@ class Base(Item):
                 result = result.joinpath(arg1)
             # rename the current working directory and change to the new one
             elif cmd == "md":
-                result, cwd2 = (result or tmp).joinpath(arg), os.getcwd()
+                result, cwd2 = (result or tmp).joinpath(arg), result
                 os.chdir(cwd if cwd != cwd2 else str(tmp))
                 run("mv -f '%s' '%s'" % (cwd2, result), **kw)
                 os.chdir(str(result))
@@ -486,25 +486,50 @@ class Base(Item):
                             run_func("bunzip2 -f '%s'" % result, **(kw if first else {}))
                             ext = ".tar"  # switch extension to trigger 'tar x(v)f'
                             result = result.dirname.joinpath(result.stem + ".tar")
-                        cmd = "unzip -qqo '%s' -d '%s'" % (result, d) if ext == ".zip" else \
-                              "unrar x '%s' '%s'" % (result, d) if ext == ".rar" else \
-                              "tar x%sf '%s' -C '%s'" % (["", "z"][ext == ".tar.gz"], result, d)
+                        cmd = "unzip -o '%s' -d '%s'" % (result, d) if ext == ".zip" else \
+                              "unrar x -y -u '%s' '%s/'" % (result, d) if ext == ".rar" else \
+                              "tar xv%sf '%s' -C '%s'" % (["", "z"][ext == ".tar.gz"], result, d)
                         if ext != ".zip":
                             d.mkdir(parents=True, exist_ok=True)
                         # log execution (run) the first time, not afterwards (run2)
-                        run_func(cmd, **(kw if first else {}))
+                        out = run_func(cmd, **(kw if first else {}))
                         first = False
                     # in case of wget, clean up the archive
                     if wget:
                         result.remove()
-                    result = paths[0]
-                    # if the result is a dir, cd to subfolder as long as there is only one subfolder in the current one,
-                    #  this makes 'result' point to the most relevant folder within the unpacked archive
-                    if result and result.is_dir():
-                        ld = list(result.listdir())
+                    dest = paths[0]
+                    # if the archive decompressed a new folder, parse the name and cd to it
+                    out = ensure_str(out[0])  # select stdout from the output tuple (stdout, stderr[, return_code])
+                    folders = []
+                    for l in out.splitlines():
+                        l, f = l.strip(), None
+                        if l == "":
+                            continue
+                        if ext == ".zip":
+                            if l.startswith("inflating: "):
+                                f = str(Path(l.split("inflating: ", 1)[1]).relative_to(dest)).split("/")[0]
+                        elif ext == ".rar":
+                            if l.startswith("Extracting "):
+                                f = re.split(r"\s+", l)[1].split("/")[0]
+                        elif ext.startswith(".tar"):
+                            f = l.split("/")[0]
+                        if f is not None and f not in folders:
+                            folders.append(f)
+                    if len(folders) == 1:
+                        dest = dest.joinpath(folders[0])
+                    # if the destination is a dir, cd to subfolder as long as there is only one subfolder in the current
+                    #  one, this makes 'dest' point to the most relevant folder within the unpacked archive
+                    if dest and dest.is_dir():
+                        ld = list(dest.listdir())
                         while len(ld) == 1 and ld[0].is_dir():
-                            result = result.joinpath(ld[0].basename)
-                            ld = list(result.listdir())
+                            dest = dest.joinpath(ld[0].basename)
+                            ld = list(dest.listdir())
+                    # automatically move this folder to a standard one based on the item's name
+                    #  e.g. '~/.opt/packers/hXOR-Packer v0.1' => ~/.opt/packers/hxor-packer
+                    result = opt.joinpath(self.name)
+                    if not result.is_samepath(dest):
+                        run("rm -rf '%s'" % result, **kw)
+                        run("mv -f '%s' '%s'" % (dest, result), **kw)
                 else:
                     raise ValueError("%s is not a %s file" % (result, ext.lstrip(".").upper()))
             # download a resource, possibly downloading 2-stage generated download links (in this case, the list is
@@ -540,11 +565,16 @@ class Base(Item):
                         resp = json.loads(run("curl -Ls https://api.github.com/repos%s/releases/%s" % (path, tag))[0])
                         # case 1: https://github.com/username/repo:TAG{pattern} ; get file based on pattern
                         if pattern is not None:
-                            for asset in resp['assets']:
-                                link = asset['browser_download_url']
-                                if re.search(pattern, ts.urlparse(link).path.split("/")[-1]):
-                                    arg = link
-                                    break
+                            try:
+                                for asset in resp['assets']:
+                                    link = asset['browser_download_url']
+                                    if re.search(pattern, ts.urlparse(link).path.split("/")[-1]):
+                                        arg = link
+                                        break
+                            except KeyError:
+                                self.logger.warning("GitHub API may be blocking requests at the moment ; please try "
+                                                    "again later")
+                                raise
                         # case 2: https://github.com/username/repo:TAG[X] ; get Xth file from the selected release
                         else:
                             # if https://github.com/username/repo:TAG, get the 1st file from the selected release
@@ -593,7 +623,8 @@ class Base(Item):
                 h, label = getattr(self, self.type[:-2])(str(tmp), include_hash=True)
                 if h not in hl:
                     hl.append(h)
-                getattr(self.logger, "failure" if label == "" else "warning" if label is None else "success")(n)
+                getattr(self.logger, "failure" if label == NOT_PACKED else \
+                                     "warning" if label == NOT_LABELLED else "success")(n)
                 self.logger.debug("Label: %s" % label)
             if len(l) > 1 and len(hl) == 1:
                 self.logger.warning("Packing gave the same hash for all the tested files: %s" % hl[0])
