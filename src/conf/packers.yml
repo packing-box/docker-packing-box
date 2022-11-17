@@ -1036,6 +1036,7 @@ UPX:
         - wget: https://github.com/upx/upx/releases/download/v3.96/upx-3.96-amd64_linux.tar.xz
         - untar: $OPT
         - ln: $OPT/upx-3.96-amd64_linux/upx
+  xflag: true
 
 Ward:
   categories:
@@ -1048,9 +1049,8 @@ Ward:
     - exec: rm -rf $OPT/ward-master
     - wget: https://github.com/ex0dus-0x/ward/archive/refs/heads/master.zip
     - unzip: $OPT/
-    - cd: $OPT/ward-master
     - make: ward cli
-    - ln: $OPT/ward-master/ward
+    - ln: $OPT/ward/ward
   silent:
     - "go:"
   source: https://github.com/ex0dus-0x/ward

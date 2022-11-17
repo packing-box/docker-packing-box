@@ -6,7 +6,7 @@ from sklearn.covariance import empirical_covariance
 from sklearn.preprocessing import StandardScaler
 from textwrap import wrap
 from tinyscript import code, colored, itertools, ts
-from tinyscript.helpers import ansi_seq_strip, get_terminal_size, ints2hex, is_executable, txt2bold, Path
+from tinyscript.helpers import ansi_seq_strip, get_terminal_size, ints2hex, txt2bold, Path
 from tqdm import tqdm
 
 from .executable import Executable

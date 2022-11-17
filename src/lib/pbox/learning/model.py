@@ -12,7 +12,7 @@ from sklearn.model_selection import train_test_split, GridSearchCV
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import *
 from tinyscript import ast, json, logging, subprocess
-from tinyscript.helpers import human_readable_size, is_executable, is_generator, Path, TempPath
+from tinyscript.helpers import human_readable_size, is_generator, Path, TempPath
 from tinyscript.report import *
 
 from .algorithm import Algorithm, WekaClassifier
@@ -217,7 +217,7 @@ class Model:
             self._target = ds._data.loc[:, ds._data.columns == "label"]
         # case 2: handle a normal dataset (features shall still be computed)
         elif isinstance(ds, Dataset):
-            __parse(ds.files.listdir(is_executable), False)
+            __parse(ds.files.listdir(is_exe), False)
             self._target = ds._data.loc[:, ds._data.columns == "label"]
         # case 3: CSV file
         elif ds.extension == ".csv":
@@ -232,9 +232,9 @@ class Model:
                 l.warning("This error may be caused by a bad CSV separator ; you can set it with --sep")
                 raise
         # case 4: other data, either single executable or folder (only valid when not training)
-        elif data_only and (is_executable(ds) or ds.is_dir()):
+        elif data_only and (is_exe(ds) or ds.is_dir()):
             self._data, self._target = pd.DataFrame(), pd.DataFrame()
-            __parse([ds] if is_executable(ds) else ds.listdir(is_executable))
+            __parse([ds] if is_exe(ds) else ds.listdir(is_exe))
         # this shall not occur
         else:
             raise ValueError("Unsupported input format")

@@ -17,7 +17,7 @@ from .executable import Executable
 
 __all__ = ["aggregate_formats", "backup", "benchmark", "bin_label", "class_or_instance_method", "collapse_formats",
            "data_to_temp_file", "dict2", "edit_file", "expand_formats", "file_or_folder_or_dataset", "highlight_best",
-           "make_registry", "mdv", "metrics", "shorten_str", "ExeFormatDict", "FORMATS", "PERF_HEADERS"]
+           "is_exe", "make_registry", "mdv", "metrics", "shorten_str", "ExeFormatDict", "FORMATS", "PERF_HEADERS"]
 
 _EVAL_NAMESPACE = {k: getattr(builtins, k) for k in ["abs", "divmod", "float", "hash", "hex", "id", "int", "len",
                                                      "list", "max", "min", "oct", "ord", "pow", "range", "range2",
@@ -45,6 +45,7 @@ PERF_HEADERS = {
 bin_label = lambda l: {NOT_LABELLED.lower(): -1, 'false': 0, NOT_PACKED.lower(): 0, 'true': 1, None: None} \
                       .get(l.lower(), 1)
 bold = lambda text: "\033[1m{}\033[0m".format(text)
+is_exe = lambda e: Executable(e).format is not None
 
 
 class dict2(dict):

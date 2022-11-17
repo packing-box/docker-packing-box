@@ -2,11 +2,12 @@
 # -*- coding: UTF-8 -*-
 from pbox import *
 from pbox.__info__ import *
+from pbox.common.utils import is_exe
 from tinyscript import *
 from tqdm import tqdm
 
 
-__version__     = "1.0.0"
+__version__     = "1.0.1"
 __doc__         = """
 This tool simply packs (using Packer.pack) with the selected packer an input executable or folder of executables.
 """
@@ -27,9 +28,9 @@ if __name__ == '__main__':
         if args.prefix:
             rn(p)
     elif p.is_dir():
-        n, pbar = sum(1 for _ in p.listdir(ts.is_executable)), None
+        n, pbar = sum(1 for _ in p.listdir(is_exe)), None
         logger.debug("packing files from folder %s..." % p)
-        for f in p.listdir(ts.is_executable):
+        for f in p.listdir(is_exe):
             if pbar is None:
                 pbar = tqdm(total=n, unit="executable")
             args.packer.pack(f.absolute(), **vars(args))

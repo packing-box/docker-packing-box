@@ -90,7 +90,7 @@ class Executable(Path):
                 shutil.copy2(str(self), str(dest))
             except:
                 raise
-            dest.chmod(0o777)
+            dest.chmod(0o400)
             return dest
     
     @property

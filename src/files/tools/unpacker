@@ -2,11 +2,12 @@
 # -*- coding: UTF-8 -*-
 from pbox import *
 from pbox.__info__ import *
+from pbox.common.utils import is_exe
 from tinyscript import *
 from tqdm import tqdm
 
 
-__version__     = "1.0.0"
+__version__     = "1.0.1"
 __doc__         = """
 This tool simply unpacks (using Unpacker.unpack) with the selected unpacker an executable or folder of executables.
 """
@@ -24,9 +25,9 @@ if __name__ == '__main__':
     if p.is_file():
         args.unpacker.unpack(p.absolute(), **vars(args))
     elif p.is_dir():
-        n, pbar = sum(1 for _ in p.listdir(ts.is_executable)), None
-        logger.debug("packing files from folder %s..." % p)
-        for f in p.listdir(ts.is_executable):
+        n, pbar = sum(1 for _ in p.listdir(is_exe)), None
+        logger.debug("unpacking files from folder %s..." % p)
+        for f in p.listdir(is_exe):
             if pbar is None:
                 pbar = tqdm(total=n, unit="executable")
             args.unpacker.unpack(f.absolute(), **vars(args))

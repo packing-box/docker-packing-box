@@ -185,7 +185,11 @@ class Dataset:
     
     def _load(self):
         """ Load dataset's associated files or create them. """
-        self.logger.debug("loading dataset '%s'..." % self.basename)
+        try:
+            if len(self) > 0:
+                self.logger.debug("loading dataset '%s'..." % self.basename)
+        except AttributeError:  # self._data does not exist yet
+            pass
         if self._files:
             self.files.mkdir(exist_ok=True)
         for n in ["alterations", "data", "metadata"] + [["features"], []][self._files]:
@@ -334,7 +338,7 @@ class Dataset:
         """ Make dataset's structure and files match. """
         self.logger.debug("dropping duplicates...")
         self._data = self._data.drop_duplicates()
-        for exe in self.files.listdir(ts.is_executable):
+        for exe in self.files.listdir(is_exe):
             h = exe.basename
             if Executable(exe).format is None:  # unsupported or bad format (e.g. Bash script)
                 del self[h]
@@ -426,7 +430,9 @@ class Dataset:
                     continue
                 old_h = destination.absolute()
                 for p in packers[:]:
+                    old_h.chmod(0o700 if p.xflag else 0o600)
                     exe.hash, label = p.pack(str(old_h), include_hash=True)
+                    old_h.chmod(0o400)
                     if exe.hash is None:
                         continue  # means that this kind of executable is not supported by this packer
                     # check 4.b: was this packed executable already included in the dataset?
