@@ -6,14 +6,14 @@ RetDec-Unpacker:
   base:   detector[RetDec]
   install:
     - wget:  https://github.com/avast/retdec:latest{ubuntu}
-    - untar: ~/.opt/detectors
+    - untar: $OPT
     - ln:    bin/retdec-unpacker
   packers:
     - MPRESS
     - UPX
   source: https://github.com/avast/retdec/tree/master/src/unpackertool
   steps:
-    - ~/.opt/detectors/retdec/bin/retdec-unpacker {{excutable}}
+    - $OPT/retdec/bin/retdec-unpacker {{excutable}}
     - mv {{executable}}-unpacked {{executable}}
   status: ok
 

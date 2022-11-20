@@ -92,7 +92,7 @@ Amber:
     - PE
   install:
     - wget: https://github.com/EgeBalci/amber:latest{linux_amd64}
-    - unzip: $OPT/
+    - unzip: $OPT
     - ln: amber
   references:
     - https://pentest.blog/introducing-new-packing-method-first-reflective-pe-packer
@@ -222,7 +222,8 @@ EXE32Pack:
     - PE32
   install:
     - wget: http://www.magicnotes.com/steelbytes/exe32pack.zip
-    - unzip: $OPT
+    - unzip: $OPT/exe32pack
+    - chmod: exe32pack.exe
     - wine: exe32pack.exe
   source: https://exe32pack.apponic.com
 
@@ -235,7 +236,7 @@ EXE_Stealth:
     - PE
   install:
     - copy: exestealth.exe $OPT/exestealth.exe
-    - setp: $OPT/
+    - setp: $OPT/exestealth
     - wine: exestealth.exe
   references:
     - http://www.webtoolmaster.com/exestealth-tutorial.htm
@@ -310,7 +311,7 @@ eXPressor:
     - PE64
   install:
     - wget: http://www.cgsoftlabs.ro/zip/eXPressor.zip
-    - unzip: $OPT/eronana-packer
+    - unzip: $OPT/expressor
     - wine: packer.exe
   references:
     - https://github.com/chesvectain/PackingData
@@ -389,10 +390,9 @@ hXOR-Packer:
   formats:
     - PE
   install:
-    - exec: rm -rf "$OPT/hXOR-Packer v0.1" $OPT/hxor-packer
     - wget: https://github.com/rurararura/hXOR-Packer:latest{hXOR-Packer}
     - unzip: $OPT
-    - exec: chmod +x $OPT/hxor-packer/packer.exe
+    - chmod: packer.exe
     - lwine: packer.exe
   references:
     - https://github.com/rurararura/hXOR-Packer
@@ -431,7 +431,7 @@ Kkrunchy:
     - PE32
   install:
     - wget: http://www.farbrausch.de/~fg/kkrunchy/kkrunchy_023a2.zip
-    - unzip: $OPT
+    - unzip: $OPT/kkrunchy
     - wine: kkrunchy_k7.exe
   references:
     - https://github.com/fireeye/capa-rules/blob/master/anti-analysis/packer/kkrunchy/packed-with-kkrunchy.yml
@@ -747,10 +747,8 @@ PEzor:
   formats:
     - PE
   install:
-    - exec: rm -rf /tmp/PEzor
     - git: https://github.com/phra/PEzor.git
-    - cd: /tmp/PEzor
-    - exec: bash install.sh
+    - exec: sudo bash $TMP/pezor/install.sh
   references:
     - https://iwantmore.pizza/posts/PEzor.html
     - https://iwantmore.pizza/posts/PEzor2.html
@@ -1111,7 +1109,7 @@ Yoda_Crypter:
     # FIXME: .5 second may surely be too few for bigger executables
     - key Return (.1) [x3]
   install:
-    - unzip: $OPT/yoda_crypter
+    - unzip: $OPT
     - wine: yC.exe
   source: https://sourceforge.net/projects/yodap
   status: ok
@@ -1132,7 +1130,7 @@ Yoda_Protector:
   formats:
     - PE32
   install:
-    - unzip: $OPT/yoda_protector
+    - unzip: $OPT/yoda-protector
     - wine: yP.exe
   source: http://yodap.sourceforge.net
   status: gui
