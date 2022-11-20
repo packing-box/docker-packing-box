@@ -1,4 +1,7 @@
 Supervised:
+  defaults:
+    preprocessors:
+      - Std
   AB:
     base:        !!python/name:sklearn.ensemble.AdaBoostClassifier
     description: Adaptive Boosting
@@ -10,7 +13,6 @@ Supervised:
         learning_rate:  1.
         n_estimators:   50
         random_state:   42
-
   BN:
     base:        !!python/name:pbox.learning.algorithm.BayesNet  # based on weka.classifiers.bayes.BayesNet
     description: Bayesian Network
@@ -19,7 +21,6 @@ Supervised:
       static:
         E: weka.classifiers.bayes.net.estimate.SimpleEstimator  # estimator algorithm
         Q: weka.classifiers.bayes.net.search.SearchAlgorithm    # search algorithm
-
   BNB:
     base:        !!python/name:sklearn.naive_bayes.BernoulliNB
     boolean:     true
@@ -32,7 +33,6 @@ Supervised:
         binarize:    0.
         fit_prior:   true
         class_prior: null
-
   D:
     base:        !!python/name:pbox.learning.algorithm.Decorate  # based on weka.classifiers.meta.Decorate
     description: Decorate
@@ -44,7 +44,6 @@ Supervised:
         S: 42                          # random number seed
         I: 50                          # number of iterations
         W: weka.classifiers.trees.J48  # full name of base classifier
-
   DL85:
     base:        !!python/name:dl85.DL85Classifier
     description: DL8.5 (optimal decision tree)
@@ -56,9 +55,6 @@ Supervised:
         time_limit: 60
       cv:
         max_depth: !!python/object/new:range [3, 6]
-    preprocessors:
-      - Std
-
   DT:
     base:        !!python/name:sklearn.tree.DecisionTreeClassifier
     description: Decision Tree
@@ -73,9 +69,6 @@ Supervised:
         random_state:   42
       cv:
         max_depth:         !!python/object/new:range [2, 13, 2]
-    preprocessors:
-      - Std
-
   GB:
     base:        !!python/name:sklearn.ensemble.GradientBoostingClassifier
     description: Gradient Boosting
@@ -86,9 +79,6 @@ Supervised:
         random_state: 42
       cv:
         max_depth: !!python/object/new:range [3, 8]
-    preprocessors:
-      - Std
-
   GNB:
     base:        !!python/name:sklearn.naive_bayes.GaussianNB
     description: Gaussian Naive Bayes
@@ -96,9 +86,6 @@ Supervised:
     parameters:
       static:
         priors: null
-    preprocessors:
-      - Std
-
   J48:
     base:        !!python/name:pbox.learning.algorithm.J48  # based on weka.classifiers.trees.J48
     description: Decision Tree (J48)
@@ -109,9 +96,6 @@ Supervised:
         M: 2     # minimum number of instances per leaf
         N: 3     # number of folds for reduced error pruning ; one fold is used as pruning set
         Q: 42    # random number seed
-    preprocessors:
-      - Std
-
   kNN:
     base:        !!python/name:sklearn.neighbors.KNeighborsClassifier
     description: k-Nearest Neighbors
@@ -127,7 +111,6 @@ Supervised:
     preprocessors:
       - Std
       - PCA
-
   LP:
     base:        !!python/name:sklearn.linear_model.Perceptron
     description: Linear Perceptron
@@ -136,9 +119,6 @@ Supervised:
       static:
         max_iter:     1000
         random_state: 42
-    preprocessors:
-      - Std
-
   LR:
     base:        !!python/name:pbox.learning.algorithm.Logistic  # based on weka.classifiers.functions.Logistic
     description: Logistic Regression
@@ -146,9 +126,6 @@ Supervised:
     parameters:
       static:
         M: -1  # maximum number of iterations (-1: until convergence)
-    preprocessors:
-      - Std
-
   LSVC:
     base:        !!python/name:sklearn.svm.LinearSVC
     description: Linear Support Vector Classification
@@ -162,9 +139,6 @@ Supervised:
         tol:          !!float 1e-4
       cv:
         C: !!python/object/new:numpy.logspace [-1, 4, 6]
-    preprocessors:
-      - Std
-
   MLP:
     base:        !!python/name:sklearn.neural_network.MLPClassifier
     description: Multi-Layer Perceptron
@@ -176,9 +150,6 @@ Supervised:
         hidden_layer_sizes: !!python/tuple [10, 2]
         random_state:       42
         solver:             adam
-    preprocessors:
-      - Std
-
   MNB:
     base:        !!python/name:sklearn.naive_bayes.MultinomialNB
     description: Multinomial Naive Bayes
@@ -188,7 +159,6 @@ Supervised:
         alpha:       1.
         fit_prior:   true
         class_prior: null
-
   RF:
     base:        !!python/name:sklearn.ensemble.RandomForestClassifier
     description: Random Forest
@@ -202,9 +172,6 @@ Supervised:
         criterion:    ["entropy", "gini"]
         max_depth:    !!python/object/new:range [4, 11]
         n_estimators: [10, 20, 30, 40]
-    preprocessors:
-      - Std
-
   SVM:
     base:        !!python/name:sklearn.svm.SVC
     description: Support Vector Machine
@@ -220,8 +187,6 @@ Supervised:
       cv:
         C:     !!python/object/new:numpy.logspace [4, 6, 3]
         gamma: !!python/object/new:numpy.logspace [-3, -1, 3]
-    preprocessors:
-      - Std
 
 Unsupervised:
   AC:
@@ -233,7 +198,6 @@ Unsupervised:
       affinity:           euclidean
       distance_threshold: null
       linkage:            ward
-
   AP:
     base:        !!python/name:sklearn.cluster.AffinityPropagation
     description: Affinity Propagation clustering
@@ -244,7 +208,6 @@ Unsupervised:
         max_iter:         200
         convergence_iter: 15
         affinity :        euclidean
-
   Birch:
     base:        !!python/name:sklearn.cluster.Birch
     description: BIRCH clustering
@@ -254,7 +217,6 @@ Unsupervised:
         threshold:           0.5
         branching_factor:    50
         n_clusters:          3
-
   DBSCAN:
     base:        !!python/name:sklearn.cluster.DBSCAN
     description: Density-Based Spatial Clustering of Applications with Noise
@@ -265,7 +227,6 @@ Unsupervised:
         min_samples:  5
         leaf_size:    30
         algorithm :   auto 
-
   KMeans:
     base:        !!python/name:sklearn.cluster.KMeans
     description: K-Means clustering
@@ -277,7 +238,6 @@ Unsupervised:
         max_iter:     300
         tol:          !!float 1e-4
         algorithm:    lloyd
-
   MBKMeans:
     base:        !!python/name:sklearn.cluster.MiniBatchKMeans
     description: Mini-Batch K-Means clustering
@@ -291,7 +251,6 @@ Unsupervised:
         max_no_improvement: 10
         n_init:             3
         reassignment_ratio: 0.1
-
   MS:
     base:        !!python/name:sklearn.cluster.MeanShift
     description: Mean Shift
@@ -300,7 +259,6 @@ Unsupervised:
       static:
         bandwidth:    null
         max_iter:     300
-
   OPTICS:
     base:        !!python/name:sklearn.cluster.OPTICS
     description: Ordering Points To Identify the Clustering Structure
@@ -312,7 +270,6 @@ Unsupervised:
         min_cluster_size: null
         cluster_method :  xi 
         algorithm:        auto 
-
   PCA:
     base:        !!python/name:sklearn.decomposition.PCA
     description: Principal Component Analysis
@@ -323,7 +280,6 @@ Unsupervised:
         whiten:                     False
         power_iteration_normalizer: auto
         svd_solver :                auto
-
   SC:
     base:        !!python/name:sklearn.cluster.SpectralClustering
     description: Spectral Clustering
@@ -338,4 +294,3 @@ Unsupervised:
         degree:       3
         coef0:        0
         eigen_solver: null
-
