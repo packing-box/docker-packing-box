@@ -30,8 +30,6 @@ class MetaAlgorithm(MetaItem):
 
     @source.setter
     def source(self, path):
-        if '%ss' % self.__name__.lower() not in config:
-            return
         p = Path(str(path or config['algorithms']))
         if hasattr(self, "_source") and self._source == p:
             return
@@ -43,7 +41,7 @@ class MetaAlgorithm(MetaItem):
         # start parsing items of cls
         for category, items in algos.items():
             if category not in ["Semi-Supervised", "Supervised", "Unsupervised"]:
-                raise ValueError("bad learning algorithm category")
+                raise ValueError("bad learning algorithm category (%s)" % category)
             dflts = items.pop('defaults', {})
             dflts.setdefault('boolean', False)
             dflts.setdefault('multiclass', True)
@@ -55,12 +53,10 @@ class MetaAlgorithm(MetaItem):
                         raise ValueError("parameter 'base' cannot have a default value")
                     data.setdefault(k, v)
                 # put the related algorithm in module's globals()
-                if algo not in glob:
-                    d = dict(cls.__dict__)
-                    for a in ["get", "iteritems", "mro", "registry"]:
-                        d.pop(a, None)
-                    glob[algo] = type(algo, (cls, ), d)
-                i = glob[algo]
+                d = dict(cls.__dict__)
+                for a in ["get", "iteritems", "mro", "registry"]:
+                    d.pop(a, None)
+                i = glob[algo] = type(algo, (cls, ), d)
                 i._instantiable = True
                 # now set attributes from YAML parameters
                 for k, v in data.items():

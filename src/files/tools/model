@@ -6,7 +6,7 @@ from tinyscript import *
 
 __author__      = "Alexandre D'Hondt"
 __email__       = "alexandre.dhondt@gmail.com"
-__version__     = "1.2.0"
+__version__     = "1.2.1"
 __copyright__   = ("A. D'Hondt", 2021)
 __license__     = "gpl-3.0"
 __doc__         = """
@@ -77,7 +77,7 @@ if __name__ == '__main__':
     __add_name(train, True)
     train.add_argument("-a", "--algorithm", choices=[a.name for a in Algorithm.registry], default="dt",
                        help="machine learning algorithm to be used\n- %s\n * supports Grid Search cross-validation\n" %\
-                            "\n- ".join("%s: %s%s" % (a.name.ljust(4), a.description, ["", "*"][a.parameters.get('cv') \
+                            "\n- ".join("%s: %s%s" % (a.name.ljust(8), a.description, ["", "*"][a.parameters.get('cv') \
                             is not None]) for a in Algorithm.registry))
     train.add_argument("--algorithms-set", type=ts.file_exists, default=config['algorithms'],
                        help="algorithms set's YAML definition")
