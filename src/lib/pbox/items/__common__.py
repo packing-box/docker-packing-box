@@ -113,6 +113,9 @@ class Base(Item):
         self._params = {}
         self.__init = False
     
+    def __expand(self, line):
+        return expanduser(line.replace("$TMP", "/tmp/%ss" % self.type).replace("$OPT", "~/.opt/%ss" % self.type))
+    
     @update_logger
     def _check(self, exe, silent=False):
         """ Check if the given executable can be processed by this item. """
@@ -229,6 +232,7 @@ class Base(Item):
         kw['silent'].extend(list(map(_repl, getattr(self, "silent", []))))
         output, cwd = "", os.getcwd()
         for step in getattr(self, "steps", ["%s %s%s" % (self.name.replace("_" ,"-"), extra_opt, _str(executable))]):
+            step = self.__expand(step)
             if self.name in step:
                 i, opt = step.index(self.name), ""
                 if benchm:
@@ -313,7 +317,6 @@ class Base(Item):
         obin, ubin = Path("~/.opt/bin", create=True, expand=True), Path("~/.local/bin", create=True, expand=True)
         result, rm, wget, kw = None, True, False, {'logger': self.logger, 'silent': getattr(self, "silent", [])}
         cwd = os.getcwd()
-        __p = lambda p: expanduser(p.replace("$TMP", str(tmp)).replace("$OPT", str(opt)))
         for cmd in self.install:
             if isinstance(result, Path) and not result.exists():
                 self.logger.critical("Last command's result does not exist (%s) ; current: %s" % (result, cmd))
@@ -324,10 +327,10 @@ class Base(Item):
             # extract argument(s)
             cmd, arg = list(cmd.items())[0]
             try:
-                arg = __p(arg)
+                arg = self.__expand(arg)
                 arg1, arg2 = shlex.split(arg)
             except AttributeError:
-                arg = [__p(a) for a in arg]  # e.g. exec
+                arg = [self.__expand(a) for a in arg]  # e.g. exec
             except ValueError:
                 arg1, arg2 = arg, arg
             # simple install through APT
@@ -342,6 +345,9 @@ class Base(Item):
                     result.mkdir()
                 self.logger.debug("cd '%s'" % result)
                 os.chdir(str(result))
+            # add the executable flag on the target
+            elif cmd == "chmod":
+                run("chmod +x '%s'" % result.joinpath(arg), **kw)
             # copy a file from the previous location (or /tmp/[ITEM]s if not defined) to ~/.opt/bin, making the
             #  destination file executable
             elif cmd == "copy":
@@ -362,7 +368,7 @@ class Base(Item):
                     run(a, **kw)
             # git clone a project
             elif cmd in ["git", "gitr"]:
-                result = (result or tmp).joinpath(Path(ts.urlparse(arg).path).stem)
+                result = (result or tmp).joinpath(Path(ts.urlparse(arg).path).stem.lower())
                 result.remove(False)
                 run("git clone --quiet %s%s '%s'" % (["", "--recursive "][cmd == "gitr"], arg, result), **kw)
             # go build the target
@@ -486,7 +492,7 @@ class Base(Item):
                             run_func("bunzip2 -f '%s'" % result, **(kw if first else {}))
                             ext = ".tar"  # switch extension to trigger 'tar x(v)f'
                             result = result.dirname.joinpath(result.stem + ".tar")
-                        cmd = "unzip -o '%s' -d '%s'" % (result, d) if ext == ".zip" else \
+                        cmd = "unzip -o '%s' -d '%s/'" % (result, d) if ext == ".zip" else \
                               "unrar x -y -u '%s' '%s/'" % (result, d) if ext == ".rar" else \
                               "tar xv%sf '%s' -C '%s'" % (["", "z"][ext == ".tar.gz"], result, d)
                         if ext != ".zip":
@@ -500,7 +506,7 @@ class Base(Item):
                     dest = paths[0]
                     # if the archive decompressed a new folder, parse the name and cd to it
                     out = ensure_str(out[0])  # select stdout from the output tuple (stdout, stderr[, return_code])
-                    folders = []
+                    assets = []
                     for l in out.splitlines():
                         l, f = l.strip(), None
                         if l == "":
@@ -513,10 +519,10 @@ class Base(Item):
                                 f = re.split(r"\s+", l)[1].split("/")[0]
                         elif ext.startswith(".tar"):
                             f = l.split("/")[0]
-                        if f is not None and f not in folders:
-                            folders.append(f)
-                    if len(folders) == 1:
-                        dest = dest.joinpath(folders[0])
+                        if f is not None and f not in assets:
+                            assets.append(f)
+                    if len(assets) == 1 and dest.joinpath(assets[0]).is_dir():
+                        dest = dest.joinpath(assets[0])
                     # if the destination is a dir, cd to subfolder as long as there is only one subfolder in the current
                     #  one, this makes 'dest' point to the most relevant folder within the unpacked archive
                     if dest and dest.is_dir():
@@ -528,7 +534,13 @@ class Base(Item):
                     #  e.g. '~/.opt/packers/hXOR-Packer v0.1' => ~/.opt/packers/hxor-packer
                     result = opt.joinpath(self.name)
                     if not result.is_samepath(dest):
-                        run("rm -rf '%s'" % result, **kw)
+                        if result.exists():
+                            if dest.is_under(result):
+                                t = tmp.joinpath(self.name)
+                                run("mv -f '%s' '%s'" % (dest, t), **kw)
+                                dest = t
+                            else:
+                                run("rm -rf '%s'" % result, **kw)
                         run("mv -f '%s' '%s'" % (dest, result), **kw)
                 else:
                     raise ValueError("%s is not a %s file" % (result, ext.lstrip(".").upper()))
