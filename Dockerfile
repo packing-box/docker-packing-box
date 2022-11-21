@@ -46,7 +46,7 @@ RUN go mod init pbox 2>&1 > /dev/null
 RUN (dpkg --add-architecture i386 \
  && wget -O /etc/apt/keyrings/winehq-archive.key https://dl.winehq.org/wine-builds/winehq.key \
  && wget -NP /etc/apt/sources.list.d/ https://dl.winehq.org/wine-builds/ubuntu/dists/jammy/winehq-jammy.sources \
- && apt-get -qq update
+ && apt-get -qq update \
  && apt-get -qq -y install --install-recommends winehq-stable wine32 winetricks) 2>&1 > /dev/null \
  || echo -e "\033[1;31m WINE INSTALL FAILED \033[0m"
 # install mono (for running .NET apps on Linux)
