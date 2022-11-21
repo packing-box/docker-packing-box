@@ -57,14 +57,8 @@ PETools:
     - PE
   install:
     - wget: https://github.com/petoolse/petools:latest
-    - exec:
-      - mkdir -p $OPT/petools
-      - mv $TMP/petools.7z $OPT/petools/
-    - cd: $OPT/petools/
-    - exec:
-      - 7z x petools.7z -y
-      - rm -f petools.7z
-      - chmod +x PETools.exe
+    - un7z: $OPT/petools
+    - chmod: PETools.exe
   source: https://github.com/petoolse/petools
   status: gui
 
@@ -77,8 +71,7 @@ PortEx:
   install:
     - wget: https://github.com/struppigel/PortEx:latest
     - exec: mv $TMP/portex.jar $OPT/
-    - cd:   $OPT
-    - java: portex.jar
+    - java: $OPT/portex.jar
   license: apache-2.0
   source:  https://github.com/katjahahn/PortEx
   status:  ok

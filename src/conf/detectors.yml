@@ -88,7 +88,7 @@ Manalyze:
     - PE
   install:
     - git:  https://github.com/JusticeRage/Manalyze
-    - exec: mv $TMP/Manalyze $OPT/manalyze
+    - exec: mv $TMP/manalyze $OPT/manalyze
     - setp: $OPT/manalyze
     - make: bin -j5
   source: https://github.com/JusticeRage/Manalyze

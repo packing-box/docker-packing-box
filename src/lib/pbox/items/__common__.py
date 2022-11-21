@@ -114,7 +114,7 @@ class Base(Item):
         self.__init = False
     
     def __expand(self, line):
-        return expanduser(line.replace("$TMP", "/tmp/%ss" % self.type).replace("$OPT", "~/.opt/%ss" % self.type))
+        return line.replace("$TMP", "/tmp/%ss" % self.type).replace("$OPT", expanduser("~/.opt/%ss" % self.type))
     
     @update_logger
     def _check(self, exe, silent=False):
@@ -330,7 +330,7 @@ class Base(Item):
                 arg = self.__expand(arg)
                 arg1, arg2 = shlex.split(arg)
             except AttributeError:
-                arg = [self.__expand(a) for a in arg]  # e.g. exec
+                arg = [self.__expand(a) for a in arg]  # e.g. exec can handle 'arg' as a list of commands
             except ValueError:
                 arg1, arg2 = arg, arg
             # simple install through APT
@@ -470,8 +470,8 @@ class Base(Item):
             elif cmd in ["set", "setp"]:
                 result = arg if cmd == "set" else tmp.joinpath(arg)
             # decompress a RAR/TAR/ZIP archive to the given location (absolute or relative to /tmp/[ITEM]s)
-            elif cmd in ["unrar", "untar", "unzip"]:
-                ext = "." + cmd[-3:]
+            elif cmd in ["un7z", "unrar", "untar", "unzip"]:
+                ext = "." + (cmd[-2:] if cmd == "un7z" else cmd[-3:])
                 # for tar, do not use the extension as a check (may be .tar.bz2, .tar.gz, .tar.xz, ...)
                 if ext == ".tar" and isinstance(result, Path):
                     ext = result.extension
@@ -492,10 +492,11 @@ class Base(Item):
                             run_func("bunzip2 -f '%s'" % result, **(kw if first else {}))
                             ext = ".tar"  # switch extension to trigger 'tar x(v)f'
                             result = result.dirname.joinpath(result.stem + ".tar")
-                        cmd = "unzip -o '%s' -d '%s/'" % (result, d) if ext == ".zip" else \
+                        cmd = "7z x '%s' -o'%s' -y" % (result, d) if ext == ".7z" else \
+                              "unzip -o '%s' -d '%s/'" % (result, d) if ext == ".zip" else \
                               "unrar x -y -u '%s' '%s/'" % (result, d) if ext == ".rar" else \
                               "tar xv%sf '%s' -C '%s'" % (["", "z"][ext == ".tar.gz"], result, d)
-                        if ext != ".zip":
+                        if ext not in [".7z", ".zip"]:
                             d.mkdir(parents=True, exist_ok=True)
                         # log execution (run) the first time, not afterwards (run2)
                         out = run_func(cmd, **(kw if first else {}))
@@ -519,6 +520,8 @@ class Base(Item):
                                 f = re.split(r"\s+", l)[1].split("/")[0]
                         elif ext.startswith(".tar"):
                             f = l.split("/")[0]
+                        elif ext == ".7z":
+                            pass # no parsing for .7z ; a specific folder for the target item shall be declared anyway
                         if f is not None and f not in assets:
                             assets.append(f)
                     if len(assets) == 1 and dest.joinpath(assets[0]).is_dir():
