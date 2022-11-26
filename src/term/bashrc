@@ -273,3 +273,9 @@ pathprepend $HOME/.local/bin
 if [ $EUID -ne 0 ]; then
   eval "$(thefuck --alias)"
 fi
+
+# initialize Wine (if not done yet, .wine or .wine32 or .wine64 won't exist)
+ls ~/.wine* >/dev/null
+if [ $? -ne 0 ]; then
+  (wineboot &) 2>&1 > /dev/null
+fi

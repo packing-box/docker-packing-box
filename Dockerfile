@@ -61,7 +61,6 @@ RUN (apt-get -qq -y install colordiff colortail cython3 dosbox git golang kmod l
  && dpkg -i /tmp/bat.deb \
  && rm -f /tmp/bat.deb) 2>&1 > /dev/null \
  || echo -e "\033[1;31m TOOLS INSTALL FAILED \033[0m"
-RUN go mod init pbox 2>&1 > /dev/null
 # install wine (for running Windows software on Linux)
 RUN (dpkg --add-architecture i386 \
  && wget -O /etc/apt/keyrings/winehq-archive.key https://dl.winehq.org/wine-builds/winehq.key \
@@ -125,7 +124,6 @@ RUN for f in `ls /tmp/term/`; do cp "/tmp/term/$f" "/root/.${f##*/}"; done \
  && rm -rf /tmp/term
 # switch to the unprivileged account
 USER $USER
-RUN (wineboot &) 2>&1 > /dev/null
 # copy customized files
 COPY --chown=$USER:$USER src/term /tmp/term
 RUN for f in `ls /tmp/term/`; do cp "/tmp/term/$f" "/home/$USER/.${f##*/}"; done \
@@ -144,6 +142,7 @@ ARG FILES
 ARG PBOX
 USER $USER
 ENV TERM xterm-256color
+RUN (go mod init pbox && wineboot &) 2>&1 > /dev/null
 # set the base files and folders for further setup (explicitly create ~/.cache/pip to avoid it not being owned by user)
 COPY --chown=$USER:$USER src/conf/*.yml $UOPT/
 RUN sudo mkdir -p /mnt/share \
