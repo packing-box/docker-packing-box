@@ -464,7 +464,12 @@ class Base(Item):
                 run("pip3 -qq install --user --no-warn-script-location --ignore-installed %s" % arg, **kw)
             # remove a given directory (then bypassing the default removal at the end of all commands)
             elif cmd == "rm":
-                run("rm -rf '%s'" % Path(arg).absolute(), **kw)
+                p = Path(arg).absolute()
+                if str(p) == os.getcwd():
+                    cwd = cwd if cwd is not None else p.parent
+                    self.logger.debug("cd '%s'" % cwd)
+                    os.chdir(cwd)
+                run("rm -rf '%s'" % p, **kw)
                 rm = False
             # manually set the result to be used in the next command
             elif cmd in ["set", "setp"]:
