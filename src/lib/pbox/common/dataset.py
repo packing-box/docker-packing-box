@@ -430,7 +430,7 @@ class Dataset:
                     continue
                 old_h = destination.absolute()
                 for p in packers[:]:
-                    old_h.chmod(0o700 if p.xflag else 0o600)
+                    old_h.chmod(0o700 if getattr(p, "xflag", False) else 0o600)
                     exe.hash, label = p.pack(str(old_h), include_hash=True)
                     old_h.chmod(0o400)
                     if exe.hash is None:
