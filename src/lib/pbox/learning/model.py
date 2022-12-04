@@ -74,8 +74,9 @@ class DebugPipeline:
     def _log_message(self, step_idx):
         """ Overload original method to display messages with our own logger.
         NB: verbosity is controlled via the logger, therefore we output None so that it is not natively displayed.  """
-        name, _ = self.steps[step_idx]
-        logger.info("(step %d/%d) Processing %s" % (step_idx + 1, len(self.steps), name))
+        if not getattr(Pipeline, "silent", False):
+            name, _ = self.steps[step_idx]
+            logger.info("(step %d/%d) Processing %s" % (step_idx + 1, len(self.steps), name))
     Pipeline._log_message = _log_message
     
     def append(self, step):
@@ -130,20 +131,24 @@ class Model:
     
     def _metrics(self, target, prediction, proba):
         """ Metrics computation method. """
-        if self.labelling < 100.:
-            self.logger.warning("cannot compute metrics ; there is unlabelled data")
+        l = self.logger
+        if self.dataset.labelling < 1.:
+            l.warning("cannot compute metrics ; data is not completely labelled")
             return [-1] * 6
-        self.logger.debug("computing metrics...")
+        l.debug("computing metrics...")
         kw = {} if self._metadata['algorithm']['multiclass'] else {'labels': [0, 1]}
         cmatrix = confusion_matrix(target, prediction, **kw)
-        self.logger.debug("TN: %d ; FP: %d ; FN: %d ; TP: %d" % \
-                          (cmatrix[0][0], cmatrix[0][1], cmatrix[1][0], cmatrix[1][1]))
+        l.debug("TN: %d ; FP: %d ; FN: %d ; TP: %d" % (cmatrix[0][0], cmatrix[0][1], cmatrix[1][0], cmatrix[1][1]))
         accuracy, precision, recall, f_measure = metrics(*cmatrix.ravel())
         mcc = matthews_corrcoef(target, prediction)
         try:
             auc = roc_auc_score(target, proba)
         except ValueError:
             auc = -1
+        except:
+            l.info(target)
+            l.info(proba)
+            raise
         return [accuracy, precision, recall, f_measure, mcc, auc]
     
     def _prepare(self, dataset=None, preprocessor=None, multiclass=False, labels=None, feature=None, data_only=False,
@@ -187,6 +192,7 @@ class Model:
             if not ds.exists():
                 l.error("Bad input dataset (%s)" % ds)
                 return False
+        self._dataset = ds
         l.info("%s dataset:  %s" % (["Reference", "Test"][data_only], ds))
         self._data, self._target = pd.DataFrame(), pd.DataFrame(columns=["label"])
         Features.boolean_only = self.algorithm.boolean
@@ -244,6 +250,7 @@ class Model:
         if len(self._features) == 0:
             l.warning("No selectable feature ; this may be due to a model unrelated to the input")
             return False
+        self._target = self._target.replace(LABELS_BACK_CONV)
         # ensure features are sorted and data has its columns sorted too
         self._features = {k: v for k, v in sorted(self._features.items(), key=lambda x: x[0]) if v != ""}
         try:
@@ -409,7 +416,6 @@ class Model:
         if not self._prepare(**kw):
             self.logger.debug("could not prepare dataset")
             return
-        #self.pipeline.pop()  # remove the classifier, as we only want the data preprocessed
         self.pipeline.fit(self._data, self._target)  # fit_transform with all the transformers, not with the estimator
         tmp_p = TempPath(prefix="model-preprocess-", length=8)
         tmp_f = tmp_p.tempfile("data.csv")
@@ -494,17 +500,17 @@ class Model:
         """ Training method handling cross-validation. """
         l, n_cpu, ds = self.logger, mp.cpu_count(), kw['dataset']
         try:
-            cls = self.algorithm = Algorithm.get(algorithm)
-            kw['preprocessor'] = kw.get('preprocessor') or getattr(cls, "preprocessors", [])
-            algo = cls.__class__.__name__
-            self._metadata.setdefault('algorithm', {})
-            self._metadata['algorithm']['name'] = algo
-            self._metadata['algorithm']['description'] = cls.description
-            self._metadata['algorithm']['multiclass'] = kw.get('multiclass', False)
-            self._metadata['algorithm']['preprocessors'] = kw['preprocessor']
+            cls = self._algorithm = Algorithm.get(algorithm)
         except KeyError:
             l.error("%s not available" % algorithm)
             return
+        kw['preprocessor'] = kw.get('preprocessor') or getattr(cls, "preprocessors", [])
+        algo = cls.__class__.__name__
+        self._metadata.setdefault('algorithm', {})
+        self._metadata['algorithm']['name'] = algo
+        self._metadata['algorithm']['description'] = cls.description
+        self._metadata['algorithm']['multiclass'] = kw.get('multiclass', False)
+        self._metadata['algorithm']['preprocessors'] = kw['preprocessor']
         # check that, if the algorithm is supervised, it has full labels
         if cls.labelling == "full" and ds.labelling < 1.:
             l.error("'%s' won't work with a dataset that is not fully labelled" % algo)
@@ -562,6 +568,7 @@ class Model:
         _convert = lambda d: {k.split("__", 1)[1]: v for k, v in d.items()}
         if len(param_grid) > 0:
             l.debug("> applying Grid Search (CV=%d)..." % cv)
+            Pipeline.silent = True
             # as we use a pipeline, we need to rename all parameters to [estimator name]__[parameter]
             param_grid = {"%s__%s" % (self.pipeline.steps[-1][0], k): v for k, v in param_grid.items()}
             grid = GridSearchCV(self.pipeline.pipeline, param_grid=param_grid, cv=cv, scoring='accuracy', n_jobs=n_jobs)
@@ -579,23 +586,23 @@ class Model:
                 params['model'] = self
             self.pipeline.pop()
             self.pipeline.append((cls.name, cls.base(**params)))
+            Pipeline.silent = False
         # now fit the (best) classifier and predict labels
         l.debug("> fitting the classifier...")
         self.pipeline.fit(self._train.data, self._train.target.values.ravel())
         if cls.labelling != "none":
             l.debug("> making predictions...")
             d = []
-            try:
-                prob1 = self.pipeline.predict_proba(self._train.data)[:, 1]
-                prob2 = self.pipeline.predict_proba(self._test.data)[:, 1]
-            except AttributeError:
-                prob1 = prob2 = None
             ph = PERF_HEADERS
             h = list(ph.keys())[1:-1]
-            m1 = self._metrics(self._train.target, self.pipeline.predict(self._train.data), prob1)
+            m1 = self._metrics(self._train.target,
+                               self.pipeline.predict(self._train.data),
+                               self.pipeline.predict_proba(self._train.data)[:, 1])
             m1 = [ph[k](v) if v >= 0 else "-" for k, v in zip(h, m1)]
             d.append(["Train"] + m1)
-            m2 = self._metrics(self._test.target, self.pipeline.predict(self._test.data), prob2)
+            m2 = self._metrics(self._test.target,
+                               self.pipeline.predict(self._test.data),
+                               self.pipeline.predict_proba(self._test.data)[:, 1])
             m2 = [ph[k](v) if v >= 0 else "-" for k, v in zip(h, m2)]
             d.append(["Test"] + m2)
             h = ["."] + h
@@ -629,9 +636,17 @@ class Model:
             print(viz(self.classifier, **params))
     
     @property
+    def algorithm(self):
+        return getattr(self, "_algorithm", None) or Algorithm.get(self._metadata['algorithm']['name'])
+    
+    @property
     def classifier(self):
         if self.pipeline is not None:
             return self.pipeline.steps[-1][1]
+    
+    @property
+    def dataset(self):
+        return getattr(self, "_dataset", None) or open_dataset(self._metadata['dataset']['path'])
     
     @property
     def name(self):
