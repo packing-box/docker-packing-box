@@ -138,6 +138,7 @@ RUN pip3 -qq install --user --no-warn-script-location --ignore-installed meson p
 # +--------------------------------------------------------------------------------------------------------------------+
 FROM customized AS framework
 ARG USER
+ARG HOME
 ARG UOPT
 ARG FILES
 ARG PBOX
