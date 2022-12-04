@@ -498,34 +498,6 @@ MEW:
   source: https://in4k.github.io/wiki/exe-packers-tweakers-and-linkers
   status: ok
 
-MPRESS:
-  categories:
-    - compressor
-  description: MPRESS is a free, high-performance executable packer for PE32/PE32+/.NET/MAC-DARWIN executable formats.
-  exclude:
-    PE:
-      - ds
-  formats:
-    - PE
-    - Mach-O
-  install:
-    - unzip: $OPT/mpress
-    - wine: mpress.exe
-  references:
-    - https://www.autohotkey.com/mpress/mpress_web.htm
-    - https://storage.ey.md/Technology%%20Related/Programming%%20%%26%%20Reversing/Tuts4You%%20Collection/UnPackMe%%20Collection/dotNET/MPress%%200.71.rar
-    - https://storage.ey.md/Technology%%20Related/Programming%%20%%26%%20Reversing/Tuts4You%%20Collection/UnPackMe%%20Collection/PE32/MPress%%200.77.rar
-    - https://storage.ey.md/Technology%%20Related/Programming%%20%%26%%20Reversing/Tuts4You%%20Collection/UnPackMe%%20Collection/PE32/MPress%%201.27.rar
-    - https://storage.ey.md/Technology%%20Related/Programming%%20%%26%%20Reversing/Tuts4You%%20Collection/UnPackMe%%20Collection/PE32/MPress%%202.12.rar
-    - https://storage.ey.md/Technology%%20Related/Programming%%20%%26%%20Reversing/Tuts4You%%20Collection/UnPackMe%%20Collection/PE64/MPress%%201.07%%20x64.rar
-    - https://storage.ey.md/Technology%%20Related/Programming%%20%%26%%20Reversing/Tuts4You%%20Collection/UnPackMe%%20Collection/PE64/MPress%%202.12%%20x64.rar
-  silent:
-    - Warning!
-  source: https://www.softpedia.com/get/Programming/Packers-Crypters-Protectors/MPRESS.shtml
-  status: ok
-  steps:
-    - mpress {{executable}} {{compressed[|-r]}} {{lzmat[|-m]}}
-
 MidgetPack:
   categories:
     - protector
@@ -563,6 +535,34 @@ Morphine:
     - PE32
   source: https://github.com/bowlofstew/rootkit.com/tree/master/hf/Morphine27
   status: info
+
+MPRESS:
+  categories:
+    - compressor
+  description: MPRESS is a free, high-performance executable packer for PE32/PE32+/.NET/MAC-DARWIN executable formats.
+  exclude:
+    PE:
+      - ds
+  formats:
+    - PE
+    - Mach-O
+  install:
+    - unzip: $OPT/mpress
+    - wine: mpress.exe
+  references:
+    - https://www.autohotkey.com/mpress/mpress_web.htm
+    - https://storage.ey.md/Technology%%20Related/Programming%%20%%26%%20Reversing/Tuts4You%%20Collection/UnPackMe%%20Collection/dotNET/MPress%%200.71.rar
+    - https://storage.ey.md/Technology%%20Related/Programming%%20%%26%%20Reversing/Tuts4You%%20Collection/UnPackMe%%20Collection/PE32/MPress%%200.77.rar
+    - https://storage.ey.md/Technology%%20Related/Programming%%20%%26%%20Reversing/Tuts4You%%20Collection/UnPackMe%%20Collection/PE32/MPress%%201.27.rar
+    - https://storage.ey.md/Technology%%20Related/Programming%%20%%26%%20Reversing/Tuts4You%%20Collection/UnPackMe%%20Collection/PE32/MPress%%202.12.rar
+    - https://storage.ey.md/Technology%%20Related/Programming%%20%%26%%20Reversing/Tuts4You%%20Collection/UnPackMe%%20Collection/PE64/MPress%%201.07%%20x64.rar
+    - https://storage.ey.md/Technology%%20Related/Programming%%20%%26%%20Reversing/Tuts4You%%20Collection/UnPackMe%%20Collection/PE64/MPress%%202.12%%20x64.rar
+  silent:
+    - Warning!
+  source: https://www.softpedia.com/get/Programming/Packers-Crypters-Protectors/MPRESS.shtml
+  status: ok
+  steps:
+    - mpress {{executable}} {{compressed[|-r]}} {{lzmat[|-m]}}
 
 Muncho:
   comment: (TODO) this is a Mac OS X executable ; requires Darling installed.
@@ -826,7 +826,6 @@ RLPack:
   references:
     - https://storage.ey.md/Technology%%20Related/Programming%%20%%26%%20Reversing/Tuts4You%%20Collection/Unpacking%%20Tutorials/RLPack%%201.21%%20%%28Unpacking%%29.rar
   source: https://www.softpedia.com/get/Programming/Packers-Crypters-Protectors/RLPack-Basic-Edition.shtml
-  status: ok
 
 SEPacker:
   categories:
@@ -1008,32 +1007,32 @@ UPX:
       install:
         - wget: https://github.com/upx/upx/releases/download/v3.91/upx-3.91-amd64_linux.tar.bz2
         - untar: $OPT
-        - ln: $OPT/upx-3.91-amd64_linux/upx
+        - ln: $OPT/upx-3.91/upx
     UPX-3.92:
       install:
         - wget: https://github.com/upx/upx/releases/download/v3.92/upx-3.92-amd64_linux.tar.xz
         - untar: $OPT
-        - ln: $OPT/upx-3.92-amd64_linux/upx
+        - ln: $OPT/upx-3.92/upx
     UPX-3.93:
       install:
         - wget: https://github.com/upx/upx/releases/download/v3.93/upx-3.93-amd64_linux.tar.xz
         - untar: $OPT
-        - ln: $OPT/upx-3.93-amd64_linux/upx
+        - ln: $OPT/upx-3.93/upx
     UPX-3.94:
       install:
         - wget: https://github.com/upx/upx/releases/download/v3.94/upx-3.94-amd64_linux.tar.xz
         - untar: $OPT
-        - ln: $OPT/upx-3.94-amd64_linux/upx
+        - ln: $OPT/upx-3.94/upx
     UPX-3.95:
       install:
         - wget: https://github.com/upx/upx/releases/download/v3.95/upx-3.95-amd64_linux.tar.xz
         - untar: $OPT
-        - ln: $OPT/upx-3.95-amd64_linux/upx
+        - ln: $OPT/upx-3.95/upx
     UPX-3.96:
       install:
         - wget: https://github.com/upx/upx/releases/download/v3.96/upx-3.96-amd64_linux.tar.xz
         - untar: $OPT
-        - ln: $OPT/upx-3.96-amd64_linux/upx
+        - ln: $OPT/upx-3.96/upx
   xflag: true
 
 Ward:
