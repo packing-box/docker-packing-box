@@ -21,3 +21,22 @@ findsha256() {
   fi
 }
 
+# find an executable
+__findexec() {
+  if [ "$*" = "-h" ] || [ "$*" = "--help" ]; then
+    echo "Usage: find$1 folder"
+  else
+    find "$3" -type f -exec file {} \; | egrep -E "$2" | cut -d':' -f1
+  fi
+}
+
+# find tools for each executable format
+finddotnet() { local folder=$1; __findexec 'dotnet' ": PE32\+? executable (.+?)\.Net assembly" "$folder"; }
+findelf32() { local folder=$1; __findexec 'elf32' ": (set[gu]id )?ELF 32-bit " "$folder"; }
+findelf64() { local folder=$1; __findexec 'elf64' ": (set[gu]id )?ELF 64-bit " "$folder"; }
+findmacho32() { local folder=$1; __findexec 'macho32' ": Mach-O 32-bit " "$folder"; }
+findmacho64() { local folder=$1; __findexec 'macho64' ": Mach-O 64-bit " "$folder"; }
+findmachou() { local folder=$1; __findexec 'machou' ": Mach-O universal binary " "$folder"; }
+findmsdos() { local folder=$1; __findexec 'msdos' ": MS-DOS executable\s*" "$folder"; }
+findpe32() { local folder=$1; __findexec 'pe32' ": PE32 executable " "$folder"; }
+findpe64() { local folder=$1; __findexec 'pe64' ": PE32\+ executable " "$folder"; }
