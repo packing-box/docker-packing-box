@@ -36,7 +36,7 @@ class Modifiers(list):
                 modifiers = yaml.load(f, Loader=yaml.Loader) or {}
             Modifiers.registry = {}
             # collect properties that are applicable for all the modifiers
-            data_all = modifiers.pop('ALL', {})
+            data_all = modifiers.pop('defaults', {})
             for name, params in modifiers.items():
                 for i in data_all.items():
                     params.setdefault(*i)
@@ -52,17 +52,26 @@ class Modifiers(list):
                                 Modifiers.registry.setdefault(c2, {})
                                 Modifiers.registry[c2][m.name] = m
         if exe is not None:
+            parsed, parser = None, None
             for name, modifier in Modifiers.registry[exe.format].items():
                 if not modifier.apply:
                     continue
+                if parser is None or modifier.parser != parser:
+                    parser = modifier.parser
+                    parsed = parser(exe.realpath)
                 d = {}
                 d.update(__common__)
                 md = __elf__ if exe.format in expand_formats("ELF") else \
                      __macho__ if exe.format in expand_formats("Mach-O") \
                      __pe__ if exe.format in expand_formats("PE") else []
                 d.update({k: globals()[k] for k in md})
+                kw = {'executable': exe, 'parsed': parsed}
                 try:
-                    modifier(d, executable=exe)
+                    kw['sections'] = parsed.sections
+                except:
+                    pass
+                try:
+                    modifier(d, **kw)
                     self.append(name)
                 except Exception as e:
                     self.logger.warning("%s: %s" % (name, str(e)))

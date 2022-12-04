@@ -7,7 +7,7 @@ import yaml
 from contextlib import contextmanager
 from functools import wraps
 from time import perf_counter, time
-from tinyscript import inspect, logging, subprocess
+from tinyscript import inspect, logging, random, subprocess
 from tinyscript.helpers import is_file, is_folder, Path, TempPath
 from tinyscript.helpers.expressions import WL_NODES
 
@@ -54,6 +54,7 @@ class dict2(dict):
         self.setdefault("name", "undefined")
         self.setdefault("description", "")
         self.setdefault("result", None)
+        self.setdefault("parameters", {})
         for f, v in getattr(self.__class__, "_fields", {}).items():
             self.setdefault(f, v)
         super(dict2, self).__init__(idict, **kwargs)
@@ -62,9 +63,10 @@ class dict2(dict):
             raise ValueError("%s: 'result' shall be defined" % self.name)
     
     def __call__(self, data, silent=False, **kwargs):
-        d = {}
+        d = {k: getattr(random, k) for k in ["choice", "randint", "randrange", "randstr"]}
         d.update(_EVAL_NAMESPACE)
         d.update(data)
+        kwargs.update(self.parameters)
         try:
             e = eval2(self.result, d, {}, whitelist_nodes=WL_NODES + WL_EXTRA_NODES)
             if len(kwargs) == 0:

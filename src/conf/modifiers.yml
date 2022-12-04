@@ -1,1 +1,9 @@
-#TODO
+defaults:
+  parser: !!python/name:lief.parse
+
+replace_one_section_name_with_random_bytes:
+  result: section_name(choice(sections).name, randstr())
+
+replace_text_with_null_bytes:
+  result: section_name(".text", "\0"*8)
+
