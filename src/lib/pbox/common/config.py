@@ -5,19 +5,19 @@ from tinyscript.helpers import ConfigPath, Path
 from tinyscript.report import *
 
 
-__all__ = ["config", "LOG_FORMATS", "NAMING_CONVENTION", "NOT_LABELLED", "NOT_PACKED", "PACKING_BOX_SOURCES"]
+__all__ = ["config", "LABELS_BACK_CONV", "LOG_FORMATS", "NAMING_CONVENTION", "NOT_LABELLED", "NOT_PACKED",
+           "PACKING_BOX_SOURCES"]
 
 LOG_FORMATS = ["%(asctime)s [%(levelname)s] %(message)s", "%(asctime)s [%(levelname)-8s] %(name)-18s - %(message)s"]
 NAMING_CONVENTION = r"(?i)^[a-z][a-z0-9]*(?:[-_][a-z0-9]+)*$"
 PACKING_BOX_SOURCES = {
     'ELF': ["/sbin", "/usr/bin"],
-    'PE':  ["~/.wine/drive_c/windows", "~/.wine32/drive_c/windows"],
+    'PE':  ["~/.wine32/drive_c/windows", "~/.wine64/drive_c/windows"],
 }
 
 # label markers and conversion for Scikit-Learn and Weka
 NOT_LABELLED, NOT_PACKED = "?-"  # impose markers for distinguishing between unlabelled and not-packed data
-LABELS_SKLEARN = {NOT_LABELLED: -1, NOT_PACKED: ""}
-LABELS_WEKA    = {NOT_LABELLED: "?", NOT_PACKED: "-"}
+LABELS_BACK_CONV = {NOT_LABELLED: -1, NOT_PACKED: None}  # values used with Scikit-learn for unlabelled and null class
 
 _rp = lambda v: Path(str(v), expand=True).absolute()
 _ws = lambda s, v: Path(s['workspace'].joinpath(v), create=True, expand=True).absolute()

@@ -46,45 +46,45 @@ STATUS_DISABLED = ["broken", "commercial", "info", "useless"]
 STATUS_ENABLED = [s for s in STATUS.keys() if s not in STATUS_DISABLED + ["not installed"]]
 TEST_FILES = {
     'ELF32': [
-        "/usr/bin/perl5.30-i386-linux-gnu",
+        "/usr/bin/perl",
         "/usr/lib/wine/wine",
         "/usr/lib/wine/wineserver32",
         "/usr/libx32/crti.o",
         "/usr/libx32/libpcprofile.so",
     ],
     'ELF64': [
-        "/usr/bin/cat",
-        "/usr/bin/ls",
-        "/usr/lib/man-db/manconv",
+        "/bin/cat",
+        "/bin/ls",
+        "/bin/mandb",
         "/usr/lib/openssh/ssh-keysign",
         "/usr/lib/git-core/git",
         "/usr/lib/x86_64-linux-gnu/crti.o",
         "/usr/lib/x86_64-linux-gnu/libpcprofile.so",
-        "/usr/lib/sudo/sudoers.so",
+        "/usr/lib/ld-linux.so.2",
     ],
     'MSDOS': [
-        "~/.wine/drive_c/windows/rundll.exe",
-        "~/.wine/drive_c/windows/syswow64/gdi.exe",
-        "~/.wine/drive_c/windows/syswow64/user.exe",
-        "~/.wine/drive_c/windows/syswow64/mouse.drv",
-        "~/.wine/drive_c/windows/syswow64/winaspi.dll",
+        "~/.wine32/drive_c/windows/rundll.exe",
+        "~/.wine32/drive_c/windows/system32/gdi.exe",
+        "~/.wine32/drive_c/windows/system32/user.exe",
+        "~/.wine32/drive_c/windows/system32/mouse.drv",
+        "~/.wine32/drive_c/windows/system32/winaspi.dll",
     ],
     'PE32': [
-        "~/.wine/drive_c/windows/winhlp32.exe",
-        "~/.wine/drive_c/windows/syswow64/plugplay.exe",
-        "~/.wine/drive_c/windows/syswow64/winemine.exe",
-        "~/.wine/drive_c/windows/twain_32.dll",
-        "~/.wine/drive_c/windows/twain_32/sane.ds",
-        "~/.wine/drive_c/windows/syswow64/msscript.ocx",
-        "~/.wine/drive_c/windows/syswow64/msgsm32.acm",
+        "~/.wine32/drive_c/windows/winhlp32.exe",
+        "~/.wine32/drive_c/windows/system32/plugplay.exe",
+        "~/.wine32/drive_c/windows/system32/winemine.exe",
+        "~/.wine32/drive_c/windows/twain_32.dll",
+        "~/.wine32/drive_c/windows/twain_32/sane.ds",
+        "~/.wine32/drive_c/windows/system32/msscript.ocx",
+        "~/.wine32/drive_c/windows/system32/msgsm32.acm",
     ],
     'PE64': [
-        "~/.wine/drive_c/windows/hh.exe",
-        "~/.wine/drive_c/windows/system32/spoolsv.exe",
-        "~/.wine/drive_c/windows/system32/dmscript.dll",
-        "~/.wine/drive_c/windows/twain_64/gphoto2.ds",
-        "~/.wine/drive_c/windows/system32/msscript.ocx",
-        "~/.wine/drive_c/windows/system32/msadp32.acm",
+        "~/.wine64/drive_c/windows/hh.exe",
+        "~/.wine64/drive_c/windows/system32/spoolsv.exe",
+        "~/.wine64/drive_c/windows/system32/dmscript.dll",
+        "~/.wine64/drive_c/windows/twain_64/gphoto2.ds",
+        "~/.wine64/drive_c/windows/system32/msscript.ocx",
+        "~/.wine64/drive_c/windows/system32/msadp32.acm",
     ],
 }
 
@@ -129,6 +129,10 @@ class Base(Item):
                 if fmt in expand_formats(k):
                     l.extend(v)
             exc = list(set(l))
+        if not exe.exists():
+            if not silent:
+                self.logger.warning("'%s' does not exist" % exe)
+            return False
         if fmt not in self._formats_exp:
             if not silent:
                 self.logger.debug("does not handle %s executables" % fmt)
@@ -631,7 +635,7 @@ class Base(Item):
                 continue
             self.logger.info(fmt)
             for exe in l:
-                exe = Executable(exe)
+                exe = Executable(exe, expand=True)
                 if not self._check(exe):
                     continue
                 tmp = d.joinpath(exe.filename)
