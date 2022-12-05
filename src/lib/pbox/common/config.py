@@ -11,7 +11,7 @@ __all__ = ["config", "LABELS_BACK_CONV", "LOG_FORMATS", "NAMING_CONVENTION", "NO
 LOG_FORMATS = ["%(asctime)s [%(levelname)s] %(message)s", "%(asctime)s [%(levelname)-8s] %(name)-18s - %(message)s"]
 NAMING_CONVENTION = r"(?i)^[a-z][a-z0-9]*(?:[-_][a-z0-9]+)*$"
 PACKING_BOX_SOURCES = {
-    'ELF': ["/sbin", "/usr/bin"],
+    'ELF': ["/usr/bin", "/usr/sbin"],
     'PE':  ["~/.wine32/drive_c/windows", "~/.wine64/drive_c/windows"],
 }
 

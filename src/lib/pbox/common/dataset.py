@@ -414,8 +414,8 @@ class Dataset:
             if all(not p._check(exe, silent=True) for p in packers):
                 l.debug("unsupported file (%s)" % exe)
                 continue
-            # check 4.a: was this executable already included in the dataset?
-            if len(self._data) > 0 and not to_be_packed and exe.hash in self._data.hash.values:
+            # check 4: was this executable already included in the dataset?
+            if len(self._data) > 0 and exe.destination.exists():
                 l.debug("already in the dataset (%s)" % exe)
                 continue
             l.debug("handling %s..." % exe)
@@ -425,9 +425,10 @@ class Dataset:
             if to_be_packed:
                 if len(packers) > 1:
                     random.shuffle(packers)
-                dest = exe.copy(extension=True).absolute()
+                dest = exe.copy(extension=True)
                 if dest is None:  # occurs when the copy failed
                     continue
+                dest = dest.absolute()
                 for p in packers[:]:
                     fmt = dest.format
                     dest.chmod(0o700 if getattr(p, "xflag", False) else 0o600)
@@ -442,12 +443,8 @@ class Dataset:
                         dest = exe.copy(extension=True).absolute()  # reset the original executable
                         label = NOT_PACKED
                         continue
-                    # check 4.b: was this packed executable already included in the dataset?
-                    if len(self._data) > 0 and dest.hash in self._data.hash.values:
-                        l.debug("already packed before (%s)" % exe)
-                        break
                     if label == NOT_PACKED or p._bad:
-                        # if we reached the limit of GOOD packing occurrences, then we consider the packer as GOOD again
+                        # if we reached the limit of GOOD packing occurrences, we consider the packer as GOOD again
                         if cgood[p] <= 0:
                             p._bad, cbad[p] = False, n // 3
                         # but if BAD, we reset the GOOD counter and eventually disable it
@@ -464,15 +461,15 @@ class Dataset:
                             cbad[p] = CBAD  # reset BAD counter
                         label = NOT_PACKED
                         continue
-                    else:  # consider short label (e.g. "midgetpack", not "midgetpack[<password>]")
-                        short_label = label.split("[")[0]
+                    # consider short label (e.g. "midgetpack", not "midgetpack[<password>]")
+                    short_label = label.split("[")[0]
                     break
                 # ensure we did not left the executable name with its hash AND extension behind
                 try:
                     dest.rename(exe.destination)
                 except FileNotFoundError:
                     pass
-            if not pack_all or (pack_all and label not in [NOT_PACKED, NOT_LABELLED]):
+            if not pack_all or pack_all and label not in [NOT_PACKED, NOT_LABELLED]:
                 self[exe] = short_label
                 i += 1
                 pbar.update()
@@ -590,19 +587,19 @@ class Dataset:
         def _update(e):
             # precedence: input dictionary of labels > dataset's own labels > detection (if enabled) > discard
             h = e.hash
-            lbl = labels.get(h)
+            lbl = labels.get(h) or NOT_LABELLED
             # executable does not exist yet => create it without a label
             if h not in self:
                 self[e] = NOT_LABELLED
             # label is found in the input labels dictionary and is not already NOT_LABELLED => update
             if lbl != NOT_LABELLED:
-                self[h] = (lbl, True)
+                self[e] = (lbl, True)
             # label was already set before => keep the former label
             elif e.label != NOT_LABELLED:
                 pass
             # label was not found and is not set yet and detection is enabled => detect
             elif detect:
-                self[h] = (Detector.detect(e), True)
+                self[e] = (Detector.detect(e), True)
         # case (1) source directories provided, eventually with labels => ingest samples
         #           labels available   => packed / not packed
         #           labels unavailable => not labelled
@@ -882,7 +879,7 @@ class Dataset:
                 labels = json.load(f)
         if not isinstance(labels, dict):
             raise ValueError("Bad labels ; not a dictionary or JSON file")
-        return labels
+        return {h: l or NOT_PACKED for h, l in labels.items()}
     
     @staticmethod
     def summarize(path=None, show=False, hide_files=False):
