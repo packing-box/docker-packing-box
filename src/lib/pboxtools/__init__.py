@@ -94,7 +94,7 @@ def execute(name, **kwargs):
                 spec += " " + a.option_strings[0] + " " + str(x)
         elif v is not None:
             spec += " " + a.option_strings[0] + " " + str(v)
-    cmd = DETECTORS[name].get('command', "~/.local/bin/%s {path}" % name.lower())
+    cmd = DETECTORS[name].get('command', "%s/%s {path}" % (expanduser("~/.local/bin"), name.lower()))
     exe, opt = cmd.replace("$OPT", expanduser("~/.opt/detectors")).split(" ", 1)
     cmd = (exe + "%s " + opt) % spec
     cmd = re.sub("'?\{path\}'?", "'{path}'", cmd)  # this allows to handle input path with whitespaces
