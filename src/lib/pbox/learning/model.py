@@ -461,7 +461,7 @@ class Model:
                   "**Size**:         %s" % human_readable_size(ds_path.size),
                   "**#Executables**: %d" % ds['executables'],
                   "**Formats**:      %s" % ", ".join(ds['formats']),
-                  "**Packers**:      %s" % ", ".join(ds['counts'].keys())])
+                  "**Packers**:      %s" % ", ".join(x for x in ds['counts'].keys() if x != NOT_PACKED)])
         print(mdv.main(Report(Section("Reference dataset"), c).md()))
     
     def test(self, executable, **kw):
