@@ -127,7 +127,6 @@ PackerID:
 
 PeFrame:
   author: Gianni Amato
-  command: /usr/local/bin/peframe {path}
   comment: TO BE FIXED
   description: Open source tool to perform static analysis on Portable Executable malware and malicious MS Office documents.
   formats:
@@ -140,7 +139,7 @@ PeFrame:
     - "RuntimeWarning: too many matches for string"
     - "for match in rules"
   source:  https://github.com/guelfoweb/peframe
-  status:  ok
+  status:  broken
   version: <output>
   weak:    true
 
