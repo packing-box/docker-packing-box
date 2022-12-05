@@ -17,7 +17,8 @@ from .executable import Executable
 
 __all__ = ["aggregate_formats", "backup", "benchmark", "bin_label", "class_or_instance_method", "collapse_formats",
            "data_to_temp_file", "dict2", "edit_file", "expand_formats", "file_or_folder_or_dataset", "highlight_best",
-           "is_exe", "make_registry", "mdv", "metrics", "shorten_str", "ExeFormatDict", "FORMATS", "PERF_HEADERS"]
+           "is_exe", "make_registry", "mdv", "metrics", "shorten_str", "strip_version", "ExeFormatDict",
+           "FORMATS", "PERF_HEADERS"]
 
 _EVAL_NAMESPACE = {k: getattr(builtins, k) for k in ["abs", "divmod", "float", "hash", "hex", "id", "int", "len",
                                                      "list", "max", "min", "oct", "ord", "pow", "range", "range2",
@@ -260,18 +261,21 @@ def file_or_folder_or_dataset(method):
             else:
                 i = config['datasets'].joinpath(i)
                 # check if it has the structure of a dataset
-                if i.joinpath("files").is_dir() and not i.joinpath("features.json").exists() and \
-                   all(i.joinpath(f).is_file() for f in ["data.csv", "metadata.json"]):
-                    if not kwargs['silent']:
-                        self.logger.debug("input is Dataset from %s" % config['datasets'])
-                    data = pd.read_csv(str(i.joinpath("data.csv")), sep=";")
-                    l = {exe.hash: exe.label for exe in data.itertuples()}
-                    dataset = i.basename
-                    for f in i.joinpath("files").listdir():
-                        f.dataset = dataset
-                        if str(f) not in e:
-                            e.append(f)
-                    return True
+                if all(i.joinpath(f).is_file() for f in ["data.csv", "metadata.json"]):
+                    if i.joinpath("files").is_dir() and not i.joinpath("features.json").exists():
+                       
+                        if not kwargs['silent']:
+                            self.logger.debug("input is Dataset from %s" % config['datasets'])
+                        data = pd.read_csv(str(i.joinpath("data.csv")), sep=";")
+                        l = {exe.hash: exe.label for exe in data.itertuples()}
+                        dataset = i.basename
+                        for f in i.joinpath("files").listdir():
+                            f.dataset = dataset
+                            if str(f) not in e:
+                                e.append(f)
+                        return True
+                    # otherwise, it is a FilelessDataset and it won't work as this decorator requires samples
+                    self.logger.warning("FilelessDataset is not supported as it does not hold samples to iterate")
             return False
         # use the extension function to parse:
         # - positional arguments up to the last valid file/folder
@@ -419,6 +423,14 @@ def shorten_str(string, l=80):
         else:
             return s[:l-3] + "..."
     return s + "..."
+
+
+def strip_version(name):
+    """ Simple helper to strip the version number from a name (e.g. a packer). """
+    # name pattern is assumed to be hyphen-separated tokens ; the last one is checked for a version pattern
+    if re.match(r"^(\d+\.)*(\d+)([\._]?(\d+|[a-zA-Z]\d*|alpha|beta))?$", name.split("-")[-1]):
+        return "-".join(name.split("-")[:-1])
+    return name
 
 
 # based on: https://stackoverflow.com/questions/28237955/same-name-for-classmethod-and-instancemethod

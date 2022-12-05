@@ -8,7 +8,7 @@ from tinyscript.report import *
 from tqdm import tqdm
 
 
-__version__     = "1.1.1"
+__version__     = "1.1.2"
 __doc__         = """
 This tool aims to detect the packer used on an input executable, folder of executables or Dataset.
 """
@@ -24,6 +24,8 @@ if __name__ == '__main__':
     grp = parser.add_mutually_exclusive_group()
     grp.add_argument("-f", "--failures-only", action="store_true", help="output failures only")
     grp.add_argument("-m", "--metrics-only", action="store_true", help="output metrics only")
+    parser.add_argument("-s", "--do-not-strip-version", action="store_true",
+                        help="do not strip the version number of the packer while applying detection")
     parser.add_argument("-t", "--threshold", type=float, help="threshold for voting when using multiple detectors")
     parser.add_argument("-w", "--weak", action="store_true", help="also consider weak assumptions")
     initialize(noargs_action="usage", multi_level_debug=True)
@@ -38,12 +40,14 @@ if __name__ == '__main__':
     kw['select'], kw['vote'] = args.detector, args.detector == 0
     try:
         for out in Detector.detect(args.executable, **kw):
-            # ([exe]cutable, [r]esulting label of detector, actual [l]abel, [d]etails) 
+            # ([exe]cutable, [r]esulting label of the detector, actual [l]abel, [d]etails) 
             details = {}
             if kw['debug']:
                 exe, r, l, details = out
             else:
                 exe, r, l = out
+            if not args.do_not_strip_version:
+                l = strip_version(l)
             decision = "not labelled" if r == [-1, NOT_LABELLED][mc] else \
                        "not packed" if r == [0, NOT_PACKED][mc] else ["packed", r][mc]
             if not single:
