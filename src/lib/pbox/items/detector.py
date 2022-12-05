@@ -63,19 +63,21 @@ class Detector(Base):
     
     def check(self, *formats, **kwargs):
         """ Checks if the current item is applicable to the given formats. """
-        d_mc, i_mc = getattr(self, "multiclass", True), kwargs.get('multiclass')
-        vote, chk_vote = getattr(self, "vote", True), kwargs.get('vote', True)
+        l = self.logger
+        i_mc, d_mc = getattr(self, "multiclass", True), kwargs.get('multiclass', True)
+        i_vote, d_vote = getattr(self, "vote", True), kwargs.get('vote', False)
         if super(Detector, self).check(*formats, **kwargs):
-            # detector can be disabled either because it cannot vote or because it is not multiclass and detection was
-            #  requested as multiclass (note that, on the other side, a multiclass-capable detector shall always be
-            #  able to output a non-multiclass result (no packer label becomes False, otherwise True)
-            if (not chk_vote or vote) and not (not d_mc and i_mc):
-                return True
-            s = ["", " (%s)" % self.name][not kwargs.get('debug', False)]
-            if chk_vote and not vote:
-                self.logger.warning("not allowed to vote" + s)
-            if not d_mc and i_mc:
-                self.logger.warning("does not support multiclass" + s)
+            # detector can be disabled either because it is not allowed to vote or because it is not multiclass and
+            #  detection was requested as multiclass (note that, on the other side, a multiclass-capable detector shall
+            #  always be able to output a non-multiclass result (no packer label becomes False, otherwise True)
+            if d_vote and not i_vote:
+                l.debug("not allowed to vote")
+                return False
+            if d_mc and not i_mc:
+                warn = not d_vote and not kwargs['debug']
+                (l.warning if warn else l.debug)("%sdoes not support multiclass" % ["", "%s " % self.cname][warn])
+                return False
+            return True
         return False
     
     @class_or_instance_method

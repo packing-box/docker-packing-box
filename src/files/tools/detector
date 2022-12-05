@@ -8,7 +8,7 @@ from tinyscript.report import *
 from tqdm import tqdm
 
 
-__version__     = "1.1.2"
+__version__     = "1.2.0"
 __doc__         = """
 This tool aims to detect the packer used on an input executable, folder of executables or Dataset.
 """
@@ -36,8 +36,11 @@ if __name__ == '__main__':
     stats, cmatrix, pbar, errored = {}, {'fn': 0, 'fp': 0, 'tn': 0, 'tp': 0}, None, False
     single, mc = len(args.detector) == 1, kw['multiclass']
     logger.name = "detector" if single else "superdetector"
-    args.detector = [d for d in args.detector if d.check(**kw)]
-    kw['select'], kw['vote'] = args.detector, args.detector == 0
+    kw['vote'] = v = len(args.detector) == 0
+    single = len(args.detector) == 1
+    kw['select'] = lst = [d for d in (args.detector or Detector.registry) if d.check(**kw)]
+    if not single:
+        logger.info("%s: %s" % (["Detectors", "Superdetector"][v], ", ".join(i.cname for i in lst)))
     try:
         for out in Detector.detect(args.executable, **kw):
             # ([exe]cutable, [r]esulting label of the detector, actual [l]abel, [d]etails) 
