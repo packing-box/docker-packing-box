@@ -104,7 +104,7 @@ class Detector(Base):
             exe.len = dslen
         # case (1) called from the class => apply all the in-scope detectors (applicable and with vote=True)
         if isinstance(self, type):
-            registry = [d for d in kwargs.get('select', Detector.registry) if d.check(exe.format, **kwargs)]
+            registry = [d for d in (kwargs.get('select') or Detector.registry) if d.check(exe.format, **kwargs)]
             l = kwargs['n_detectors'] = len(registry)
             results, details = {'unknown': -l} if multiclass else {}, {}
             # step 1: collect trings per packer and suspicions

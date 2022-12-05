@@ -83,17 +83,17 @@ class Executable(Path):
         self.label = kwargs.pop('label', getattr(self, "label", NOT_LABELLED))
         return self
     
-    def copy(self, extension=False, overwrite=True):
+    def copy(self, extension=False, overwrite=False):
         dest = Executable(str(self.destination) + ["", self.extension.lower()][extension])
         if str(self) != dest:
             if overwrite and dest.exists():
                 dest.remove()
             try:  # copy file with its attributes and metadata
                 shutil.copy2(str(self), str(dest))
+                dest.chmod(0o400)
+                return dest
             except:
-                raise
-            dest.chmod(0o400)
-            return dest
+                pass
         # return None to indicate that the copy failed (i.e. when the current instance is already the destination path)
     
     def update(self):

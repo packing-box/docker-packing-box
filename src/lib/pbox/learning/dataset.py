@@ -10,7 +10,7 @@ from tinyscript.helpers import ansi_seq_strip, get_terminal_size, ints2hex, txt2
 from tqdm import tqdm
 
 from .executable import Executable
-from ..common.config import config
+from ..common.config import config, NOT_PACKED
 from ..common.dataset import Dataset
 from ..common.utils import backup, data_to_temp_file, edit_file
 from ..items.packer import Packer
@@ -180,12 +180,13 @@ class FilelessDataset(Dataset):
         # start counting, keeping 'Not packed' counts separate (to prevent it from being sorted with others)
         counts_np, counts, labels, data = {}, {}, [], pandas.DataFrame()
         for exe in self:
-            data = data.append(exe.data, ignore_index=True)
-            v = tuple(exe.data[f] for f in feature)
+            row = {f: v for f, v in exe.data.items() if f in feature}
+            data = data.append(row, ignore_index=True)
+            v = tuple(row.values())
             counts_np.setdefault(v, 0)
             counts.setdefault(v, {} if multiclass else {'Packed': 0})
             lbl = str(exe.label)
-            if lbl == "nan":
+            if lbl == NOT_PACKED:
                 counts_np[v] += 1
             elif multiclass:
                 lbl = Packer.get(lbl).cname
@@ -237,7 +238,7 @@ class FilelessDataset(Dataset):
         elif all(all(int(sk) == sk for sk in k) for k in counts.keys()):
             counts = {tuple(int(sk) for sk in k): v for k, v in counts.items()}
             vtype = int
-        l.debug("Plotting...")
+        l.debug("plotting...")
         width = get_terminal_size()[0] if output_format is None else 60
         plt = plotext if output_format is None else matplotlib.pyplot
         try:
@@ -299,6 +300,6 @@ class FilelessDataset(Dataset):
             plt.legend()
             img_name = ["", "combo-"][len(feature) > 1] + feature[0] + "." + output_format
             l.debug("saving image to %s..." % img_name)
-            plt.savefig(img_name, img_format=output_format, dpi=dpi, bbox_inches="tight")
+            plt.savefig(img_name, format=output_format, dpi=dpi, bbox_inches="tight")
     Dataset.plot = plot
 

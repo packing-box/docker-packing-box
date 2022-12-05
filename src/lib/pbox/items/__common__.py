@@ -648,7 +648,7 @@ class Base(Item):
                 # use the verb corresponding to the item type by shortening it by 2 chars ; 'packer' will give 'pack'
                 n = tmp.filename
                 label = getattr(self, self.type[:-2])(str(tmp))
-                h = Executable(str(mtp)).hash
+                h = Executable(str(tmp)).hash
                 if h not in hl:
                     hl.append(h)
                 getattr(self.logger, "failure" if label == NOT_PACKED else \
