@@ -228,7 +228,10 @@ def run(name, exec_func=execute, parse_func=lambda x, **kw: x, stderr_func=lambd
     a.orig_args, a._orig_args = {}, spec_opt
     for opt in spec_opt:
         n = opt.dest
-        a.orig_args[n] = expanduser(getattr(a, n))
+        try:
+            a.orig_args[n] = expanduser(getattr(a, n))
+        except TypeError:
+            a.orig_args[n] = getattr(a, n)
         delattr(a, n)
     if binary_only:
         a.binary = True
