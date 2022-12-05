@@ -196,8 +196,7 @@ class Base(Item):
                 self.logger.debug("does not apply to the selected formats")
             return False
         if not silent:
-            self.logger.warning("%s disabled" % self.name)
-            self.logger.debug("Status: " + self.status)
+            self.logger.debug("disabled (status: %s)" % self.status)
         return False
     
     def help(self, extras=None):

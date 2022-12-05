@@ -439,6 +439,7 @@ class Dataset:
                         continue
                     # means that the executable was packed but modifying the file type
                     if fmt != dest.format and label not in [NOT_LABELLED, NOT_PACKED]:
+                        self.logger.debug("resetting %s..." % exe)
                         dest.remove()
                         dest = exe.copy(extension=True).absolute()  # reset the original executable
                         label = NOT_PACKED
@@ -883,20 +884,19 @@ class Dataset:
     
     @staticmethod
     def summarize(path=None, show=False, hide_files=False):
-        datasets = []
-        headers = ["Name", "#Executables", "Size"] + [["Files"], []][hide_files] + ["Formats", "Packers"]
+        datasets, headers = [], ["Name", "#Executables", "Size"] + [["Files"], []][hide_files] + ["Formats", "Packers"]
         for dset in ts.Path(config['datasets']).listdir(lambda x: x.joinpath("metadata.json").exists()):
             with dset.joinpath("metadata.json").open() as meta:
                 metadata = json.load(meta)
             try:
+                counts = {k: v for k, v in metadata['counts'].items() if k != NOT_PACKED}
                 row = [
                     dset.basename,
                     str(metadata['executables']),
                     ts.human_readable_size(dset.size),
                 ] + [[["no", "yes"][dset.joinpath("files").exists()]], []][hide_files] + [
                     ",".join(sorted(metadata['formats'])),
-                    shorten_str(",".join("%s{%d}" % i \
-                                for i in sorted(metadata['counts'].items(), key=lambda x: (-x[1], x[0])))),
+                    shorten_str(",".join("%s{%d}" % i for i in sorted(counts.items(), key=lambda x: (-x[1], x[0])))),
                 ]
             except Exception as err:
                 row = None
