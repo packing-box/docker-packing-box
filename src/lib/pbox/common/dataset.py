@@ -425,20 +425,27 @@ class Dataset:
             if to_be_packed:
                 if len(packers) > 1:
                     random.shuffle(packers)
-                destination = exe.copy(extension=True)
-                if destination is None:  # occurs when the copy failed
+                dest = exe.copy(extension=True).absolute()
+                if dest is None:  # occurs when the copy failed
                     continue
-                old_h = destination.absolute()
                 for p in packers[:]:
-                    old_h.chmod(0o700 if getattr(p, "xflag", False) else 0o600)
-                    exe.hash, label = p.pack(str(old_h), include_hash=True)
-                    old_h.chmod(0o400)
-                    if exe.hash is None:
-                        continue  # means that this kind of executable is not supported by this packer
-                    # check 4.b: was this packed executable already included in the dataset?
-                    if len(self._data) > 0 and exe.hash in self._data.hash.values:
-                        l.debug("already packed before (%s)" % exe)
+                    fmt = dest.format
+                    dest.chmod(0o700 if getattr(p, "xflag", False) else 0o600)
+                    label = p.pack(dest)
+                    dest.chmod(0o400)
+                    # means that this kind of executable is not supported by this packer
+                    if label is None:
                         continue
+                    # means that the executable was packed but modifying the file type
+                    if fmt != dest.format and label not in [NOT_LABELLED, NOT_PACKED]:
+                        dest.remove()
+                        dest = exe.copy(extension=True).absolute()  # reset the original executable
+                        label = NOT_PACKED
+                        continue
+                    # check 4.b: was this packed executable already included in the dataset?
+                    if len(self._data) > 0 and dest.hash in self._data.hash.values:
+                        l.debug("already packed before (%s)" % exe)
+                        break
                     if label == NOT_PACKED or p._bad:
                         # if we reached the limit of GOOD packing occurrences, then we consider the packer as GOOD again
                         if cgood[p] <= 0:
@@ -462,14 +469,15 @@ class Dataset:
                     break
                 # ensure we did not left the executable name with its hash AND extension behind
                 try:
-                    old_h.rename(exe.destination)
+                    dest.rename(exe.destination)
                 except FileNotFoundError:
                     pass
-            if not pack_all or (pack_all and short_label not in [NOT_PACKED, NOT_LABELLED]):
+            if not pack_all or (pack_all and label not in [NOT_PACKED, NOT_LABELLED]):
                 self[exe] = short_label
-            if label not in [NOT_PACKED, NOT_LABELLED] or not pack_all:
                 i += 1
                 pbar.update()
+            else:
+                del self[exe]
         if pbar:
             pbar.close()
         ls = len(self)

@@ -2,7 +2,7 @@
 from tinyscript import b, ensure_str, hashlib, random, re, subprocess
 
 from .__common__ import Base, PARAM_PATTERN
-from ..common.config import NOT_PACKED
+from ..common.config import NOT_LABELLED, NOT_PACKED
 from ..common.executable import Executable
 from ..common.item import update_logger
 
@@ -40,41 +40,47 @@ class Packer(Base):
             return super(Packer, self).help()
     
     @update_logger
-    def pack(self, executable, include_hash=False, **kwargs):
+    def pack(self, executable, **kwargs):
         """ Runs the packer according to its command line format and checks if the executable has been changed by this
              execution. """
         # check: is this packer able to process the input executable ?
         exe = Executable(executable)
         if not self._check(exe):
-            return (None, None) if include_hash else None
+            return
         # now pack the input executable, taking its SHA256 in order to check for changes
-        h, self._error, self._bad = exe.hash, None, False
+        h, fmt, self._error, self._bad = exe.hash, exe.format, None, False
         label = self.run(exe, **kwargs)
-        exe.hash = hashlib.sha256_file(str(exe))
+        exe.update()
         # if "unmanaged" error, recover from it, without affecting the packer's state ;
         #  Rationale: packer's errors shall be managed beforehand by testing with 'packing-box test packer ...' and its
         #             settings shall be fine-tuned BEFORE making datasets ; "unmanaged" errors should thus not occur
         if self._error:
             err = self._error.replace(str(exe) + ": ", "").replace(self.name + ": ", "").strip()
             self.logger.debug("not packed (%s)" % err)
-            return (h, NOT_PACKED) if include_hash else NOT_PACKED
-        # frequent behaviors ;
-        # if packed file's hash was not changed OR a custom failure condition from the packer's definition is met,
-        #  then change packer's state to "BAD" ; this will trigger a count at the dataset level and disable the packer
-        #  if it triggers too many failures
-        elif any(getattr(exe, a, None) == v for a, v in getattr(self, "failure", {}).items()) or h == exe.hash:
-            if h == exe.hash:
-                self.logger.debug("not packed (content not changed)")
-            else:
-                for a, v in self.failure.items():
-                    if getattr(exe, a, None) == v:
-                        self.logger.debug("not packed (failure condition met: %s=%s)" % (a, str(v)))
-                        break
+            return NOT_PACKED
+        # if packed file's hash was not changed then change packer's state to "BAD" ; this will trigger a count at the
+        #  dataset level and disable the packer if it triggers too many failures
+        elif h == exe.hash:
+            self.logger.debug("not packed (content not changed)")
             self._bad = True
-            return (h, "") if include_hash else ""
+            return NOT_PACKED
+        # same if custom failure conditions are met ; packer's state is set to "BAD" and a counter is incremented for
+        #  further disabling it if needed
+        elif any(getattr(exe, a, None) == v for a, v in getattr(self, "failure", {}).items()):
+            for a, v in self.failure.items():
+                if getattr(exe, a, None) == v:
+                    self.logger.debug("not packed (failure condition met: %s=%s)" % (a, str(v)))
+            self._bad = True
+            return NOT_LABELLED
+        # it may occur that a packer modifies the format after packing, e.g. GZEXE on /usr/bin/fc-list (the new format
+        #  becomes "POSIX shell script executable (binary data)'
+        # this shall be simply discarded
+        elif fmt != exe.format:
+            self.logger.debug("packed but file type changed after packing")
+            return label
         # if packing succeeded, we can return packer's label
         self.logger.debug("packed successfully")
-        return (exe.hash, label) if include_hash else label
+        return label
     
     def run(self, executable, **kwargs):
         """ Customizable method for shaping the command line to run the packer on an input executable. """

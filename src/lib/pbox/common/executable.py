@@ -84,7 +84,7 @@ class Executable(Path):
         return self
     
     def copy(self, extension=False):
-        dest = Path(str(self.destination) + ["", self.extension.lower()][extension])
+        dest = Executable(str(self.destination) + ["", self.extension.lower()][extension])
         if str(self) != dest and not dest.exists():
             try:  # copy file with its attributes and metadata
                 shutil.copy2(str(self), str(dest))
@@ -92,6 +92,12 @@ class Executable(Path):
                 raise
             dest.chmod(0o400)
             return dest
+    
+    def update(self):
+        # ensure filetype and format will be recomputed at their next invocation
+        self.__dict__.pop('filetype', None)
+        self.__dict__.pop('format', None)
+        self.__dict__.pop('hash', None)
     
     @property
     def metadata(self):
@@ -103,13 +109,11 @@ class Executable(Path):
     
     @property
     def destination(self):
-        try:
+        if hasattr(self, "_destination"):
             return self._destination
-        except AttributeError:
-            try:
-                return self._dataset.files.joinpath(self.hash)
-            except AttributeError:
-                pass
+        if hasattr(self, "_dataset") and hasattr(self._dataset, "files") and self.hash is not None:
+            return self._dataset.files.joinpath(self.hash)
+        raise ValueError("Could not compute destination path for '%s'" % self)
     
     @cached_property
     def filetype(self):

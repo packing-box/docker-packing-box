@@ -135,7 +135,8 @@ class Base(Item):
             return False
         if fmt not in self._formats_exp:
             if not silent:
-                self.logger.debug("does not handle %s executables" % fmt)
+                self.logger.debug("does not handle %s executables" % fmt if fmt is not None else \
+                                  "does not handle '%s'" % exe.filetype)
             return False
         for p in exc:
             if isinstance(p, dict):
@@ -227,12 +228,14 @@ class Base(Item):
         kw = {'logger': self.logger, 'silent': []}
         if not config['wine_errors']:
             kw['silent'].append(r"^[0-9a-f]{4}\:(?:err|fixme)\:")
+        # local function for replacing tokens within the string lists, i.e. "silent" and "steps"
         _str = lambda o: "'" + str(o) + "'"
-        _repl = lambda s: s.replace("{{executable}}", _str(executable)) \
-                           .replace("{{executable.dirname}}", _str(executable.dirname)) \
-                           .replace("{{executable.filename}}", _str(executable.filename)) \
-                           .replace("{{executable.extension}}", _str(executable.extension)) \
-                           .replace("{{executable.stem}}", _str(executable.dirname.joinpath(executable.stem)))
+        def _repl(s, strf=lambda x: str(x)):
+            return s.replace("{{executable}}", strf(executable)) \
+                    .replace("{{executable.dirname}}", strf(executable.dirname)) \
+                    .replace("{{executable.filename}}", strf(executable.filename)) \
+                    .replace("{{executable.extension}}", strf(executable.extension)) \
+                    .replace("{{executable.stem}}", strf(executable.dirname.joinpath(executable.stem)))
         kw['silent'].extend(list(map(_repl, getattr(self, "silent", []))))
         output, cwd = "", os.getcwd()
         for step in getattr(self, "steps", ["%s %s%s" % (self.name.replace("_" ,"-"), extra_opt, _str(executable))]):
@@ -248,7 +251,7 @@ class Base(Item):
                 step = step[:i] + self.name + opt + step[i+len(self.name):]
             attempts = []
             # first, replace generic patterns
-            step = _repl(step)
+            step = _repl(step, _str)
             # now, replace a previous output and handle it as the return value
             if "{{output}}" in step:
                 step = step.replace("{{output}}", output)
@@ -644,7 +647,8 @@ class Base(Item):
                 run("chmod +x %s" % tmp)
                 # use the verb corresponding to the item type by shortening it by 2 chars ; 'packer' will give 'pack'
                 n = tmp.filename
-                h, label = getattr(self, self.type[:-2])(str(tmp), include_hash=True)
+                label = getattr(self, self.type[:-2])(str(tmp))
+                h = Executable(str(mtp)).hash
                 if h not in hl:
                     hl.append(h)
                 getattr(self.logger, "failure" if label == NOT_PACKED else \
