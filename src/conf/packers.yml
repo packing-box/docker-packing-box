@@ -1005,21 +1005,35 @@ UPX:
       source: https://www.sac.sk/download/pack/upx203l.tgz
       status: info
     UPX-3.91:
+      formats:
+        - PE32
+        - PE64
       install:
         - wget: https://github.com/upx/upx/releases/download/v3.91/upx-3.91-amd64_linux.tar.bz2
         - untar: $OPT
         - ln: $OPT/upx-3.91/upx
     UPX-3.92:
+      formats:
+        - PE32
+        - PE64
       install:
         - wget: https://github.com/upx/upx/releases/download/v3.92/upx-3.92-amd64_linux.tar.xz
         - untar: $OPT
         - ln: $OPT/upx-3.92/upx
     UPX-3.93:
+      formats:
+        - PE32
+        - PE64
       install:
         - wget: https://github.com/upx/upx/releases/download/v3.93/upx-3.93-amd64_linux.tar.xz
         - untar: $OPT
         - ln: $OPT/upx-3.93/upx
     UPX-3.94:
+      formats:
+        - ELF32
+        - ELF64
+        - PE32
+        - PE64
       install:
         - wget: https://github.com/upx/upx/releases/download/v3.94/upx-3.94-amd64_linux.tar.xz
         - untar: $OPT
