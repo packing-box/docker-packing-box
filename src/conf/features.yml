@@ -267,7 +267,7 @@ is_base_of_code_standard:
 is_checksum_null:
   description: Is the checksum set to 0
   result:
-    All: checksum == 0
+    PE: checksum == 0
 
 is_code_section_90%_of_image_size:
   description: Is the size of the code section greather or equal to 90% of the image size
