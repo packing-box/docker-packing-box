@@ -43,14 +43,14 @@ address_to_rdata_not_conform:
     PE: pefeats[41]
 
 base_of_code:
-  description: Base of Code (reduced to its multiplier of 0x1000 ; -1 means it is not a multiplier)
+  description: Base of Code
   result:
-    PE: pefeats[10] % 0x1000
+    PE: pefeats[10]
 
 byte_%d_after_ep:
   description: Byte %d following the EP
   result:
-    PE: pefeats[x+48]
+    PE: pefeats[48+x]
   values: !!python/object/new:range [0, 64]
 
 checksum:
