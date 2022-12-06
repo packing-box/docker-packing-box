@@ -632,6 +632,50 @@ Origami:
   source: https://github.com/dr4k0nia/Origami
   status: info
 
+Packman:
+  categories:
+    - compressor
+  description: Packman is a Windows EXE/DLL packer. It takes an existing EXE/DLL and compresses it into a form that runs exactly like the original, with detailed control over resource filtering, compression algorithm and packing process.
+  formats:
+    - PE32
+  source: https://www.portablefreeware.com/?id=847
+  status: info
+
+Pakkero:
+  categories:
+    - cryptor
+    - protector
+  comment: This relies on UPX and does not support running with UPX 4.01.
+  description: Pakkero is a binary packer written in Go made for fun and educational purpose. Its main goal is to take in input a program file (elf binary, script, even appimage) and compress it, protect it from tampering and intrusion.
+  formats:
+    - ELF
+  install:
+    - wget: https://github.com/89luca89/pakkero/releases/download/0.7.0/pakkero_linux_amd64
+    - cd: $TMP
+    - copy: pakkero
+  source: https://github.com/89luca89/pakkero
+  status: broken
+  steps:
+    - pakkero --file {{executable}} -o {{executable}}
+  variants:
+    Pakkero-Compressed:
+      categories:
+        - compressor
+        - cryptor
+        - protector
+      steps:
+        - pakkero --file {{executable}} -o {{executable}} -c
+
+Papaw:
+  categories:
+    - compressor
+    - protector
+  description: Papaw is a permissively-licensed packer for executables which contain statically linked, third-party components of various licenses and run on various devices, with limited disk space. It reduces the size of executables and makes them capable of replacing themselves on disk, while optionally providing very basic anti-debugging protection to discourage those attempting some trivial reverse-engineering techniques.
+  formats:
+    - ELF
+  source: https://github.com/dimkr/papaw
+  status: info
+
 PE-Packer:
   categories:
     - cryptor
@@ -756,49 +800,6 @@ PEzor:
     - https://iwantmore.pizza/posts/PEzor3.html
     - https://iwantmore.pizza/posts/PEzor4.html
   source: https://github.com/phra/PEzor
-
-Packman:
-  categories:
-    - compressor
-  description: Packman is a Windows EXE/DLL packer. It takes an existing EXE/DLL and compresses it into a form that runs exactly like the original, with detailed control over resource filtering, compression algorithm and packing process.
-  formats:
-    - PE32
-  source: https://www.portablefreeware.com/?id=847
-  status: info
-
-Pakkero:
-  categories:
-    - cryptor
-    - protector
-  description: Pakkero is a binary packer written in Go made for fun and educational purpose. Its main goal is to take in input a program file (elf binary, script, even appimage) and compress it, protect it from tampering and intrusion.
-  formats:
-    - ELF
-  install:
-    - wget: https://github.com/89luca89/pakkero/releases/download/0.7.0/pakkero_linux_amd64
-    - cd: $TMP
-    - copy: pakkero
-  source: https://github.com/89luca89/pakkero
-  status: ok
-  steps:
-    - pakkero --file {{executable}} -o {{executable}}
-  variants:
-    Pakkero-Compressed:
-      categories:
-        - compressor
-        - cryptor
-        - protector
-      steps:
-        - pakkero --file {{executable}} -o {{executable}} -c
-
-Papaw:
-  categories:
-    - compressor
-    - protector
-  description: Papaw is a permissively-licensed packer for executables which contain statically linked, third-party components of various licenses and run on various devices, with limited disk space. It reduces the size of executables and makes them capable of replacing themselves on disk, while optionally providing very basic anti-debugging protection to discourage those attempting some trivial reverse-engineering techniques.
-  formats:
-    - ELF
-  source: https://github.com/dimkr/papaw
-  status: info
 
 RLPack:
   categories:

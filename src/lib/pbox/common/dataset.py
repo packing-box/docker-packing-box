@@ -433,7 +433,6 @@ class Dataset:
                     fmt = dest.format
                     dest.chmod(0o700 if getattr(p, "xflag", False) else 0o600)
                     label = p.pack(dest)
-                    dest.chmod(0o400)
                     # means that this kind of executable is not supported by this packer
                     if label is None:
                         continue
@@ -465,6 +464,7 @@ class Dataset:
                     # consider short label (e.g. "midgetpack", not "midgetpack[<password>]")
                     short_label = label.split("[")[0]
                     break
+                dest.chmod(0o400)
                 # ensure we did not left the executable name with its hash AND extension behind
                 try:
                     dest.rename(exe.destination)
