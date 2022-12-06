@@ -19,7 +19,7 @@ The various items integrated in the Packing-Box are defined in the very declarat
 Building the image:
 
 ```console
-$ docker build -t dhondta/packing-box .
+# docker build -t dhondta/packing-box .
 [...]
 <<<wait for a while>>>
 [...]
@@ -28,10 +28,10 @@ $ docker build -t dhondta/packing-box .
 Starting it up with the current working directory mounted as `/mnt/share` in the container:
 
 ```console
-$ docker run -it -h packing-box -v `pwd`:/mnt/share dhondta/packing-box
+# docker run -it -h packing-box -v `pwd`:/mnt/share dhondta/packing-box
 
-┌──[root@packing-box]──[/mnt/share]────────           ────[172.17.0.2]──[12:34:56]──[0.12]────
-# 
+┌──[user@packing-box]──[/mnt/share]────────           ────[172.17.0.2]──[12:34:56]──[0.12]────
+$ 
 ```
 
 ## :clipboard: Basics
@@ -53,9 +53,9 @@ From within the Packing-Box, the [`packing-box`](https://github.com/packing-box/
 Afterwards, items are available from the console.
 
 ```console
-# die --help
+$ die --help
 <<snipped>>
-# upx --help
+$ upx --help
 <<snipped>>
 ```
 
@@ -64,18 +64,18 @@ Afterwards, items are available from the console.
 Packers and detectors have their respective dedicated tools for mass operations, [`packer`](https://github.com/packing-box/docker-packing-box/blob/main/src/files/tools/packer) and [`detector`](https://github.com/packing-box/docker-packing-box/blob/main/src/files/tools/detector). They work either on a single file, a complete folder or a special dataset instance (as of the abstraction defined in the [`pbox`](https://github.com/packing-box/docker-packing-box/tree/main/src/lib/pbox) package).
 
 ```console
-# packer upx path/to/executables --prefix "upx_"
+$ packer upx path/to/executables --prefix "upx_"
 <<snipped>>
 ```
 
 For the [`detector`](https://github.com/packing-box/docker-packing-box/blob/main/src/files/tools/detector) tool, not selecting any detector will use those selected in [`detectors.yml`](https://github.com/packing-box/docker-packing-box/blob/main/src/conf/detectors.yml) as being part of the "*superdetector*". Moreover, the `--binary` option will consider whether the target executable is packed or not and not is precise packer.
 
 ```console
-# detector path/to/single-executable -d die -d pypackerdetect
+$ detector path/to/single-executable -d die -d pypackerdetect
 <<snipped>>
-# detector path/to/executables
+$ detector path/to/executables
 <<snipped ; will use "superdetection">>
-# detector path/to/executables -d bintropy --binary
+$ detector path/to/executables -d bintropy --binary
 <<snipped ; in this case, as Bintropy only supports binary classification, --binary is necessary>>
 ```
 
@@ -109,7 +109,7 @@ The *VISUALIZE* phase can be performed with the [`dataset`](https://github.com/p
 In order to visualize feature values:
 
 ```console
-# dataset features test-mix byte_0_after_ep byte_1_after_ep --multiclass
+$ dataset features test-mix byte_0_after_ep byte_1_after_ep --multiclass
 ```
 
 ![](docs/pages/imgs/data-visualization-features.png)
@@ -117,7 +117,7 @@ In order to visualize feature values:
 In order to visualize samples (aims to compare the not-packed and some packed versions):
 
 ```console
-# visualizer plot "PsExec.exe$" dataset -s -l not-packed -l MEW -l RLPack -l UPX
+$ visualizer plot "PsExec.exe$" dataset -s -l not-packed -l MEW -l RLPack -l UPX
 ```
 
 ![](docs/pages/imgs/data-visualization-psexec.png)
