@@ -62,7 +62,7 @@ class Modifiers(list):
                 d = {}
                 d.update(__common__)
                 md = __elf__ if exe.format in expand_formats("ELF") else \
-                     __macho__ if exe.format in expand_formats("Mach-O") \
+                     __macho__ if exe.format in expand_formats("Mach-O") else\
                      __pe__ if exe.format in expand_formats("PE") else []
                 d.update({k: globals()[k] for k in md})
                 kw = {'executable': exe, 'parsed': parsed}
