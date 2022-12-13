@@ -8,6 +8,7 @@ from tinyscript.report import *
 from tqdm import tqdm
 
 from .config import *
+from .modifiers import *
 from .executable import *
 from .utils import *
 from ..items import *
@@ -291,12 +292,12 @@ class Dataset:
         # then apply alterations until the desired percentage is reached
         n, c = int(round(len(self)*p, 0)), 0
         for h in hashes:
-            if any(h in self._alterations.values()):
+            if any(h in altered_hs for altered_hs in self._alterations.values()):
                 continue
             exe = Executable(dataset=self, hash=h)
-            for a in Modifiers(exe):
-                self._alterations.setdefault(a, [])
-                self._alterations[a].append(h)
+            for m in Modifiers(exe):
+                self._alterations.setdefault(m, [])
+                self._alterations[m].append(h)
             c += 1
             if c >= n:
                 break
