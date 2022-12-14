@@ -117,9 +117,10 @@ class Model:
         #self.path = config['models'].joinpath(self.name)
         if not Model.check(self.path):
             return
+        self.logger.debug("loading model %s..." % self.path)
         for n in ["dump", "features", "metadata", "performance"]:
             p = self.path.joinpath(n + (".joblib" if n == "dump" else ".csv" if n == "performance" else ".json"))
-            self.logger.debug("loading model %s..." % str(p))
+            self.logger.debug("> loading %s..." % p.basename)
             if n == "dump":
                 self.pipeline.pipeline = joblib.load(str(p))
                 self.__read_only = True
@@ -315,7 +316,7 @@ class Model:
         if not self.__read_only:
             for n in ["dump", "features", "metadata"]:
                 p = self.path.joinpath(n + (".joblib" if n == "dump" else ".json"))
-                l.debug("> %s" % str(p))
+                l.debug("> saving %s..." % str(p))
                 if n == "dump":
                     joblib.dump(self.pipeline.pipeline, str(p))
                 else:
@@ -324,7 +325,7 @@ class Model:
                 p.chmod(0o444)
             self.__read_only = True
         p = self.path.joinpath("performance.csv")
-        l.debug("> %s" % str(p))
+        l.debug("> saving %s..." % p.basename)
         self._performance.to_csv(str(p), sep=";", columns=PERF_HEADERS.keys(), index=False, header=True,
                                  float_format=FLOAT_FORMAT)
     
@@ -392,6 +393,7 @@ class Model:
                 with model.joinpath("metadata.json").open() as meta:
                     metadata = json.load(meta)
                 alg, ds = metadata['algorithm'], metadata['dataset']
+                counts = {k: v for k, v in ds['counts'].items() if k != NOT_PACKED}
                 d.append([
                     model.stem,
                     alg['name'].upper(),
@@ -399,8 +401,7 @@ class Model:
                     ds['name'],
                     str(ds['executables']),
                     ",".join(sorted(ds['formats'])),
-                    shorten_str(",".join("%s{%d}" % i \
-                                for i in sorted(ds['counts'].items(), key=lambda x: (-x[1], x[0])))),
+                    shorten_str(",".join("%s{%d}" % i for i in sorted(counts.items(), key=lambda x: (-x[1], x[0])))),
                 ])
             if len(d) == 0:
                 self.logger.warning("No model found in workspace (%s)" % config['models'])
