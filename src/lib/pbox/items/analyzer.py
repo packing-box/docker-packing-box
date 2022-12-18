@@ -2,6 +2,7 @@
 from .__common__ import *
 from ..common.executable import Executable
 from ..common.item import update_logger
+from ..common.utils import file_or_folder_or_dataset
 
 
 # this list is filled in with subclasses at the end of this module
@@ -27,6 +28,15 @@ class Analyzer(Base):
         output = self.run(e, **kwargs)
         # if packer detection succeeded, we can return packer's label
         return output
+    
+    @file_or_folder_or_dataset
+    @update_logger
+    def test(self, executable, **kwargs):
+        """ Tests the given item on some executable files. """
+        self._test(kwargs.get('silent', False))
+        out = self.analyze(executable, **kwargs)
+        if out is not None:
+            self.logger.info("Output:\n" + out)
 
 
 # dynamically makes Analyzer's registry of child classes from the default dictionary of analyzers (~/.opt/analyzers.yml)

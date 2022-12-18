@@ -152,10 +152,16 @@ class Detector(Base):
     def test(self, executable, **kwargs):
         """ Tests the given item on some executable files. """
         label, multiclass = kwargs.get('label'), kwargs.get('multiclass', True)
+        l = self.logger
         self._test(kwargs.get('silent', False))
-        label2 = self.detect(executable, **kwargs)
+        try:
+            label2 = list(self.detect(executable, **kwargs))[0][1]
+        except TypeError:  # NoneType ; when executable has a format not supported by the detector being tested
+            if not kwargs.get('verbose', False):
+                l.warning("'%s' has a format not supported by %s" % (executable, self.cname))
+            return
         if multiclass:
-            if label2 == "":
+            if label2 == NOT_PACKED:
                 msg = "{} is not packed".format(executable)
             else:
                 msg = "{} is packed with {}".format(executable, label2)
@@ -163,7 +169,6 @@ class Detector(Base):
             msg = "{} is {}packed".format(executable, ["not ", ""][label2])
         if label != NOT_LABELLED:
             msg += " ({})".format("not packed" if label in ["", True] else "packed" if label is True else label)
-        l = self.logger
         (l.warning if label == NOT_LABELLED else [l.failure, l.success][label == label2])(msg)
 
 
