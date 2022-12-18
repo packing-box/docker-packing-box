@@ -91,3 +91,5 @@ Unix_File:
     - https://man.netbsd.org/libmagic.3
   source: https://launchpad.net/ubuntu/+source/file
   status: ok
+  steps:
+    - file {{executable}}
