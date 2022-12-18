@@ -57,6 +57,10 @@ class MetaItem(type):
                 setattr(i, "_" + k if k in ["source", "status"] else k, v)
         # open the .conf file associated to the main class (i.e. Detector, Packer, ...)
         self.registry, glob = [], inspect.getparentframe().f_back.f_globals
+        if not p.is_file():
+            self.logger.warning("'%s' does not exist ; set back to default" % p)
+            p, func = config.DEFAULTS['definitions']['%ss' % self.__name__.lower()]
+            p = func(p)
         with p.open() as f:
             items = yaml.load(f, Loader=yaml.Loader)
         # start parsing items of the target class

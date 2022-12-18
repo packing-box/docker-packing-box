@@ -228,6 +228,7 @@ def file_or_folder_or_dataset(method):
          a folder with executables or the executable files from a Dataset. """
     @wraps(method)
     def _wrapper(self, *args, **kwargs):
+        kwargs['silent'] = kwargs.get('silent', False)
         # collect executables and folders from args
         n, e, l = -1, [], {}
         # exe list extension function
