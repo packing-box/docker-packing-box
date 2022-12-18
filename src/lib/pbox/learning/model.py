@@ -442,11 +442,14 @@ class Model:
         last_step = ps[-1][1] if isinstance(ps[-1], tuple) else ps[-1]
         fi, fi_str = getattr(last_step, "feature_importances_", None), []
         if fi is not None:
-            best_feat = [n for i, n in sorted(zip(fi, sorted(self._features.keys())), key=lambda x: -x[0]) if i > 0.]
+            # compute the ranked list of features with non-null importances (including the importance value)
+            best_feat = [(i, n) for i, n in \
+                         sorted(zip(fi, sorted(self._features.keys())), key=lambda x: -x[0]) if i > 0.]
             l = max(map(len, best_feat))
-            best_feat = [("{: <%s}: {}" % ((l + 1) if l >= 10 and i < 9 else l)).format(n, self._features[n]) \
-                         for i, n in enumerate(best_feat)]
-            fi_str = ["**Features**:      %d \n\n\t1. %s\n\n" % (len(self._features), "\n\n\t1. ".join(best_feat))]
+            best_feat = [("{: <%s}: {} (%.3f)" % ((l + 1) if l >= 10 and i < 9 else l, p[0])) \
+                         .format(p[1], self._features[p[1]]) for i, p in enumerate(best_feat)]
+            fi_str = ["**Features**:      %d (%d with non-null importance)\n\n\t1. %s\n\n" % \
+                      (len(self._features), len(best_feat), "\n\n\t1. ".join(best_feat))]
         params = a['parameters'].keys()
         l = max(map(len, params))
         params = [("{: <%s} = {}" % l).format(*p) for p in sorted(a['parameters'].items(), key=lambda x: x[0])]

@@ -8,8 +8,8 @@ from tinyscript.report import *
 from tqdm import tqdm
 
 from .config import *
-from .modifiers import *
 from .executable import *
+from .modifiers import *
 from .utils import *
 from ..items import *
 
