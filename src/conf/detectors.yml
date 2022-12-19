@@ -33,7 +33,7 @@ Bintropy:
   multiclass: false
   references:
     - https://ieeexplore.ieee.org/document/4140989
-  source: https://github.com/dhondta/bintropy
+  source: https://github.com/packing-box/bintropy
   status: ok
 
 DIE:
@@ -156,7 +156,7 @@ PEiD:
     - www.softpedia.com/get/Programming/Packers-Crypters-Protectors/PEiD-updated.shtml
     - https://github.com/ynadji/peid/
     - https://github.com/wolfram77web/app-peid
-  source: https://github.com/dhondta/peid
+  source: https://github.com/packing-box/peid
   status: ok
   vote:   true
 
@@ -178,7 +178,7 @@ PyPackerDetect:
     - PE
   install:
     - pip: pypackerdetect
-  source: https://github.com/dhondta/PyPackerDetect
+  source: https://github.com/packing-box/PyPackerDetect
   status: ok
   vote:   true
   weak:   true
@@ -209,6 +209,18 @@ RDG:
   maintained: false
   source: http://www.rdgsoft.net
   status: info
+
+REMINDer:
+  description: REMINDer is a detection tool that applies a simple entropy-based heuristic to determine whether the target is packed or not.
+  formats:
+    - All
+  install:
+    - pip: reminder-detector
+  multiclass: false
+  references:
+    - https://ieeexplore.ieee.org/document/5404211
+  source: https://github.com/packing-box/REMINDer
+  status: ok
 
 RetDec:
   author: Avast
