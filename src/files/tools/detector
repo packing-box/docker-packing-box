@@ -49,7 +49,7 @@ if __name__ == '__main__':
                 exe, r, l, details = out
             else:
                 exe, r, l = out
-            if not args.do_not_strip_version:
+            if not args.do_not_strip_version and not args.binary:
                 l = strip_version(l)
             decision = "not labelled" if r == [-1, NOT_LABELLED][mc] else \
                        "not packed" if r == [0, NOT_PACKED][mc] else ["packed", r][mc]
