@@ -7,7 +7,7 @@ import yaml
 from contextlib import contextmanager
 from functools import wraps
 from time import perf_counter, time
-from tinyscript import inspect, logging, random, subprocess
+from tinyscript import inspect, logging, os, random, subprocess
 from tinyscript.helpers import is_file, is_folder, Path, TempPath
 from tinyscript.helpers.expressions import WL_NODES
 
@@ -200,9 +200,9 @@ def data_to_temp_file(data, prefix="temp"):
     p.remove()
 
 
-def edit_file(path, csv_sep=";", **kw):
+def edit_file(path, csv_sep=";", text=False, **kw):
     """" Edit a target file with visidata. """
-    cmd = "vd %s --csv-delimiter \"%s\"" % (path, csv_sep)
+    cmd = "%s %s" % (os.getenv('EDITOR'), path) if text else "vd %s --csv-delimiter \"%s\"" % (path, csv_sep)
     l = kw.pop('logger', None)
     if l:
         l.debug(cmd)

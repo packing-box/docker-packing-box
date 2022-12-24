@@ -41,26 +41,27 @@ CMD_SUCC_SYMBOL="✔" #✓✔
 CMD_FAIL_SYMBOL="✘" #✗✘
 HOST_COLOR=$BGRE
 PATH_COLOR=$BWHI
+EXP_COLOR=$BYEL
 SEP_COLOR=$BWHI
 # Username color and prompt symbol depend on root privilege
 if [ "$(id -u)" -eq 0 ]; then
-    # Root prompt is red.
-    USER_COLOR=$BRED
-    LINE_COLOR=$BRED
-    LINE_COLOR2=$RED
-    PROMPT_SYMBOL='#'
+  # Root prompt is red.
+  USER_COLOR=$BRED
+  LINE_COLOR=$BRED
+  LINE_COLOR2=$RED
+  PROMPT_SYMBOL='#'
 else
-    # Normal prompt is blue.
-    USER_COLOR=$BCYA
-    LINE_COLOR=$BCYA
-    LINE_COLOR2=$CYA
-    PROMPT_SYMBOL='$'
+  # Normal prompt is blue.
+  USER_COLOR=$BCYA
+  LINE_COLOR=$BCYA
+  LINE_COLOR2=$CYA
+  PROMPT_SYMBOL='$'
 fi
 LINE="──"
 
 # Save the last command return code
 function ret_sav() {
-    lastcmd_return_value=$?;
+  lastcmd_return_value=$?;
 }
 export PROMPT_COMMAND="ret_sav;"
 
@@ -97,12 +98,9 @@ format_exit_status() {
 
 # If return codes !=0, print it
 function last_cmd_errcode() {
-    if [[ ! $lastcmd_return_value == 0 ]]
-    then
-        echo -e -n "${RED}${CMD_FAIL_SYMBOL} $(format_exit_status ${lastcmd_return_value})${RST}"
-#    else
-#        echo -e -n "${GRE}${CMD_SUCC_SYMBOL}${RST}"
-    fi
+  if [[ ! $lastcmd_return_value == 0 ]]; then
+    echo -e -n "${RED}${CMD_FAIL_SYMBOL} $(format_exit_status ${lastcmd_return_value})${RST}"
+  fi
 }
 
 # Append item to prompt if it's not empty
@@ -153,15 +151,12 @@ function batterystatus(){
 
 # When we are in GNU screen, insert '(screen)'.
 if [[ $TERM == "screen" ]]; then
-   PROMPT+="$BYEL(scn)$RST"
+  PROMPT+="$BYEL(scn)$RST"
 fi
 
 # Define SSH variable for prompt usage if SSH client is detected
 if [ -n "$SSH_CLIENT" ]; then SSH="${BYEL}SSH${SEP_COLOR}://"; else SSH=""; fi
 # SSH Client IP is ${$SSH_CLIENT%% *}
-
-# CPU loadavg variable
-LOADAVG='$(sed "s/ .*//" /proc/loadavg)' # ⛭ ⛯ ⚙
 
 function getpid() {
   PID="$(grep -i pid /proc/self/status)"
@@ -170,36 +165,33 @@ function getpid() {
 }
 
 function setprompt(){
-# Prompt definition
-# $(cmd) 1
-# PROMPTPART 1
-# GITSTATUS: 2/4
-# LASTCMDERR: 1
-# RALIGN: 6
-# LOADAVG: 1
-# BATSTAT: 2
-# TOTAL= 21
-RSPACE=2
-PT_BH="${LINE_COLOR}${LINE}["
-PT_BT="${LINE_COLOR}]"
-PT_TAILL="${LINE}${LINE}${LINE}${LINE_COLOR2}${LINE}${RST}    \n\[${USER_COLOR}\]${PROMPT_SYMBOL}\[${RST}\] "
-PT_TAILR="${LINE}${LINE_COLOR2}${LINE}${RST}\r"  && RSPACE=$(( $RSPACE + 4 ))
-PT_PUH="${PT_BH}${SSH}${BWHI}${debian_chroot:+($debian_chroot)}${USER_COLOR}\u${SEP_COLOR}@${HOST_COLOR}\h${PT_BT}"
-PT_PATH="${PT_BH}$PATH_COLOR\w${PT_BT}"
-PT_GIT='$(promptpart gitstatus)'
-PT_ERR='$(promptpart last_cmd_errcode)'
-PT_IP="${PT_BH}${BWHI}${LOCALIP}${PT_BT}"        && RSPACE=$(( $RSPACE + 4 + ${#LOCALIP} ))
-PT_TIME="${PT_BH}${BWHI}\t${PT_BT}"              && RSPACE=$(( $RSPACE + 4 + 8 ))
-PT_LOAD="${PT_BH}${BWHI}${LOADAVG}${PT_BT}"      && RSPACE=$(( $RSPACE + 4 + 4 ))
-#PT_BATT='$(promptpart batterystatus)' && batterystatus &>/dev/null
-RALIGN='$(printf "%0.s " $(seq 1 $(expr ${COLUMNS} - ${RSPACE} 2>/dev/null)))'
-PT_HEADL="${LINE_COLOR}┌"
-PT_HEADR="\n$RALIGN ${LINE_COLOR2}${LINE}"       && RSPACE=$(( $RSPACE + 2 ))
+  local EXPERIMENT=`cat $HOME/.packing-box/experiment.env 2>/dev/null`
+  local EXPERIMENTS=`cat $HOME/.packing-box/experiments.env 2>/dev/null`
+  RSPACE=2
+  PT_BH="${LINE_COLOR}${LINE}["
+  PT_BT="${LINE_COLOR}]"
+  PT_TAILL="${LINE}${LINE}${LINE}${LINE_COLOR2}${LINE}${RST}    \n\[${USER_COLOR}\]${PROMPT_SYMBOL}\[${RST}\] "
+  PT_TAILR="${LINE}${LINE_COLOR2}${LINE}${RST}\r"  && RSPACE=$(( $RSPACE + 4 ))
+  PT_PUH="${PT_BH}${SSH}${BWHI}${debian_chroot:+($debian_chroot)}${USER_COLOR}\u${SEP_COLOR}@${HOST_COLOR}\h${PT_BT}"
+  PT_PATH="${PT_BH}$PATH_COLOR\w${PT_BT}"
+  if test -z "$EXPERIMENT" ; then
+    PT_EXP=""
+  else
+    _EXP_RELPATH="`[[ -z "${EXPERIMENTS}" ]] && echo "." || echo "$EXPERIMENTS"`"
+    PT_EXP="${PT_BH}$EXP_COLOR`realpath --relative-base="$_EXP_RELPATH" $EXPERIMENT`${PT_BT}"
+  fi
+  PT_GIT='$(promptpart gitstatus)'
+  PT_ERR='$(promptpart last_cmd_errcode)'
+  PT_IP="${PT_BH}${BWHI}${LOCALIP}${PT_BT}"        && RSPACE=$(( $RSPACE + 4 + ${#LOCALIP} ))
+  PT_TIME="${PT_BH}${BWHI}\t${PT_BT}"              && RSPACE=$(( $RSPACE + 4 + 8 ))
+  RALIGN='$(printf "%0.s " $(seq 1 $(expr ${COLUMNS} - ${RSPACE} 2>/dev/null)))'
+  PT_HEADL="${LINE_COLOR}┌"
+  PT_HEADR="\n$RALIGN ${LINE_COLOR2}${LINE}"       && RSPACE=$(( $RSPACE + 2 ))
 
-PROMPT="${PT_HEADL}${PT_PUH}${PT_PATH}${PT_GIT}${PT_ERR}${PT_TAILL}"
-PROMPT="${PT_HEADR}${PT_IP}${PT_TIME}${PT_LOAD}${PT_BATT}${PT_TAILR}${PROMPT}"
+  PROMPT="${PT_HEADL}${PT_PUH}${PT_PATH}${PT_EXP}${PT_GIT}${PT_ERR}${PT_TAILL}"
+  PROMPT="${PT_HEADR}${PT_IP}${PT_TIME}${PT_BATT}${PT_TAILR}${PROMPT}"
 
-PS1=$PROMPT
+  PS1=$PROMPT
 }
 setprompt
 PROMPT_COMMAND+=setprompt

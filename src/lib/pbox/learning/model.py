@@ -3,7 +3,6 @@ import joblib
 import multiprocessing as mp
 import numpy as np
 import pandas as pd
-import re
 from _pickle import UnpicklingError
 from sklearn.decomposition import PCA
 from sklearn.feature_selection import VarianceThreshold
@@ -658,9 +657,7 @@ class Model:
     
     @name.setter
     def name(self, value):
-        if value and not re.match(NAMING_CONVENTION, value):
-            raise ValueError("Bad input name: %s" % value)
-        self._name = value
+        self._name = check_name(value)
     
     @property
     def path(self):

@@ -1,0 +1,38 @@
+#!/usr/bin/python3
+# -*- coding: UTF-8 -*-
+from pbox import *
+from pbox.__info__ import *
+from tinyscript import *
+
+
+__version__     = "1.0.0"
+__doc__         = """
+This tool aims to manage an experiment (a structure that can hold custom YAML configurations, datasets and models).
+"""
+__examples__ = [
+    "my-experiment",
+    "edit",
+    "show",
+    "close",
+]
+
+
+if __name__ == '__main__':
+    name = config['experiment']
+    if name != "":
+        sparsers = parser.add_subparsers(dest="command", help="command to be executed")
+        sparsers.add_parser("close", help="close the current experiment")
+        sparsers.add_parser("edit", help="edit the target experiment's README file or a YAML configuration file") \
+                .add_argument("-c", "--config", choices=config.DEFAULTS['definitions'].keys(),
+                              help="edit the target experiment's specified YAML configuration file")
+        sparsers.add_parser("show", help="get an overview of the experiment")
+    else:
+        parser.add_argument("name", help="name of the new or existing experiment")
+    initialize(noargs_action="help")
+    logger.name = "experiment"
+    logging.configLogger(logger, ["INFO", "DEBUG"][args.verbose], fmt=LOG_FORMATS[args.verbose], relative=True)
+    if hasattr(args, "name"):
+        Experiment(args.name)
+    else:
+        getattr(Experiment(name), args.command)(**vars(args))
+

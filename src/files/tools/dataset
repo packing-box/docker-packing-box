@@ -138,8 +138,6 @@ if __name__ == '__main__':
             purged = True
         if not purged:
             logger.warning("No dataset to purge in workspace (%s)" % str(config['datasets']))
-    elif name == "all":
-        logger.warning("Dataset cannot be named 'all' (reserved word)")
     else:
         if hasattr(args, "modifiers_set"):
             Modifiers.source = args.modifiers_set  # configure the modifiers set's YAML definition source

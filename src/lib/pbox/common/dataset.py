@@ -1,6 +1,5 @@
 # -*- coding: UTF-8 -*-
 import pandas as pd
-import re
 from datetime import datetime, timedelta
 from textwrap import wrap
 from tinyscript import b, colored, hashlib, json, logging, random, subprocess, time, ts
@@ -32,10 +31,8 @@ class Dataset:
     """
     @logging.bindLogger
     def __init__(self, name="dataset", source_dir=None, load=True, **kw):
-        if not re.match(NAMING_CONVENTION, name.basename if isinstance(name, ts.Path) else str(name)):
-            raise ValueError("Bad input name (%s)" % name)
         self._files = getattr(self.__class__, "_files", True)
-        self.path = ts.Path(config['datasets'].joinpath(name), create=load).absolute()
+        self.path = ts.Path(config['datasets'].joinpath(check_name(name)), create=load).absolute()
         self.sources = source_dir or PACKING_BOX_SOURCES
         if isinstance(self.sources, list):
             self.sources = {'All': [str(x) for x in self.sources]}
