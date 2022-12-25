@@ -403,7 +403,7 @@ class Model:
                     shorten_str(",".join("%s{%d}" % i for i in sorted(counts.items(), key=lambda x: (-x[1], x[0])))),
                 ])
             if len(d) == 0:
-                self.logger.warning("No model found in workspace (%s)" % config['models'])
+                self.logger.warning("No model found in the workspace (%s)" % config['models'])
                 return
             r = [Section("Models (%d)" % len(d)),
                  Table(d, column_headers=["Name", "Algorithm", "Description", "Dataset", "Size", "Formats",
@@ -671,6 +671,10 @@ class Model:
         if not isinstance(value, Path):
             value = Path(value).absolute()
         self._path = value
+    
+    @classmethod
+    def count(cls):
+        return sum(1 for _ in Path(config['models']).listdir(Model.check))
     
     @classmethod
     def iteritems(cls, instantiate=False):

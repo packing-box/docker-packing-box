@@ -1,5 +1,7 @@
 # -*- coding: UTF-8 -*-
-from tinyscript import logging, ts
+from tinyscript import logging
+from tinyscript.helpers import Path
+from tinyscript.report import *
 
 from .algorithm import *
 from .dataset import *
@@ -25,17 +27,18 @@ class Experiment:
       +-- README.md     notes for explaining the experiment
     """
     @logging.bindLogger
-    def __init__(self, name="experiment", **kw):
-        name = check_name(ts.Path(name).basename)
-        self.path = ts.Path(config['experiments'].joinpath(name), create=True).absolute()
-        for folder in ["conf", "datasets", "models"]:
-            folder = self.path.joinpath(folder)
-            if not folder.exists():
-                folder.mkdir()
-        self.path.joinpath("README.md").touch()
-        config['experiment'] = config['workspace'] = self.path
-        for conf in self.path.joinpath("conf").listdir():
-            config[conf.stem] = conf
+    def __init__(self, name="experiment", load=True, **kw):
+        name = check_name(Path(name).basename)
+        self.path = Path(config['experiments'].joinpath(name), create=True).absolute()
+        if load:
+            for folder in ["conf", "datasets", "models"]:
+                folder = self.path.joinpath(folder)
+                if not folder.exists():
+                    folder.mkdir()
+            self.path.joinpath("README.md").touch()
+            config['experiment'] = config['workspace'] = self.path
+            for conf in self.path.joinpath("conf").listdir():
+                config[conf.stem] = conf
     
     def __getitem__(self, name):
         """ Get something from the experiment folder, either a config file, a dataset or a model. """
@@ -81,6 +84,19 @@ class Experiment:
             self.logger.debug("editing experiment's %s configuration..." % cfg_file)
             edit_file(p, text=True, logger=self.logger)
     
+    def list(self, raw=False):
+        """ List all valid experiment folders. """
+        data, headers = [], ["Name", "#Datasets", "#Models", "Custom configs"]
+        for folder in config['experiments'].listdir(Experiment.check):
+            exp = Experiment(folder, False)
+            cfg = [f.stem for f in exp.path.joinpath("conf").listdir(Path.is_file) if f.extension == ".conf"]
+            data.append([folder.basename, Dataset.count(), Model.count(), ", ".join(cfg)])
+        if len(data) > 0:
+            r = mdv.main(Report(*[Section("Experiments (%d)" % len(data)), Table(data, column_headers=headers)]).md())
+            print(ts.ansi_seq_strip(r) if raw else r)
+        else:
+            self.logger.warning("No experiment found in the workspace (%s)" % config['experiments'])
+    
     def show(self, **kw):
         """ Show an overview of the experiment. """
         Experiment.summarize(self.path)
@@ -107,14 +123,14 @@ class Experiment:
     def validate(folder, warn=False, logger=None):
         f = config['experiments'].joinpath(folder)
         if not f.exists():
-            raise ValueError("Folder does not exist")
+            raise ValueError("Does not exist")
         if not f.is_dir():
-            raise ValueError("Input is not a folder")
+            raise ValueError("Not a folder")
         for fn in ["conf", "datasets", "models"]:
             if not f.joinpath(fn).exists():
-                raise ValueError("Folder does not have %s" % fn)
+                raise ValueError("Does not have %s" % fn)
         for cfg in f.joinpath("conf").listdir():
-            if cfg not in config.DEFAULTS['definitions'].keys():
+            if cfg.stem not in config.DEFAULTS['definitions'].keys() or cfg.extension != ".conf":
                 raise ValueError("Unknown configuration file '%s'" % cfg)
         for fn in f.listdir(Path.is_dir):
             if fn not in ["conf", "datasets", "models", "scripts"] and warn and logger is not None:

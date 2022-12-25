@@ -10,28 +10,35 @@ __doc__         = """
 This tool aims to manage an experiment (a structure that can hold custom YAML configurations, datasets and models).
 """
 __examples__ = [
-    "my-experiment",
+    "open my-experiment",
+    "list",
     "edit",
     "show",
     "close",
 ]
+__description__ = "Manipulate experiments (dedicated workspaces for datasets, models and custom configs)"
 
 
 if __name__ == '__main__':
     name = config['experiment']
+    sparsers = parser.add_subparsers(dest="command", help="command to be executed")
     if name != "":
-        sparsers = parser.add_subparsers(dest="command", help="command to be executed")
         sparsers.add_parser("close", help="close the current experiment")
         sparsers.add_parser("edit", help="edit the target experiment's README file or a YAML configuration file") \
                 .add_argument("-c", "--config", choices=config.DEFAULTS['definitions'].keys(),
                               help="edit the target experiment's specified YAML configuration file")
+        sparsers.add_parser("list", help="list the existing experiments")
         sparsers.add_parser("show", help="get an overview of the experiment")
     else:
-        parser.add_argument("name", help="name of the new or existing experiment")
+        sparsers.add_parser("list", help="list the existing experiments")
+        sparsers.add_parser("open", help="create a new or open an existing experiment") \
+                .add_argument("name", help="name of the new or existing experiment")
     initialize(noargs_action="help")
     logger.name = "experiment"
     logging.configLogger(logger, ["INFO", "DEBUG"][args.verbose], fmt=LOG_FORMATS[args.verbose], relative=True)
-    if hasattr(args, "name"):
+    if args.command == "list":
+        Experiment(load=False).list()
+    elif hasattr(args, "name"):
         Experiment(args.name)
     else:
         getattr(Experiment(name), args.command)(**vars(args))

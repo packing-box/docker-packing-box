@@ -3,6 +3,7 @@ import pandas as pd
 from datetime import datetime, timedelta
 from textwrap import wrap
 from tinyscript import b, colored, hashlib, json, logging, random, subprocess, time, ts
+from tinyscript.helpers import ansi_seq_strip, human_readable_size, Path, TempPath
 from tinyscript.report import *
 from tqdm import tqdm
 
@@ -32,13 +33,13 @@ class Dataset:
     @logging.bindLogger
     def __init__(self, name="dataset", source_dir=None, load=True, **kw):
         self._files = getattr(self.__class__, "_files", True)
-        self.path = ts.Path(config['datasets'].joinpath(check_name(name)), create=load).absolute()
+        self.path = Path(config['datasets'].joinpath(check_name(name)), create=load).absolute()
         self.sources = source_dir or PACKING_BOX_SOURCES
         if isinstance(self.sources, list):
             self.sources = {'All': [str(x) for x in self.sources]}
         for _, sources in self.sources.items():
             for source in sources[:]:
-                s = ts.Path(source, expand=True)
+                s = Path(source, expand=True)
                 if not s.exists() or not s.is_dir():
                     sources.remove(source)
         if load:
@@ -64,7 +65,7 @@ class Dataset:
         if self._files:
             self.files.joinpath(h).remove(error=False)
             try:
-                ext = ts.Path(df.loc[df['hash'] == h, 'realpath'].iloc[0]).extension
+                ext = Path(df.loc[df['hash'] == h, 'realpath'].iloc[0]).extension
                 self.files.joinpath(h + ext).remove(error=False)
             except:
                 pass
@@ -246,7 +247,7 @@ class Dataset:
             if all(c not in expand_formats(cat) for c in self._formats_exp):
                 continue
             for src in srcs:
-                for exe in ts.Path(src, expand=True).walk(filter_func=lambda x: x.is_file(), sort=False):
+                for exe in Path(src, expand=True).walk(filter_func=lambda x: x.is_file(), sort=False):
                     exe = Executable(exe, dataset=self)
                     if exe.format is None or exe.format not in self._formats_exp or exe.stem in packers:
                         continue  # ignore unrelated files and packers themselves
@@ -321,12 +322,12 @@ class Dataset:
         for i, exe in enumerate(l):
             if i >= n > 0:
                 break
-            fn = "%s_%s" % (exe.label, ts.Path(exe.realpath).filename)
+            fn = "%s_%s" % (exe.label, Path(exe.realpath).filename)
             if fn in tmp:
                 self.logger.warning("duplicate '%s'" % fn)
                 n += 1
                 continue
-            exe.destination.copy(ts.Path(destination, create=True).joinpath(fn))
+            exe.destination.copy(Path(destination, create=True).joinpath(fn))
             tmp.append(fn)
             pbar.update()
         pbar.close()
@@ -364,9 +365,9 @@ class Dataset:
         d = Dataset.summarize(str(config['datasets']), show_all, hide_files)
         if len(d) > 0:
             r = mdv.main(Report(*d).md())
-            print(ts.ansi_seq_strip(r) if raw else r)
+            print(ansi_seq_strip(r) if raw else r)
         else:
-            self.logger.warning("No dataset found in workspace (%s)" % config['datasets'])
+            self.logger.warning("No dataset found in the workspace (%s)" % config['datasets'])
     
     @backup
     def make(self, n=0, formats=["All"], balance=False, packer=None, pack_all=False, **kw):
@@ -510,10 +511,10 @@ class Dataset:
         l, path2 = self.logger, config['datasets'].joinpath(name2)
         if not path2.exists():
             l.debug("renaming %s (and backups) to %s..." % (self.basename, name2))
-            tmp = ts.TempPath(".dataset-backup", hex(hash(self))[2:])
+            tmp = TempPath(".dataset-backup", hex(hash(self))[2:])
             self.path.rename(path2)
             self.path = path2
-            tmp.rename(ts.TempPath(".dataset-backup", hex(hash(self))[2:]))
+            tmp.rename(TempPath(".dataset-backup", hex(hash(self))[2:]))
         else:
             l.warning("%s already exists" % name2)
     
@@ -558,7 +559,7 @@ class Dataset:
             c = List(["**#Executables**: %d" % self._metadata['executables'],
                       "**Format(s)**:    %s" % ", ".join(self._metadata['formats']),
                       "**Packer(s)**:    %s" % ", ".join(x for x in self._metadata['counts'].keys() if x != NOT_PACKED),
-                      "**Size**:         %s" % ts.human_readable_size(self.path.size),
+                      "**Size**:         %s" % human_readable_size(self.path.size),
                       "**Labelled**:     %.2f%%" % self.labelling])
             if len(self._alterations) > 0:
                 c._data.append("**Altered**:      %d%%" % (int(round(100 * self._metadata['altered'], 0))))
@@ -642,7 +643,7 @@ class Dataset:
         """ View executables from the dataset given multiple criteria. """
         src = self._metadata.get('sources', [])
         def _shorten(path):
-            p = ts.Path(path)
+            p = Path(path)
             for i, s in enumerate(src):
                 if p.is_under(s):
                     return i, str(p.relative_to(s))
@@ -655,7 +656,7 @@ class Dataset:
             i, p = _shorten(e.realpath)
             if i >= 0:
                 p = "[%d]/%s" % (i, p)
-            d.append([e.hash, p, ts.human_readable_size(e.size), e.ctime.strftime("%d/%m/%y"),
+            d.append([e.hash, p, human_readable_size(e.size), e.ctime.strftime("%d/%m/%y"),
                       e.mtime.strftime("%d/%m/%y"), e.label])
         if len(d) == 0:
             return
@@ -666,7 +667,7 @@ class Dataset:
     @property
     def backup(self):
         """ Get the latest backup. """
-        tmp = ts.TempPath(".dataset-backup", hex(hash(self))[2:])
+        tmp = TempPath(".dataset-backup", hex(hash(self))[2:])
         for backup in sorted(tmp.listdir(self.__class__.check), key=lambda p: -int(p.basename)):
             return self.__class__(backup)
     
@@ -675,7 +676,7 @@ class Dataset:
         """ Make a backup copy. """
         if len(self._data) == 0:
             return
-        tmp = ts.TempPath(".dataset-backup", hex(hash(self))[2:])
+        tmp = TempPath(".dataset-backup", hex(hash(self))[2:])
         backups, i = [], 0
         for i, backup in enumerate(sorted(tmp.listdir(Dataset.check), key=lambda p: -int(p.basename))):
             backup, n = self.__class__(backup), 0
@@ -732,7 +733,7 @@ class Dataset:
         src = self._metadata.get('sources', [])
         r = []
         def _shorten(path):
-            p = ts.Path(path)
+            p = Path(path)
             for i, s in enumerate(src):
                 if p.is_under(s):
                     return i, str(p.relative_to(s))
@@ -846,6 +847,10 @@ class Dataset:
             return False
     
     @classmethod
+    def count(cls):
+        return sum(1 for _ in Path(config['datasets']).listdir(Dataset.check))
+    
+    @classmethod
     def iteritems(cls):
         s = cls.summarize(str(config['datasets']), False)
         if len(s) > 0:
@@ -872,8 +877,8 @@ class Dataset:
     def labels_from_file(labels):
         labels = labels or {}
         if isinstance(labels, str):
-            labels = ts.Path(labels)
-        if isinstance(labels, ts.Path) and labels.is_file():
+            labels = Path(labels)
+        if isinstance(labels, Path) and labels.is_file():
             with labels.open() as f:
                 labels = json.load(f)
         if not isinstance(labels, dict):
@@ -883,7 +888,7 @@ class Dataset:
     @staticmethod
     def summarize(path=None, show=False, hide_files=False):
         datasets, headers = [], ["Name", "#Executables", "Size"] + [["Files"], []][hide_files] + ["Formats", "Packers"]
-        for dset in ts.Path(config['datasets']).listdir(lambda x: x.joinpath("metadata.json").exists()):
+        for dset in Path(config['datasets']).listdir(Dataset.check):
             with dset.joinpath("metadata.json").open() as meta:
                 metadata = json.load(meta)
             try:
@@ -891,7 +896,7 @@ class Dataset:
                 row = [
                     dset.basename,
                     str(metadata['executables']),
-                    ts.human_readable_size(dset.size),
+                    human_readable_size(dset.size),
                 ] + [[["no", "yes"][dset.joinpath("files").exists()]], []][hide_files] + [
                     ",".join(sorted(metadata['formats'])),
                     shorten_str(",".join("%s{%d}" % i for i in sorted(counts.items(), key=lambda x: (-x[1], x[0])))),
@@ -904,7 +909,7 @@ class Dataset:
                     row = [
                         dset.basename,
                         str(metadata.get('executables', colored("?", "red"))),
-                        ts.human_readable_size(dset.size),
+                        human_readable_size(dset.size),
                     ] + [[["no", "yes"][dset.joinpath("files").exists()]], []][hide_files] + [
                         colored("?", "red"), colored("?", "red"),
                         colored("%s: %s" % (err.__class__.__name__, str(err)), "red")
