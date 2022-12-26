@@ -690,6 +690,11 @@ class Dataset:
             dataset._copy(tmp.joinpath(str(int(time.time()))))
     
     @property
+    def basename(self):
+        """ Dummy shortcut for dataset's path.basename. """
+        return self.path.basename
+    
+    @property
     def files(self):
         """ Get the Path instance for the 'files' folder. """
         if self._files or self.__class__ is Dataset:
@@ -705,11 +710,6 @@ class Dataset:
     def labels(self):
         """ Get the series of labels. """
         return self._data.label
-    
-    @property
-    def basename(self):
-        """ Dummy shortcut for dataset's path.basename. """
-        return self.path.basename
     
     @property
     def name(self):
@@ -845,17 +845,6 @@ class Dataset:
             return True
         except ValueError as e:
             return False
-    
-    @classmethod
-    def count(cls):
-        return sum(1 for _ in Path(config['datasets']).listdir(Dataset.check))
-    
-    @classmethod
-    def iteritems(cls):
-        s = cls.summarize(str(config['datasets']), False)
-        if len(s) > 0:
-            for row in s[1].data:
-                yield Dataset(row[0])
     
     @classmethod
     def validate(cls, name, load=True):

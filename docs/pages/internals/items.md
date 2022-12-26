@@ -110,6 +110,15 @@ If a relative path is given, it is first joined to the path from the last state 
 - **Argument(s)**: target absolute/relative path
 - **State**: target directory
 
+### `chmod`
+
+> Add the executable flag on the target.
+
+This basically runs the system command `chmod +x [...]`.
+
+- **Argument(s)**: target absolute/relative path
+- **State**: unchanged
+
 ### `copy`
 
 > Copy the given source file/directory to the given destination file/directory.
@@ -236,7 +245,7 @@ If `setp` is used, the input argument is joined with `/tmp/[ITEM]s`, therefore g
 - **Argument(s)**: new state
 - **State**: new state
 
-### `unrar` / `untar` / `unzip`
+### `un7z` / `unrar` / `untar` / `unzip`
 
 > Decompress a RAR/TAR/ZIP archive to the given location.
 

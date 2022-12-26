@@ -48,11 +48,11 @@ matplotlib.pyplot.rcParams['font.family'] = "serif"
 
 def open_dataset(folder):
     """ Open the target dataset with the right class. """
-    p = config['datasets'].joinpath(folder)
     if Dataset.check(folder):
         return Dataset(folder)
     if FilelessDataset.check(folder):
         return FilelessDataset(folder)
+    p = config['datasets'].joinpath(folder)
     if Dataset.check(p):
         return Dataset(p)
     if FilelessDataset.check(p):
@@ -302,4 +302,15 @@ class FilelessDataset(Dataset):
             l.debug("saving image to %s..." % img_name)
             plt.savefig(img_name, format=output_format, dpi=dpi, bbox_inches="tight")
     Dataset.plot = plot
+    
+    @staticmethod
+    def count():
+        return sum(1 for _ in Path(config['datasets']).listdir(Dataset.check or FilelessDataset.check))
+    Dataset.count = count
+    
+    @staticmethod
+    def iteritems(instantiate=False):
+        for dataset in Path(config['datasets']).listdir(Dataset.check or FilelessDataset.check):
+            yield open_dataset(dataset) if instantiate else dataset
+    Dataset.iteritems = iteritems
 

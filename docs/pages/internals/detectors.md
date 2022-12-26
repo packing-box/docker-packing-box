@@ -17,15 +17,16 @@ This [class](https://github.com/dhondta/docker-packing-box/blob/main/files/lib/p
 
 **Special methods**:
 
-- `detect(executable)`: for detecting the packer used on an input executable
-- `test(executable)`: for testing the detector(s) on an input file, folder or [Dataset](datasets.html)
+- `check(formats)`: for checking if the detector applies for the input executable formats
+- `detect(executable_or_folder_or_dataset)`: for detecting the packer used on an input executable, folder of executables or [`Dataset`](datasets.html) structure
+- `test(executable_or_folder_or_dataset)`: for testing the detector(s) on an input executable, folder of executables or [`Dataset`](datasets.html) structure
 
 !!! note "Using as a class or an instance"
     
     The behavior of the detection method is different depending on the object it is called from. If calling it from:
     
-    - The `Detector` class: all the available detectors in `Detector.registry` with the attribute `vote=True` are used and the best label is chosen.
-    - A `Detector` instance: the particular detector inheriting `Detector` is used.
+    - The `Detector` class: all the available detectors in `Detector.registry` with the attribute `vote=True` are used and the label is determined based on a decision heuristic.
+    - A `Detector` instance: the particular detector (e.g. `DIE`) inheriting `Detector` is used.
 
 
 !!! note "Multiple valid input types"

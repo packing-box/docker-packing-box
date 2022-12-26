@@ -672,15 +672,6 @@ class Model:
             value = Path(value).absolute()
         self._path = value
     
-    @classmethod
-    def count(cls):
-        return sum(1 for _ in Path(config['models']).listdir(Model.check))
-    
-    @classmethod
-    def iteritems(cls, instantiate=False):
-        for model in Path(config['models']).listdir(Model.check):
-            yield Model(model) if instantiate else model
-    
     @staticmethod
     def check(folder):
         try:
@@ -688,6 +679,15 @@ class Model:
             return True
         except (TypeError, ValueError):
             return False
+    
+    @staticmethod
+    def count():
+        return sum(1 for _ in Path(config['models']).listdir(Model.check))
+    
+    @staticmethod
+    def iteritems(instantiate=False):
+        for model in Path(config['models']).listdir(Model.check):
+            yield Model(model) if instantiate else model
     
     @staticmethod
     def validate(folder):

@@ -61,25 +61,27 @@ This abstraction facilitates the retrieval of important attributes and the integ
 
 **Attributes**:
 
-- `dataset`: [`Dataset`](datasets.html) instance bound
-- `label`: packer label
+- `_dataset`: parent [`Dataset`](datasets.html) instance (if any)
+- `label`: packer label (if any)
 
 **Properties**:
 
-- `attributes`: dictionary with properties (see hereafter) `category`, `ctime`, `data`, `filetype`, `hash` and `mtime`
-- `category` \*: format category (e.g. *PE*, *ELF32*, *.NET*)
 - `ctime` \*: creation time as a [`datetime`](https://docs.python.org/3/library/datetime.html#datetime.datetime) instance
-- `data` \*: set of features computed based on the `category`
+- `data` \*: set of features computed based on the `format`
 - `destination` \*: destination path for integrating the executable into a dataset (only works if a [`Dataset`](datasets.html) instance is bound)
 - `features`: dictionary of features (key: feature name, value: feature description)
 - `filetype` \*: file type description (based on [`python-magic`](https://github.com/ahupp/python-magic))
+- `format` \*: executable format (e.g. *PE*, *ELF32*, *.NET*)
 - `hash` \*: file hash (based on [`hashlib`](https://docs.python.org/3/library/hashlib.html))
+- `metadata`: dictionary with properties (see hereafter) `realpath`, `format`, `size`, `ctime` and `mtime`
 - `mtime` \*: last modification time as a [`datetime`](https://docs.python.org/3/library/datetime.html#datetime.datetime) instance
 - `realpath` \*: real path the executable comes from (only works if a [`Dataset`](datasets.html) instance is bound)
+- `size`: size of the executable as an integer
 
     \* [`cached_property`](https://docs.python.org/3/library/functools.html#functools.cached_property)
 
 **Methods**:
 
-- `copy()`: copy the file to `self.destination`, that is, to the dataset it is bound to
+- `copy()`: copy the file to `self.destination`, that is, to the dataset it is bound to (note that its permissions are restricted to READ for the owner, that is `user`)
+- `update()`: triggers the removal of the cached properties `filetype`, `format` and `hash` for further recomputation
 
