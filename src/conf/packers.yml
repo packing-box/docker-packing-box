@@ -8,50 +8,6 @@ ACProtect:
   source: https://www.yaldex.com/Bestsoft/Utilities/acprotect.htm
   status: commercial
 
-APack:
-  categories:
-    - compressor
-  description: 16-bit DOS executable compressor. aPACK compresses the file while keeping it executable. aPACK uses advanced compression heuristics and tricks to achieve the best compression ratio.
-  formats:
-    - MSDOS
-  install:
-    - wget: https://www.ibsensoftware.com/files/apack-1.00.zip
-    - unzip: $OPT/apack
-    - wine: apackw.exe
-  source: https://www.ibsensoftware.com/download.html
-  status: broken
-  steps:
-    - cp -f {{executable}} /root/.wine/drive_c/users/root/Temp/
-    - apack "c:\\users\\root\\Temp\\{{executable.filename}}"
-    - mv -f /root/.wine/drive_c/users/root/Temp/{{executable.filename}} {{executable}}
-
-ASPack:
-  categories:
-    - compressor
-    - protector
-  comment: Cannot run inside a virtualized environment unless cracked.
-  description: ASPack is an advanced solution created to provide Win32 EXE file packing and to protect them against non-professional reverse engineering.
-  formats:
-    - PE32
-  references:
-    - https://github.com/fireeye/capa-rules/blob/master/anti-analysis/packer/aspack/packed-with-aspack.yml
-  source: http://www.aspack.com/aspack.html
-  status: broken
-
-ASProtect:
-  description: Multifunctional EXE packing tool designed for software developers to protect 32-bit applications with in-built application copy protection system.
-  formats:
-    - PE32
-  source: http://www.aspack.com/asprotect32.html
-  status: commercial
-  variants:
-    ASProtect64:
-      description: Designed for professional protection against unauthorized use, industrial and home copying, professional hacking and analysis of software products distributed over the Internet and on any physical media. The distinctive feature of the product is support of only 64-bit applications and .NET applications for Windows.
-      formats:
-        - .NET
-        - PE64
-      source: http://www.aspack.com/asprotect64.html
-
 AinEXE:
   categories:
     - compressor
@@ -113,6 +69,23 @@ Andromeda:
   source: https://www.trendmicro.com/vinfo/us/threat-encyclopedia/malware/andromeda
   status: info
 
+APack:
+  categories:
+    - compressor
+  description: 16-bit DOS executable compressor. aPACK compresses the file while keeping it executable. aPACK uses advanced compression heuristics and tricks to achieve the best compression ratio.
+  formats:
+    - MSDOS
+  install:
+    - wget: https://www.ibsensoftware.com/files/apack-1.00.zip
+    - unzip: $OPT/apack
+    - wine: apackw.exe
+  source: https://www.ibsensoftware.com/download.html
+  status: broken
+  steps:
+    - cp -f {{executable}} /root/.wine/drive_c/users/root/Temp/
+    - apack "c:\\users\\root\\Temp\\{{executable.filename}}"
+    - mv -f /root/.wine/drive_c/users/root/Temp/{{executable.filename}} {{executable}}
+
 Armadillo:
   categories:
     - compressor
@@ -123,6 +96,53 @@ Armadillo:
     - PE64
   source: https://web.archive.org/web/20030324043555/https://www.exetools.com/files/protectors/win/armd252b2.zip
   status: info
+
+ASPack:
+  categories:
+    - compressor
+    - protector
+  comment: Cannot run inside a virtualized environment unless cracked.
+  description: ASPack is an advanced solution created to provide Win32 EXE file packing and to protect them against non-professional reverse engineering.
+  formats:
+    - PE32
+  references:
+    - https://github.com/fireeye/capa-rules/blob/master/anti-analysis/packer/aspack/packed-with-aspack.yml
+  source: http://www.aspack.com/aspack.html
+  status: broken
+
+ASProtect:
+  description: Multifunctional EXE packing tool designed for software developers to protect 32-bit applications with in-built application copy protection system.
+  formats:
+    - PE32
+  source: http://www.aspack.com/asprotect32.html
+  status: commercial
+  variants:
+    ASProtect64:
+      description: Designed for professional protection against unauthorized use, industrial and home copying, professional hacking and analysis of software products distributed over the Internet and on any physical media. The distinctive feature of the product is support of only 64-bit applications and .NET applications for Windows.
+      formats:
+        - .NET
+        - PE64
+      source: http://www.aspack.com/asprotect64.html
+
+AtomPePacker:
+  categories:
+    - compressor
+    - protector
+  comment: The target executable becomes not runnable when packed.
+  description: A highly capable PE32+ packer using LZMA compression and protection tricks.
+  exclude:
+    - DLL: PE32\+? executable \(DLL\)
+  formats:
+    - PE64
+  install:
+    - wget: https://github.com/ORCx41/AtomPePacker:latest{Release.zip}
+    - unzip: $OPT/atompepacker infected
+    - lwine64: PePacker.exe
+  source: https://github.com/ORCx41/AtomPePacker
+  steps:
+    - atompepacker {{executable}}
+    - mv -f $OPT/atompepacker/PP64Stub.exe {{executable}}
+  status: ok
 
 AxProtector:
   categories:
