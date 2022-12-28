@@ -8,17 +8,30 @@ from tinyscript.report import *
 from tqdm import tqdm
 
 
-__version__     = "1.2.0"
+__version__     = "1.2.1"
 __doc__         = """
 This tool aims to detect the packer used on an input executable, folder of executables or Dataset.
 """
-__examples__    = []
+__examples__    = [
+    "my-sample.exe -d die",
+    "/path/to/samples",
+    "my-dataset -b -d die bintropy pypackerdetect",
+]
 __description__ = "Detect the packer used on an input executable/folder/dataset"
+
+
+def _metrics(tn=0, fp=0, fn=0, tp=0):
+    """ Compute some metrics related to false/true positives/negatives. """
+    accuracy  = float(tp + tn) / (tp + tn + fp + fn) if tp + tn + fp + fn > 0 else -1
+    precision = float(tp) / (tp + fp) if tp + fp > 0 else -1
+    recall    = float(tp) / (tp + fn) if tp + fn > 0 else -1                                      # or also sensitivity
+    f_measure = 2. * precision * recall / (precision + recall) if precision + recall > 0 else -1  # or F(1)-score
+    return accuracy, precision, recall, f_measure
 
 
 if __name__ == '__main__':
     parser.add_argument("executable", help="executable or folder containing executables or dataset")
-    parser.add_argument("-b", "--binary", action="store_true", help="only consider if packed or not")
+    parser.add_argument("-b", "--binary", action="store_true", help="only consider whether it is packed or not")
     parser.add_argument("-d", "--detector", action="extend", nargs="*", type=Detector.get, default=[],
                         help="detector(s) to be used", note="Uses the superdetector by default")
     grp = parser.add_mutually_exclusive_group()
@@ -39,6 +52,7 @@ if __name__ == '__main__':
     kw['vote'] = v = len(args.detector) == 0
     single = len(args.detector) == 1
     kw['select'] = lst = [d for d in (args.detector or Detector.registry) if d.check(**kw)]
+    NL, NP = [-1, NOT_LABELLED][mc], [0, NOT_PACKED][mc]
     if not single:
         logger.info("%s: %s" % (["Detectors", "Superdetector"][v], ", ".join(i.cname for i in lst)))
     try:
@@ -51,8 +65,7 @@ if __name__ == '__main__':
                 exe, r, l = out
             if not args.do_not_strip_version and not args.binary:
                 l = strip_version(l)
-            decision = "not labelled" if r == [-1, NOT_LABELLED][mc] else \
-                       "not packed" if r == [0, NOT_PACKED][mc] else ["packed", r][mc]
+            decision = "not labelled" if r == NL else "not packed" if r == NP else ["packed", r][mc]
             if not single:
                 logger.debug("final decision: %s" % decision)
             if pbar is None and hasattr(exe, "len") and exe.len > 1:
@@ -67,13 +80,13 @@ if __name__ == '__main__':
                 if msg != "Decisions:":
                     logger.warning(msg)
             if not args.failures_only or r != l:
-                log = [logger.warning if r == [-1, NOT_LABELLED][mc] else logger.failure if r != l else \
-                       logger.success, logger.debug][l in [-1, NOT_LABELLED]]
+                log = [logger.warning if r == NL else logger.failure if r != l else \
+                       logger.success, logger.debug][l == NL]
                 log("{}: {}".format(exe, decision))
             stats.setdefault(decision, 0)
             stats[decision] += 1
-            if l not in [-1, NOT_LABELLED]:
-                cmatrix[['tp', 'tn'][r == 0] if r == l else ['fp', 'fn'][r == 0]] += 1
+            if l != NL:
+                cmatrix[['tp', 'tn'][r == NP] if r == l else ['fp', 'fn'][r == NP]] += 1
             if pbar is not None:
                 pbar.update()
     except Exception as e:
@@ -83,7 +96,7 @@ if __name__ == '__main__':
         sys.exit(1)
     if pbar is not None:
         pbar.close()
-    ph, h, m = PERF_HEADERS, ["Accuracy", "Precision", "Recall", "F-Measure"], metrics(**cmatrix)
+    ph, h, m = PERF_HEADERS, ["Accuracy", "Precision", "Recall", "F-Measure"], _metrics(**cmatrix)
     m = [ph[k](v) if v >= 0 else "-" for k, v in zip(h, m)]
     n = sum(cmatrix.values())
     r = [Section("Detection results: ")]
