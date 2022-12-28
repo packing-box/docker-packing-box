@@ -111,10 +111,13 @@ class Base(Item):
         self._bad = False
         self._error = None
         self._params = {}
+        self.__cwd = None
         self.__init = False
     
     def __expand(self, line):
-        return line.replace("$TMP", "/tmp/%ss" % self.type).replace("$OPT", expanduser("~/.opt/%ss" % self.type))
+        return line.replace("$TMP", "/tmp/%ss" % self.type) \
+                   .replace("$OPT", expanduser("~/.opt/%ss" % self.type)) \
+                   .replace("$CWD", self.__cwd or "")
     
     @update_logger
     def _check(self, exe, silent=False):
@@ -236,7 +239,7 @@ class Base(Item):
                     .replace("{{executable.extension}}", strf(executable.extension)) \
                     .replace("{{executable.stem}}", strf(executable.dirname.joinpath(executable.stem)))
         kw['silent'].extend(list(map(_repl, getattr(self, "silent", []))))
-        output, cwd = "", os.getcwd()
+        output, self.__cwd = "", os.getcwd()
         for step in getattr(self, "steps", ["%s %s%s" % (self.name.replace("_" ,"-"), extra_opt, _str(executable))]):
             step = self.__expand(step)
             if self.name in step:
@@ -304,7 +307,7 @@ class Base(Item):
                     if param:
                         retval += "[%s]" % param
                     break
-        os.chdir(cwd)
+        os.chdir(self.__cwd)
         r = output if use_output or getattr(self, "use_output", False) else retval
         if benchm:
             r = (r, dt)
@@ -322,7 +325,7 @@ class Base(Item):
         opt, tmp = Path("~/.opt/%ss" % self.type, expand=True), Path("/tmp/%ss" % self.type)
         obin, ubin = Path("~/.opt/bin", create=True, expand=True), Path("~/.local/bin", create=True, expand=True)
         result, rm, wget, kw = None, True, False, {'logger': self.logger, 'silent': getattr(self, "silent", [])}
-        cwd = os.getcwd()
+        self.__cwd = os.getcwd()
         for cmd in self.install:
             if isinstance(result, Path) and not result.exists():
                 self.logger.critical("Last command's result does not exist (%s) ; current: %s" % (result, cmd))
@@ -387,7 +390,7 @@ class Base(Item):
                 run("go build -o %s ." % self.name)
                 os.chdir(cwd2)
             # create a shell script to execute the given target with its intepreter/launcher and make it executable
-            elif cmd in ["java", "mono", "sh", "wine"]:
+            elif cmd in ["java", "mono", "sh", "wine", "wine64"]:
                 r, txt, tgt = ubin.joinpath(self.name), "#!/bin/bash\n", (result or opt).joinpath(arg)
                 if cmd == "java":
                     txt += "java -jar \"%s\" \"$@\"" % tgt
@@ -395,11 +398,12 @@ class Base(Item):
                     txt += "mono \"%s\" \"$@\"" % tgt
                 elif cmd == "sh":
                     txt += "\n".join(arg.split("\\n"))
-                elif cmd == "wine":
+                elif cmd.startswith("wine"):
                     if hasattr(self, "gui"):
                         txt = self._gui(tgt)
                     else:
-                        txt += "wine \"%s\" \"$@\"" % tgt
+                        arch = ["32", "64"][cmd == "wine64"]
+                        txt += "WINEPREFIX=\"$HOME/.wine%s\" WINEARCH=win%s wine \"%s\" \"$@\"" % (arch, arch, tgt)
                 self.logger.debug("echo -en '%s' > '%s'" % (txt, r))
                 try:
                     r.write_text(txt)
@@ -415,14 +419,17 @@ class Base(Item):
                 result = r
             # create a shell script to execute the given target from its source directory with its intepreter/launcher
             #  and make it executable
-            elif cmd in ["lsh", "lwine"]:
-                if cmd == "lwine" and hasattr(self, "gui"):
+            elif cmd in ["lsh", "lwine", "lwine64"]:
+                if cmd.startswith("lwine") and hasattr(self, "gui"):
                     arg = self._gui(result.joinpath(arg), True)
                 else:
+                    arch = ["32", "64"][cmd == "lwine64"]
                     arg1 = opt.joinpath(self.name) if arg == arg1 == arg2 else Path(arg1, expand=True)
-                    arg2 = "wine \"%s\" \"$@\"" % arg2 if cmd == "lwine" else "./%s" % arg2
+                    arg2 = "WINEPREFIX=\"$HOME/.wine%s\" WINEARCH=win%s wine \"%s\" \"$@\"" % (arch, arch, arg2) \
+                           if cmd.startswith("lwine") else "./%s" % arg2
                     arg = "#!/bin/bash\nPWD=\"`pwd`\"\nif [[ \"$1\" = /* ]]; then TARGET=\"$1\"; else " \
-                          "TARGET=\"$PWD/$1\"; fi\ncd \"%s\"\n%s \"$TARGET\" \"$2\"\ncd \"$PWD\"" % (arg1, arg2)
+                          "TARGET=\"$PWD/$1\"; fi\ncd \"%s\"\nset -- \"$TARGET\" \"${@:2}\"\n%s" \
+                          "\ncd \"$PWD\"" % (arg1, arg2)
                 result = ubin.joinpath(self.name)
                 self.logger.debug("echo -en '%s' > '%s'" % (arg, result))
                 try:
@@ -462,7 +469,7 @@ class Base(Item):
             # rename the current working directory and change to the new one
             elif cmd == "md":
                 result, cwd2 = (result or tmp).joinpath(arg), result
-                os.chdir(cwd if cwd != cwd2 else str(tmp))
+                os.chdir(self.__cwd if self.__cwd != cwd2 else str(tmp))
                 run("mv -f '%s' '%s'" % (cwd2, result), **kw)
                 os.chdir(str(result))
             # simple install through PIP
@@ -472,9 +479,9 @@ class Base(Item):
             elif cmd == "rm":
                 p = Path(arg).absolute()
                 if str(p) == os.getcwd():
-                    cwd = cwd if cwd is not None else p.parent
-                    self.logger.debug("cd '%s'" % cwd)
-                    os.chdir(cwd)
+                    self.__cwd = self.__cwd if self.__cwd is not None else p.parent
+                    self.logger.debug("cd '%s'" % self.__cwd)
+                    os.chdir(self.__cwd)
                 run("rm -rf '%s'" % p, **kw)
                 rm = False
             # manually set the result to be used in the next command
@@ -494,18 +501,24 @@ class Base(Item):
                     ext, result = ".tar.xz", result2
                 if result.extension == ext:
                     # decompress to the target folder but also to a temp folder if needed (for debugging purpose)
-                    paths, first = [tmp.joinpath(arg)], True
+                    paths, first = [tmp.joinpath(arg1)], True
                     if kw.get('verbose', False):
                         paths.append(ts.TempPath(prefix="%s-setup-" % self.type, length=8))
+                    pswd = ""
+                    if arg2 != arg1:
+                        pswd = " -p'%s'" % arg2 if ext == ".7z" else \
+                               " -P '%s'" % arg2 if ext == ".zip" else \
+                               " p'%s'" % arg2 if ext == ".rar" else \
+                               ""
                     for d in paths:
                         run_func = run if first else run2
                         if ext == ".tar.bz2":
                             run_func("bunzip2 -f '%s'" % result, **(kw if first else {}))
                             ext = ".tar"  # switch extension to trigger 'tar x(v)f'
                             result = result.dirname.joinpath(result.stem + ".tar")
-                        cmd = "7z x '%s' -o'%s' -y" % (result, d) if ext == ".7z" else \
-                              "unzip -o '%s' -d '%s/'" % (result, d) if ext == ".zip" else \
-                              "unrar x -y -u '%s' '%s/'" % (result, d) if ext == ".rar" else \
+                        cmd = "7z x '%s'%s -o'%s' -y" % (result, pswd, d) if ext == ".7z" else \
+                              "unzip%s -o '%s' -d '%s/'" % (pswd, result, d) if ext == ".zip" else \
+                              "unrar x%s -y -u '%s' '%s/'" % (pswd, result, d) if ext == ".rar" else \
                               "tar xv%sf '%s' -C '%s'" % (["", "z"][ext == ".tar.gz"], result, d)
                         if ext not in [".7z", ".zip"]:
                             d.mkdir(parents=True, exist_ok=True)
@@ -615,9 +628,9 @@ class Base(Item):
                     result = tmp.joinpath(self.name + Path(url.path).extension)
                     run("wget -q -O %s %s" % (result, arg.replace("%%", "%")), **kw)[-1]
                 wget = True
-        if cwd != os.getcwd():
-            self.logger.debug("cd %s" % cwd)
-            os.chdir(cwd)
+        if self.__cwd != os.getcwd():
+            self.logger.debug("cd %s" % self.__cwd)
+            os.chdir(self.__cwd)
         if rm:
             run("rm -rf %s" % tmp.joinpath(self.name), **kw)
     
