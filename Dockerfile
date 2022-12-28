@@ -55,7 +55,7 @@ RUN (apt-get -qq -y install apt-transport-https apt-utils \
 # install useful tools
 RUN (apt-get -qq -y install colordiff colortail cython3 dosbox git golang kmod less ltrace tree strace sudo tmate tmux \
  && apt-get -qq -y install iproute2 nftables nodejs npm python3-setuptools python3-pip swig vim weka x11-apps yarnpkg \
- && apt-get -qq -y install curl ffmpeg imagemagick psmisc tesseract-ocr unrar unzip wget zstd \
+ && apt-get -qq -y install curl ffmpeg imagemagick pev psmisc tesseract-ocr unrar unzip wget zstd \
  && apt-get -qq -y install binwalk ent foremost jq visidata xdotool xterm xvfb \
  && wget -qO /tmp/bat.deb https://github.com/sharkdp/bat/releases/download/v0.18.2/bat-musl_0.18.2_amd64.deb \
  && dpkg -i /tmp/bat.deb \
