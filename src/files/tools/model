@@ -6,7 +6,7 @@ from tinyscript import *
 
 __author__      = "Alexandre D'Hondt"
 __email__       = "alexandre.dhondt@gmail.com"
-__version__     = "1.2.1"
+__version__     = "1.2.2"
 __copyright__   = ("A. D'Hondt", 2021)
 __license__     = "gpl-3.0"
 __doc__         = """
@@ -29,15 +29,7 @@ def __add_name(parser, optional=False, force=False, joblib=False):
     def model_exists(string):
         if string == "all":
             return string
-        if string:
-            p = ts.Path(string)
-            if joblib and p.is_file() and p.extension == ".joblib":
-                return p
-            p = config['workspace'].joinpath("models", string)
-            (ts.folder_exists_or_create if force else ts.folder_exists)(str(p))
-            if not force:
-                Model.validate(p)
-            return p
+        return open_model(string)
     a = ("-n", "--name", ) if optional else ("name", )
     kw = {'type': model_exists, 'help': "name of the model"}
     parser.add_argument(*a, **kw)
@@ -99,7 +91,7 @@ if __name__ == '__main__':
     initialize(noargs_action="help")
     logger.name = "model"
     logging.configLogger(logger, ["INFO", "DEBUG"][args.verbose], fmt=LOG_FORMATS[args.verbose], relative=True)
-    name, args.load = getattr(args, "name", None), args.command not in ["list", "purge"]
+    name, args.load = getattr(args, "name", Model(load=False)), args.command not in ["list", "purge"]
     if args.command == "purge" and name == "all":
         purged = False
         for m in Model.iteritems(True):
@@ -114,9 +106,5 @@ if __name__ == '__main__':
             Algorithm.source = args.algorithms_set  # recompute the child classes of Algorithm with a given source
         if hasattr(args, "features_set"):
             Features.source = args.features_set  # configure the features set's YAML definition source
-        try:
-            m = DumpedModel(**vars(args))
-        except (KeyError, OSError):
-            m = Model(**vars(args))
-        getattr(m, args.command)(**vars(args))
+        getattr(name, args.command)(**vars(args))
 
