@@ -17,8 +17,7 @@ from .executable import Executable
 
 __all__ = ["aggregate_formats", "backup", "benchmark", "bin_label", "class_or_instance_method", "collapse_formats",
            "data_to_temp_file", "dict2", "edit_file", "expand_formats", "file_or_folder_or_dataset", "highlight_best",
-           "is_exe", "make_registry", "mdv", "metrics", "shorten_str", "strip_version", "ExeFormatDict",
-           "FORMATS", "PERF_HEADERS"]
+           "is_exe", "make_registry", "mdv", "shorten_str", "strip_version", "ExeFormatDict", "FORMATS"]
 
 _EVAL_NAMESPACE = {k: getattr(builtins, k) for k in ["abs", "divmod", "float", "hash", "hex", "id", "int", "len",
                                                      "list", "max", "min", "oct", "ord", "pow", "range", "range2",
@@ -30,16 +29,6 @@ FORMATS = {
     'ELF':    ["ELF32", "ELF64"],
     'Mach-O': ["Mach-O32", "Mach-O64", "Mach-Ou"],
     'PE':     [".NET", "PE32", "PE64"],
-}
-PERF_HEADERS = {
-    'Dataset':         lambda x: x,
-    'Accuracy':        lambda x: "-" if x == "-" else "%.2f%%" % (x * 100),
-    'Precision':       lambda x: "-" if x == "-" else "%.2f%%" % (x * 100),
-    'Recall':          lambda x: "-" if x == "-" else "%.2f%%" % (x * 100),
-    'F-Measure':       lambda x: "-" if x == "-" else "%.2f%%" % (x * 100),
-    'MCC':             lambda x: "-" if x == "-" else "%.2f%%" % (x * 100),
-    'AUC':             lambda x: "-" if x == "-" else "%.2f%%" % (x * 100),
-    'Processing Time': lambda x: "%.3fms" % (x * 1000),
 }
 
 
@@ -396,15 +385,6 @@ def make_registry(cls):
             _setattr(vi, vdata)
             glob['__all__'].append(vitem)
             cls.registry.append(vi())
-
-
-def metrics(tn=0, fp=0, fn=0, tp=0):
-    """ Compute some metrics related to false/true positives/negatives. """
-    accuracy  = float(tp + tn) / (tp + tn + fp + fn) if tp + tn + fp + fn > 0 else -1
-    precision = float(tp) / (tp + fp) if tp + fp > 0 else -1
-    recall    = float(tp) / (tp + fn) if tp + fn > 0 else -1                                      # or also sensitivity
-    f_measure = 2. * precision * recall / (precision + recall) if precision + recall > 0 else -1  # or F(1)-score
-    return accuracy, precision, recall, f_measure
 
 
 def shorten_str(string, l=80):

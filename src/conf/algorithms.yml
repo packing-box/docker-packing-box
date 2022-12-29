@@ -1,5 +1,6 @@
 Supervised:
   defaults:
+    metrics: classification
     preprocessors:
       - Std
   AB:
@@ -189,6 +190,8 @@ Supervised:
         gamma: !!python/object/new:numpy.logspace [-3, -1, 3]
 
 Unsupervised:
+  defaults:
+    metrics: clustering
   AC:
     base:        !!python/name:sklearn.cluster.AgglomerativeClustering
     description: Agglomerative Clustering

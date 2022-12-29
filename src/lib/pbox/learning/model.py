@@ -6,7 +6,6 @@ import pandas as pd
 from _pickle import UnpicklingError
 from sklearn.decomposition import PCA
 from sklearn.feature_selection import VarianceThreshold
-from sklearn.metrics import confusion_matrix, matthews_corrcoef, roc_auc_score
 from sklearn.model_selection import train_test_split, GridSearchCV
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import *
@@ -18,6 +17,7 @@ from .algorithm import Algorithm, WekaClassifier
 from .dataset import *
 from .executable import Executable
 from .features import Features
+from .metrics import *
 from .visualization import *
 from ..common.config import *
 from ..common.utils import *
@@ -105,7 +105,7 @@ class Model:
         logger = self.logger
         self.__read_only = False
         self._features, self._metadata = {}, {}
-        self._performance = pd.DataFrame(columns=PERF_HEADERS.keys())
+        self._performance = pd.DataFrame()
         self.name = name.stem if isinstance(name, Path) else name
         self.pipeline = DebugPipeline()
         if load:
@@ -129,27 +129,16 @@ class Model:
                 with p.open() as f:
                     setattr(self, "_" + n, json.load(f))
     
-    def _metrics(self, target, prediction, proba):
+    def _metrics(self, prediction, target=None, proba=None, metrics="classification", proctime=None):
         """ Metrics computation method. """
-        l = self.logger
-        if self.dataset.labelling < 1.:
-            l.warning("cannot compute metrics ; data is not completely labelled")
-            return [-1] * 6
-        l.debug("computing metrics...")
-        kw = {} if self._metadata['algorithm']['multiclass'] else {'labels': [0, 1]}
-        cmatrix = confusion_matrix(target, prediction, **kw)
-        l.debug("TN: %d ; FP: %d ; FN: %d ; TP: %d" % (cmatrix[0][0], cmatrix[0][1], cmatrix[1][0], cmatrix[1][1]))
-        accuracy, precision, recall, f_measure = metrics(*cmatrix.ravel())
-        mcc = matthews_corrcoef(target, prediction)
-        try:
-            auc = roc_auc_score(target, proba)
-        except ValueError:
-            auc = -1
-        except:
-            l.info(target)
-            l.info(proba)
-            raise
-        return [accuracy, precision, recall, f_measure, mcc, auc]
+        l, mfunc = self.logger, "%s_metrics" % metrics
+        if mfunc not in globals():
+            l.error("Bad metrics type '%s'" % metrics)
+            return 6 * [-1]
+        m = globals()[mfunc]
+        l.debug("Computing metrics...")
+        values, headers = m(prediction, y_true=target, y_proba=proba, proctime=proctime, logger=self.logger)
+        return [f(v) for v, f in zip(values, headers.values())], list(headers.keys())
     
     def _prepare(self, dataset=None, preprocessor=None, multiclass=False, labels=None, feature=None, data_only=False,
                  unlabelled=False, **kw):
@@ -173,7 +162,7 @@ class Model:
                 l.error("%s is not a valid input dataset" % dataset)
                 return False
             # copy relevant information from the input dataset (which is the reference one for the trained model)
-            l.debug("preparing dataset...")
+            l.debug("Preparing dataset...")
             self._metadata['dataset'] = {k: v for k, v in ds._metadata.items()}
             self._metadata['dataset']['path'] = str(ds.path)
             self._metadata['dataset']['name'] = ds.path.stem
@@ -311,7 +300,7 @@ class Model:
             l.warning("This model already exists !")
             return
         self.path.mkdir(exist_ok=True)
-        l.debug("%s model %s..." % (["saving", "updating"][self.__read_only], str(self.path)))
+        l.debug("%s model %s..." % (["Saving", "Updating"][self.__read_only], str(self.path)))
         if not self.__read_only:
             for n in ["dump", "features", "metadata"]:
                 p = self.path.joinpath(n + (".joblib" if n == "dump" else ".json"))
@@ -325,13 +314,12 @@ class Model:
             self.__read_only = True
         p = self.path.joinpath("performance.csv")
         l.debug("> saving %s..." % p.basename)
-        self._performance.to_csv(str(p), sep=";", columns=PERF_HEADERS.keys(), index=False, header=True,
-                                 float_format=FLOAT_FORMAT)
+        self._performance.to_csv(str(p), sep=";", index=False, header=True, float_format=FLOAT_FORMAT)
     
     def compare(self, dataset=None, model=None, include=False, **kw):
         """ Compare the last performance of this model on the given dataset with other ones. """
         l, data, models = self.logger, [], [self]
-        l.debug("comparing models...")
+        l.debug("Comparing models...")
         if isinstance(dataset, list):
             dataset = [d.path.stem for d in dataset if not isinstance(d, str)]
         if isinstance(model, (list, tuple)):
@@ -342,39 +330,33 @@ class Model:
             class Dummy:
                 def __str__(self): return ""
             m = Dummy()
-            m.name = ""
-            m._performance = pd.read_csv(config['models'].joinpath(".performances.csv"), sep=";")
+            m.name, csv = "", config['models'].joinpath(".performances.csv")
+            m._performance = pd.read_csv(csv, sep=";")
             models.append(m)
         # compute performance data
+        perf = pd.DataFrame()
         for m in models:
-            p, dlen = m._performance, len(data)
-            for i in range(p.shape[0]-1, -1, -1):
-                r = p.iloc[i]
-                d = r['Dataset']
-                try:
-                    r['Model']
-                    row = list(r.values)
-                except KeyError:
-                    row = [getattr(m, "name", str(m))] + list(r.values)
-                # if all performance metrics are 100% AND the dataset name matches this included in the model's name,
-                #  assume it is the reference dataset and discard these metrics
-                if all(x == 1.0 for x in row[2:7]) and m.name.split("_", 1)[0] == d:
-                    continue
-                row = [[v, "-"][v < 0.] if isinstance(v, (int, float)) else v for v in row]
-                if dataset is None:
-                    data.insert(dlen-1, row)
-                elif d in dataset and isinstance(dataset, (list, tuple)) or dataset == d:
+            data = []
+            for h in m._performance.columns:
+                if h not in perf.columns:
+                    perf.columns[h] = np.nan
+            for _, row in m._performance.iterrows():
+                row = row.to_dict()
+                d = row['Dataset']
+                if "Model" not in row:
+                    tmp, row = row, {'Model': m.name}
+                    row.update(tmp)
+                if dataset is None or d == dataset or isinstance(dataset, (list, tuple)) and d in dataset:
                     data.append(row)
-                    break
-        if len(data) == 0:
+            perf = pd.concat([perf, pd.DataFrame.from_records(data)])
+        if len(perf) == 0:
             l.warning("No model selected" if dataset is None else "%s not found for the given model" % \
                       [dataset[0], "Datasets"][len(dataset) > 1])
             return
         # display performance data
-        ph = PERF_HEADERS
-        h = ["Model"] + list(ph.keys())
-        data = sorted(data, key=lambda row: (row[0], row[1]))
-        print(mdv.main(Table(highlight_best(data, h, [0, 1, -1], ph), column_headers=h).md()))
+        h = list(perf.columns)
+        data = sorted(perf.values.tolist(), key=lambda row: (row[0], row[1]))
+        print(mdv.main(Table(highlight_best(data, h, [0, 1, -1], METRIC_DISPLAYS), column_headers=h).md()))
     
     def edit(self, **kw):
         """ Edit the performance log file. """
@@ -469,13 +451,14 @@ class Model:
     
     def test(self, executable, **kw):
         """ Test a single executable or a set of executables and evaluate metrics. """
-        l, ds, a, unlab = self.logger, executable, self._metadata['algorithm'], kw.get('unlabelled', False)
+        l, ds, unlab = self.logger, executable, kw.get('unlabelled', False)
         if len(self.pipeline.steps) == 0:
             l.warning("Model shall be trained before testing")
             return
         kw['data_only'], kw['dataset'] = True, ds
         if not self._prepare(**kw):
             return
+        cls = self._algorithm = Algorithm.get(self._metadata['algorithm']['name'])
         l.debug("Testing %s on %s..." % (self.name, ds))
         prediction, dt = benchmark(self.pipeline.predict)(self._data)
         dt = 1000 * dt
@@ -485,17 +468,17 @@ class Model:
             proba = proba[:, 1]
         except AttributeError:
             proba = None
-        ph = PERF_HEADERS
-        h, m = list(ph.keys())[1:], self._metrics(self._target, prediction, proba)
-        m2 = [ph[k](v) if v >= 0 else "-" for k, v in zip(list(ph.keys())[1:-1], m)]
-        r = Section("Test results for: " + ds), Table([m2 + [ph['Processing Time'](dt)]], column_headers=h)
+        m, h = self._metrics(prediction, self._target, proba, proctime=dt)
+        for header in [[], ["Model"]][self.__class__ is DumpedModel] + ["Dataset"] + h:
+            if header not in self._performance.columns:
+                self._performance[header] = np.nan
+        r = Section("Test results for: " + ds), Table([m], column_headers=h)
         print(mdv.main(Report(*r).md()))
         if len(self._data) > 0:
             row = {'Model': self.name} if self.__class__ is DumpedModel else {}
             row['Dataset'] = str(ds) + ["", "(unlabelled)"][unlab]
             for k, v in zip(h, m):
                 row[k] = v
-            row['Processing Time'] = dt
             self._performance = self._performance.append(row, ignore_index=True)
             self._save()
     
@@ -596,17 +579,13 @@ class Model:
         if cls.labelling != "none":
             l.debug("> making predictions...")
             d = []
-            ph = PERF_HEADERS
-            h = list(ph.keys())[1:-1]
-            m1 = self._metrics(self._train.target,
-                               self.pipeline.predict(self._train.data),
-                               self.pipeline.predict_proba(self._train.data)[:, 1])
-            m1 = [ph[k](v) if v >= 0 else "-" for k, v in zip(h, m1)]
+            m1, h = self._metrics(self._train.target,
+                                  self.pipeline.predict(self._train.data),
+                                  self.pipeline.predict_proba(self._train.data)[:, 1])
             d.append(["Train"] + m1)
-            m2 = self._metrics(self._test.target,
-                               self.pipeline.predict(self._test.data),
-                               self.pipeline.predict_proba(self._test.data)[:, 1])
-            m2 = [ph[k](v) if v >= 0 else "-" for k, v in zip(h, m2)]
+            m2, _ = self._metrics(self._test.target,
+                                  self.pipeline.predict(self._test.data),
+                                  self.pipeline.predict_proba(self._test.data)[:, 1])
             d.append(["Test"] + m2)
             h = ["."] + h
             print(mdv.main(Report(Title("Name: %s" % self.name), Table(d, column_headers=h)).md()))
@@ -721,7 +700,7 @@ class DumpedModel:
         try:
             self._performance = pd.read_csv(str(self.__p), sep=";")
         except FileNotFoundError:
-            self._performance = pd.DataFrame(columns=["Model"] + list(PERF_HEADERS.keys()))
+            self._performance = pd.DataFrame()
     
     def _save(self):
         self.logger.debug("> saving metrics to %s..." % str(self.__p))

@@ -1,7 +1,5 @@
 # -*- coding: UTF-8 -*-
 import pandas as pd
-from datetime import datetime, timedelta
-from textwrap import wrap
 from tinyscript import b, colored, hashlib, json, logging, random, subprocess, time, ts
 from tinyscript.helpers import ansi_seq_strip, human_readable_size, Path, TempPath
 from tinyscript.report import *
