@@ -339,7 +339,7 @@ class Base(Item):
                 arg = self.__expand(arg)
                 arg1, arg2 = shlex.split(arg)
             except AttributeError:
-                arg = [self.__expand(a) for a in arg]  # e.g. exec can handle 'arg' as a list of commands
+                arg = [self.__expand(a) for a in arg]  # e.g. 'exec' can handle 'arg' as a list of commands
             except ValueError:
                 arg1, arg2 = arg, arg
             # simple install through APT
@@ -360,7 +360,12 @@ class Base(Item):
             # copy a file from the previous location (or /tmp/[ITEM]s if not defined) to ~/.opt/bin, making the
             #  destination file executable
             elif cmd == "copy":
-                src, dst = (result or tmp).joinpath(arg1), ubin.joinpath(arg2)
+                base = result or tmp
+                if arg1 == arg2:  # only the destination is provided
+                    src, dst = base if base.is_file() else base.joinpath(self.name), ubin.joinpath(arg1)
+                else:             # both the source and destination are provided
+                    src, dst = (base.dirname if base.is_file() else base).joinpath(arg1), ubin.joinpath(arg2)
+                dst.dirname.mkdir(exist_ok=True)
                 # if ~/.local/bin/... exists, then save it to ~/.opt/bin/... to superseed it
                 if dst.is_samepath(ubin.joinpath(arg2)) and dst.exists():
                     dst = obin.joinpath(arg2)
@@ -368,6 +373,7 @@ class Base(Item):
                     run("chmod +x '%s'" % dst, **kw)
                 if arg1 == self.name:
                     rm = False
+                result = dst if dst.is_dir() else dst.dirname
             # execute the given shell command or the given list of shell commands
             elif cmd == "exec":
                 result = None
@@ -477,12 +483,17 @@ class Base(Item):
                 run("pip3 -qq install --user --no-warn-script-location --ignore-installed %s" % arg, **kw)
             # remove a given directory (then bypassing the default removal at the end of all commands)
             elif cmd == "rm":
-                p = Path(arg).absolute()
+                star = arg.endswith("*")
+                p = Path(arg[:-1] if star else arg).absolute()
                 if str(p) == os.getcwd():
                     self.__cwd = self.__cwd if self.__cwd is not None else p.parent
                     self.logger.debug("cd '%s'" % self.__cwd)
                     os.chdir(self.__cwd)
-                run("rm -rf '%s'" % p, **kw)
+                __sh = kw.pop('shell', None)
+                kw['shell'] = True
+                run("rm -rf '%s'%s" % (p, ["", "*"][star]), **kw)
+                if __sh is not None:
+                    kw['shell'] = __sh
                 rm = False
             # manually set the result to be used in the next command
             elif cmd in ["set", "setp"]:
@@ -588,15 +599,16 @@ class Base(Item):
                                 break
                             url = arg[0]
                     if url != arg[0]:
-                        result = tmp.joinpath(p + Path(ts.urlparse(url).path).extension)
-                        run("wget -q -O %s %s" % (result, url), **kw)[-1]
+                        result = tmp.joinpath(self.name + Path(ts.urlparse(url).path).extension)
+                        run("wget -qO %s %s" % (result, url), **kw)[-1]
                 # single link
                 else:
-                    url, tag = ts.urlparse(arg), ""
+                    single_arg = arg1 == arg2
+                    url, tag = ts.urlparse(arg1), ""
                     parts = url.path.split(":")
                     if len(parts) == 2:
                         path, tag = parts
-                        arg, idx, regex = None, None, r"([a-zA-Z0-9]+(?:[-_\.][a-zA-Z0-9]+)*)(?:\[(\d)\]|\{(.*?)\})?$"
+                        arg1, idx, regex = None, None, r"([a-zA-Z0-9]+(?:[-_\.][a-zA-Z0-9]+)*)(?:\[(\d)\]|\{(.*?)\})?$"
                         try:
                             tag, idx, pattern = re.match(regex, tag).groups()
                         except AttributeError:
@@ -608,7 +620,7 @@ class Base(Item):
                                 for asset in resp['assets']:
                                     link = asset['browser_download_url']
                                     if re.search(pattern, ts.urlparse(link).path.split("/")[-1]):
-                                        arg = link
+                                        arg1 = link
                                         break
                             except KeyError:
                                 self.logger.warning("GitHub API may be blocking requests at the moment ; please try "
@@ -620,13 +632,13 @@ class Base(Item):
                             if idx is None:
                                 idx = "0"
                             if idx.isdigit():
-                                arg = resp['assets'][int(idx)]['browser_download_url']
-                        if arg is None:
+                                arg1 = resp['assets'][int(idx)]['browser_download_url']
+                        if arg1 is None:
                             raise ValueError("Bad tag for the release URL: %s" % tag)
                     if url.netloc == "github.com" and tag != "":
-                        url = ts.urlparse(arg)
-                    result = tmp.joinpath(self.name + Path(url.path).extension)
-                    run("wget -q -O %s %s" % (result, arg.replace("%%", "%")), **kw)[-1]
+                        url = ts.urlparse(arg1)
+                    result = tmp.joinpath(self.name + Path(url.path).extension if single_arg else arg2)
+                    run("wget -qO %s %s" % (result, arg1.replace("%%", "%")), **kw)[-1]
                 wget = True
         if self.__cwd != os.getcwd():
             self.logger.debug("cd %s" % self.__cwd)
