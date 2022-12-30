@@ -268,7 +268,7 @@ class Dataset:
         if new_name is not None:
             ds = Dataset(new_name)
             ds.merge(self.path.basename, silent=True, **kw)
-            ds.alter(**kw)
+            ds.alter(percentage=percentage, **kw)
             return
         # keep previous alteration percentage into account
         a = self._metadata.get('altered', .0)
