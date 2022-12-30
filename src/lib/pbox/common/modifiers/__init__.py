@@ -67,7 +67,7 @@ class Modifiers(list):
                 d.update({k: globals()[k] for k in md})
                 kw = {'executable': exe, 'parsed': parsed}
                 try:
-                    kw['sections'] = parsed.sections
+                    d['sections'] = parsed.sections
                 except:
                     pass
                 try:
