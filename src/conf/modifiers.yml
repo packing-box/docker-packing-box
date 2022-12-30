@@ -19,4 +19,4 @@ add_data_section:
 
 add_random_text_section:
   result:
-    PE: add_section(randstr(), data=randstr().encode())
+    PE: add_section(randstr(), data=randbytes(10))

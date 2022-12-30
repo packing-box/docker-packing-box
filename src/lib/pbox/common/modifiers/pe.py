@@ -38,9 +38,9 @@ def add_section(name,
 
     def _add_section(parsed=None, **kw):
         if parsed is None:
-            print("A parsed executable must be provided !")
+            raise ValueError("A parsed executable must be provided !")
         if not isinstance(parsed, lief.PE.Binary):
-            print("Only the lief parser can be used for this function")
+            raise TypeError("Only the lief parser can be used for this function")
 
         sec = lief.PE.Section(name=name, content=list(data),
                               characteristics=characteristics)
