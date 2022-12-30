@@ -1,17 +1,25 @@
 import lief
-from lief.PE import SECTION_TYPES
-from types import SimpleNamespace
 
-__all__ = ["section_name", "add_section", "SECTION_TYPES"]
+__all__ = ["section_name", "add_section", "SECTION_TYPES", "SECTION_CHARACTERISTICS"]
 
-d = lief.PE.SECTION_CHARACTERISTICS.__entries
-SECTION_CHARACTERISTICS = SimpleNamespace(**{c: d[c][0].value for c in d})
+SECTION_CHARACTERISTICS = lief.PE.SECTION_CHARACTERISTICS.__entries
+SECTION_CHARACTERISTICS.update((k,SECTION_CHARACTERISTICS[k][0].value) 
+                               for k in SECTION_CHARACTERISTICS)
+SECTION_TYPES = lief.PE.SECTION_TYPES.__entries
+SECTION_TYPES.update((k,SECTION_TYPES[k][0]) for k in SECTION_TYPES)
 
-def section_name(old_name, new_name):
+
+def section_name(old_section, new_name):
     """Modifier that renames one of the sections of a binary parsed by lief
     Raises:
         LookupError: section name not found in the binary
     """
+
+    if isinstance(old_section, lief.PE.Section):
+        old_name = old_section.name
+    else: # if not a Section, assume it is a string
+        old_name = old_section
+        
 
     def _section_name(parsed=None, **kw):
         if parsed is None:
@@ -27,10 +35,10 @@ def section_name(old_name, new_name):
 
 
 def add_section(name,
-                section_type=SECTION_TYPES.TEXT,
-                characteristics=SECTION_CHARACTERISTICS.MEM_READ +
-                SECTION_CHARACTERISTICS.MEM_WRITE +
-                SECTION_CHARACTERISTICS.MEM_EXECUTE, 
+                section_type=SECTION_TYPES["TEXT"],
+                characteristics=SECTION_CHARACTERISTICS["MEM_READ"] +
+                SECTION_CHARACTERISTICS["MEM_WRITE"] +
+                SECTION_CHARACTERISTICS["MEM_EXECUTE"], 
                 data=b""):
     """Modifier that adds a section to a binary parsed by lief
     Wrapper for lief.PE.Binary.add_section

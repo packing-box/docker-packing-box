@@ -3,7 +3,7 @@ defaults:
 
 replace_one_section_name_with_random_bytes:
   result: 
-    PE: section_name(choice(sections).name, randstr())
+    PE: section_name(choice(sections), randstr())
 
 replace_text_with_null_bytes:
   result:
@@ -15,7 +15,7 @@ add_empty_text_section:
 
 add_data_section:
   result:
-    PE: add_section(randstr(), section_type=SECTION_TYPES.DATA)
+    PE: add_section(randstr(), section_type=SECTION_TYPES["DATA"])
 
 add_random_text_section:
   result:
