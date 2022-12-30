@@ -164,8 +164,7 @@ BeRo:
   formats:
     - PE32
   install:
-    - copy: bep.exe $OPT/beroexepacker.exe
-    - setp: $OPT/
+    - copy: bep.exe $OPT/bero/beroexepacker.exe
     - wine: beroexepacker.exe
   source: https://blog.rosseaux.net/page/875fbe6549aa072b5ee0ac9cefff4827/BeRoEXEPacker
 
@@ -255,8 +254,7 @@ EXE_Stealth:
   formats:
     - PE
   install:
-    - copy: exestealth.exe $OPT/exestealth.exe
-    - setp: $OPT/exestealth
+    - copy: exestealth.exe $OPT/exestealth/exestealth.exe
     - wine: exestealth.exe
   references:
     - http://www.webtoolmaster.com/exestealth-tutorial.htm
@@ -369,8 +367,7 @@ FSG:
     # click on "Open" (this starts packing)
     - click 380 210 (3)
   install:
-    - copy: fsg.exe $OPT/fsg.exe
-    - setp: $OPT/
+    - copy: fsg.exe $OPT/fsg/fsg.exe
     - wine: fsg.exe
   references:
     - https://www.aldeid.com/wiki/Category:Digital-Forensics/Computer-Forensics/Anti-Reverse-Engineering/Packers/FSG
@@ -671,7 +668,6 @@ Pakkero:
     - ELF
   install:
     - wget: https://github.com/89luca89/pakkero/releases/download/0.7.0/pakkero_linux_amd64
-    - cd: $TMP
     - copy: pakkero
   source: https://github.com/89luca89/pakkero
   status: broken
@@ -883,7 +879,6 @@ Silent_Packer:
     - PE
   install:
     - wget: https://github.com/SilentVoid13/Silent_Packer/releases/download/v0.1/Silent_Packer
-    - cd: /tmp
     - copy: silent-packer
   source: https://github.com/SilentVoid13/Silent_Packer
 
@@ -893,15 +888,31 @@ SimpleDpack:
   formats:
     - PE32
   install:
-    - wget: https://github.com/YuriSizuku/SimpleDpack:latest{SimpleDpack.exe}
-    - wine: SimpleDpack.exe
+    - wget: https://github.com/YuriSizuku/SimpleDpack:latest{SimpleDpack.exe} SimpleDpack.exe
+    - copy: $OPT/simpledpack/
+    - lwine: SimpleDpack.exe
+    - wget: https://github.com/YuriSizuku/SimpleDpack:latest{simpledpackshell.dll} simpledpackshell.dll
+    - copy: $OPT/simpledpack/
+    - rm: $TMP/simpledpack*
   source: https://github.com/YuriSizuku/SimpleDpack
-  status: gui
+  status: ok
+  steps:
+    - simpledpack {{executable}}
+    - mv -f {{executable.stem}}_dpack{{executable.extension}} {{executable}}
   variants:
     SimpleDpack64:
+      formats:
+        - PE64
       install:
-        - wget: https://github.com/YuriSizuku/SimpleDpack:latest{SimpleDpack64.exe}
-        - wine: SimpleDpack64.exe
+        - wget: https://github.com/YuriSizuku/SimpleDpack:latest{SimpleDpack64.exe} SimpleDpack64.exe
+        - copy: $OPT/simpledpack/
+        - lwine: SimpleDpack64.exe
+        - wget: https://github.com/YuriSizuku/SimpleDpack:latest{simpledpackshell64.dll} simpledpackshell64.dll
+        - copy: $OPT/simpledpack/
+        - rm: $TMP/simpledpack*
+      steps:
+        - simpledpack64 {{executable}}
+        - mv -f {{executable.stem}}_dpack{{executable.extension}} {{executable}}
 
 SmartPacker:
   categories:
