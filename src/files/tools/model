@@ -6,7 +6,7 @@ from tinyscript import *
 
 __author__      = "Alexandre D'Hondt"
 __email__       = "alexandre.dhondt@gmail.com"
-__version__     = "1.2.2"
+__version__     = "1.2.3"
 __copyright__   = ("A. D'Hondt", 2021)
 __license__     = "gpl-3.0"
 __doc__         = """
@@ -47,17 +47,14 @@ if __name__ == '__main__':
     __add_name(sparsers.add_parser("edit", help="edit the performance log file"), True)
     listm = sparsers.add_parser("list", help="list all the models from the workspace")
     listm.add_argument("--algorithms", action="store_true", help="show available algorithms instead of models")
-    preproc = sparsers.add_parser("preprocess", help="preprocess features and visualize the result")
-    __add_name(preproc)
+    preproc = __add_name(sparsers.add_parser("preprocess", help="preprocess features and visualize the result"))
     preproc.add_argument("-f", "--features-set", type=ts.file_exists, default=config['features'],
                          help="features set's YAML definition")
     __add_name(sparsers.add_parser("purge", help="purge the selected model"))
-    rename = sparsers.add_parser("rename", help="rename the selected model")
-    __add_name(rename)
+    rename = __add_name(sparsers.add_parser("rename", help="rename the selected model"))
     rename.add_argument("name2", type=ts.folder_does_not_exist, help="new name of the model")
     __add_name(sparsers.add_parser("show", help="get an overview of the model"))
-    test = sparsers.add_parser("test", help="test the model on a given input")
-    __add_name(test, joblib=True)
+    test = __add_name(sparsers.add_parser("test", help="test the model on a given input"), joblib=True)
     test.add_argument("executable", help="executable or folder containing executables or dataset or data CSV file")
     test.add_argument("-f", "--features-set", type=ts.file_exists, default=config['features'],
                       help="features set's YAML definition")
@@ -83,8 +80,7 @@ if __name__ == '__main__':
     train.add_argument("--param", action="extend", nargs="*", type=lambda x: x.split(","),
                        help="comma-separated list of parameters for the algorithm",
                        note="fixing a parameter with this option disables it from the cross-validation")
-    visualize = sparsers.add_parser("visualize", help="visualize the model")
-    __add_name(visualize)
+    visualize = __add_name(sparsers.add_parser("visualize", help="visualize the model"))
     visualize.add_argument("-e", "--export", action="store_true", help="export to PNG")
     visualize.add_argument("-o", "--output-dir", default=".", help="output directory")
     visualize.add_argument("-f", "--features-set", default="~/.opt/features.yml", help="features set's YAML definition")
@@ -92,19 +88,22 @@ if __name__ == '__main__':
     logger.name = "model"
     logging.configLogger(logger, ["INFO", "DEBUG"][args.verbose], fmt=LOG_FORMATS[args.verbose], relative=True)
     name, args.load = getattr(args, "name", Model(load=False)), args.command not in ["list", "purge"]
-    if args.command == "purge" and name == "all":
-        purged = False
-        for m in Model.iteritems(True):
-            m.purge()
-            purged = True
-        if not purged:
-            logger.warning("No model to purge in workspace (%s)" % config['models'])
-    elif name == "all":
-        logger.warning("Model cannot be named 'all' (reserved word)")
+    if name == "all":
+        if args.command == "purge":
+            purged = False
+            for m in Model.iteritems(True):
+                m.purge()
+                purged = True
+            if not purged:
+                logger.warning("No model to purge in workspace (%s)" % config['models'])
+        else:
+            logger.warning("Model cannot be named 'all' (reserved word)")
     else:
         if hasattr(args, "algorithms_set"):
             Algorithm.source = args.algorithms_set  # recompute the child classes of Algorithm with a given source
         if hasattr(args, "features_set"):
             Features.source = args.features_set  # configure the features set's YAML definition source
+        if args.command == "train":
+            name = Model(**vars(args))
         getattr(name, args.command)(**vars(args))
 
