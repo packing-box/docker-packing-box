@@ -30,8 +30,7 @@ def __add_name(parser, optional=False, force=False, joblib=False):
         if string == "all":
             return string
         return open_model(string)
-    a = ("-n", "--name", ) if optional else ("name", )
-    kw = {'type': model_exists, 'help': "name of the model"}
+    a, kw = ("-n", "--name", ) if optional else ("name", ), {'type': model_exists, 'help': "name of the model"}
     parser.add_argument(*a, **kw)
     return parser
 

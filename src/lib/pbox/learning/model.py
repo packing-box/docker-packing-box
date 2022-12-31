@@ -124,7 +124,10 @@ class Model:
                 self.pipeline.pipeline = joblib.load(str(p))
                 self.__read_only = True
             elif n == "performance":
-                self._performance = pd.read_csv(str(p), sep=";")
+                try:
+                    self._performance = pd.read_csv(str(p), sep=";")
+                except pd.errors.EmptyDataError:
+                    pass # self._performance was already created in __init__
             else:
                 with p.open() as f:
                     setattr(self, "_" + n, json.load(f))
