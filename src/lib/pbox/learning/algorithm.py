@@ -22,18 +22,21 @@ class MetaAlgorithm(MetaItem):
         #  of child classes is computed, the child classes, e.g. RF, won't be able to access RF.registry)
         if name in ["get", "iteritems", "mro", "registry", "source"] and self._instantiable:
             raise AttributeError(name)
-        return super(MetaItem, self).__getattribute__(name)
-
+        return super(MetaAlgorithm, self).__getattribute__(name)
+    
     @property
     def source(self):
         return self._source
 
     @source.setter
     def source(self, path):
-        p = Path(str(path or config['algorithms']))
+        p = Path(str(path or config['algorithms']), expand=True)
         if hasattr(self, "_source") and self._source == p:
             return
         cls, self._source = Algorithm, p
+        # remove the child classes of the former registry from the global scope
+        for child in getattr(self, "registry", []):
+            glob.pop(child.cname, None)
         # open the .conf file associated to algorithms
         cls.registry, glob = [], globals()
         with p.open() as f:

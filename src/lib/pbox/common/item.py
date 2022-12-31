@@ -43,7 +43,7 @@ class MetaItem(type):
         # case 1: self is a parent class among Analyzer, Detector, ... ;
         #          then 'source' means the source path for loading child classes
         try:
-            p = Path(str(path or config['%ss' % self.__name__.lower()]))
+            p = Path(str(path or config['%ss' % self.__name__.lower()]), expand=True)
             if hasattr(self, "_source") and self._source == p:
                 return
             self._source = p
@@ -56,7 +56,12 @@ class MetaItem(type):
             for k, v in d.items():
                 setattr(i, "_" + k if k in ["source", "status"] else k, v)
         # open the .conf file associated to the main class (i.e. Detector, Packer, ...)
-        self.registry, glob = [], inspect.getparentframe().f_back.f_globals
+        glob = inspect.getparentframe().f_back.f_globals
+        # remove the child classes of the former registry from the global scope
+        for cls in getattr(self, "registry", []):
+            glob.pop(cls.cname, None)
+        # reset the registry
+        self.registry = []
         if not p.is_file():
             self.logger.warning("'%s' does not exist ; set back to default" % p)
             p, func = config.DEFAULTS['definitions']['%ss' % self.__name__.lower()]
@@ -113,13 +118,11 @@ class MetaItem(type):
             # now set attributes from YAML parameters
             for it in [i] + vilist:
                 _setattr(it, data)
-            glob['__all__'].append(item)
             self.registry.append(i())
             # overwrite parameters specific to variants
             for vitem, vdata in variants.items():
                 vi = glob[vitem]
                 _setattr(vi, vdata)
-                glob['__all__'].append(vitem)
                 self.registry.append(vi())
     
     @property

@@ -35,19 +35,34 @@ class MetaFeatures(type):
                     yield name
                     temp.append(name)
 
+    @property
+    def source(self):
+        if not hasattr(self, "_source"):
+            self.source = None  # use the default source from 'config'
+        return self._source
+
+    @source.setter
+    def source(self, path):
+        p = Path(str(path or config['features']), expand=True)
+        if hasattr(self, "_source") and self._source == p:
+            return
+        self.registry = None  # reset the registry
+
 
 class Features(dict, metaclass=MetaFeatures):
-    """ This class parses the YAML definitions of features to be derived from the extracted ones. """
+    """ This class parses the YAML definitions of features to be derived from the extracted ones.
+    
+    NB: On the contrary of abstractions (e.g. Packer, Detector), Features lazily computes its registry.
+    """
     boolean_only = False
     registry     = None
-    source       = config['features']
     
     @logging.bindLogger
     def __init__(self, exe):
         # parse YAML features definition once
         if Features.registry is None:
             # open the target YAML-formatted features set only once
-            with open(Features.source) as f:
+            with Features.source.open() as f:
                 features = yaml.load(f, Loader=yaml.Loader) or {}
             Features.registry = {}
             # collect properties that are applicable for all the other features
