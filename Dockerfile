@@ -55,7 +55,7 @@ RUN (apt-get -qq -y install apt-transport-https apt-utils \
 # install useful tools
 RUN (apt-get -qq -y install colordiff colortail cython3 dosbox git golang kmod less ltrace tree strace sudo tmate tmux \
  && apt-get -qq -y install iproute2 nftables nodejs npm python3-setuptools python3-pip swig vim weka x11-apps yarnpkg \
- && apt-get -qq -y install curl ffmpeg imagemagick pev psmisc tesseract-ocr unrar unzip wget zstd \
+ && apt-get -qq -y install bc curl ffmpeg imagemagick pev psmisc tesseract-ocr unrar unzip wget zstd \
  && apt-get -qq -y install binwalk ent foremost jq visidata xdotool xterm xvfb \
  && wget -qO /tmp/bat.deb https://github.com/sharkdp/bat/releases/download/v0.18.2/bat-musl_0.18.2_amd64.deb \
  && dpkg -i /tmp/bat.deb \
@@ -66,7 +66,10 @@ RUN (dpkg --add-architecture i386 \
  && wget -O /etc/apt/keyrings/winehq-archive.key https://dl.winehq.org/wine-builds/winehq.key \
  && wget -NP /etc/apt/sources.list.d/ https://dl.winehq.org/wine-builds/ubuntu/dists/jammy/winehq-jammy.sources \
  && apt-get -qq update \
- && apt-get -qq -y install --install-recommends winehq-stable wine32 winetricks) >/dev/null 2>&1 \
+ && apt-get -qq -y install --install-recommends winehq-stable wine32 winetricks \
+ && WINEPREFIX="$HOME/.wine32" WINEARCH=win32 wineboot \
+ &  wget https://dl.winehq.org/wine/wine-gecko/2.47.3/wine-gecko-2.47.3-x86.msi \
+ && WINEPREFIX="$HOME/.wine32" WINEARCH=win32 wine msiexec /i wine-gecko-2.47.3-x86.msi) >/dev/null 2>&1 \
  || echo -e "\033[1;31m WINE INSTALL FAILED \033[0m"
 # install mono (for running .NET apps on Linux)
 RUN (add-apt-key --keyserver keyserver.ubuntu.com 3FA7E0328081BFF6A14DA29AA6A19B38D3D831EF \

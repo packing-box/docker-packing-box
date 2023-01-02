@@ -38,8 +38,7 @@ xvfb-chktxt() {
 
 # functions for .NET
 dotnet-kill() {
-  local F=/tmp/.pid-to-kill
-  ps -eaf | grep -v grep | grep -i "dotnet${1}" | awk {'print $2'} > $F && kill `cat $F` 2>/dev/null && rm -f $F
+  ps -eaf | grep -v grep | grep -i "dotnet${1}" | awk {'print $2'} | xargs kill -9
 }
 dotnet-start() {
   local VER="$1"
@@ -53,9 +52,16 @@ dotnet-start() {
 }
 
 # other functions
-kill-exe () {
-  local F=/tmp/.pid-to-kill
-  ps -eaf | grep -v grep | grep "\.exe" | awk {'print $2'} > $F && kill `cat $F` 2>/dev/null && rm -f $F
+kill-wine-app () {
+  ps -eaf | grep -v grep \
+          | grep -E -e "/bin/bash.+bin/$1" \
+                    -e ".+/$1\.exe\$" \
+                    -e 'bin/wineserver$' \
+                    -e 'winedbg --auto' \
+                    -e 'windows\\system32\\services.exe$' \
+                    -e 'windows\\system32\\conhost.exe --unix' \
+                    -e 'windows\\system32\\explorer.exe /desktop$' \
+          | awk {'print $2'} | xargs kill -9
 }
 
 # run Xvfb (if not already started)

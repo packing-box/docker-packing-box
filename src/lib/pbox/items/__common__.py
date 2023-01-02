@@ -18,13 +18,19 @@ GUI_SCRIPT = """#!/bin/bash
 source ~/.bash_xvfb
 {{preamble}}
 SRC="$1"
-DST="~/.wine/drive_c/users~/Temp/${1##*/}"
-FILE="c:\\\\users\\\\root\\\\Temp\\\\${1##*/}"
+NAME="$(basename "$1" | sed 's/\(.*\)\..*/\1/')"
+DST="$HOME/.wine%(arch)s/drive_c/users/user/Temp/${1##*/}"
+FILE="c:\\\\users\\\\user\\\\Temp\\\\${1##*/}"
 cp -f "$SRC" "$DST"
-wine "$EXE" &
+WINEPREFIX=\"$HOME/.wine%(arch)s\" WINEARCH=win%(arch)s wine "$EXE" &
 sleep .5
 {{actions}}
-ps -eaf | grep -v grep | grep $EXE | awk {'print $2'} > .pid-to-kill && kill `cat .pid-to-kill` && rm -f .pid-to-kill
+ps -eaf | grep -v grep | grep -E -e "/bin/bash.+bin/$NAME" -e ".+/$NAME\.exe\$" \
+                                 -e 'bin/wineserver$' -e 'winedbg --auto' \
+                                 -e 'windows\\system32\\services.exe$' \
+                                 -e 'windows\\system32\\conhost.exe --unix' \
+                                 -e 'windows\\system32\\explorer.exe /desktop$' \
+        | awk {'print $2'} | xargs kill -9
 sleep .1
 mv -f "$DST" "$SRC"{{postamble}}
 """
@@ -154,13 +160,14 @@ class Base(Item):
             return False
         return True
     
-    def _gui(self, target, local=False):
+    def _gui(self, target, arch, local=False):
         """ Prepare GUI script. """
         preamble = "PWD='`pwd`'\ncd '%s'\nEXE='%s'" % (target.dirname, target.filename) if local else \
                    "EXE='%s'" % target
         postamble = ["", "\ncd '$PWD'"][local]
-        script = GUI_SCRIPT.replace("{{preamble}}", preamble).replace("{{postamble}}", postamble)
+        script = (GUI_SCRIPT % {'arch': arch}).replace("{{preamble}}", preamble).replace("{{postamble}}", postamble)
         cmd = re.compile(r"^(.*?)(?:\s+\((\d*\.\d*|\d+)\)(?:|\s+\[x(\d+)\])?)?$")
+        slp = re.compile(r"sleep-per-(B|KB|MB)\s+(\d*\.\d*|\d+)")
         actions = []
         for action in self.gui:
             c, delay, repeat = cmd.match(action).groups()
@@ -173,6 +180,10 @@ class Base(Item):
                     c = "xdotool %s" % c
                     if c.endswith(" click") or c == "click":
                         c += " 1"  # set to left-click
+                elif slp.match(c):
+                    s, t = slp.match(c).groups()
+                    bs = [" --block-size=1%s" % s[0], ""][s == "B"]
+                    c = "sleep $(bc <<< \"`ls -l%s $DST | cut -d' ' -f5`*%s\")" % (bs, t)
                 actions.append(c)
                 if delay:
                     actions.append("sleep %s" % delay)
@@ -405,10 +416,10 @@ class Base(Item):
                 elif cmd == "sh":
                     txt += "\n".join(arg.split("\\n"))
                 elif cmd.startswith("wine"):
+                    arch = ["32", "64"][cmd == "wine64"]
                     if hasattr(self, "gui"):
-                        txt = self._gui(tgt)
+                        txt = self._gui(tgt, arch)
                     else:
-                        arch = ["32", "64"][cmd == "wine64"]
                         txt += "WINEPREFIX=\"$HOME/.wine%s\" WINEARCH=win%s wine \"%s\" \"$@\"" % (arch, arch, tgt)
                 self.logger.debug("echo -en '%s' > '%s'" % (txt, r))
                 try:
@@ -426,10 +437,10 @@ class Base(Item):
             # create a shell script to execute the given target from its source directory with its intepreter/launcher
             #  and make it executable
             elif cmd in ["lsh", "lwine", "lwine64"]:
+                arch = ["32", "64"][cmd == "lwine64"]
                 if cmd.startswith("lwine") and hasattr(self, "gui"):
-                    arg = self._gui(result.joinpath(arg), True)
+                    arg = self._gui(result.joinpath(arg), arch, True)
                 else:
-                    arch = ["32", "64"][cmd == "lwine64"]
                     arg1 = opt.joinpath(self.name) if arg == arg1 == arg2 else Path(arg1, expand=True)
                     arg2 = "WINEPREFIX=\"$HOME/.wine%s\" WINEARCH=win%s wine \"%s\" \"$@\"" % (arch, arch, arg2) \
                            if cmd.startswith("lwine") else "./%s" % arg2

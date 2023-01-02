@@ -82,9 +82,9 @@ APack:
   source: https://www.ibsensoftware.com/download.html
   status: broken
   steps:
-    - cp -f {{executable}} /root/.wine/drive_c/users/root/Temp/
+    - cp -f {{executable}} /root/.wine32/drive_c/users/root/Temp/
     - apack "c:\\users\\root\\Temp\\{{executable.filename}}"
-    - mv -f /root/.wine/drive_c/users/root/Temp/{{executable.filename}} {{executable}}
+    - mv -f /root/.wine32/drive_c/users/root/Temp/{{executable.filename}} {{executable}}
 
 Armadillo:
   categories:
@@ -363,7 +363,7 @@ FSG:
     # be sure to focus on the input text box
     - click 110 215 (.5)
     # type the path to the target executable (C:)
-    - type "$FILE"
+    - type "$FILE" (.1)
     # click on "Open" (this starts packing)
     - click 380 210 (3)
   install:
@@ -500,7 +500,7 @@ MEW:
     # click on "..." to open a target executable
     - click 675 425 (.1)
     # type the path to the target executable (C:)
-    - type "$FILE"
+    - type "$FILE" (.1)
     # click on "Open" (this requires a bit of time to return to the main window)
     - click 700 450 (2)
     # click on "DO IT!"
@@ -745,13 +745,13 @@ PELock:
     # click on "Add file" to open the file dialog box
     - click 280 590 (.3)
     # type the path to the executable
-    - type "$FILE"
+    - type "$FILE" (.1)
     # click "Open"
     - click 580 380 (2)
     # click "Protect file"
     - click 380 590 (2)
   install:
-    - unzip: /root/.wine/drive_c/Program\ Files\ (x86)/pelock
+    - unzip: /root/.wine32/drive_c/Program\ Files\ (x86)/pelock
     - lwine: PELock.exe
   references:
     - https://github.com/PELock/PELock-Software-Protection-and-Licensing-SDK
@@ -831,7 +831,7 @@ RLPack:
     # click on "Browse"
     - click 700 265 (.1)
     # type the path to the target executable (C:)
-    - type "$FILE"
+    - type "$FILE" (.1)
     # click on "Open" (this requires a bit of time to return to the main window)
     - click 375 215 (2)
     # click on "Pack"
@@ -935,14 +935,18 @@ Telock:
   formats:
     - PE
   gui:
-    # click on the "File" menu
-    - click 220 220 (.1)
-    # click on "Open"
-    - click 245 270 (.1)
+    # click on "Lock File"
+    - click 280 545 (.5)
+    # click on the "File name" field
+    - click 330 420 (.1)
     # type the path to the target executable (C:)
-    - type "$FILE"
-    # click on "Open" (this requires a bit of time to return to the main window)
-    - click 590 420 (2)
+    - type "$FILE" (.1)
+    # click on "Open"
+    - click 580 420 (.2)
+    # click on "OK" (e.g. when getting "The file has already been compressed."
+    - click 520 410 (.1) [x3]
+    # sleep in function of the target's size
+    - sleep-per-KB .001
   install:
     - unzip: $OPT/telock
     - wine: telock.exe
@@ -1147,7 +1151,7 @@ Yoda_Crypter:
     # click on "..." to open a target executable
     - click 580 330 (.1)
     # type the path to the target executable (C:)
-    - type "$FILE"
+    - type "$FILE" (.1)
     # click on "Open" (this requires a bit of time to return to the main window)
     - click 720 500 (2)
     # click on "Protect!"
