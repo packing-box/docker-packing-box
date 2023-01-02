@@ -300,6 +300,7 @@ class Dataset:
             if c >= n:
                 break
         self._metadata['altered'] = a + c / len(self)
+        self.__change = True
         self._save()
     
     def edit(self, **kw):
