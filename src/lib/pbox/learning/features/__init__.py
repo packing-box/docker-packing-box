@@ -39,7 +39,7 @@ class MetaFeatures(type):
     @property
     def source(self):
         if not hasattr(self, "_source"):
-            self._source = None  # use the default source from 'config'
+            self.source = None  # use the default source from 'config'
         return self._source
 
     @source.setter
