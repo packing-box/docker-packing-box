@@ -6,8 +6,10 @@ from contextlib import suppress
 from math import ceil
 from matplotlib.colors import ListedColormap
 from sklearn.decomposition import PCA
+from sklearn.manifold import TSNE
 from sklearn.impute import SimpleImputer
 from sklearn.inspection import DecisionBoundaryDisplay
+from sklearn.cluster import KMeans
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.tree import export_text, plot_tree
 
@@ -59,7 +61,23 @@ def image_rf(rf, width=5, fontsize=10, logger=None, **params):
         axes[i].set_title("Estimator: %d" % i, fontsize=fontsize)
     return fig
 
-
+def image_kmeans(classifier, logger=None, **params):
+    # preprocess data with a PCA in 2D
+    X = params['data']
+    X = SimpleImputer(missing_values=np.nan, strategy='mean').fit_transform(X)
+    X = PCA(20).fit_transform(X)
+    X = TSNE(n_components=2).fit_transform(X) 
+    # retrain KMeans with this data
+    kmeans = KMeans(**params['algo_params'])
+    label = kmeans.fit_predict(X)
+    # now set color map then plot
+    u_labels = np.unique(label)
+    colors = mpl.cm.get_cmap('jet', len(u_labels))
+    #plotting the results:
+    fig, axes = plt.subplots()
+    for i in u_labels:
+        plt.scatter(X[label == i , 0] , X[label == i , 1] , label = i, cmap=colors)
+        
 def text_dt(classifier, logger=None, **params):
     return export_text(classifier, **params)
 
@@ -76,5 +94,6 @@ VISUALIZATIONS = {
     'DT':  {'image': image_dt, 'text': text_dt},
     'kNN': {'image': image_knn, 'data': True},
     'RF':  {'image': image_rf, 'text': text_rf},
+    'KMeans': { 'image': image_kmeans, 'data': True, 'text': None}
 }
 
