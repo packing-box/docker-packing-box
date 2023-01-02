@@ -1,6 +1,5 @@
 # -*- coding: UTF-8 -*-
-from lief import parse
-
+import lief
 
 __all__ = []
 
