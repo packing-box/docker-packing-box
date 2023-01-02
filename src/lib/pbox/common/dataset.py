@@ -291,9 +291,11 @@ class Dataset:
             if any(h in altered_hs for altered_hs in self._alterations.values()):
                 continue
             exe = Executable(dataset=self, hash=h)
+            exe.chmod(0o600)
             for m in Modifiers(exe):
                 self._alterations.setdefault(m, [])
                 self._alterations[m].append(h)
+            exe.chmod(0o400)
             c += 1
             if c >= n:
                 break

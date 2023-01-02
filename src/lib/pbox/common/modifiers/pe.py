@@ -50,9 +50,14 @@ def add_section(name,
         if not isinstance(parsed, lief.PE.Binary):
             raise TypeError("Only the lief parser can be used for this function")
 
-        sec = lief.PE.Section(name=name, content=list(data),
-                              characteristics=characteristics)
+        # sec = lief.PE.Section(name=name, content=list(data), characteristics=characteristics)
+        # for some reason, the above API raises a warning in lief:
+        # **[section name] content size is bigger than section's header size**
+        # source: https://github.com/lief-project/LIEF/blob/master/src/PE/Builder.cpp
         
+        sec = lief.PE.Section(name=name)
+        sec.content = list(data)
+        sec.characteristics=characteristics
         parsed.add_section(sec, section_type)
     
     return _add_section
