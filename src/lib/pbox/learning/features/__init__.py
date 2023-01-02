@@ -3,6 +3,7 @@ import yaml
 from collections import deque
 from functools import cached_property
 from tinyscript import logging, re
+from tinyscript.helpers import  Path
 
 from .extractors import Extractors
 from ...common.config import config
@@ -38,7 +39,7 @@ class MetaFeatures(type):
     @property
     def source(self):
         if not hasattr(self, "_source"):
-            self.source = None  # use the default source from 'config'
+            self._source = None  # use the default source from 'config'
         return self._source
 
     @source.setter
