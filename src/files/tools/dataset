@@ -5,7 +5,7 @@ from pbox.__info__ import *
 from tinyscript import *
 
 
-__version__     = "2.1.1"
+__version__     = "2.1.2"
 __doc__         = """
 This tool aims to manipulate a dataset in multiple ways by:
 - adding new executables from the packing-box Docker image or from a user-defined source, packed or not with the
@@ -46,13 +46,21 @@ def __add_name(parser, force=False, name="name", help="name of the dataset"):
     return parser
 
 
+def _percentage(p):
+    try:
+        if 0. <= float(p) <= 1.:
+            return p
+    except ValueError:
+        pass
+    return ValueError("Not a percentage")
+
+
 if __name__ == '__main__':
     sparsers = parser.add_subparsers(dest="command", help="command to be executed")
     alter = __add_name(sparsers.add_parser("alter", help="alter the target dataset with a set of transformations"))
     alter.add_argument("-a", "--modifiers-set", type=ts.file_exists, default=str(config['modifiers']),
                        help="modifiers set's YAML definition")
-    alter.add_argument("-p", "--percentage", type=ts.is_percentage, default=.1,
-                       help="percentage of samples to be altered")
+    alter.add_argument("-p", "--percentage", type=_percentage, default=.1, help="percentage of samples to be altered")
     convert = __add_name(sparsers.add_parser("convert", help="convert the target dataset to a fileless one"))
     convert.add_argument("-f", "--features-set", type=ts.file_exists, default=str(config['features']),
                          help="features set's YAML definition")
