@@ -3,6 +3,7 @@ import yaml
 from collections import deque
 from functools import cached_property
 from tinyscript import logging, re
+from tinyscript.helpers import  Path
 
 from .extractors import Extractors
 from ...common.config import config
