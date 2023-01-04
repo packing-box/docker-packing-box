@@ -47,6 +47,7 @@ class MetaFeatures(type):
         p = Path(str(path or config['features']), expand=True)
         if hasattr(self, "_source") and self._source == p:
             return
+        self._source = p
         self.registry = None  # reset the registry
 
 
