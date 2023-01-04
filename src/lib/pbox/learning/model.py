@@ -201,7 +201,7 @@ class Model:
                 self._data = self._data.append(exe.data, ignore_index=True)
                 if label:
                     self._target = self._target.append({'label': labels.get(exe.hash)}, ignore_index=True)
-        # case 1: handle a fileless dataset (where features are already computed)
+        # case 1: fileless dataset (where features are already computed)
         if isinstance(ds, FilelessDataset):
             l.info("Loading features...")
             for exe in ds:
@@ -212,7 +212,7 @@ class Model:
                 self._features.update(exe.features)
             self._data = ds._data[list(exe.features.keys())]
             self._target = ds._data.loc[:, ds._data.columns == "label"]
-        # case 2: handle a normal dataset (features shall still be computed)
+        # case 2: normal dataset (features shall still be computed)
         elif isinstance(ds, Dataset):
             __parse(ds.files.listdir(is_exe), False)
             self._target = ds._data.loc[:, ds._data.columns == "label"]
@@ -559,7 +559,7 @@ class Model:
             Pipeline.silent = True
             # as we use a pipeline, we need to rename all parameters to [estimator name]__[parameter]
             param_grid = {"%s__%s" % (self.pipeline.steps[-1][0], k): v for k, v in param_grid.items()}
-            grid = GridSearchCV(self.pipeline.pipeline, param_grid=param_grid, cv=cv, scoring='accuracy', n_jobs=n_jobs)
+            grid = GridSearchCV(self.pipeline.pipeline, param_grid=param_grid, cv=cv, scoring="accuracy", n_jobs=n_jobs)
             grid.fit(self._data, self._target.values.ravel())
             results = '\n'.join("  %0.3f (+/-%0.03f) for %r" % (m, s * 2, _convert(p)) \
                                 for m, s, p in zip(grid.cv_results_['mean_test_score'],

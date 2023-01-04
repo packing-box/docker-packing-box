@@ -69,7 +69,7 @@ Supervised:
         splitter:       best
         random_state:   42
       cv:
-        max_depth:         !!python/object/new:range [2, 13, 2]
+        max_depth: !!python/object/new:range [2, 13, 2]
   GB:
     base:        !!python/name:sklearn.ensemble.GradientBoostingClassifier
     description: Gradient Boosting
@@ -217,9 +217,9 @@ Unsupervised:
     link:        https://scikit-learn.org/stable/modules/generated/sklearn.cluster.Birch.html
     parameters:
       static:
-        threshold:           0.5
-        branching_factor:    50
-        n_clusters:          3
+        threshold:        0.5
+        branching_factor: 50
+        n_clusters:       3
   DBSCAN:
     base:        !!python/name:sklearn.cluster.DBSCAN
     description: Density-Based Spatial Clustering of Applications with Noise
@@ -236,11 +236,11 @@ Unsupervised:
     link:        https://scikit-learn.org/stable/modules/generated/sklearn.cluster.KMeans.html
     parameters:
       static:
-        n_clusters:   8
-        n_init:       10
-        max_iter:     300
-        tol:          !!float 1e-4
-        algorithm:    lloyd
+        n_clusters: 8
+        n_init:     10
+        max_iter:   300
+        tol:        !!float 1e-4
+        algorithm:  lloyd
   MBKMeans:
     base:        !!python/name:sklearn.cluster.MiniBatchKMeans
     description: Mini-Batch K-Means clustering
@@ -260,8 +260,8 @@ Unsupervised:
     link:        https://scikit-learn.org/stable/modules/generated/sklearn.cluster.MeanShift.html
     parameters:
       static:
-        bandwidth:    null
-        max_iter:     300
+        bandwidth: null
+        max_iter:  300
   OPTICS:
     base:        !!python/name:sklearn.cluster.OPTICS
     description: Ordering Points To Identify the Clustering Structure

@@ -2,6 +2,7 @@
 import matplotlib.pyplot
 import pandas
 import plotext
+from dsff import DSFF
 from sklearn.covariance import empirical_covariance
 from sklearn.preprocessing import StandardScaler
 from textwrap import wrap
@@ -10,9 +11,9 @@ from tinyscript.helpers import ansi_seq_strip, get_terminal_size, ints2hex, txt2
 from tqdm import tqdm
 
 from .executable import Executable
-from ..common.config import config, NOT_PACKED
+from ..common.config import *
 from ..common.dataset import Dataset
-from ..common.utils import backup, data_to_temp_file, edit_file
+from ..common.utils import *
 from ..items.packer import Packer
 
 
@@ -123,6 +124,72 @@ class FilelessDataset(Dataset):
         l.info("Size of new dataset: %s (compression factor: %d)" % (ts.human_readable_size(s2), int(s1/s2)))
     Dataset.convert = convert
     
+    def export(self, format=None, output=None, **kw):
+        """ Export either packed executables from the dataset to the given output folder or the complete dataset to a
+             given format. """
+        l = self.logger
+        dst = output or self.basename
+        if format == "packed-samples":
+            if not self._files:
+                l.warning("Packed samples can only be exported from a normal dataset (not on a fileless one)")
+                return
+            dst, n = Path(dst, create=True), kw.get('n', 0)
+            lst, tmp = [e for e in self if e.label not in [NOT_PACKED, NOT_LABELLED]], []
+            if n > len(lst):
+                l.warning("%d packed samples were requested but only %d were found" % (n, len(lst)))
+            n = min(n, len(lst))
+            l.info("Exporting %d packed executables from %s to '%s'..." % (n, self.basename, dst))
+            if 0 < n < len(lst):
+                random.shuffle(lst)
+            pbar = tqdm(total=n or len(lst), unit="packed executable")
+            for i, exe in enumerate(lst):
+                if i >= n:
+                    break
+                fn = "%s_%s" % (exe.label, Path(exe.realpath).filename)
+                if fn in tmp:
+                    l.warning("duplicate '%s'" % fn)
+                    n += 1
+                    continue
+                exe.destination.copy(dst.joinpath(fn))
+                tmp.append(fn)
+                pbar.update()
+            pbar.close()
+            return
+        if self._files:
+            l.info("Computing features...")
+            self._compute_features()
+        try:
+            self._metadata['counts'] = self._data.label.value_counts().to_dict()
+        except AttributeError:
+            self.logger.warning("No label found")
+            return
+        self._metadata['executables'] = len(self)
+        self._metadata['formats'] = sorted(collapse_formats(*self._metadata['formats']))
+        self._data = self._data.sort_values("hash")
+        fields = ["hash"] + Executable.FIELDS + ["label"]
+        fnames = [h for h in self._data.columns if h not in fields + ["Index"]]
+        c = fields[:-1] + fnames + [fields[-1]]
+        d = self._data[c].values.tolist()
+        d.insert(0, c)
+        ext = ".%s" % format
+        if not dst.endswith(ext):
+            dst += ext
+        if format == "dsff":
+            l.info("Exporting dataset %s to '%s'..." % (self.basename, dst))
+            with DSFF(self.basename, 'w+') as f:
+                f.write(d, self._features, self._metadata)
+            Path(self.basename + ext).rename(dst)
+        elif format in ["arff", "csv"]:
+            l.info("Exporting dataset %s to '%s'..." % (self.basename, dst))
+            with DSFF("<memory>") as f:
+                f.name = self.basename
+                f.write(d, self._features, self._metadata)
+                getattr(f, "to_%s" % format)()
+            Path(self.basename + ext).rename(dst)
+        else:
+            raise ValueError("Unknown target format (%s)" % format)
+    Dataset.export = export
+    
     def features(self, **kw):
         self._compute_features()
         with data_to_temp_file(self._data, prefix="dataset-features-") as tmp:
@@ -171,7 +238,7 @@ class FilelessDataset(Dataset):
         self._save()
     Dataset.merge = merge
     
-    def plot(self, feature, output_format=None, dpi=200, multiclass=False, **kw):
+    def plot(self, feature, format=None, dpi=200, multiclass=False, **kw):
         """ Plot the distribution of the given feature or multiple features combined. """
         l = self.logger
         if not isinstance(feature, (tuple, list)):
@@ -239,8 +306,8 @@ class FilelessDataset(Dataset):
             counts = {tuple(int(sk) for sk in k): v for k, v in counts.items()}
             vtype = int
         l.debug("plotting...")
-        width = get_terminal_size()[0] if output_format is None else 60
-        plt = plotext if output_format is None else matplotlib.pyplot
+        width = get_terminal_size()[0] if format is None else 60
+        plt = plotext if format is None else matplotlib.pyplot
         try:
             title = self._features[feature[0]] if len(feature) == 1 else \
                     "\n".join(wrap("combination of %s" % ", ".join(self._features[f] for f in feature), width))
@@ -262,7 +329,7 @@ class FilelessDataset(Dataset):
         # display plot
         plur = ["", "s"][len(feature) > 1]
         x_label, y_label = "Percentages of samples for the selected feature%s" % plur, "Feature value%s" % plur
-        if output_format is None:
+        if format is None:
             pcmap = [(40, 210, 40)] + [list(COLORMAP.values())[i % len(COLORMAP)] for i in range(len(values) - 1)]
             # uses valid colors as defined in plotext
             yticks = [(str(k[0]) if isinstance(k, (tuple, list)) and len(k) == 1 else str(k),
@@ -298,9 +365,9 @@ class FilelessDataset(Dataset):
                 plt.bar_label(b, labels=["" if x == 0 else x for x in v], label_type="center", color="white")
             plt.yticks(**({'family': "monospace", 'fontsize': 8} if vtype is hex else {'fontsize': 9}))
             plt.legend()
-            img_name = ["", "combo-"][len(feature) > 1] + feature[0] + "." + output_format
+            img_name = ["", "combo-"][len(feature) > 1] + feature[0] + "." + format
             l.debug("saving image to %s..." % img_name)
-            plt.savefig(img_name, format=output_format, dpi=dpi, bbox_inches="tight")
+            plt.savefig(img_name, format=format, dpi=dpi, bbox_inches="tight")
     Dataset.plot = plot
     
     @staticmethod

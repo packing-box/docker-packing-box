@@ -309,27 +309,6 @@ class Dataset:
         """ Dummy exists method. """
         return self.path.exists()
     
-    def export(self, destination="export", n=0, **kw):
-        """ Export packed executables to the given destination folder. """
-        self.logger.info("Exporting packed executables of %s to '%s'..." % (self.basename, destination))
-        l, tmp = [e for e in self if e.label not in [NOT_PACKED, NOT_LABELLED]], []
-        n = min(n, len(l))
-        if n > 0:
-            random.shuffle(l)
-        pbar = tqdm(total=n or len(l), unit="packed executable")
-        for i, exe in enumerate(l):
-            if i >= n > 0:
-                break
-            fn = "%s_%s" % (exe.label, Path(exe.realpath).filename)
-            if fn in tmp:
-                self.logger.warning("duplicate '%s'" % fn)
-                n += 1
-                continue
-            exe.destination.copy(Path(destination, create=True).joinpath(fn))
-            tmp.append(fn)
-            pbar.update()
-        pbar.close()
-    
     @backup
     def fix(self, **kw):
         """ Make dataset's structure and files match. """

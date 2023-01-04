@@ -5,7 +5,7 @@ from pbox.__info__ import *
 from tinyscript import *
 
 
-__version__     = "2.1.2"
+__version__     = "2.1.3"
 __doc__         = """
 This tool aims to manipulate a dataset in multiple ways by:
 - adding new executables from the packing-box Docker image or from a user-defined source, packed or not with the
@@ -15,7 +15,8 @@ This tool aims to manipulate a dataset in multiple ways by:
 """
 __examples__    = [
     "convert my-dataset --new-name my-fileless-dataset",
-    "export my-dataset --destination my-dataset-files -n 100",
+    "export my-dataset",
+    "export my-dataset -f packed-samples -o my-dataset-files -n 100",
     "features my-dataset",
     "list --show-all",
     "make my-dataset -f ELF -n 500 --source-dir /path/to/dotnet/exe",
@@ -67,11 +68,15 @@ if __name__ == '__main__':
     convert.add_argument("-n", "--new-name", help="name for the new converted dataset",
                          note="if None, the original dataset is overwritten")
     __add_name(sparsers.add_parser("edit", help="edit the data file"))
-    export = __add_name(sparsers.add_parser("export", help="export the packed executable from a dataset"))
-    export.add_argument("-d", "--destination", default="export", type=ts.folder_does_not_exist,
-                        help="destination folder for the exported executables")
-    export.add_argument("-n", "--number-executables", dest="n", type=ts.pos_int, default=0,
-                        help="number of packed executables to be exported")
+    export = __add_name(sparsers.add_parser("export", help="export packed samples from a dataset or export the dataset"
+                                                           " to a given format"))
+    export.add_argument("-f", "--format", default="dsff", choices=("arff", "csv", "dsff", "packed-samples"),
+                        help="output format")
+    export.add_argument("-o", "--output", default="export", metavar="F", type=ts.folder_does_not_exist,
+                        help="output folder or file for the export", note="the extension gets added automatically")
+    export_ = export.add_argument_group("option when exporting packed samples", before="extra arguments")
+    export_.add_argument("-n", "--number-samples", dest="n", type=ts.pos_int, default=0,
+                         help="number of packed samples to be exported")
     feat = __add_name(sparsers.add_parser("features", help="compute and view features"))
     feat.add_argument("-f", "--features-set", type=ts.file_exists, default=str(config['features']),
                       help="features set's YAML definition")
@@ -86,7 +91,8 @@ if __name__ == '__main__':
     make = __add_name(sparsers.add_parser("make", help="add n randomly chosen executables from input sources to the "
                                                        "dataset"), True)
     make_ = make.add_mutually_exclusive_group()
-    make_.add_argument("-a", "--pack-all", action="store_true", help="pack all executables")
+    make_.add_argument("-a", "--pack-all", action="store_true", help="pack all executables",
+                       note="this cannot be set with -b/--balance")
     make_.add_argument("-b", "--balance", action="store_true", help="balance the dataset relatively to the number of "
                                                                     "packers used, not between packed and not packed")
     make.add_argument("-f", "--formats", type=ts.values_list, default="All", help="list of formats to be considered")
@@ -103,9 +109,9 @@ if __name__ == '__main__':
     plot = __add_name(sparsers.add_parser("plot", help="plot the distribution of a given feature or multiple features "
                                                        "combined"))
     plot.add_argument("feature", action="extend", nargs="*", help="feature identifiers")
-    plot.add_argument("-m", "--multiclass", action="store_true", help="process features using multiple label classes")
-    plot.add_argument("-o", "--output-format", choices=["jpg", "png", "tif", "svg"],
+    plot.add_argument("-f", "--format", choices=("jpg", "png", "tif", "svg"),
                       help="image file format for plotting", note="no format means plotting in the terminal")
+    plot.add_argument("-m", "--multiclass", action="store_true", help="process features using multiple label classes")
     purge = __add_name(sparsers.add_parser("purge", help="purge a dataset"), True)
     purge.add_argument("-b", "--backup", action="store_true", help="only purge backups")
     remove = __add_name(sparsers.add_parser("remove", help="remove executables from a dataset"))
