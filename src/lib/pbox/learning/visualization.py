@@ -3,13 +3,14 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 import numpy as np
 from contextlib import suppress
+from functools import wraps
 from math import ceil
 from matplotlib.colors import ListedColormap
+from sklearn.cluster import KMeans
 from sklearn.decomposition import PCA
-from sklearn.manifold import TSNE
 from sklearn.impute import SimpleImputer
 from sklearn.inspection import DecisionBoundaryDisplay
-from sklearn.cluster import KMeans
+from sklearn.manifold import TSNE
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.tree import export_text, plot_tree
 
@@ -20,6 +21,29 @@ __all__ = ["VISUALIZATIONS"]
 cmap_light = ListedColormap(["orange", "cyan", "cornflowerblue"])
 
 
+def _preprocess(f):
+    """ This decorator preprocesses the input data and updates the keyword-arguments with this fitted data. """
+    @wraps(f)
+    def _wrapper(*args, **kwargs):
+        X = kwargs['data']
+        viz_kw = kwargs.get('viz_params', {})
+        n = viz_kw.get('pca_components', 20)
+        X = SimpleImputer(missing_values=np.nan, strategy=viz_kw.get('imputer_strategy', "mean")).fit_transform(X)
+        # preprocess data with a PCA with n components to reduce the high dimensionality (better performance)
+        pca = PCA(n, random_state=42)
+        if 'target' in kwargs:
+            pca.fit(X, kwargs['target'])
+            X = pca.transform(X)
+        else:
+            X = pca.fit_transform(X)
+        # now reduce the n components to 2 dimensions with t-SNE (better results but less performance) if relevant
+        if n > 2:
+            X = TSNE(2, random_state=42).fit_transform(X)
+        kwargs['data'] = X
+        return f(*args, **kwargs)
+    return _wrapper
+
+
 def image_dt(classifier, width=5, fontsize=10, logger=None, **params):
     params['filled'] = True
     fig = plt.figure()
@@ -27,19 +51,15 @@ def image_dt(classifier, width=5, fontsize=10, logger=None, **params):
     return fig
 
 
+@_preprocess
 def image_knn(classifier, logger=None, **params):
-    # preprocess data with a PCA in 2D
     X, y = params['data'], params['target']
-    X = SimpleImputer(missing_values=np.nan, strategy='mean').fit_transform(X)
-    pca = PCA(n_components=2, random_state=42)
-    pca.fit(X, y)
-    X = pca.transform(X)
-    # retrain kNN with this data
+    # retrain kNN with the preprocessed data (with dimensionality reduced to N=2, hence not using 'classifier')
     knn = KNeighborsClassifier(**params['algo_params'])
     knn.fit(X, y)
     # now set color map then plot
     labels = list(y.label.unique())
-    colors = mpl.cm.get_cmap('jet', len(labels))
+    colors = mpl.cm.get_cmap("jet", len(labels))
     fig, axes = plt.subplots()
     DecisionBoundaryDisplay.from_estimator(knn, X, cmap=colors, ax=axes, alpha=.3,
                                            response_method="predict", plot_method="pcolormesh", shading="auto")
@@ -47,8 +67,8 @@ def image_knn(classifier, logger=None, **params):
     return fig
 
 
-def image_rf(rf, width=5, fontsize=10, logger=None, **params):
-    n = len(rf.estimators_)
+def image_rf(classifier, width=5, fontsize=10, logger=None, **params):
+    n = len(classifier.estimators_)
     rows = ceil(n / width)
     cols = width if rows > 1 else n
     fig, axes = plt.subplots(nrows=rows, ncols=cols, figsize=tuple(map(lambda x: 2*x, (cols, rows))), dpi=900)
@@ -57,27 +77,25 @@ def image_rf(rf, width=5, fontsize=10, logger=None, **params):
         axes = [ax for lst in axes for ax in lst]
     params['filled'] = True
     for i in range(n):
-        plot_tree(rf.estimators_[i], ax=axes[i], **params)
+        plot_tree(classifier.estimators_[i], ax=axes[i], **params)
         axes[i].set_title("Estimator: %d" % i, fontsize=fontsize)
     return fig
 
-def image_kmeans(classifier, logger=None, **params):
-    # preprocess data with a PCA in 2D
+
+@_preprocess
+def image_kmeans(classifier, viz_params={}, logger=None, **params):
     X = params['data']
-    X = SimpleImputer(missing_values=np.nan, strategy='mean').fit_transform(X)
-    X = PCA(20).fit_transform(X)
-    X = TSNE(n_components=2).fit_transform(X) 
-    # retrain KMeans with this data
+    # retrain KMeans with the preprocessed data (with dimensionality reduced to N=2, hence not using 'classifier')
     kmeans = KMeans(**params['algo_params'])
     label = kmeans.fit_predict(X)
     # now set color map then plot
-    u_labels = np.unique(label)
-    colors = mpl.cm.get_cmap('jet', len(u_labels))
-    #plotting the results:
+    labels = np.unique(label)
+    colors = mpl.cm.get_cmap("jet", len(labels))
     fig, axes = plt.subplots()
-    for i in u_labels:
-        plt.scatter(X[label == i , 0] , X[label == i , 1] , label = i, cmap=colors)
-        
+    for i in labels:
+        plt.scatter(X[label == i, 0], X[label == i, 1] , label=i, cmap=colors)
+
+
 def text_dt(classifier, logger=None, **params):
     return export_text(classifier, **params)
 
@@ -91,9 +109,9 @@ def text_rf(classifier, logger=None, **params):
 
 
 VISUALIZATIONS = {
-    'DT':  {'image': image_dt, 'text': text_dt},
-    'kNN': {'image': image_knn, 'data': True},
-    'RF':  {'image': image_rf, 'text': text_rf},
-    'KMeans': { 'image': image_kmeans, 'data': True, 'text': None}
+    'DT':     {'image': image_dt, 'text': text_dt},
+    'kNN':    {'image': image_knn, 'data': True},
+    'RF':     {'image': image_rf, 'text': text_rf},
+    'KMeans': {'image': image_kmeans, 'data': True, 'target': False}
 }
 

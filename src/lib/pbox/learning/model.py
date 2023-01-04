@@ -28,18 +28,17 @@ __all__ = ["open_model", "DumpedModel", "Model", "N_JOBS", "PREPROCESSORS"]
 
 FLOAT_FORMAT = "%.6f"
 N_JOBS = mp.cpu_count() // 2
-# FIXME: parametrize all preprocessors, knowing that scalers fail within pipelines (no method '(.*_)?predict')
 PREPROCESSORS = {
     'MA':         MaxAbsScaler,
     'MM':         MinMaxScaler,
     'Norm':       Normalizer,
-#    'OneHot':     (OneHotEncoder, {'drop': "if_binary", 'handle_unknown': "ignore"}),
-#    'Ord':        OrdinalEncoder,
-#    'PT-bc':      (PowerTransformer, {'method': "box-cox"}),
-#    'PT-yj':      (PowerTransformer, {'method': "yeo-johnson"}),
-#    'QT-normal':  (QuantileTransformer, {'output_distribution': "normal"}),
-#    'QT-uniform': (QuantileTransformer, {'output_distribution': "uniform"}),
-#    'Rob':        (RobustScaler, {'quantile_range': (25, 75)}),
+    'OneHot':     (OneHotEncoder, {'drop': "if_binary", 'handle_unknown': "ignore"}),
+    'Ord':        OrdinalEncoder,
+    'PT-bc':      (PowerTransformer, {'method': "box-cox"}),
+    'PT-yj':      (PowerTransformer, {'method': "yeo-johnson"}),
+    'QT-normal':  (QuantileTransformer, {'output_distribution': "normal"}),
+    'QT-uniform': (QuantileTransformer, {'output_distribution': "uniform"}),
+    'Rob':        (RobustScaler, {'quantile_range': (25, 75)}),
     'PCA':        (PCA, {'n_components': 2}),
     'Std':        StandardScaler,
 }
@@ -127,7 +126,7 @@ class Model:
                 try:
                     self._performance = pd.read_csv(str(p), sep=";")
                 except pd.errors.EmptyDataError:
-                    pass # self._performance was already created in __init__
+                    pass  # self._performance was already created in __init__
             else:
                 with p.open() as f:
                     setattr(self, "_" + n, json.load(f))
@@ -607,12 +606,15 @@ class Model:
             self.logger.warning("Visualization not available for this algorithm%s" % [" in text mode", ""][export])
             return
         params = {'feature_names': sorted(self._features.keys()), 'logger': self.logger}
+        params.update(kw.pop('viz_params', {}))
         # if visualization requires the original data (e.g. kNN), use self._prepare to create self._data/self._target
         if VISUALIZATIONS.get(a['name']).get("data", False):
             kw['data_only'] = True
             if not self._prepare(**kw):
                 return
-            params.update({'data': self._data, 'target': self._target, 'algo_params': a['parameters']})
+            params.update({'data': self._data, 'algo_params': a['parameters']})
+            if VISUALIZATIONS[a['name']].get("target", True):
+                params['target'] = self._target
         if export:
             destination = str(Path(output_dir).joinpath("%s.png" % self.name))
             viz(self.classifier, **params).savefig(destination, format="png", bbox_inches="tight")

@@ -6,7 +6,7 @@ from tinyscript import *
 
 __author__      = "Alexandre D'Hondt"
 __email__       = "alexandre.dhondt@gmail.com"
-__version__     = "1.2.3"
+__version__     = "1.2.4"
 __copyright__   = ("A. D'Hondt", 2021)
 __license__     = "gpl-3.0"
 __doc__         = """
@@ -82,7 +82,11 @@ if __name__ == '__main__':
     visualize = __add_name(sparsers.add_parser("visualize", help="visualize the model"))
     visualize.add_argument("-e", "--export", action="store_true", help="export to PNG")
     visualize.add_argument("-o", "--output-dir", default=".", help="output directory")
-    visualize.add_argument("-f", "--features-set", default="~/.opt/features.yml", help="features set's YAML definition")
+    viz_dependent = visualize.add_argument_group("options depending on the chosen algorithm", before="extra arguments")
+    viz_dependent.add_argument("--imputer-strategy", default="mean", choices=("constant", "mean", "most_frequent"),
+                               help="strategy for imputing missing values")
+    viz_dependent.add_argument("-n", "--pca-components", default=20, type=int,
+                               help="PCA components for dimensionality reduction")
     initialize(noargs_action="help")
     logger.name = "model"
     logging.configLogger(logger, ["INFO", "DEBUG"][args.verbose], fmt=LOG_FORMATS[args.verbose], relative=True)
@@ -104,5 +108,10 @@ if __name__ == '__main__':
             Features.source = args.features_set  # configure the features set's YAML definition source
         if args.command == "train":
             name = Model(**vars(args))
+        if args.command == "visualize":
+            args.viz_params = {}
+            for a in ["imputer_strategy", "pca_components"]:
+                args.viz_params[a] = getattr(args, a)
+                delattr(args, a)
         getattr(name, args.command)(**vars(args))
 
