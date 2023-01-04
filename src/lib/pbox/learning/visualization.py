@@ -94,6 +94,7 @@ def image_kmeans(classifier, viz_params={}, logger=None, **params):
     fig, axes = plt.subplots()
     for i in labels:
         plt.scatter(X[label == i, 0], X[label == i, 1] , label=i, cmap=colors)
+    return fig
 
 
 def text_dt(classifier, logger=None, **params):
