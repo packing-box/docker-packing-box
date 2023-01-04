@@ -149,7 +149,7 @@ def classification_metrics(y_pred, y_true=None, y_proba=None, labels=None, avera
 
 @_convert_output
 def clustering_metrics(X, y_pred, y_true=None, **kwargs):
-    """ Compute clustering-related metrics, etiher based only on predicted values or both true and predicted values. """
+    """ Compute clustering-related metrics, either based only on predicted values or both true and predicted values. """
     # get the true and predicted values without the not-labelled ones and as integers
     yt, yp, _ = _map_values_to_integers(y_true, y_pred, **kw)
     silhouette = silhouette_score(X, y_pred, metric='euclidean')
