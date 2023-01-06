@@ -50,7 +50,7 @@ def __add_name(parser, force=False, name="name", help="name of the dataset"):
 def _percentage(p):
     try:
         if 0. <= float(p) <= 1.:
-            return p
+            return float(p)
     except ValueError:
         pass
     return ValueError("Not a percentage")
