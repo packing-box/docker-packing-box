@@ -281,7 +281,7 @@ class Dataset:
             else:
                 l.warning("Setting alterations percentage to %d" % p_)
         l.info("Altering %d%% of the dataset..." % p_)
-        hashes = self._data.hash.values[:]
+        hashes = self._data.hash.values.copy()
         # randomly sort hashes
         if p < 1.:
             random.shuffle(hashes)
