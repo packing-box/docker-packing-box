@@ -62,6 +62,8 @@ if __name__ == '__main__':
     alter.add_argument("-a", "--modifiers-set", type=ts.file_exists, default=str(config['modifiers']),
                        help="modifiers set's YAML definition")
     alter.add_argument("-p", "--percentage", type=_percentage, default=.1, help="percentage of samples to be altered")
+    alter.add_argument("-n", "--new-name", help="name for the new altered dataset",
+                         note="if None, the original dataset is altered")
     convert = __add_name(sparsers.add_parser("convert", help="convert the target dataset to a fileless one"))
     convert.add_argument("-f", "--features-set", type=ts.file_exists, default=str(config['features']),
                          help="features set's YAML definition")

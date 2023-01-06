@@ -268,7 +268,7 @@ class Dataset:
         if new_name is not None:
             ds = Dataset(new_name)
             ds.merge(self.path.basename, silent=True, **kw)
-            ds.alter(**kw)
+            ds.alter(percentage=percentage, **kw)
             return
         # keep previous alteration percentage into account
         a = self._metadata.get('altered', .0)
@@ -281,7 +281,7 @@ class Dataset:
             else:
                 l.warning("Setting alterations percentage to %d" % p_)
         l.info("Altering %d%% of the dataset..." % p_)
-        hashes = self._data.hash.values[:]
+        hashes = self._data.hash.values.copy()
         # randomly sort hashes
         if p < 1.:
             random.shuffle(hashes)
@@ -291,13 +291,16 @@ class Dataset:
             if any(h in altered_hs for altered_hs in self._alterations.values()):
                 continue
             exe = Executable(dataset=self, hash=h)
+            exe.chmod(0o600)
             for m in Modifiers(exe):
                 self._alterations.setdefault(m, [])
                 self._alterations[m].append(h)
+            exe.chmod(0o400)
             c += 1
             if c >= n:
                 break
         self._metadata['altered'] = a + c / len(self)
+        self.__change = True
         self._save()
     
     def edit(self, **kw):

@@ -12,7 +12,7 @@ from .pe import *
 from .pe import __all__ as __pe__
 from ...common.config import config
 from ...common.utils import dict2, expand_formats, FORMATS
-
+from ...common.parsers import *
 
 __all__ = ["Modifiers"]
 
@@ -56,20 +56,15 @@ class Modifiers(list):
             for name, modifier in Modifiers.registry[exe.format].items():
                 if not modifier.apply:
                     continue
-                if parser is None or modifier.parser != parser:
-                    parser = modifier.parser
-                    parsed = parser(exe.realpath)
+                if modifier.parser is not None:
+                    modifier = globals()[modifier.parser](modifier)
                 d = {}
                 d.update(__common__)
                 md = __elf__ if exe.format in expand_formats("ELF") else \
                      __macho__ if exe.format in expand_formats("Mach-O") else\
                      __pe__ if exe.format in expand_formats("PE") else []
                 d.update({k: globals()[k] for k in md})
-                kw = {'executable': exe, 'parsed': parsed}
-                try:
-                    kw['sections'] = parsed.sections
-                except:
-                    pass
+                kw = {'executable': exe}
                 try:
                     modifier(d, **kw)
                     self.append(name)
