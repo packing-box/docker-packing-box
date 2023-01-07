@@ -119,14 +119,6 @@ def text_rf(classifier, logger=None, **params):
         s += export_text(classifier.estimators_[i], **params)
     return s
 
-
-
-# def image_clustering(name):
-#     @wraps(name)
-#     def wrapper(classifier, viz_params={}, logger=None, **params):
-#             [a.base for a in Algorithm.registry if a.name == name][0]
-#             return wrapper(classifier, viz_params={}, logger=None, **params)
-
 VISUALIZATIONS = {
     'DT':     {'image': image_dt, 'text': text_dt},
     'kNN':    {'image': image_knn, 'data': True},
