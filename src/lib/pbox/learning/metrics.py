@@ -148,12 +148,17 @@ def classification_metrics(y_pred, y_true=None, y_proba=None, labels=None, avera
 
 
 @_convert_output
-def clustering_metrics(y_pred, y_true=None, **kwargs):
-    """ Compute clustering-related metrics, etiher based only on predicted values or both true and predicted values. """
+def clustering_metrics(X, y_pred, y_true=None, **kwargs):
+    """ Compute clustering-related metrics, either based only on predicted values or both true and predicted values. """
     # get the true and predicted values without the not-labelled ones and as integers
     yt, yp, _ = _map_values_to_integers(y_true, y_pred, **kw)
-    #TODO: define clustering metrics here
-    return [], metric_headers("clustering", **kw)
+    silhouette = silhouette_score(X, y_pred, metric='euclidean')
+    calinski_harabasz = calinski_harabasz_score(X, y_pred)
+    davies_bouldin = davies_bouldin_score(X, y_pred)
+    rand_index = rand_score(y_true, y_pred)
+    mutual_information = adjusted_mutual_info_score(y_true, y_pred)  
+    homogeneity, completeness, v_measure = homogeneity_completeness_v_measure(y_true, y_pred)
+    return [silhouette, calinski_harabasz, davies_bouldin], metric_headers("clustering", **kw)
 
 
 @_convert_output
