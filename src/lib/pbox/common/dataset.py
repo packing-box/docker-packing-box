@@ -1,7 +1,7 @@
 # -*- coding: UTF-8 -*-
 import pandas as pd
 from tinyscript import b, colored, hashlib, json, logging, random, subprocess, time, ts
-from tinyscript.helpers import ansi_seq_strip, human_readable_size, Path, TempPath
+from tinyscript.helpers import ansi_seq_strip, confirm, human_readable_size, slugify, Path, TempPath
 from tinyscript.report import *
 from tqdm import tqdm
 
@@ -182,6 +182,7 @@ class Dataset:
     
     def _load(self):
         """ Load dataset's associated files or create them. """
+        self.path.mkdir(exist_ok=True)
         try:
             if len(self) > 0:
                 self.logger.debug("loading dataset '%s'..." % self.basename)
@@ -327,6 +328,58 @@ class Dataset:
             elif not self.files.joinpath(h).exists():
                 del self[h]
         self._save()
+    
+    def ingest(self, folder, labels=None, rename_func=slugify, detect=False, min_samples=0, max_samples=0, merge=False,
+               prefix="", exclude=None, **kw):
+        """ Ingest every subfolder of a target folder to make it a dataset provided a dictionary of labels. """
+        l, p = self.logger, Path(folder)
+        name = prefix + rename_func(p.stem)
+        kw['silent'] = True
+        if merge:
+            dataset = Dataset(name, load=False)
+            if dataset.exists():
+                if confirm("Are you sure you want to overwrite '%s' ?" % dataset.basename):
+                    dataset.purge()
+                else:
+                    return
+            dataset._load()
+        l.info("Searching for subfolders with samples to be ingested %s..." % \
+               ("in the new dataset '%s'" % dataset.basename if merge else "as distinct datasets"))
+        for sp in p.walk(filter_func=lambda x: x.is_dir() and all(not y.startswith(".") for y in x.parts[1:])):
+            if any(x in (exclude or []) for x in sp.parts[1:]):
+                l.debug("%s was excluded by the user" % sp.stem)
+                continue
+            i, keep = 0, True
+            for f in sp.listdir():
+                # only select "leaf" subfolder, that is those with only files
+                if not f.is_file():
+                    keep = False
+                    break
+                # count the executables in this subfolder, other files (e.g. could be README.md) are not an issue
+                if Executable.is_valid(f):
+                    i += 1
+            # check that we have a subfolder that contains not less and not more executable samples than needed
+            if not keep:
+                l.debug("%s is not a leaf subfolder" % sp.stem)
+                continue
+            if min_samples > 0 and i < min_samples:
+                l.debug("%s has too few samples" % sp.stem)
+                continue
+            if max_samples > min_samples and i > max_samples:
+                l.debug("%s has too much samples" % sp.stem)
+                continue
+            l.debug("found a subfolder called %s that has %d executable samples" % (sp.stem, i))
+            if not merge:
+                name = prefix + rename_func(sp.stem)
+                dataset = Dataset(name, load=False)
+                if dataset.exists():
+                    if confirm("Are you sure you want to overwrite '%s' ?" % dataset.basename):
+                        dataset.purge()
+                    else:
+                        return
+                dataset._load()
+            l.info("Ingesting subfolder '%s' into %s..." % (sp.stem, name))
+            dataset.update([sp, p][merge], labels=labels, detect=detect, **kw)
     
     def is_empty(self):
         """ Check if this Dataset instance has a valid structure. """
@@ -581,7 +634,9 @@ class Dataset:
         #           labels available   => packed / not packed
         #           labels unavailable => not labelled
         if len(source_dir) > 0:
-            l.info("Source directories: %s" % ",".join(map(str, set(source_dir))))
+            silent = kw.get('silent', False)
+            if not silent:
+                l.info("Source directories: %s" % ",".join(map(str, set(source_dir))))
             self._metadata.setdefault('formats', [])
             self._metadata['sources'] = list(set(map(str, self._metadata.get('sources', []) + source_dir)))
             i, pbar = -1, None
@@ -590,7 +645,7 @@ class Dataset:
                 random.shuffle(files)
                 files, total = files[:n], n
             else:
-                files = self._walk(True, {'All': source_dir})
+                files = self._walk(True, {'All': source_dir}, silent)
                 total = sum(1 for _ in self._walk(True, {'All': source_dir}, True))
             for i, exe in enumerate(files):
                 # set the progress bar now to not overlap with self._walk's logging

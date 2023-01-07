@@ -377,7 +377,7 @@ class FilelessDataset(Dataset):
     
     @staticmethod
     def iteritems(instantiate=False):
-        for dataset in Path(config['datasets']).listdir(Dataset.check or FilelessDataset.check):
+        for dataset in Path(config['datasets']).listdir(Dataset.check):
             yield open_dataset(dataset) if instantiate else dataset
     Dataset.iteritems = iteritems
 

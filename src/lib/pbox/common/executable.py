@@ -102,6 +102,10 @@ class Executable(Path):
         self.__dict__.pop('format', None)
         self.__dict__.pop('hash', None)
     
+    @staticmethod
+    def is_valid(path):
+        return Executable(path).format is not None
+    
     @property
     def metadata(self):
         return {n: getattr(self, n) for n in Executable.FIELDS}

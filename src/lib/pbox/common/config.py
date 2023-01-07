@@ -1,12 +1,12 @@
 # -*- coding: UTF-8 -*-
 import mdv
 from tinyscript import configparser, re
-from tinyscript.helpers import ConfigPath, Path
+from tinyscript.helpers import slugify, ConfigPath, Path
 from tinyscript.report import *
 
 
 __all__ = ["check_name", "config", "LABELS_BACK_CONV", "LOG_FORMATS", "NOT_LABELLED", "NOT_PACKED",
-           "PACKING_BOX_SOURCES"]
+           "PACKING_BOX_SOURCES", "RENAME_FUNCTIONS"]
 
 LOG_FORMATS = ["%(asctime)s [%(levelname)s] %(message)s", "%(asctime)s [%(levelname)-8s] %(name)-18s - %(message)s"]
 PACKING_BOX_SOURCES = {
@@ -14,6 +14,10 @@ PACKING_BOX_SOURCES = {
     'PE':  ["~/.wine32/drive_c/windows", "~/.wine64/drive_c/windows"],
 }
 PBOX_HOME = Path("~/.packing-box", expand=True)
+RENAME_FUNCTIONS = {
+    'as-is':   lambda p: p,
+    'slugify': slugify,
+}
 
 # label markers and conversion for Scikit-Learn and Weka
 NOT_LABELLED, NOT_PACKED = "?-"  # impose markers for distinguishing between unlabelled and not-packed data

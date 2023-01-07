@@ -136,7 +136,7 @@ class Model:
         l, mfunc = self.logger, "%s_metrics" % metrics
         if mfunc not in globals():
             l.error("Bad metrics type '%s'" % metrics)
-            return 6 * [-1]
+            return
         m = globals()[mfunc]
         l.debug("Computing metrics...")
         values, headers = m(prediction, y_true=target, y_proba=proba, proctime=proctime, logger=self.logger)
@@ -470,7 +470,10 @@ class Model:
             proba = proba[:, 1]
         except AttributeError:
             proba = None
-        m, h = self._metrics(prediction, self._target, proba, proctime=dt)
+        try:
+            m, h = self._metrics(prediction, self._target, proba, proctime=dt)
+        except TypeError:
+            return
         for header in [[], ["Model"]][self.__class__ is DumpedModel] + ["Dataset"] + h:
             if header not in self._performance.columns:
                 self._performance[header] = np.nan
@@ -581,9 +584,12 @@ class Model:
         if cls.labelling != "none":
             l.debug("> making predictions...")
             d = []
-            m1, h = self._metrics(self._train.target,
-                                  self.pipeline.predict(self._train.data),
-                                  self.pipeline.predict_proba(self._train.data)[:, 1])
+            try:
+                m1, h = self._metrics(self._train.target,
+                                      self.pipeline.predict(self._train.data),
+                                      self.pipeline.predict_proba(self._train.data)[:, 1])
+            except TypeError:  # occurs if bad metrics are selected ; in this case, simply stop
+                return
             d.append(["Train"] + m1)
             m2, _ = self._metrics(self._test.target,
                                   self.pipeline.predict(self._test.data),

@@ -5,25 +5,26 @@ from pbox.__info__ import *
 from tinyscript import *
 
 
-__version__     = "2.1.3"
+__version__     = "2.2.0"
 __doc__         = """
-This tool aims to manipulate a dataset in multiple ways by:
-- adding new executables from the packing-box Docker image or from a user-defined source, packed or not with the
-   selected packers installed in the image.
-- updating it with already-packed or not-packed executables given their labels or not (detection can be applied).
-- fixing its content.
+This tool aims to manipulate a dataset in many ways including its creation, enlargement, update, alteration, selection,
+ merging, export or purge.
 """
 __examples__    = [
     "convert my-dataset --new-name my-fileless-dataset",
     "export my-dataset",
     "export my-dataset -f packed-samples -o my-dataset-files -n 100",
     "features my-dataset",
+    "ingest dataset-packed-elf --detect",
+    "ingest dataset-packed-pe --labels /path/to/exe/labels.json --merge --rename as-is",
     "list --show-all",
     "make my-dataset -f ELF -n 500 --source-dir /path/to/dotnet/exe",
     "make my-dataset -f PE,ELF -n 2000",
     "merge my-dataset dataset-to-be-merged",
     "plot my-dataset byte_0_after_ep byte_1_after_ep",
     "plot my-dataset number_resources --output-format png",
+    "purge all",
+    "purge test-*",
     "select my-dataset my-new-dataset --query \"label == 'upx'\"",
     "show my-dataset --per-format --limit 20",
     "update my-dataset --detect --refresh -s /path1/to/exe -s /path2/to/exe",
@@ -34,16 +35,16 @@ __examples__    = [
 __description__ = "Make datasets of packed and not packed executables for use with Machine Learning"
 
 
-def __add_name(parser, force=False, name="name", help="name of the dataset"):
+def __add_name(parser, force=False, name="name", help="name of the dataset", note=None):
     def dataset_exists(string):
-        if string == "all":
+        if string == "all" or "*" in string:
             return string
         p = config['datasets'].joinpath(string)
         (ts.folder_exists_or_create if force else ts.folder_exists)(str(p))
         if not force and not Dataset.check(string) and not FilelessDataset.check(string):
             raise ValueError("Bad dataset")
         return p
-    parser.add_argument(name, type=dataset_exists, help=help)
+    parser.add_argument(name, type=dataset_exists, help=help, **({} if note is None else {'note': note}))
     return parser
 
 
@@ -84,6 +85,20 @@ if __name__ == '__main__':
     fgroup = fix.add_mutually_exclusive_group()
     fgroup.add_argument("-d", "--detect", action="store_true", help="detect used packer with installed detectors")
     fgroup.add_argument("-l", "--labels", type=ts.json_config, help="set labels from a JSON file")
+    ingest = sparsers.add_parser("ingest", help="ingest samples from a folder into new dataset(s)")
+    ingest.add_argument("folder", type=ts.folder_exists, help="target folder with subfolders containing samples")
+    igroup = ingest.add_mutually_exclusive_group()
+    igroup.add_argument("-d", "--detect", action="store_true", help="detect used packer with installed detectors")
+    igroup.add_argument("-l", "--labels", type=ts.json_config, help="set labels from a JSON file")
+    ingest.add_argument("--merge", action="store_true", help="merge all subfolders into a single dataset")
+    ingest.add_argument("-m", "--min-samples", type=ts.pos_int, default=100,
+                        help="minimum of samples to be found in subfolders for being kept")
+    ingest.add_argument("-M", "--max-samples", type=ts.pos_int, default=0,
+                        help="maximum of samples to be found in subfolders for being kept")
+    ingest.add_argument("-p", "--prefix", default="", help="prefix to be added to the name(s) of the new dataset(s)")
+    ingest.add_argument("-r", "--rename", default="slugify", choices=tuple(RENAME_FUNCTIONS.keys()),
+                        help="apply a function for naming the new dataset(s)")
+    ingest.add_argument("-x", "--exclude", nargs="*", help="folder to be excluded")
     listds = sparsers.add_parser("list", help="list all the datasets from the workspace")
     listds.add_argument("-a", "--show-all", action="store_true", help="show all datasets even those that are corrupted")
     listds.add_argument("-f", "--hide-files", action="store_true", help="hide the 'files' column")
@@ -112,7 +127,8 @@ if __name__ == '__main__':
     plot.add_argument("-f", "--format", choices=("jpg", "png", "tif", "svg"),
                       help="image file format for plotting", note="no format means plotting in the terminal")
     plot.add_argument("-m", "--multiclass", action="store_true", help="process features using multiple label classes")
-    purge = __add_name(sparsers.add_parser("purge", help="purge a dataset"), True)
+    purge = __add_name(sparsers.add_parser("purge", help="purge a dataset"), True,
+                       note="use 'all' to purge every dataset or the wildcard '*' to select a part of them")
     purge.add_argument("-b", "--backup", action="store_true", help="only purge backups")
     remove = __add_name(sparsers.add_parser("remove", help="remove executables from a dataset"))
     remove.add_argument("-q", "--query", help="query for selecting records to be removed",
@@ -144,15 +160,24 @@ if __name__ == '__main__':
     initialize(noargs_action="help")
     logger.name = "dataset"
     logging.configLogger(logger, ["INFO", "DEBUG"][args.verbose], fmt=LOG_FORMATS[args.verbose], relative=True)
-    name, args.load = getattr(args, "name", None), args.command not in ["list", "purge"]
-    if args.command == "purge" and name == "all":
+    name, args.load = getattr(args, "name", None), args.command not in ["ingest", "list", "purge"]
+    if args.command == "purge" and isinstance(name, str):
         purged = False
-        for ds in Dataset.iteritems():
-            ds.purge()
-            purged = True
+        if name == "all":
+            for ds in Dataset.iteritems(True):
+                ds.purge()
+                purged = True
+        elif "*" in name:
+            name = r"^%s$" % name.replace("*", "(.*)")
+            for ds in Dataset.iteritems(False):
+                if re.search(name, ds.stem):
+                    open_dataset(ds).purge()
+                    purged = True
         if not purged:
             logger.warning("No dataset to purge in workspace (%s)" % str(config['datasets']))
     else:
+        if args.command == "ingest":
+            args.rename_func = RENAME_FUNCTIONS[args.rename]
         if hasattr(args, "modifiers_set"):
             Modifiers.source = args.modifiers_set  # configure the modifiers set's YAML definition source
         if hasattr(args, "features_set"):
