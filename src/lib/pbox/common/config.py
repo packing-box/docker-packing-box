@@ -23,6 +23,7 @@ RENAME_FUNCTIONS = {
 NOT_LABELLED, NOT_PACKED = "?-"  # impose markers for distinguishing between unlabelled and not-packed data
 LABELS_BACK_CONV = {NOT_LABELLED: -1, NOT_PACKED: None}  # values used with Scikit-learn for unlabelled and null class
 
+_bl = lambda v: str(v).lower() in ["1", "true", "y", "yes"]
 _np = lambda v: Path(str(v), create=True, expand=True).absolute()
 _rp = lambda v: Path(str(v), expand=True).absolute()
 _ws = lambda s, v: Path(s['workspace'].joinpath(v), create=True, expand=True).absolute()
@@ -43,26 +44,27 @@ class Config(configparser.ConfigParser):
     """ Simple Config class for handling some packing-box settings. """
     DEFAULTS = {
         'main': {
-            'workspace':   (PBOX_HOME, _np, ["experiment"]),
-            'experiments': ("/mnt/share/experiments", _np),
+            'workspace':       (PBOX_HOME, "PATH", "path to the workspace", _np, ["experiment"]),
+            'experiments':     ("/mnt/share/experiments", "PATH", "path to the experiments folder", _np),
+            'keep_backups': ("true", "BOOL", "keep backups of datasets ; for commands that trigger backups", _bl),
         },
         'definitions': {
-            'algorithms': ("~/.opt/algorithms.yml", _rp),
-            'analyzers':  ("~/.opt/analyzers.yml", _rp),
-            'detectors':  ("~/.opt/detectors.yml", _rp),
-            'features':   ("~/.opt/features.yml", _rp),
-            'modifiers':  ("~/.opt/modifiers.yml", _rp),
-            'packers':    ("~/.opt/packers.yml", _rp),
-            'unpackers':  ("~/.opt/unpackers.yml", _rp),
+            'algorithms': ("~/.opt/algorithms.yml", "PATH", "path to the algorithms' YAML definition", _rp),
+            'analyzers':  ("~/.opt/analyzers.yml",  "PATH", "path to the analyzers' YAML definition", _rp),
+            'detectors':  ("~/.opt/detectors.yml",  "PATH", "path to the detectors' YAML definition", _rp),
+            'features':   ("~/.opt/features.yml",   "PATH", "path to the features' YAML definition", _rp),
+            'modifiers':  ("~/.opt/modifiers.yml",  "PATH", "path to the modifiers' YAML definition", _rp),
+            'packers':    ("~/.opt/packers.yml",    "PATH", "path to the packers' YAML definition", _rp),
+            'unpackers':  ("~/.opt/unpackers.yml",  "PATH", "path to the unpackers' YAML definition", _rp),
         },
         'logging': {
-            'wine_errors': ("false", lambda v: str(v).lower() in ["1", "true", "y", "yes"]),
+            'wine_errors': ("false", "BOOL", "display Wine errors", _bl),
         },
     }
     ENVVARS = ["experiment", "experiments"]
     HIDDEN = {
-        'datasets': ("datasets", _ws),
-        'models':   ("models", _ws),
+        'datasets': ("datasets", None, "", _ws),
+        'models':   ("models",   None, "", _ws),
     }
     
     def __init__(self):
@@ -81,13 +83,11 @@ class Config(configparser.ConfigParser):
             if section not in sections:
                 self.add_section(section)
             for opt, val in options.items():
-                if isinstance(val, tuple):
-                    if len(val) == 1:
-                        func = None
-                    elif len(val) == 2:
-                        val, func = val
-                    elif len(val) == 3:
-                        val, func, _ = val
+                func = None
+                if len(val) == 4:
+                    val, mvar, help, func = val
+                elif len(val) == 5:
+                    val, mvar, help, func, _ = val
                 s = super().__getitem__(section)
                 if opt not in s:
                     s[opt] = val if func is None else str(func(val))
@@ -108,11 +108,11 @@ class Config(configparser.ConfigParser):
             sec = super().__getitem__(section)
             if option in sec:
                 o = self.DEFAULTS[section][option]
-                if isinstance(o, tuple) and len(o) > 2:
-                    for override in o[2]:
+                if isinstance(o, tuple) and len(o) > 4:
+                    for override in o[4]:
                         v = config[override]
                         if v not in [None, ""]:
-                            return o[1](v)
+                            return o[3](v)
                 if option in self.ENVVARS:
                     envf = PBOX_HOME.joinpath(option + ".env")
                     if envf.exists():
@@ -120,7 +120,7 @@ class Config(configparser.ConfigParser):
                             v = f.read().strip()
                         if v != "":
                             self[option] = v
-                return (o[1] if isinstance(o, tuple) and len(o) > 1 else str)(sec[option])
+                return (o[3] if isinstance(o, tuple) and len(o) > 1 else str)(sec[option])
         h = self.HIDDEN
         if option in h:
             v = h[option]
@@ -163,9 +163,9 @@ class Config(configparser.ConfigParser):
         for section in self.sections():
             for option, value in super().__getitem__(section).items():
                 o = self.DEFAULTS[section][option]
-                options.append((option, o[1] if isinstance(o, tuple) and len(o) > 1 else str, value))
-        for o, f, v in sorted(options, key=lambda x: x[0]):
-            yield o, f, v
+                options.append((option, o[3] if len(o) > 3 else str, value, o[1], o[2]))
+        for o, f, v, m, h in sorted(options, key=lambda x: x[0]):
+            yield o, f, v, m, h
     
     def overview(self):
         r = []

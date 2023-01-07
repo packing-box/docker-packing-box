@@ -1162,7 +1162,7 @@ Yoda_Crypter:
     - unzip: $OPT
     - wine: yC.exe
   source: https://sourceforge.net/projects/yodap
-  status: ok
+  status: gui
 
 Yoda_Protector:
   aliases:

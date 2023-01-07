@@ -6,7 +6,7 @@ from pbox.__info__ import *
 from tinyscript import *
 
 
-__version__     = "1.2.4"
+__version__     = "1.2.5"
 __doc__         = """
 This utility aims to facilitate detectors|packers|unpackers' setup|test according to the related YAML data file.
 """
@@ -55,8 +55,8 @@ if __name__ == '__main__':
     # level 1 subparsers for cleaning up leftovers and configuring options of pbox
     p = sparsers.add_parser("clean", help="cleanup temporary folders")
     p = sparsers.add_parser("config", help="set a config option")
-    for opt, func, val in config.iteroptions():
-        p.add_argument("--" + opt, type=func, default=str(val))
+    for opt, func, val, metavar, help in config.iteroptions():
+        p.add_argument("--" + opt, type=func, default=str(val), help=help, metavar=metavar)
     # level 1 subparser for listing items
     p = sparsers.add_parser("list", help="list something")
     p.add_argument("type", type=ts.str_matches(r"^(%s)s?$" % "|".join(sorted(items + ["config"]))),
@@ -86,7 +86,7 @@ if __name__ == '__main__':
                 d.remove()
     elif args.command == "config":
         change = False
-        for opt, func, val in config.iteroptions():
+        for opt, func, val, m, h in config.iteroptions():
             v = getattr(args, opt)
             if func(v) != func(val):
                 config[opt] = v

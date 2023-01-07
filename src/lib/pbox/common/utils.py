@@ -138,7 +138,8 @@ def aggregate_formats(*formats, **kw):
 def backup(f):
     """ Simple method decorator for making a backup of the dataset. """
     def _wrapper(s, *a, **kw):
-        s.backup = s
+        if config['keep_backups']:
+            s.backup = s
         return f(s, *a, **kw)
     return _wrapper
 
