@@ -86,7 +86,7 @@ def image_rf(classifier, width=5, fontsize=10, **params):
 def image_clustering(classifier, **params):
     X = params['data']
     # retrain with the preprocessed data (with dimensionality reduced to N=2, hence not using 'classifier')
-    cls = Algorithm.get(params['algo_name'])(**params['algo_params'])
+    cls = Algorithm.get(params['algo_name']).base(**params['algo_params'])
     label = cls.fit_predict(X)
     # now set color map then plot
     labels = np.unique(label)
