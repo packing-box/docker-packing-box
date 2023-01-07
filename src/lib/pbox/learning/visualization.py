@@ -13,7 +13,7 @@ from sklearn.inspection import DecisionBoundaryDisplay
 from sklearn.manifold import TSNE
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.tree import export_text, plot_tree
-
+from .algorithm import Algorithm 
 
 __all__ = ["VISUALIZATIONS"]
 
@@ -43,6 +43,15 @@ def _preprocess(f):
         return f(*args, **kwargs)
     return _wrapper
 
+def _set_class(f):
+    """ This decorator sets the model class from the algorithm name """
+    @wraps(f)
+    def _wrapper(*args, **kwargs):
+        name = kwargs['algo_name'] 
+        cls = [a.base for a in Algorithm.registry if a.cname == name][0]
+        kwargs['algo_class'] = cls
+        return f(*args, **kwargs)
+    return _wrapper
 
 def image_dt(classifier, width=5, fontsize=10, logger=None, **params):
     params['filled'] = True
@@ -83,11 +92,13 @@ def image_rf(classifier, width=5, fontsize=10, logger=None, **params):
 
 
 @_preprocess
-def image_kmeans(classifier, viz_params={}, logger=None, **params):
+@_set_class
+def image_clustering(classifier, viz_params={}, logger=None, **params):
     X = params['data']
     # retrain KMeans with the preprocessed data (with dimensionality reduced to N=2, hence not using 'classifier')
-    kmeans = KMeans(**params['algo_params'])
-    label = kmeans.fit_predict(X)
+    cls = params['algo_class']
+    cls = cls(**params['algo_params'])
+    label = cls.fit_predict(X)
     # now set color map then plot
     labels = np.unique(label)
     colors = mpl.cm.get_cmap("jet", len(labels))
@@ -108,11 +119,17 @@ def text_rf(classifier, logger=None, **params):
         s += export_text(classifier.estimators_[i], **params)
     return s
 
-
 VISUALIZATIONS = {
     'DT':     {'image': image_dt, 'text': text_dt},
     'kNN':    {'image': image_knn, 'data': True},
     'RF':     {'image': image_rf, 'text': text_rf},
-    'KMeans': {'image': image_kmeans, 'data': True, 'target': False}
+    'AC': {'image': image_clustering, 'data': True, 'target': False},
+    'AP': {'image': image_clustering, 'data': True, 'target': False},
+    'Birch': {'image': image_clustering, 'data': True, 'target': False},
+    'DBSCAN': {'image': image_clustering, 'data': True, 'target': False},
+    'KMeans': {'image': image_clustering, 'data': True, 'target': False},
+    'MBKMeans': {'image': image_clustering, 'data': True, 'target': False},
+    'MS': {'image': image_clustering, 'data': True, 'target': False},
+    'OPTICS': {'image': image_clustering, 'data': True, 'target': False},
+    'SC': {'image': image_clustering, 'data': True, 'target': False}
 }
-
