@@ -291,8 +291,9 @@ class Model:
         class Dummy: pass
         self._train, self._test = Dummy(), Dummy()
         ds.logger.debug("> split data and target vectors to train and test subsets")
+        tsize = [.2, 0.][self.algorithm.labelling == "none"]  # for unsupervised algorithms, do not use a test set
         self._train.data, self._test.data, self._train.target, self._test.target = \
-            train_test_split(self._data, self._target, test_size=.2, random_state=42, stratify=self._target)
+            train_test_split(self._data, self._target, test_size=tsize, random_state=42, stratify=self._target)
         return True
     
     def _save(self):
