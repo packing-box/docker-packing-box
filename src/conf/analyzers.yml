@@ -17,12 +17,12 @@ GetTyp:
     - PE32
   install:
     - unzip: $OPT/gettyp
-    - ln:    $OPT/gettyp/gt.sh
+    - ln: $OPT/gettyp/gt.sh
   maintained: false
   references:
     - https://www.helger.com/gt/gt.htm
-  source:  https://defacto2.net/f/aa2e6ec
-  status:  ok
+  source: https://defacto2.net/f/aa2e6ec
+  status: ok
   version: <output>
 
 NPEFileAnalyzer:
@@ -73,9 +73,21 @@ PortEx:
     - exec: mv $TMP/portex.jar $OPT/
     - java: $OPT/portex.jar
   license: apache-2.0
-  source:  https://github.com/katjahahn/PortEx
-  status:  ok
+  source: https://github.com/katjahahn/PortEx
+  status: ok
   version: <output>
+
+TrID:
+  author: M. Pontello
+  description: TrID is a utility designed to identify file types from their binary signatures. While there are similar utilities with hard coded logic, TrID has no fixed rules. Instead, it's extensible and can be trained to recognize new formats in a fast and automatic way. It has many uses like identifying what kind of file was sent to you via e-mail, aiding in forensic analysis, supporting in file recovery, etc. TrID uses a database of definitions which describe recurring patterns for supported file types.
+  formats:
+    - All
+  install:
+    - unzip: $OPT/trid
+    - ln: $OPT/trid/trid
+    - ln: $OPT/trid/tridupdate tridupdate
+  source: https://mark0.net/soft-trid-e.html
+  status: ok
 
 Unix_File:
   comment: This tool is a file analyzer and is only able to detect well-known compressors such as UPX, PEtite or PECompact.

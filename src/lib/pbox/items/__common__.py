@@ -430,9 +430,9 @@ class Base(Item):
                 result = r
             #  create a symbolink link in ~/.local/bin (if relative path) relatively to the previous considered location
             elif cmd == "ln":
-                r = ubin.joinpath(self.name)
+                r = ubin.joinpath(self.name if arg1 == arg2 else arg2)
                 r.remove(False)
-                run("ln -fs '%s' '%s'" % ((result or tmp).joinpath(arg), r), **kw)
+                run("ln -fs '%s' '%s'" % ((result or tmp).joinpath(arg1), r), **kw)
                 result = r
             # create a shell script to execute the given target from its source directory with its intepreter/launcher
             #  and make it executable
