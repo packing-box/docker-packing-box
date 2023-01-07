@@ -28,10 +28,10 @@ def update_logger(m):
 
 class MetaItem(type):
     def __getattribute__(self, name):
-        # this masks some attributes for child classes (e.g. Algorithm.registry can be accessed, but when the registry
-        #  of child classes is computed, the child classes, e.g. RF, won't be able to access RF.registry)
+        # this masks some attributes for child classes (e.g. Packer.registry can be accessed, but when the registry
+        #  of child classes is computed, the child classes, e.g. UPX, won't be able to get UPX.registry)
         if name in ["get", "iteritems", "mro", "registry"] and self._instantiable:
-            raise AttributeError(name)
+            raise AttributeError("'%s' object has no attribute '%s'" % (self.__name__, name))
         return super(MetaItem, self).__getattribute__(name)
     
     @property
@@ -152,6 +152,12 @@ class Item(metaclass=MetaItem):
         if cls._instantiable:
             return object.__new__(cls, *args, **kwargs)
         raise NotInstantiable("%s cannot be instantiated directly" % cls.__name__)
+    
+    def __getattribute__(self, name):
+        # this masks some attributes for child instances in the same way as for child classes
+        if name in ["get", "iteritems", "mro", "registry"] and self._instantiable:
+            raise AttributeError("'%s' object has no attribute '%s'" % (self.__class__.__name__, name))
+        return super(Item, self).__getattribute__(name)
     
     def __repr__(self):
         """ Custom string representation for an item. """
