@@ -43,17 +43,8 @@ def _preprocess(f):
         return f(*args, **kwargs)
     return _wrapper
 
-def _set_class(f):
-    """ This decorator sets the model class from the algorithm name """
-    @wraps(f)
-    def _wrapper(*args, **kwargs):
-        name = kwargs['algo_name'] 
-        cls = [a.base for a in Algorithm.registry if a.cname == name][0]
-        kwargs['algo_class'] = cls
-        return f(*args, **kwargs)
-    return _wrapper
 
-def image_dt(classifier, width=5, fontsize=10, logger=None, **params):
+def image_dt(classifier, width=5, fontsize=10, **params):
     params['filled'] = True
     fig = plt.figure()
     plot_tree(classifier, **params)
@@ -61,7 +52,7 @@ def image_dt(classifier, width=5, fontsize=10, logger=None, **params):
 
 
 @_preprocess
-def image_knn(classifier, logger=None, **params):
+def image_knn(classifier, **params):
     X, y = params['data'], params['target']
     # retrain kNN with the preprocessed data (with dimensionality reduced to N=2, hence not using 'classifier')
     knn = KNeighborsClassifier(**params['algo_params'])
@@ -76,7 +67,7 @@ def image_knn(classifier, logger=None, **params):
     return fig
 
 
-def image_rf(classifier, width=5, fontsize=10, logger=None, **params):
+def image_rf(classifier, width=5, fontsize=10, **params):
     n = len(classifier.estimators_)
     rows = ceil(n / width)
     cols = width if rows > 1 else n
@@ -92,12 +83,10 @@ def image_rf(classifier, width=5, fontsize=10, logger=None, **params):
 
 
 @_preprocess
-@_set_class
-def image_clustering(classifier, viz_params={}, logger=None, **params):
+def image_clustering(classifier, **params):
     X = params['data']
-    # retrain KMeans with the preprocessed data (with dimensionality reduced to N=2, hence not using 'classifier')
-    cls = params['algo_class']
-    cls = cls(**params['algo_params'])
+    # retrain with the preprocessed data (with dimensionality reduced to N=2, hence not using 'classifier')
+    cls = Algorithm.get(params['algo_name'])(**params['algo_params'])
     label = cls.fit_predict(X)
     # now set color map then plot
     labels = np.unique(label)
@@ -108,28 +97,23 @@ def image_clustering(classifier, viz_params={}, logger=None, **params):
     return fig
 
 
-def text_dt(classifier, logger=None, **params):
+def text_dt(classifier, **params):
     return export_text(classifier, **params)
 
 
-def text_rf(classifier, logger=None, **params):
+def text_rf(classifier, **params):
     s = ""
     for i in range(len(classifier.estimators_)):
         s += "\nEstimator: %d\n" % i
         s += export_text(classifier.estimators_[i], **params)
     return s
 
+
 VISUALIZATIONS = {
-    'DT':     {'image': image_dt, 'text': text_dt},
-    'kNN':    {'image': image_knn, 'data': True},
-    'RF':     {'image': image_rf, 'text': text_rf},
-    'AC': {'image': image_clustering, 'data': True, 'target': False},
-    'AP': {'image': image_clustering, 'data': True, 'target': False},
-    'Birch': {'image': image_clustering, 'data': True, 'target': False},
-    'DBSCAN': {'image': image_clustering, 'data': True, 'target': False},
-    'KMeans': {'image': image_clustering, 'data': True, 'target': False},
-    'MBKMeans': {'image': image_clustering, 'data': True, 'target': False},
-    'MS': {'image': image_clustering, 'data': True, 'target': False},
-    'OPTICS': {'image': image_clustering, 'data': True, 'target': False},
-    'SC': {'image': image_clustering, 'data': True, 'target': False}
+    'DT':  {'image': image_dt, 'text': text_dt},
+    'kNN': {'image': image_knn, 'data': True},
+    'RF':  {'image': image_rf, 'text': text_rf},
 }
+for a in ['AC', 'AP', 'Birch', 'DBSCAN', 'KMeans', 'MBKMeans', 'MS', 'OPTICS', 'SC']:
+    VISUALIZATIONS[a] = {'image': image_clustering, 'data': True, 'target': False}
+

@@ -611,14 +611,15 @@ class Model:
         if viz is None:
             self.logger.warning("Visualization not available for this algorithm%s" % [" in text mode", ""][export])
             return
-        params = {'algo_name' : a['name'] ,'feature_names': sorted(self._features.keys()), 'logger': self.logger}
+        params = {'algo_name' : a['name'], 'algo_params': a['parameters'],
+                  'feature_names': sorted(self._features.keys()), 'logger': self.logger}
         params.update(kw.pop('viz_params', {}))
         # if visualization requires the original data (e.g. kNN), use self._prepare to create self._data/self._target
         if VISUALIZATIONS.get(a['name']).get("data", False):
             kw['data_only'] = True
             if not self._prepare(**kw):
                 return
-            params.update({'data': self._data, 'algo_params': a['parameters']})
+            params['data'] = self._data
             if VISUALIZATIONS[a['name']].get("target", True):
                 params['target'] = self._target
         if export:

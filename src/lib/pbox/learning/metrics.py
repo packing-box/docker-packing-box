@@ -35,7 +35,7 @@ METRIC_DISPLAY = {
         'Silhouette Score': "nbr",
         'Calinski Harabasz Score': "nbr",
         'Davies Bouldin Score': "nbr",
-    }
+    },
     'regression': {
         'MSE': "nbr",
         'MAE': "nbr",
