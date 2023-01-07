@@ -53,10 +53,10 @@ RUN (apt-get -qq -y install apt-transport-https apt-utils \
 # && apt-get -qq -y install libgtk2.0-0:i386 \
  || echo -e "\033[1;31m DEPENDENCIES INSTALL FAILED \033[0m"
 # install useful tools
-RUN (apt-get -qq -y install colordiff colortail cython3 dosbox git golang kmod less ltrace tree strace sudo tmate tmux \
+RUN (apt-get -qq -y install colordiff colortail cython3 dos2unix dosbox git golang kmod less ltrace tree strace sudo \
  && apt-get -qq -y install iproute2 nftables nodejs npm python3-setuptools python3-pip swig vim weka x11-apps yarnpkg \
  && apt-get -qq -y install bc curl ffmpeg imagemagick pev psmisc tesseract-ocr unrar unzip wget zstd \
- && apt-get -qq -y install binwalk ent foremost jq visidata xdotool xterm xvfb \
+ && apt-get -qq -y install binwalk ent foremost jq tmate tmux visidata xdotool xterm xvfb \
  && wget -qO /tmp/bat.deb https://github.com/sharkdp/bat/releases/download/v0.18.2/bat-musl_0.18.2_amd64.deb \
  && dpkg -i /tmp/bat.deb \
  && rm -f /tmp/bat.deb) >/dev/null 2>&1 \
@@ -134,7 +134,7 @@ RUN for f in `ls /tmp/term/`; do cp "/tmp/term/$f" "/home/$USER/.${f##*/}"; done
  && rm -rf /tmp/term
 # install/update Python packages (install dl8.5 with root separately to avoid wheel's build failure)
 RUN pip3 -qq install --user --no-warn-script-location --ignore-installed meson poetry scikit-learn tinyscript tldr \
- && pip3 -qq install --user --no-warn-script-location angr capstone dl8.5 pandas pefile pyelftools thefuck weka \
+ && pip3 -qq install --user --no-warn-script-location angr capa capstone dl8.5 pandas pefile pyelftools thefuck weka \
  || echo -e "\033[1;31m PIP PACKAGES UPDATE FAILED \033[0m"
 # +--------------------------------------------------------------------------------------------------------------------+
 # |                                              ADD FRAMEWORK ITEMS                                                   |
@@ -166,7 +166,7 @@ RUN mv $UOPT/tools/help $UOPT/tools/?
 COPY --chown=$USER:$USER src/lib /tmp/lib
 RUN pip3 -qq install --user --no-warn-script-location /tmp/lib/ \
  && rm -rf /tmp/lib
-# install unpackers
+# install analyzers
 COPY --chown=$USER:$USER $FILES/analyzers/* /tmp/analyzers/
 RUN find /tmp/analyzers -type f -executable -exec mv {} $UOPT/bin/ \; \
  && $PBOX setup analyzer
