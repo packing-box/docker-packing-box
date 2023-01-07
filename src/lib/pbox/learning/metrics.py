@@ -26,12 +26,12 @@ METRIC_DISPLAY = {
         'MCC':       "%",
         'AUC':       "%",
     },
-    'clustering_supervised': {
+    'clustering': {
+        # supervised
         'Randomness Score': "nbr",
         'Adjusted Mutual Information Score': "nbr",
         'Homogeneity Completeness V-Measure': "nbr",
-    },
-    'clustering_unsupervised': {
+        # unsupervised
         'Silhouette Score': "nbr",
         'Calinski Harabasz Score': "nbr",
         'Davies Bouldin Score': "nbr",
@@ -156,23 +156,14 @@ def classification_metrics(y_pred, y_true=None, y_proba=None, labels=None, avera
 
 
 @_convert_output
-def clustering_supervised_metrics(y_pred, y_true=None, **kw):
-    """ Compute clustering-related metrics, either based only on predicted values or both true and predicted values. """
-    # get the true and predicted values without the not-labelled ones and as integers
+def clustering_metrics(y_pred, y_true=None, X=None, **kw):
+    """ Compute clustering-related metrics based on the input data and the true and predicted values. """
+    # supervised: get the true and predicted values without the not-labelled ones and as integers
     yt, yp, _ = _map_values_to_integers(y_true, y_pred, **kw)
-    return [rand_score(yt, yp), adjusted_mutual_info_score(yt, yp), omogeneity_completeness_v_measure(yt, yp)], \
-           metric_headers("clustering_supervised", **kw)
-
-
-@_convert_output
-def clustering_unsupervised_metrics(y_pred, y_true=None, **kw):
-    """ Compute clustering-related metrics, either based only on predicted values or both true and predicted values. """
-    # get the true and predicted values without the not-labelled ones and as integers
-    #FIXME: include data (X) in the function's signature
-    X = kw['X']
-    yt, yp, _ = _map_values_to_integers(y_true, y_pred, **kw)
-    return [silhouette_score(X, yp, metric="euclidean"), calinski_harabasz_score(X, yp), davies_bouldin_score(X, yp)], \
-           metric_headers("clustering_unsupervised", **kw)
+    # unsupervised: no mapping to integers and filtering of not-labelled values as we only consider predicted ones
+    return [rand_score(yt, yp), adjusted_mutual_info_score(yt, yp), homogeneity_completeness_v_measure(yt, yp), \
+            silhouette_score(X, y_pred, metric="euclidean"), calinski_harabasz_score(X, y_pred), \
+            davies_bouldin_score(X, y_pred)], metric_headers("clustering", **kw)
 
 
 @_convert_output
