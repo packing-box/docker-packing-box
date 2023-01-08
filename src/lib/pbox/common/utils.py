@@ -225,7 +225,7 @@ def file_or_folder_or_dataset(method):
         def _extend_e(i):
             nonlocal n, e, l
             # append the (Fileless)Dataset instance itself
-            if getattr(i, "is_valid", lambda: False)():
+            if not isinstance(i, Executable) and getattr(i, "is_valid", lambda: False)():
                 if not kwargs['silent']:
                     self.logger.debug("input is a (Fileless)Dataset structure")
                 for exe in i:
