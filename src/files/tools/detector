@@ -8,7 +8,7 @@ from tinyscript.report import *
 from tqdm import tqdm
 
 
-__version__     = "1.2.1"
+__version__     = "1.2.2"
 __doc__         = """
 This tool aims to detect the packer used on an input executable, folder of executables or Dataset.
 """
@@ -96,19 +96,20 @@ if __name__ == '__main__':
         sys.exit(1)
     if pbar is not None:
         pbar.close()
-    ph, h, m = PERF_HEADERS, ["Accuracy", "Precision", "Recall", "F-Measure"], _metrics(**cmatrix)
+    ph, h, m = metric_headers("classification"), ["Accuracy", "Precision", "Recall", "F-Measure"], _metrics(**cmatrix)
     m = [ph[k](v) if v >= 0 else "-" for k, v in zip(h, m)]
-    n = sum(cmatrix.values())
-    r = [Section("Detection results: ")]
+    n = sum(stats.values())
+    rpt = [Section("Detection results: ")]
     if n > 0:
-        logger.debug("Confusion Matrix: %s" % cmatrix)
+        if sum(cmatrix.values()) > 0:
+            logger.debug("Confusion Matrix: %s" % cmatrix)
         if args.metrics_only:
             print(",".join(m))
         elif n == 1:
             print(r)
         else:
-            r.append(Table([m], column_headers=h))
-            print(mdv.main(Report(*r).md()))
+            rpt.append(Table([m], column_headers=h))
+            print(mdv.main(Report(*rpt).md()))
     else:
         logger.debug("Statistics: %s" % stats)
         if args.metrics_only:
@@ -118,6 +119,6 @@ if __name__ == '__main__':
             for l, c in sorted(stats.items(), key=lambda x: x[0].lower()):
                 data.append([l, c, "%.2f%%" % (100 * c / tot)])
             if len(data) > 0:
-                r.append(Table(data, column_headers=["Label", "Count", "Percentage"]))
-                print(mdv.main(Report(*r).md()))
+                rpt.append(Table(data, column_headers=["Label", "Count", "Percentage"]))
+                print(mdv.main(Report(*rpt).md()))
 
