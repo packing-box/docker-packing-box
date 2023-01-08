@@ -124,7 +124,7 @@ class Config(configparser.ConfigParser):
         h = self.HIDDEN
         if option in h:
             v = h[option]
-            return v[1](self, v[0]) if isinstance(v, tuple) else v
+            return v[3](self, v[0]) if isinstance(v, tuple) else v
         if option in self.ENVVARS:
             envf = PBOX_HOME.joinpath(option + ".env")
             if envf.exists():
