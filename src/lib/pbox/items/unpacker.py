@@ -2,6 +2,7 @@
 from tinyscript import hashlib
 
 from .__common__ import *
+from ..common.config import NOT_LABELLED
 from ..common.executable import Executable
 from ..common.item import update_logger
 
@@ -22,19 +23,20 @@ class Unpacker(Base):
              execution. """
         # check: is this unpacker able to process the input executable ?
         exe = Executable(executable)
-        if exe.format not in self._formats_exp or \
-           exe.extension[1:] in getattr(self, "exclude", {}).get(exe.format, []):
-            return False
-        # now unpack the input executable, taking its SHA256 in order to check for changes
-        s256 = hashlib.sha256_file(str(exe))
+        if not self._check(exe):
+            return
+        # now unpack the input executable, taking its hash in order to check for changes
+        h = exe.hash
         self._error = None
         label = self.run(exe, extra_opt="-d", **kwargs)
+        exe.update()
         if self._error:
-            return
-        elif s256 == hashlib.sha256_file(str(exe)):
-            self.logger.debug("%s's content was not changed" % exe.filename)
+            self.logger("unpacker failed")
+            return NOT_LABELLED
+        elif h == exe.hash:
+            self.logger.debug("not unpacked (content not changed)")
             self._bad = True
-            return
+            return NOT_LABELLED
         # if unpacking succeeded, we can return packer's label
         self.logger.debug("%s unpacked using %s" % (exe.filename, label))
         return label

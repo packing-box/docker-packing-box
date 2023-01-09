@@ -44,9 +44,10 @@ class Config(configparser.ConfigParser):
     """ Simple Config class for handling some packing-box settings. """
     DEFAULTS = {
         'main': {
-            'workspace':       (PBOX_HOME, "PATH", "path to the workspace", _np, ["experiment"]),
-            'experiments':     ("/mnt/share/experiments", "PATH", "path to the experiments folder", _np),
+            'workspace':    (PBOX_HOME, "PATH", "path to the workspace", _np, ["experiment"]),
+            'experiments':  ("/mnt/share/experiments", "PATH", "path to the experiments folder", _np),
             'keep_backups': ("true", "BOOL", "keep backups of datasets ; for commands that trigger backups", _bl),
+            'exec_timeout': ("10", "SECONDS", "execution timeout of items (detectors, packers, ...)", int),
         },
         'definitions': {
             'algorithms': ("~/.opt/algorithms.yml", "PATH", "path to the algorithms' YAML definition", _rp),
@@ -90,7 +91,7 @@ class Config(configparser.ConfigParser):
                     val, mvar, help, func, _ = val
                 s = super().__getitem__(section)
                 if opt not in s:
-                    s[opt] = val if func is None else str(func(val))
+                    s[opt] = str(val if func is None else func(val))
     
     def __delitem__(self, option):
         if option in self.ENVVARS:
@@ -120,7 +121,7 @@ class Config(configparser.ConfigParser):
                             v = f.read().strip()
                         if v != "":
                             self[option] = v
-                return (o[3] if isinstance(o, tuple) and len(o) > 1 else str)(sec[option])
+                return (o[3] if isinstance(o, tuple) and len(o) > 3 else str)(sec[option])
         h = self.HIDDEN
         if option in h:
             v = h[option]

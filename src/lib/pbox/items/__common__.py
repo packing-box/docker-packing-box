@@ -238,7 +238,7 @@ class Base(Item):
         benchm, verb = kwargs.get('benchmark', False), kwargs.get('verbose', False) and getattr(self, "verbose", False)
         binary, weak = kwargs.get('binary', False), kwargs.get('weak', False)
         extra_opt = "" if kwargs.get('extra_opt') is None else kwargs['extra_opt'] + " "
-        kw = {'logger': self.logger, 'silent': []}
+        kw = {'logger': self.logger, 'silent': [], 'timeout': config['exec_timeout'], 'reraise': True}
         if not config['wine_errors']:
             kw['silent'].append(r"^[0-9a-f]{4}\:(?:err|fixme)\:")
         # local function for replacing tokens within the string lists, i.e. "silent" and "steps"
@@ -296,8 +296,8 @@ class Base(Item):
                 try:
                     output, error, retc = run(attempt, **kw)
                 except Exception as e:
-                    self.logger.error("Bad command: %s" % attempt)
-                    output, error, retc = "", str(e), 1
+                    self.logger.error(str(e))
+                    output, error, retc = None, str(e), 1
                 output = ensure_str(output).strip()
                 # filter out error lines from stdout
                 out_err = "\n".join(re.sub(ERR_PATTERN, "", l) for l in output.splitlines() if re.match(ERR_PATTERN, l))
@@ -313,7 +313,7 @@ class Base(Item):
                         attempt = attempt.replace(" -v", "")
                     attempts.remove(attempt if param is None else (attempt, param))
                     if len(attempts) == 0:
-                        return
+                        return NOT_LABELLED
                 else:
                     if param:
                         retval += "[%s]" % param

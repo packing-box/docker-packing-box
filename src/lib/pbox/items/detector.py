@@ -136,13 +136,15 @@ class Detector(Base):
             if kwargs.get('verbose', False):
                 print("")
             # if packer detection succeeded, we can return packer's label
-            if label:
-                label = label.strip()
-            else:
+            if label == NOT_LABELLED:
+                self.logger.debug("detector failed")
+            elif label == NOT_PACKED:
                 self.logger.debug("did not detect anything")
-            # if binary classification, convert the result to 1|0 (Yes|No)
-            if not multiclass:
-                label = bin_label(label)
+            else:
+                label = label.strip()
+                # if binary classification, convert the result to 1|0 (Yes|No)
+                if not multiclass:
+                    label = bin_label(label)
             if dslen:
                 exe.len = dslen
             return exe, label, actual_label
