@@ -123,6 +123,7 @@ class Base(Item):
     def __expand(self, line):
         return line.replace("$TMP", "/tmp/%ss" % self.type) \
                    .replace("$OPT", expanduser("~/.opt/%ss" % self.type)) \
+                   .replace("$BIN", expanduser("~/.opt/bin")) \
                    .replace("$CWD", self.__cwd or "")
     
     @update_logger
@@ -432,7 +433,9 @@ class Base(Item):
             elif cmd == "ln":
                 r = ubin.joinpath(self.name if arg1 == arg2 else arg2)
                 r.remove(False)
-                run("ln -fs '%s' '%s'" % ((result or tmp).joinpath(arg1), r), **kw)
+                p = (result or tmp).joinpath(arg1)
+                run("chmod +x '%s'" % p, **kw)
+                run("ln -fs '%s' '%s'" % (p, r), **kw)
                 result = r
             # create a shell script to execute the given target from its source directory with its intepreter/launcher
             #  and make it executable
@@ -443,7 +446,7 @@ class Base(Item):
                 else:
                     arg1 = opt.joinpath(self.name) if arg == arg1 == arg2 else Path(arg1, expand=True)
                     arg2 = "WINEPREFIX=\"$HOME/.wine%s\" WINEARCH=win%s wine \"%s\" \"$@\"" % (arch, arch, arg2) \
-                           if cmd.startswith("lwine") else "./%s" % arg2
+                           if cmd.startswith("lwine") else "./%s" % Path(arg2).basename
                     arg = "#!/bin/bash\nPWD=\"`pwd`\"\nif [[ \"$1\" = /* ]]; then TARGET=\"$1\"; else " \
                           "TARGET=\"$PWD/$1\"; fi\ncd \"%s\"\nset -- \"$TARGET\" \"${@:2}\"\n%s" \
                           "\ncd \"$PWD\"" % (arg1, arg2)
@@ -512,15 +515,21 @@ class Base(Item):
             # decompress a RAR/TAR/ZIP archive to the given location (absolute or relative to /tmp/[ITEM]s)
             elif cmd in ["un7z", "unrar", "untar", "unzip"]:
                 ext = "." + (cmd[-2:] if cmd == "un7z" else cmd[-3:])
-                # for tar, do not use the extension as a check (may be .tar.bz2, .tar.gz, .tar.xz, ...)
+                # for TAR, fix the extension (may be .tar.bz2, .tar.gz, .tar.xz, ...)
                 if ext == ".tar" and isinstance(result, Path):
+                    # it requires 'result' to be a Path ; this works i.e. after having downloaded the archive with Wget
                     ext = result.extension
+                    # when the archive comes from /tmp
                 if result is None:
                     result = tmp.joinpath("%s%s" % (self.name, ext))
-                # rectify ext and result if .tar.xz
-                result2 = result.dirname.joinpath("%s.tar.xz" % self.name)
-                if cmd[-3:] == "tar" and (not result.exists() or result.extension == ".tar.xz") and result2.exists():
-                    ext, result = ".tar.xz", result2
+                # when the archive is obtained from /tmp, 'result' was still None and was thus just set ; we still need
+                #  to fix the extension
+                if ext == ".tar":
+                    for e in ["br", "bz2", "bz2", "gz", "xz", "Z"]:
+                        if result.dirname.joinpath("%s.tar.%s" % (self.name, e)).exists():
+                            ext = ".tar." + e
+                            result = result.dirname.joinpath("%s%s" % (self.name, ext))
+                            break
                 if result.extension == ext:
                     # decompress to the target folder but also to a temp folder if needed (for debugging purpose)
                     paths, first = [tmp.joinpath(arg1)], True
@@ -588,9 +597,6 @@ class Base(Item):
                                 t = tmp.joinpath(self.name)
                                 run("mv -f '%s' '%s'" % (dest, t), **kw)
                                 dest = t
-                            else:
-                                run("rm -rf '%s'" % result, **kw)
-                        run("mv -f '%s' '%s'" % (dest, result), **kw)
                 else:
                     raise ValueError("%s is not a %s file" % (result, ext.lstrip(".").upper()))
             # download a resource, possibly downloading 2-stage generated download links (in this case, the list is

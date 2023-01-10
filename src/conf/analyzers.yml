@@ -9,6 +9,25 @@ Exeinfo_PE:
   source: https://exeinfo-pe.fr.uptodown.com/windows
   status: info
 
+F-Prot:
+  comment: CYREN, which bought F-Prot, has discontinued the product ; signatures update stopped on 31 July 2021.
+  description: F-PROT Antivirus products are easy to use, reliable and demand little of the user's system resources. With their combined speed and reliable detection methods, F-PROT Antivirus products are the ideal computer security solution for home users.
+  formats:
+    - All
+  install:
+    - untar: $OPT
+    - cd: $OPT/f-prot/
+    - exec:
+        - sudo ./install-f-prot.pl
+        - sudo mv /usr/local/bin/fpscan $BIN/f-prot
+        - sudo chown user:user $BIN/f-prot
+  maintained: false
+  references:
+    - https://web.archive.org/web/20200711092511/http://www.f-prot.com/products/home_use/linux
+    - https://sebsauvage.net/wiki/doku.php?id=fprot-linux
+  source: https://web.archive.org/web/20190308154044/http://files.f-prot.com/files/unix-trial/fp-Linux.x86.64-ws.tar.gz
+  status: ok
+
 GetTyp:
   author: PHaX
   description: GetTyp is a file format detection program for DOS. It detects several formats without looking at the filename. It searches the code for special strings and byte code to identify the fileformat.
