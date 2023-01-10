@@ -2,6 +2,17 @@ defaults:
   maintained: true
 
 
+ClamScan:
+  description: ClamAV® is an open-source antivirus engine for detecting trojans, viruses, malware & other malicious threats.
+  formats:
+    - ELF
+    - PE
+  install:
+    - apt: clamav
+    - exec: sudo freshclam
+  source: https://www.clamav.net
+  status: ok
+
 Exeinfo_PE:
   description: Exeinfo PE is a program that lets you verify .exe files and check out all their properties. You can also change the file name, directly open the .exe, or simply delete it. Another piece of info provided is the exact size and the point of entry. In short, you can access dozens of different options to edit any Windows executable file.
   formats:
