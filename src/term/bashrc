@@ -267,11 +267,5 @@ if [ $EUID -ne 0 ]; then
 fi
 
 # initialize Wine (if not done yet, .wine or .wine32 or .wine64 won't exist)
-ls ~/.wine32 >/dev/null
-if [ $? -ne 0 ]; then
-  (WINEPREFIX="$HOME/.wine32" WINEARCH=win32 wineboot &) >/dev/null 2>&1
-fi
-ls ~/.wine64 >/dev/null
-if [ $? -ne 0 ]; then
-  (WINEPREFIX="$HOME/.wine64" WINEARCH=win64 wineboot &) >/dev/null 2>&1
-fi
+(ls ~/.wine32 >/dev/null || WINEPREFIX="$HOME/.wine32" WINEARCH=win32 wineboot &) >/dev/null 2>&1
+(ls ~/.wine64 >/dev/null || WINEPREFIX="$HOME/.wine64" WINEARCH=win64 wineboot &) >/dev/null 2>&1

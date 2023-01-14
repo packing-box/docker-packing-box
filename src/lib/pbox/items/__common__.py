@@ -336,12 +336,13 @@ class Base(Item):
         self.logger.info("Setting up %s..." % self.cname)
         opt, tmp = Path("~/.opt/%ss" % self.type, expand=True), Path("/tmp/%ss" % self.type)
         obin, ubin = Path("~/.opt/bin", create=True, expand=True), Path("~/.local/bin", create=True, expand=True)
-        result, rm, wget, kw = None, True, False, {'logger': self.logger, 'silent': getattr(self, "silent", [])}
+        result, rm, wget = None, True, False
         self.__cwd = os.getcwd()
         for cmd in self.install:
             if isinstance(result, Path) and not result.exists():
                 self.logger.critical("Last command's result does not exist (%s) ; current: %s" % (result, cmd))
                 return
+            kw = {'logger': self.logger, 'silent': getattr(self, "silent", [])}
             name = cmd.pop('name', "")
             if name != "":
                 self.logger.info("> " + name)
@@ -356,8 +357,7 @@ class Base(Item):
                 arg1, arg2 = arg, arg
             # simple install through APT
             if cmd == "apt":
-                kw['silent'] += ["apt does not have a stable CLI interface"]
-                run("apt -qy install %s" % arg, **kw)
+                run("sudo apt-get -qqy install %s" % arg, **kw)
             # change to the given dir (starting from the reference /tmp/[ITEM]s directory if no command was run before)
             elif cmd == "cd":
                 result = (result or tmp).joinpath(arg)
@@ -535,6 +535,7 @@ class Base(Item):
                     paths, first = [tmp.joinpath(arg1)], True
                     if kw.get('verbose', False):
                         paths.append(ts.TempPath(prefix="%s-setup-" % self.type, length=8))
+                    # handle password with the second argument
                     pswd = ""
                     if arg2 != arg1:
                         pswd = " -p'%s'" % arg2 if ext == ".7z" else \
@@ -597,6 +598,9 @@ class Base(Item):
                                 t = tmp.joinpath(self.name)
                                 run("mv -f '%s' '%s'" % (dest, t), **kw)
                                 dest = t
+                            else:
+                                run("rm -rf '%s'" % result, **kw)
+                        run("mv -f '%s' '%s'" % (dest, result), **kw)
                 else:
                     raise ValueError("%s is not a %s file" % (result, ext.lstrip(".").upper()))
             # download a resource, possibly downloading 2-stage generated download links (in this case, the list is
