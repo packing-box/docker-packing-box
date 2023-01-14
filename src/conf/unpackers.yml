@@ -5,8 +5,8 @@ GZEXE:
 RetDec-Unpacker:
   base:   detector[RetDec]
   install:
-    - wget:  https://github.com/avast/retdec:latest{ubuntu}
-    - untar: $OPT
+    - wget:  https://github.com/avast/retdec:latest{Linux}
+    - untar: $OPT/retdec
     - ln:    bin/retdec-unpacker
   packers:
     - MPRESS

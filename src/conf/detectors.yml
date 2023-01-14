@@ -178,7 +178,7 @@ PyPackerDetect:
     - PE
   install:
     - pip: pypackerdetect
-  source: https://github.com/packing-box/PyPackerDetect
+  source: https://github.com/packing-box/pypackerdetect
   status: ok
   vote:   true
   weak:   true
@@ -194,7 +194,7 @@ PyPeid:
     - gitr: https://github.com/FFRI/pypeid.git
     - cd:   $TMP/pypeid
     - exec:
-      - poetry build
+      - poetry build -q
       - find dist -iname *.whl -exec pip3 -qq install --user --no-warn-script-location --ignore-installed {} \;
   license: apache-2.0
   maintained: false
@@ -219,7 +219,7 @@ REMINDer:
   multiclass: false
   references:
     - https://ieeexplore.ieee.org/document/5404211
-  source: https://github.com/packing-box/REMINDer
+  source: https://github.com/packing-box/reminder
   status: ok
 
 RetDec:

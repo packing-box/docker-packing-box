@@ -1017,7 +1017,7 @@ UPX:
     - PE64
   install:
     - wget: https://github.com/upx/upx:latest{amd64_linux}
-    - untar: $OPT
+    - untar: $TMP
     - ln: upx
   references:
     - https://linux.die.net/man/1/upx
