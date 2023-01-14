@@ -67,9 +67,9 @@ RUN (dpkg --add-architecture i386 \
  && wget -NP /etc/apt/sources.list.d/ https://dl.winehq.org/wine-builds/ubuntu/dists/jammy/winehq-jammy.sources \
  && apt-get -qq update \
  && apt-get -qq -y install --install-recommends winehq-stable wine32 winetricks \
- && WINEPREFIX="$HOME/.wine32" WINEARCH=win32 wineboot \
- &  wget https://dl.winehq.org/wine/wine-gecko/2.47.3/wine-gecko-2.47.3-x86.msi \
- && WINEPREFIX="$HOME/.wine32" WINEARCH=win32 wine msiexec /i wine-gecko-2.47.3-x86.msi) >/dev/null 2>&1 \
+ && mkdir /opt/wine-stable/share/wine/gecko \
+ && wget -O /opt/wine-stable/share/wine/gecko/wine-gecko-2.47.1-x86.msi https://dl.winehq.org/wine/wine-gecko/2.47.1/wine-gecko-2.47.1-x86.msi \
+ && wget -O /opt/wine-stable/share/wine/gecko/wine-gecko-2.47.1-x86_64.msi https://dl.winehq.org/wine/wine-gecko/2.47.1/wine-gecko-2.47.1-x86_64.msi) >/dev/null 2>&1 \
  || echo -e "\033[1;31m WINE INSTALL FAILED \033[0m"
 # install mono (for running .NET apps on Linux)
 RUN (add-apt-key --keyserver keyserver.ubuntu.com 3FA7E0328081BFF6A14DA29AA6A19B38D3D831EF \
@@ -114,6 +114,12 @@ RUN (wget -qO /tmp/dotnet-install.sh https://dot.net/v1/dotnet-install.sh \
  && mkdir -p $UBIN \
  && ln -s $HOME/.dotnet/dotnet $UBIN/dotnet) >/dev/null 2>&1 \
  || echo -e "\033[1;31m DOTNET INSTALL FAILED \033[0m"
+# install/update Python packages (install dl8.5 with root separately to avoid wheel's build failure)
+RUN pip3 -qq install --user --no-warn-script-location --ignore-installed meson poetry scikit-learn tinyscript tldr \
+ && pip3 -qq install --user --no-warn-script-location angr capa capstone dl8.5 pandas pefile pyelftools thefuck weka \
+ || echo -e "\033[1;31m PIP PACKAGES UPDATE FAILED \033[0m"
+# initialize Go
+RUN (go mod init pbox &) >/dev/null 2>&1
 # +--------------------------------------------------------------------------------------------------------------------+
 # |                                     CUSTOMIZE THE BOX (refine the terminal)                                        |
 # +--------------------------------------------------------------------------------------------------------------------+
@@ -132,10 +138,6 @@ USER $USER
 COPY --chown=$USER:$USER src/term /tmp/term
 RUN for f in `ls /tmp/term/`; do cp "/tmp/term/$f" "/home/$USER/.${f##*/}"; done \
  && rm -rf /tmp/term
-# install/update Python packages (install dl8.5 with root separately to avoid wheel's build failure)
-RUN pip3 -qq install --user --no-warn-script-location --ignore-installed meson poetry scikit-learn tinyscript tldr \
- && pip3 -qq install --user --no-warn-script-location angr capa capstone dl8.5 pandas pefile pyelftools thefuck weka \
- || echo -e "\033[1;31m PIP PACKAGES UPDATE FAILED \033[0m"
 # +--------------------------------------------------------------------------------------------------------------------+
 # |                                              ADD FRAMEWORK ITEMS                                                   |
 # +--------------------------------------------------------------------------------------------------------------------+
@@ -147,9 +149,6 @@ ARG FILES
 ARG PBOX
 USER $USER
 ENV TERM xterm-256color
-RUN (go mod init pbox \
- & WINEPREFIX="$HOME/.wine32" WINEARCH=win32 wineboot \
- & WINEPREFIX="$HOME/.wine64" WINEARCH=win64 wineboot) >/dev/null 2>&1
 # set the base files and folders for further setup (explicitly create ~/.cache/pip to avoid it not being owned by user)
 COPY --chown=$USER:$USER src/conf/*.yml $UOPT/
 RUN sudo mkdir -p /mnt/share \
@@ -159,7 +158,6 @@ RUN sudo mkdir -p /mnt/share \
 # copy pre-built utils and tools
 # note: libgtk is required for bytehist, even though it can be used in no-GUI mode
 COPY --chown=$USER:$USER $FILES/utils/* $UOPT/utils/
-RUN sudo $UOPT/utils/tridupdate
 COPY --chown=$USER:$USER $FILES/tools/* $UOPT/tools/
 RUN mv $UOPT/tools/help $UOPT/tools/?
 # copy and install pbox (main library for tools) and pboxtools (lightweight library for items)
