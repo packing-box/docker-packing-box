@@ -1,5 +1,4 @@
-defaults:
-  parser: lief_parser
+default:
 
 replace_one_section_name_with_random_bytes:
   result: 
@@ -9,9 +8,9 @@ replace_text_with_null_bytes:
   result:
     PE: section_name(".text", "\0"*8)
 
-add_empty_text_section:
+add_low_entropy_text_section:
   result:
-    PE: add_section(randstr())
+    PE: add_section(".text", section_type=SECTION_TYPES["TEXT"], data=b"\x00"*(1<<20))
 
 add_data_section:
   result:

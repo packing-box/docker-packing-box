@@ -12,7 +12,9 @@ from .pe import *
 from .pe import __all__ as __pe__
 from ...common.config import config
 from ...common.utils import dict2, expand_formats, FORMATS
-from ...common.parsers import *
+from .parsers import *
+from .parsers import __all__ as __parsers__
+
 
 __all__ = ["Modifiers"]
 
@@ -56,8 +58,11 @@ class Modifiers(list):
             for name, modifier in Modifiers.registry[exe.format].items():
                 if not modifier.apply:
                     continue
-                if modifier.parser is not None:
-                    modifier = globals()[modifier.parser](modifier)
+                #if modifier.parser is not None:
+                #    if modifier.parser in __parsers__:
+                #        modifier = globals()[modifier.parser](modifier)
+                #    else:
+                #        raise ValueError("Parser {modifier.parser} could not be found")
                 d = {}
                 d.update(__common__)
                 md = __elf__ if exe.format in expand_formats("ELF") else \
