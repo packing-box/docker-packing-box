@@ -240,10 +240,17 @@ def move_entrypoint_to_slack_space(section_input,
 
     
 def add_API_to_IAT(API, lib_name):
+    """Modifier that adds a function to the IAT. 
+        If no function from this library is imported in the binary yet, the
+        library is added to the binary.
 
+    Args:
+        API (str): Function name to add to the IAT
+        lib_name (str): Name of the library that contains the function 
+    """
     def _add_API_to_IAT(parsed):
         for library in parsed.imports:
-            if library.name.lower() == lib_name:
+            if library.name.lower() == lib_name.lower():
                 library.add_entry(API)
                 return
         library = add_lib_to_IAT(lib_name)(parsed=parsed)
@@ -253,8 +260,13 @@ def add_API_to_IAT(API, lib_name):
 
              
 def add_lib_to_IAT(lib_name):
+    """Modifier that adds a library to the IAT
+
+    Args:
+        lib_name (str): Name of the library to add to the IAT
+    """
     
     def _add_lib_to_IAT(parsed):
-        parsed.add_library(lib_name)
+        return parsed.add_library(lib_name)
     
     return _add_lib_to_IAT
