@@ -1,4 +1,5 @@
 default:
+  parser: lief_parser
 
 replace_one_section_name_with_random_bytes:
   result: 

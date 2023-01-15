@@ -58,11 +58,11 @@ class Modifiers(list):
             for name, modifier in Modifiers.registry[exe.format].items():
                 if not modifier.apply:
                     continue
-                #if modifier.parser is not None:
-                #    if modifier.parser in __parsers__:
-                #        modifier = globals()[modifier.parser](modifier)
-                #    else:
-                #        raise ValueError("Parser {modifier.parser} could not be found")
+                if modifier.parser is not None:
+                    if modifier.parser in __parsers__:
+                        modifier = globals()[modifier.parser](modifier)
+                    else:
+                        raise ValueError("Parser {modifier.parser} could not be found")
                 d = {}
                 d.update(__common__)
                 md = __elf__ if exe.format in expand_formats("ELF") else \
