@@ -1,5 +1,4 @@
-defaults:
-  parser: !!python/name:lief.parse
+default:
 
 replace_one_section_name_with_random_bytes:
   apply:  false
@@ -8,3 +7,14 @@ replace_one_section_name_with_random_bytes:
 replace_text_with_null_bytes:
   result: section_name(".text", "\0"*8)
 
+add_low_entropy_text_section:
+  result:
+    PE: add_section(".text", section_type=SECTION_TYPES["TEXT"], data=b"\x00"*(1<<20))
+
+add_data_section:
+  result:
+    PE: add_section(randstr(), section_type=SECTION_TYPES["DATA"])
+
+add_random_text_section:
+  result:
+    PE: add_section(randstr(), data=randbytes(10))
