@@ -11,9 +11,9 @@ The `Executable` class allows to abstract an executable. It inherits from the `t
 This class can be used in four different ways:
 
 1. As a classical `Path` instance
-2. As a classical `Path` instance with a [`Dataset`](datasets.html) instance bound
-3. With no positional arguments for describing a path but a [`Dataset`](datasets.html) instance and a *hash* as keyword-arguments ; this will bind the `Executable` instance to the dataset and make the path point to the executable with the given *hash* from within the dataset
-4. From an `Executable` instance as positional argument with a [`Dataset`](datasets.html) instance as keyword-argument ; in this case, the new `Executable` will have the properties of the input one and the file will be copied to the bound dataset
+2. As a classical `Path` instance with a [`Dataset`](datasets.md) instance bound
+3. With no positional arguments for describing a path but a [`Dataset`](datasets.md) instance and a *hash* as keyword-arguments ; this will bind the `Executable` instance to the dataset and make the path point to the executable with the given *hash* from within the dataset
+4. From an `Executable` instance as positional argument with a [`Dataset`](datasets.md) instance as keyword-argument ; in this case, the new `Executable` will have the properties of the input one and the file will be copied to the bound dataset
 
 ## Supported Formats
 
@@ -61,21 +61,21 @@ This abstraction facilitates the retrieval of important attributes and the integ
 
 **Attributes**:
 
-- `_dataset`: parent [`Dataset`](datasets.html) instance (if any)
+- `_dataset`: parent [`Dataset`](datasets.md) instance (if any)
 - `label`: packer label (if any)
 
 **Properties**:
 
 - `ctime` \*: creation time as a [`datetime`](https://docs.python.org/3/library/datetime.html#datetime.datetime) instance
 - `data` \*: set of features computed based on the `format`
-- `destination` \*: destination path for integrating the executable into a dataset (only works if a [`Dataset`](datasets.html) instance is bound)
+- `destination` \*: destination path for integrating the executable into a dataset (only works if a [`Dataset`](datasets.md) instance is bound)
 - `features`: dictionary of features (key: feature name, value: feature description)
 - `filetype` \*: file type description (based on [`python-magic`](https://github.com/ahupp/python-magic))
 - `format` \*: executable format (e.g. *PE*, *ELF32*, *.NET*)
 - `hash` \*: file hash (based on [`hashlib`](https://docs.python.org/3/library/hashlib.html))
 - `metadata`: dictionary with properties (see hereafter) `realpath`, `format`, `size`, `ctime` and `mtime`
 - `mtime` \*: last modification time as a [`datetime`](https://docs.python.org/3/library/datetime.html#datetime.datetime) instance
-- `realpath` \*: real path the executable comes from (only works if a [`Dataset`](datasets.html) instance is bound)
+- `realpath` \*: real path the executable comes from (only works if a [`Dataset`](datasets.md) instance is bound)
 - `size`: size of the executable as an integer
 
     \* [`cached_property`](https://docs.python.org/3/library/functools.html#functools.cached_property)

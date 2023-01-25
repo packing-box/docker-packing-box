@@ -1,6 +1,6 @@
 # Packers
 
-The `Packer` class allows to abstract packers, based on the [`Base` class](items.html#base-class) and adding a special packing method called `pack`.
+The `Packer` class allows to abstract packers, based on the [`Base` class](items.md#base-class) and adding a special packing method called `pack`.
 
 ```session
 >>> from pbox import Packer

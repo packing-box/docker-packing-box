@@ -8,7 +8,7 @@ The box can be built with the following command (note that it takes a while as i
 $ docker build -t packing-box .
 ```
 
-When running the [Docker image](index.html#run) ;
+When running the [Docker image](index.md#run) ;
 
 ```console
 $ docker run -it -h packing-box -v `pwd`:/mnt/share packing-box

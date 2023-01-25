@@ -7,7 +7,7 @@
 A [dedicated tool](https://github.com/dhondta/docker-packing-box/blob/main/files/tools/detector) called `detector` is provided with the [*Packing Box*](https://github.com/dhondta/docker-packing-box) to detect packers. Its help message tells everything the user needs to get started.
 
 ```session
-# detector --help
+$ detector --help
 [...]
 This tool aims to detect the packer used on an input executable, folder of executables or Dataset.
 [...]
@@ -47,10 +47,10 @@ This tool can be used directly on a dataset or a folder. In this case, every sam
 
 ```
 
-It can also be used on a single file without specifying a detector. In this case, every detector will be run on the target executable and the final decision is simple majority vote. In the following example, we use one level of verbosity ("`-v`") to see the results of each detector. Note that "`-vv`" would also display the output of each detector.
+It can also be used on a single file without specifying a detector. In this case, every detector that is **allowed to vote** will be run on the target executable and the final decision is a simple majority vote. In the following example, we use one level of verbosity ("`-v`") to see the results of each detector. Note that "`-vv`" would also display the output of each detector.
 
 ```session
-# detector upx_calc.exe -v
+$ detector upx_calc.exe -v
 12:34:56 [WARNING] Decisions:
 die           : upx
 manalyze      : upx

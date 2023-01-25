@@ -1,6 +1,6 @@
 # Detectors
 
-The `Detector` class allows to abstract detection tools, based on the [`Base` class](items.html#base-class) and adding a special detection method called `detect`.
+The `Detector` class allows to abstract detection tools, based on the [`Base` class](items.md#base-class) and adding a special detection method called `detect`.
 
 ```session
 >>> from pbox import Detector
@@ -18,8 +18,8 @@ This [class](https://github.com/dhondta/docker-packing-box/blob/main/files/lib/p
 **Special methods**:
 
 - `check(formats)`: for checking if the detector applies for the input executable formats
-- `detect(executable_or_folder_or_dataset)`: for detecting the packer used on an input executable, folder of executables or [`Dataset`](datasets.html) structure
-- `test(executable_or_folder_or_dataset)`: for testing the detector(s) on an input executable, folder of executables or [`Dataset`](datasets.html) structure
+- `detect(executable_or_folder_or_dataset)`: for detecting the packer used on an input executable, folder of executables or [`Dataset`](datasets.md) structure
+- `test(executable_or_folder_or_dataset)`: for testing the detector(s) on an input executable, folder of executables or [`Dataset`](datasets.md) structure
 
 !!! note "Using as a class or an instance"
     

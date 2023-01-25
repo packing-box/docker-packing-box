@@ -1,6 +1,6 @@
 # Unpackers
 
-The `Unpacker` class allows to abstract unpackers, based on the [`Base` class](items.html#base-class) and adding a special unpacking method called `unack`.
+The `Unpacker` class allows to abstract unpackers, based on the [`Base` class](items.md#base-class) and adding a special unpacking method called `unack`.
 
 ```session
 >>> from pbox import Unpacker

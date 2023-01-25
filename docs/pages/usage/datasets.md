@@ -30,26 +30,30 @@ Fileless datasets can be used when we are sure of the features set to be compute
 A [dedicated tool](https://github.com/dhondta/docker-packing-box/blob/main/files/tools/dataset) called `dataset` is provided with the [*Packing Box*](https://github.com/dhondta/docker-packing-box) to manipulate datasets. Its help message tells everything the user needs to get started.
 
 ```session
-# dataset --help
+$ dataset --help
 [...]
-This tool aims to manipulate a dataset in multiple ways by:
-- adding new executables from the packing-box Docker image or from a user-defined source, packed or not with the
-   selected packers installed in the image.
-- updating it with already-packed or not-packed executables given their labels or not (detection can be applied).
-- fixing its content.
+This tool aims to manipulate a dataset in many ways including its creation, enlargement, update, alteration, selection,
+ merging, export or purge.
 [...]
+    alter               alter the target dataset with a set of transformations
     convert             convert the target dataset to a fileless one
+    edit                edit the data file
+    export              export packed samples from a dataset or export the dataset to a given format
+    features            compute and view features
     fix                 fix a corrupted dataset
-    list                list all the datasets in the given folder
+    ingest              ingest samples from a folder into new dataset(s)
+    list                list all the datasets from the workspace
     make                add n randomly chosen executables from input sources to the dataset
     merge               merge two datasets
-    select              select a subset of the dataset
-    update              update a dataset with new executables
+    plot                plot the distribution of a given feature or multiple features combined
     purge               purge a dataset
     remove              remove executables from a dataset
     rename              rename a dataset
     revert              revert a dataset to its previous state
+    select              select a subset of the dataset
     show                get an overview of the dataset
+    update              update a dataset with new executables
+    view                view executables filtered from a dataset
 [...]
 ```
 

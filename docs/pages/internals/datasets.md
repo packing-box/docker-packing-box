@@ -57,7 +57,7 @@ Entries can also be cleaned as with a `dict` instance.
 
 **Attributes**:
 
-- `_data`: `pandas.DataFrame` instance holding the data collected from the sample's metadata (hash, creation and modification time, etc), its packing label and, if it is a fileless dataset (that is, for which the features were precomputed), a set of features applicable for the [executable formats](executables.html) selected (loaded from and saved to [`data.csv`](#structure))
+- `_data`: `pandas.DataFrame` instance holding the data collected from the sample's metadata (hash, creation and modification time, etc), its packing label and, if it is a fileless dataset (that is, for which the features were precomputed), a set of features applicable for the [executable formats](executables.md) selected (loaded from and saved to [`data.csv`](#structure))
 - `_features`: dictionary of included features, with short names as keys and their corresponding descriptions as values (loaded from and saved to [`features.json`](#structure))
 - `_metadata`: dictionary of metadata, e.g. holding the list of selected executable formats and counts of included samples (loaded from and saved to [`metadata.json`](#structure))
 - `formats`: list of applicable categories of executable formats
