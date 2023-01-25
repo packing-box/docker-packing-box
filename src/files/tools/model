@@ -87,6 +87,8 @@ if __name__ == '__main__':
                                help="strategy for imputing missing values")
     viz_dependent.add_argument("-n", "--pca-components", metavar="N", default=20, type=int,
                                help="PCA components for dimensionality reduction")
+    viz_dependent.add_argument("-p", "--perplexity", metavar="P", default=30, type=int,
+                               help="t-SNE perplexity for dimensionality reduction")
     initialize(noargs_action="help")
     logger.name = "model"
     logging.configLogger(logger, ["INFO", "DEBUG"][args.verbose], fmt=LOG_FORMATS[args.verbose], relative=True)
@@ -110,7 +112,7 @@ if __name__ == '__main__':
             name = Model(**vars(args))
         if args.command == "visualize":
             args.viz_params = {}
-            for a in ["imputer_strategy", "pca_components"]:
+            for a in ["imputer_strategy", "pca_components", "perplexity"]:
                 args.viz_params[a] = getattr(args, a)
                 delattr(args, a)
         getattr(name, args.command)(**vars(args))
