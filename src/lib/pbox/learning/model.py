@@ -614,7 +614,7 @@ class Model:
             return
         params = {'algo_name' : a['name'], 'algo_params': a['parameters'],
                   'feature_names': sorted(self._features.keys()), 'logger': self.logger}
-        params.update(kw.pop('viz_params', {}))
+        params['viz_params'] = kw.pop('viz_params', {})
         # if visualization requires the original data (e.g. kNN), use self._prepare to create self._data/self._target
         if VISUALIZATIONS.get(a['name']).get("data", False):
             kw['data_only'] = True
