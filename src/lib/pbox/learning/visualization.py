@@ -26,10 +26,9 @@ def _preprocess(f):
     @wraps(f)
     def _wrapper(*args, **kwargs):
         X = kwargs['data']
-        viz_kw = kwargs.get('viz_params', {})
-        n = viz_kw.get('pca_components', 20)
-        p = viz_kw.get('perplexity', 30)
-        X = SimpleImputer(missing_values=np.nan, strategy=viz_kw.get('imputer_strategy', "mean")).fit_transform(X)
+        n = kwargs.get('pca_components', 20)
+        p = kwargs.get('perplexity', 30)
+        X = SimpleImputer(missing_values=np.nan, strategy=kwargs.get('imputer_strategy', "mean")).fit_transform(X)
         # preprocess data with a PCA with n components to reduce the high dimensionality (better performance)
         pca = PCA(n, random_state=42)
         if 'target' in kwargs:
