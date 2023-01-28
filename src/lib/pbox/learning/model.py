@@ -607,7 +607,7 @@ class Model:
                     d.append([dset.capitalize()] + m)
                     h = ["."] + h
             print(mdv.main(Table(d, column_headers=h,
-                                 title="%s metrics" % metric.capitalize() if len(metrics) > 0 else None)).md()))
+                                 title="%s metrics" % metric.capitalize() if len(metrics) > 0 else None)).md())
         l.info("Parameters:\n- %s" % "\n- ".join("%s = %s" % p for p in params.items()))
         self._metadata['algorithm']['parameters'] = params
         self._save()

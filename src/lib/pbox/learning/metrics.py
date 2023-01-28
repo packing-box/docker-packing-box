@@ -160,7 +160,7 @@ def classification_metrics(X, y_pred, y_true=None, y_proba=None, labels=None, av
 
 
 @_convert_output
-def clustering_metrics(X, y_pred, y_true=None, X=None, **kw):
+def clustering_metrics(X=None, y_pred=None, y_true=None, **kw):
     """ Compute clustering-related metrics based on the input data and the true and predicted values. """
     # labels not known: no mapping to integers and filtering of not-labelled values as we only consider predicted ones
     if y_true is None:
