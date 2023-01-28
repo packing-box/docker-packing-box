@@ -131,7 +131,7 @@ class Model:
                 with p.open() as f:
                     setattr(self, "_" + n, json.load(f))
     
-    def _metrics(self, prediction, target=None, proba=None, metrics="classification", proctime=None):
+    def _metrics(self, data ,prediction, target=None, proba=None, metrics="classification", proctime=None):
         """ Metrics computation method. """
         l, mfunc = self.logger, "%s_metrics" % metrics
         if mfunc not in globals():
@@ -139,7 +139,7 @@ class Model:
             return
         m = globals()[mfunc]
         l.debug("Computing metrics...")
-        values, headers = m(prediction, y_true=target, y_proba=proba, proctime=proctime, logger=self.logger)
+        values, headers = m(data, prediction, y_true=target, y_proba=proba, proctime=proctime, logger=self.logger)
         return [f(v) for v, f in zip(values, headers.values())], list(headers.keys())
     
     def _prepare(self, dataset=None, preprocessor=None, multiclass=False, labels=None, feature=None, data_only=False,
@@ -292,7 +292,7 @@ class Model:
         self._train, self._test = Dummy(), Dummy()
         ds.logger.debug("> split data and target vectors to train and test subsets")
         if self.algorithm.labelling == "none":
-            self._train.data, self._train.target = self._data.to_numpy(), self._target.to_numpy()
+            self._train.data, self._train.target = self._data, self._target
             self._test.data, self._test.target = np.array([]), np.array([])
         else:  # use a default split of 80% training and 20% testing
             tsize = kw.get('split_size', .2)
@@ -475,21 +475,25 @@ class Model:
             proba = proba[:, 1]
         except AttributeError:
             proba = None
-        try:
-            m, h = self._metrics(prediction, self._target, proba, proctime=dt)
-        except TypeError:
-            return
-        for header in [[], ["Model"]][self.__class__ is DumpedModel] + ["Dataset"] + h:
-            if header not in self._performance.columns:
-                self._performance[header] = np.nan
-        r = Section("Test results for: " + ds), Table([m], column_headers=h)
-        print(mdv.main(Report(*r).md()))
+        metrics = cls.metrics if isinstance(cls.metrics, (list, tuple)) else [cls.metrics]
+        print(mdv.main(Report(Section("Test results for: " + ds)).md()))
+        for metric in metrics:
+            try:
+                m, h = self._metrics(self._data, prediction, self._target, proba, metric, dt)
+            except TypeError:
+                return
+            for header in [[], ["Model"]][self.__class__ is DumpedModel] + ["Dataset"] + h:
+                if header not in self._performance.columns:
+                    self._performance[header] = np.nan
+            print(mdv.main(Report(Table([m], column_headers=h,
+                                        title="%s metrics" % metric.capitalize() if len(metrics) > 0 else None)).md()))
+            if len(self._data) > 0:
+                row = {'Model': self.name} if self.__class__ is DumpedModel else {}
+                row['Dataset'] = str(ds) + ["", "(unlabelled)"][unlab]
+                for k, v in zip(h, m):
+                    row[k] = v
+                self._performance = self._performance.append(row, ignore_index=True)
         if len(self._data) > 0:
-            row = {'Model': self.name} if self.__class__ is DumpedModel else {}
-            row['Dataset'] = str(ds) + ["", "(unlabelled)"][unlab]
-            for k, v in zip(h, m):
-                row[k] = v
-            self._performance = self._performance.append(row, ignore_index=True)
             self._save()
     
     def train(self, algorithm=None, cv=5, n_jobs=N_JOBS, param=None, reset=False, **kw):
@@ -586,22 +590,24 @@ class Model:
         # now fit the (best) classifier and predict labels
         l.debug("> fitting the classifier...")
         self.pipeline.fit(self._train.data, self._train.target.values.ravel())
-        if cls.labelling != "none":
-            l.debug("> making predictions...")
+        l.debug("> making predictions...")
+        self._train.predict = self.pipeline.predict(self._train.data)
+        self._train.predict_proba = self.pipeline.predict_proba(self._train.data)[:, 1]
+        if len(self._test.data) > 0:
+            self._test.predict = self.pipeline.predict(self._test.data)
+            self._test.predict_proba = self.pipeline.predict_proba(self._test.data)[:, 1]
+        metrics = cls.metrics if isinstance(cls.metrics, (list, tuple)) else [cls.metrics]
+        print(mdv.main(Report(Title("Name: %s" % self.name)).md()))
+        for metric in metrics:
             d = []
-            try:
-                m1, h = self._metrics(self._train.target,
-                                      self.pipeline.predict(self._train.data),
-                                      self.pipeline.predict_proba(self._train.data)[:, 1])
-            except TypeError:  # occurs if bad metrics are selected ; in this case, simply stop
-                return
-            d.append(["Train"] + m1)
-            m2, _ = self._metrics(self._test.target,
-                                  self.pipeline.predict(self._test.data),
-                                  self.pipeline.predict_proba(self._test.data)[:, 1])
-            d.append(["Test"] + m2)
-            h = ["."] + h
-            print(mdv.main(Report(Title("Name: %s" % self.name), Table(d, column_headers=h)).md()))
+            for dset in ["train", "test"]:
+                s = getattr(self, "_" + dset)
+                if len(s) > 0:
+                    m, h = self._metrics(s.data, s.target, s.predict, s.predict_proba, metric)
+                    d.append([dset.capitalize()] + m)
+                    h = ["."] + h
+            print(mdv.main(Table(d, column_headers=h,
+                                 title="%s metrics" % metric.capitalize() if len(metrics) > 0 else None)).md()))
         l.info("Parameters:\n- %s" % "\n- ".join("%s = %s" % p for p in params.items()))
         self._metadata['algorithm']['parameters'] = params
         self._save()

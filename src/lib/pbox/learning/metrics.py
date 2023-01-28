@@ -2,7 +2,7 @@
 import numpy as np
 import sklearn
 from sklearn.metrics import *
-from tinyscript import code, functools
+from tinyscript import code, functools, re
 
 from ..common.config import *
 
@@ -27,11 +27,11 @@ METRIC_DISPLAY = {
         'AUC':       "%",
     },
     'clustering': {
-        # supervised
+        # labels known
         'Randomness Score': "nbr",
         'Adjusted Mutual Information Score': "nbr",
         'Homogeneity Completeness V-Measure': "nbr",
-        # unsupervised
+        # labels not known
         'Silhouette Score': "nbr",
         'Calinski Harabasz Score': "nbr",
         'Davies Bouldin Score': "nbr",
@@ -132,13 +132,17 @@ def metric_headers(metrics, **kw):
         raise ValueError("Bad metrics category ; should be one of: %s" % "|".join(METRIC_CATEGORIES))
     for name, func in selection.items():
         selection[name] = METRIC_DISPLAY.get(func, func)
+    patterns = kw.get('include')
+    if patterns:
+        selection = {n: m for n, m in selection.items() if any(re.match(p, n) for p in patterns)}
     if kw.get('proctime', False):
         selection['Processing Time'] = METRIC_DISPLAY['ms']
     return selection
 
 
 @_convert_output
-def classification_metrics(y_pred, y_true=None, y_proba=None, labels=None, average="micro", sample_weight=None, **kw):
+def classification_metrics(X, y_pred, y_true=None, y_proba=None, labels=None, average="micro", sample_weight=None,
+                           **kw):
     """ Compute some classification metrics based on the true and predicted values. """
     # get the true and predicted values without the not-labelled ones and as integers
     yt, yp, ypr, d = _map_values_to_integers(y_true, y_pred, y_proba, **kw)
@@ -156,18 +160,22 @@ def classification_metrics(y_pred, y_true=None, y_proba=None, labels=None, avera
 
 
 @_convert_output
-def clustering_metrics(y_pred, y_true=None, X=None, **kw):
+def clustering_metrics(X, y_pred, y_true=None, X=None, **kw):
     """ Compute clustering-related metrics based on the input data and the true and predicted values. """
-    # supervised: get the true and predicted values without the not-labelled ones and as integers
+    # labels not known: no mapping to integers and filtering of not-labelled values as we only consider predicted ones
+    if y_true is None:
+        return [silhouette_score(X, y_pred, metric="euclidean"), calinski_harabasz_score(X, y_pred), \
+                davies_bouldin_score(X, y_pred)], metric_headers("clustering",
+                                                                 include=["Silhouette", "Calinski", "Davies"], **kw)
+    # labels known: get the true and predicted values without the not-labelled ones and as integers
     yt, yp, _ = _map_values_to_integers(y_true, y_pred, **kw)
-    # unsupervised: no mapping to integers and filtering of not-labelled values as we only consider predicted ones
     return [rand_score(yt, yp), adjusted_mutual_info_score(yt, yp), homogeneity_completeness_v_measure(yt, yp), \
             silhouette_score(X, y_pred, metric="euclidean"), calinski_harabasz_score(X, y_pred), \
             davies_bouldin_score(X, y_pred)], metric_headers("clustering", **kw)
 
 
 @_convert_output
-def regression_metrics(y_pred, y_true=None, **kw):
+def regression_metrics(X, y_pred, y_true=None, **kw):
     """ Compute regression metrics (MSE, MAE) based on the true and predicted values. """
     # get the true and predicted values without the not-labelled ones and as integers
     yt, yp, _ = _map_values_to_integers(y_true, y_pred, **kw)

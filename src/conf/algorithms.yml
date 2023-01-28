@@ -191,7 +191,9 @@ Supervised:
 
 Unsupervised:
   defaults:
-    metrics: clustering
+    metrics:
+      - classification
+      - clustering
   AC:
     base:        !!python/name:sklearn.cluster.AgglomerativeClustering
     description: Agglomerative Clustering
