@@ -592,10 +592,16 @@ class Model:
         self.pipeline.fit(self._train.data, self._train.target.values.ravel())
         l.debug("> making predictions...")
         self._train.predict = self.pipeline.predict(self._train.data)
-        self._train.predict_proba = self.pipeline.predict_proba(self._train.data)[:, 1]
+        try:
+            self._train.predict_proba = self.pipeline.predict_proba(self._train.data)[:, 1]
+        except AttributeError:  # some algorithms do not support .predict_proba(...)
+            self._train.predict_proba = None
         if len(self._test.data) > 0:
             self._test.predict = self.pipeline.predict(self._test.data)
-            self._test.predict_proba = self.pipeline.predict_proba(self._test.data)[:, 1]
+            try:
+                self._test.predict_proba = self.pipeline.predict_proba(self._test.data)[:, 1]
+            except AttributeError:  # some algorithms do not support .predict_proba(...)
+                self._test.predict_proba = None
         metrics = cls.metrics if isinstance(cls.metrics, (list, tuple)) else [cls.metrics]
         print(mdv.main(Report(Title("Name: %s" % self.name)).md()))
         for metric in metrics:
