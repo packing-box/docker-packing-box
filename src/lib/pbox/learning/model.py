@@ -481,7 +481,7 @@ class Model:
             try:
                 m, h = self._metrics(self._data, prediction, self._target, proba, metric, dt)
             except TypeError:
-                return
+                continue
             for header in [[], ["Model"]][self.__class__ is DumpedModel] + ["Dataset"] + h:
                 if header not in self._performance.columns:
                     self._performance[header] = np.nan
@@ -609,7 +609,10 @@ class Model:
             for dset in ["train", "test"]:
                 s = getattr(self, "_" + dset)
                 if len(s.data) > 0:
-                    m, h = self._metrics(s.data, s.target, s.predict, s.predict_proba, metric)
+                    try:
+                        m, h = self._metrics(s.data, s.target, s.predict, s.predict_proba, metric)
+                    except TypeError:  # when None is returned because of a bad metrics category
+                        continue
                     d.append([dset.capitalize()] + m)
                     h = ["."] + h
             print(mdv.main(Table(d, column_headers=h,

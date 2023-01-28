@@ -7,7 +7,8 @@ from tinyscript import code, functools, re
 from ..common.config import *
 
 
-__all__ = ["classification_metrics", "metric_headers", "regression_metrics", "METRIC_DISPLAY", "METRIC_DISPLAYS"]
+__all__ = ["classification_metrics", "clustering_metrics", "regression_metrics",
+           "metric_headers", "METRIC_DISPLAY", "METRIC_DISPLAYS"]
 
 
 # metric format function: p=precision, m=multiplier, s=symbol
