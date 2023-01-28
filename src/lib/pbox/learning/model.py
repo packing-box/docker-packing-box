@@ -608,7 +608,7 @@ class Model:
             d = []
             for dset in ["train", "test"]:
                 s = getattr(self, "_" + dset)
-                if len(s) > 0:
+                if len(s.data) > 0:
                     m, h = self._metrics(s.data, s.target, s.predict, s.predict_proba, metric)
                     d.append([dset.capitalize()] + m)
                     h = ["."] + h
