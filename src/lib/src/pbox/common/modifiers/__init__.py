@@ -1,7 +1,7 @@
 # -*- coding: UTF-8 -*-
 import yaml
 from tinyscript import logging, re
-
+import lief
 from .__common__ import *
 from .__common__ import __all__ as __common__
 from .elf import *
@@ -12,9 +12,6 @@ from .pe import *
 from .pe import __all__ as __pe__
 from ...common.config import config
 from ...common.utils import dict2, expand_formats, FORMATS
-from .parsers import *
-from .parsers import __all__ as __parsers__
-
 
 __all__ = ["Modifiers"]
 
@@ -63,32 +60,28 @@ class Modifiers(list):
                 else:
                     raise ValueError(msg)
         if exe is not None:
-            parsed, parser = None, None
+            parser = None
             for name, modifier in Modifiers.registry[exe.format].items():
                 if select is None and not modifier.apply or select is not None and name not in select:
                     continue
-                #if modifier.parser is not None:
-                #    if modifier.parser in __parsers__:
-                #        modifier = globals()[modifier.parser](modifier)
-                #    else:
-                #        raise ValueError("Parser {modifier.parser} could not be found")
+                
                 d = {}
+                d.update(sections=lief.parse(exe.destination).sections)
                 d.update(__common__)
                 md = __elf__ if exe.format in expand_formats("ELF") else \
                      __macho__ if exe.format in expand_formats("Mach-O") else\
                      __pe__ if exe.format in expand_formats("PE") else []
                 d.update({k: globals()[k] for k in md})
-                kw = {'executable': exe, 'parsed': parsed}
+                kw = {'executable': exe, 'parser': parser}
                 try:
-                    kw['sections'] = parsed.sections
-                except:
-                    pass
-                try:
-                    modifier(d, **kw)
+                    parser = modifier(d, **kw)
                     self.append(name)
                 except Exception as e:
                     self.logger.warning("%s: %s" % (name, str(e)))
-    
+            
+            if parser is not None:
+                parser.build()    
+
     @staticmethod
     def names(format="All"):
         Modifiers(None)  # force registry initialization
@@ -96,4 +89,6 @@ class Modifiers(list):
         for c in expand_formats(format):
             l.extend(list(Modifiers.registry[c].keys()))
         return sorted(list(set(l)))
+
+            
 
