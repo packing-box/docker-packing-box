@@ -2,6 +2,18 @@ defaults:
   maintained: true
 
 
+Capa:
+  author: Mandiant
+  description: FLARE team's open-source tool to identify capabilities in executable files
+  formats:
+    - All
+  install:
+    - wget: https://github.com/mandiant/capa:latest{linux}
+    - unzip: $OPT/capa
+    - ln: $OPT/capa/capa
+    - git: https://github.com/mandiant/capa-rules $OPT/capa/rules
+  source: https://github.com/mandiant/capa
+
 ClamScan:
   description: ClamAV® is an open-source antivirus engine for detecting trojans, viruses, malware & other malicious threats.
   formats:
