@@ -395,17 +395,18 @@ class Base(Item):
                     run(a, **kw)
             # git clone a project
             elif cmd in ["git", "gitr"]:
-                result = (result or tmp).joinpath(Path(ts.urlparse(arg).path).stem.lower())
+                result = (result or tmp).joinpath(Path(ts.urlparse(arg).path).stem.lower() if arg1 == arg2 else arg2)
                 result.remove(False)
-                run("git clone --quiet %s%s '%s'" % (["", "--recursive "][cmd == "gitr"], arg, result), **kw)
+                run("git clone --quiet %s%s '%s'" % (["", "--recursive "][cmd == "gitr"], arg1, result), **kw)
             # go build the target
             elif cmd == "go":
                 result = result if arg2 == arg else Path(arg2, expand=True)
                 cwd2 = os.getcwd()
                 os.chdir(str(result))
-                result.joinpath("go.mod").remove(False)
-                run("go mod init '%s'" % arg1, silent=["creating new go.mod", "add module requirements", "go mod tidy"])
-                run("go build -o %s ." % self.name)
+                #result.joinpath("go.mod").remove(False)
+                run("go mod init '%s'" % arg1,
+                    silent=["already exists", "creating new go.mod", "add module requirements", "go mod tidy"])
+                run("go build -o %s ." % self.name, silent=["downloading"])
                 os.chdir(cwd2)
             # create a shell script to execute the given target with its intepreter/launcher and make it executable
             elif cmd in ["java", "mono", "sh", "wine", "wine64"]:
@@ -664,8 +665,9 @@ class Base(Item):
         if self.__cwd != os.getcwd():
             self.logger.debug("cd %s" % self.__cwd)
             os.chdir(self.__cwd)
-        if rm:
-            run("rm -rf %s" % tmp.joinpath(self.name), **kw)
+        target = tmp.joinpath(self.name)
+        if rm and target.exists():
+            run("rm -rf %s" % target, **kw)
     
     @update_logger
     def test(self, files=None, keep=False, **kw):
