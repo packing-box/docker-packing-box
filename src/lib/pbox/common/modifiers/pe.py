@@ -2,7 +2,10 @@ import lief
 from .parsers import parser_handler
 
 
-__all__ = ["section_name", "add_section",
+__all__ = ["section_name", "add_section", "append_to_section", "move_entrypoint_to_new_section",
+           "move_entrypoint_to_slack_space", "add_API_to_IAT", "add_lib_to_IAT",
+           "sections_with_slack_space", "sections_with_slack_space_entry_jump",
+           "section_name_all", "loop", "grid",
            "SECTION_TYPES", "SECTION_CHARACTERISTICS"]
 
 SECTION_CHARACTERISTICS = lief.PE.SECTION_CHARACTERISTICS.__entries
@@ -45,7 +48,7 @@ def sections_with_slack_space_entry_jump(sections, pre_data_len=0):
 #############################    Modifiers   #################################
 ##############################################################################
 
-def section_name(old_section, new_name):
+def section_name(old_section, new_name, raise_error=True):
     """Modifier that renames one of the sections of a binary parsed by lief
 
     Raises:
@@ -55,11 +58,7 @@ def section_name(old_section, new_name):
         function: modifier function
     """
 
-    if isinstance(old_section, lief.PE.Section):
-        old_name = old_section.name
-    else:  # if not a Section, assume it is a string
-        old_name = old_section
-
+    old_name = parse_section_name(old_section)
     @parser_handler("lief_parser")
     def _section_name(parsed=None, **kw):
         # if parsed is None:
@@ -69,10 +68,48 @@ def section_name(old_section, new_name):
 
         sec = parsed.get_section(old_name)
         if sec is None:
-            raise LookupError(f"Section {old_name} not found")
+            if raise_error:
+                raise LookupError(f"Section {old_name} not found")
+            else:
+                return
         sec.name = new_name
     return _section_name
 
+def section_name_all(old_sections_list, new_sections_list):
+    modifiers = [section_name(old, new) for old, new in zip(old_sections_list, new_sections_list)]
+    
+    def _section_name_all(parsed, **kw):
+        for m in modifiers:
+            try:
+                parser = m(parsed, **kw)
+            except LookupError:
+                parser = None
+        return parser
+    
+    return _section_name_all
+
+"""
+def pipeline(modifiers):
+    def _pipeline(**kw):
+        for modifier in modifiers:
+            parser = modifier(params, **kw)
+            kw.update(parser=parser)
+"""         
+
+def grid(modifier, params_grid, **eval_data):
+    def _grid(parser=None, **kw):
+        for params in params_grid:
+            d = {}
+            d.update(params)
+            d.update(eval_data)
+            parser = modifier(d, parser=parser, **kw)
+        return parser
+    return _grid
+
+def loop(modifier, n, **eval_data):
+    def _loop(**kw):
+        return grid(modifier, [{} for _ in range(n)], **eval_data)(**kw)
+    return _loop
 
 def add_section(name,
                 section_type=SECTION_TYPES["TEXT"],
@@ -249,7 +286,7 @@ def move_entrypoint_to_slack_space(section_input,
     return _move_entrypoint_to_slack_space
 
 
-def add_API_to_IAT(API, lib_name):
+def add_API_to_IAT(*args):
     """Modifier that adds a function to the IAT. 
         If no function from this library is imported in the binary yet, the
         library is added to the binary.
@@ -258,16 +295,23 @@ def add_API_to_IAT(API, lib_name):
         API (str): Function name to add to the IAT
         lib_name (str): Name of the library that contains the function 
     """
+    if len(args) == 2:
+        lib_name, API = args
+    elif len(args) == 1:
+        lib_name, API = args[0]
+    else:
+        raise ValueError("A lib name and an API name must be provided")
 
     @parser_handler("lief_parser")
-    def _add_API_to_IAT(parsed, build_instructions, **kw):
-        build_instructions.update(imports=True)
+    def _add_API_to_IAT(parsed, **kw):
         for library in parsed.imports:
             if library.name.lower() == lib_name.lower():
                 library.add_entry(API)
-                return
-        library = add_lib_to_IAT(lib_name)(parsed=parsed)
-        library.add_entry(API)
+                return {"imports": True}
+        
+        add_lib_to_IAT(lib_name)(parsed=parsed)
+        parsed.get_import(lib_name).add_entry(API)
+        return {"imports": True}
 
     return _add_API_to_IAT
 
@@ -280,8 +324,8 @@ def add_lib_to_IAT(lib_name):
     """
 
     @parser_handler("lief_parser")
-    def _add_lib_to_IAT(parsed, build_instructions, **kw):
-        build_instructions.update(imports=True)
-        return parsed.add_library(lib_name)
+    def _add_lib_to_IAT(parsed, **kw):   
+        parsed.add_library(lib_name)
+        return {"imports": True}
 
     return _add_lib_to_IAT

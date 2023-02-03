@@ -1,12 +1,17 @@
 import lief
 
-__all__ = ["parser_decorator"]
+__all__ = ["parser_handler"]
 __parsers__ = ["lief_parser"]
 
 
 def parser_handler(parser_name):
     def decorator(modifier_func):
-        def wrapper(parser=None, executable=None, **kw):
+        def wrapper(parser=None, executable=None, parsed=None, **kw):
+            # parsed is not None only for testing
+            if parsed is not None:
+                modifier_func(parsed=parsed ,**kw)
+                return None
+            
             # redefine parser if necessary
             if parser_name not in __parsers__:
                 raise ValueError("Parser {parser_name} could not be found")
@@ -28,10 +33,11 @@ def parser_handler(parser_name):
 
 
 class lief_parser():
+    name = "lief_parser"
     def __init__(self, executable):
         self.executable = executable
         self.parsed = lief.parse(str(self.executable.destination))
-        self.build_instructions = {"imports": False, "dos_stub": False}
+        self.build_instructions = {"imports": False, "dos_stub": False, "patch_imports":False}
 
     def __call__(self, modifier_func, **kw):
         """Calls the modifier function with the parsed executable
@@ -39,13 +45,17 @@ class lief_parser():
         Args:
             modifier_func (function): Modifier function
         """
-        kw.update(parsed=self.parsed,
-                  build_instructions=self.build_instructions)
-        modifier_func(**kw)
+        kw.update(parsed=self.parsed)
+        out = modifier_func(**kw)
+        if out is not None:
+            self.build_instructions.update(out)
+
+    def get_sections(self):
+        return list(self.parsed.sections)
 
     def build(self):
         builder = lief.PE.Builder(self.parsed)
         builder.build_imports(self.build_instructions["imports"])
-        builder.patch_imports(self.build_instructions["imports"])
+        builder.patch_imports(self.build_instructions["patch_imports"])
         builder.build()
         builder.write(str(self.executable.destination))
