@@ -9,7 +9,7 @@ ARG UOPT=$HOME/.opt
 ARG PBOX=$UOPT/tools/packing-box
 ARG FILES=src/files
 # start creating the box
-FROM ubuntu:22.04 AS base
+FROM ubuntu:rolling AS base
 MAINTAINER Alexandre DHondt <alexandre.dhondt@gmail.com>
 LABEL version="2.0.0"
 LABEL source="https://github.com/dhondta/packing-box"
