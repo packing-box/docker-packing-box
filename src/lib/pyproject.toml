@@ -1,0 +1,58 @@
+[build-system]
+requires = ["setuptools>=61.0", "setuptools-scm"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.dynamic]
+version = {attr = "pbox.__info__.__version__"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+"*" = ["*.txt"]
+
+[project]
+name = "packing-box"
+authors = [
+  {name="Alexandre D'Hondt", email="alexandre.dhondt@gmail.com"},
+]
+description = "Docker image gathering packers and tools for making datasets of packed executables"
+license = {file = "LICENSE"}
+keywords = ["python", "programming", "packing-detection", "pe", "elf", "mach-o"]
+requires-python = ">=3.7,<4"
+classifiers = [
+  "Development Status :: 5 - Production/Stable",
+  "Environment :: Console",
+  "Intended Audience :: Developers",
+  "License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)",
+  "Programming Language :: Python :: 3.7",
+  "Programming Language :: Python :: 3.8",
+  "Programming Language :: Python :: 3.9",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Topic :: Software Development :: Libraries :: Python Modules",
+]
+dependencies = [
+  "bintropy>=1.3.3",
+  "capstone",
+  "dsff>=1.0.3",
+  "lief",
+  "pandas>=1.5.0",
+  "peid",
+  "plotext",
+  "pyelftools",
+  "scikit-learn",
+  "tinyscript>=1.26.21",
+  "weka",
+]
+dynamic = ["version"]
+
+[project.readme]
+file = "README.md"
+content-type = "text/markdown"
+
+[project.urls]
+documentation = "https://docker-packing-box.readthedocs.io/en/latest/?badge=latest"
+homepage = "https://github.com/packing-box/docker-packing-box"
+issues = "https://github.com/packing-box/docker-packing-box/issues"
+repository = "https://github.com/packing-box/docker-packing-box"
