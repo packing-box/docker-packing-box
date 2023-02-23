@@ -26,7 +26,7 @@ def parser_handler(parser_name):
                 parser = globals()[parser_name](executable)
 
             # call the modifier via the parser
-            parser(modifier_func, **kw)
+            parser(modifier_func, executable=executable, **kw)
             return parser
         return wrapper
     return decorator
@@ -52,6 +52,11 @@ class lief_parser():
 
     def get_sections(self):
         return list(self.parsed.sections)
+    
+    def compute_checksum(self):
+        self.build()
+        self.__init__(self.executable)
+        return self.parsed.optional_header.computed_checksum
 
     def build(self):
         builder = lief.PE.Builder(self.parsed)

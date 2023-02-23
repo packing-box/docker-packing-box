@@ -212,13 +212,17 @@ def move_entrypoint_to_new_section(name,
     """
 
     @parser_handler("lief_parser")
-    def _move_entrypoint_to_new_section(parsed=None, **kw):
+    def _move_entrypoint_to_new_section(parsed=None, executable=None, **kw):
+        if "32" in executable.format:
+            address_bitsize = 32
+        else:
+            address_bitsize = 64
 
         old_entry = parsed.entrypoint + 0x10000
         # push current_entrypoint
         # ret
         entrypoint_data = [0x68] + \
-            list(old_entry.to_bytes(4, 'little')) + [0xc3]
+            list(old_entry.to_bytes(address_bitsize//8, 'little')) + [0xc3]
 
         # Other possibility:
         # mov eax current_entrypoint
@@ -329,3 +333,10 @@ def add_lib_to_IAT(lib_name):
         return {"imports": True}
 
     return _add_lib_to_IAT
+
+
+def set_checksum(value):
+    
+    @parser_handler("lief_parser")
+    def _set_checksum(parsed, **kw):
+        parsed.optional_header.checksum = value

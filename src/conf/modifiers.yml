@@ -32,5 +32,14 @@ add_common_api_import:
     PE: add_API_to_IAT(choice(COMMON_API_IMPORTS))
 
 add_5_common_api_imports:
+  loop: 5
   result:
-    PE: "loop(add_common_api_import, 5, add_API_to_IAT=add_API_to_IAT, COMMON_API_IMPORTS=COMMON_API_IMPORTS)"
+    PE: add_API_to_IAT(choice(COMMON_API_IMPORTS))
+
+move_entrypoint_to_new_lowent_section:
+  result:
+    PE: move_entrypoint_to_new_section(name='aaa', post_data=b'\x00'*64)
+
+recompute_checksum:
+  result:
+    PE: set_checksum(compute_checksum())
