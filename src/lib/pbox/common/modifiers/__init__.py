@@ -17,7 +17,14 @@ __all__ = ["Modifiers"]
 
 
 class Modifier(dict2):
-    _fields = {'apply': True}
+    _fields = {'apply': True, 'loop': None, 'grid': None}
+    def __call__(self, d, parser=None, **kw):
+        if self.loop is not None:
+            for _ in range(self.loop):
+                parser = super().__call__(d, parser=parser, **kw)
+            return parser
+        else:
+            return super().__call__(d, parser=parser, **kw)
 
 
 class Modifiers(list):
@@ -61,7 +68,8 @@ class Modifiers(list):
                     tmp_parser = lief.parse(str(exe.destination))
                     d.update(sections=list(tmp_parser.sections))
                 else:
-                    d.update(sections=list(parser.get_sections()))
+                    d.update(sections=list(parser.get_sections()),
+                             compute_checksum=parser.compute_checksum)
                 
                 d.update({k: globals()[k] for k in __common__})
                 md = __elf__ if exe.format in expand_formats("ELF") else \
