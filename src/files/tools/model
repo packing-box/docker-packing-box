@@ -16,7 +16,9 @@ This utility aims to train Machine Learning models based on an input dataset. It
 __description__ = "Train Machine Learning models"
 __examples__    = [
     "list",
-    "train dataset -a mnb",
+    "preprocess my-dataset",
+    "train my-dataset -a mnb",
+    "show my-dataset",
 ]
 
 
