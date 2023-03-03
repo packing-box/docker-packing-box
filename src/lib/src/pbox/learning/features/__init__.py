@@ -72,12 +72,12 @@ class Features(dict, metaclass=MetaFeatures):
             for name, params in features.items():
                 for i in data_all.items():
                     params.setdefault(*i)
-                r = params.pop('result', {})
-                v = params.pop('values', [])
-                # consider most specific features first, then intermediate classes and finally the collapsed class "All"
-                for clist in [expand_formats("All"), list(FORMATS.keys())[1:], ["All"]]:
-                    for c in clist:
-                        expr = r.get(c)
+                r, v = params.pop('result', {}), params.pop('values', [])
+                # consider features for most specific formats first, then intermediate format classes and finally the
+                #  collapsed format class "All"
+                for flist in [expand_formats("All"), [f for f in FORMATS.keys() if f != "All"], ["All"]]:
+                    for fmt in flist:
+                        expr = r.get(fmt)
                         if expr:
                             if len(v) > 0:
                                 f = []
@@ -101,9 +101,9 @@ class Features(dict, metaclass=MetaFeatures):
                             else:
                                 f = [Feature(params, name=name, parent=self, result=expr)]
                             for feat in f:
-                                for c2 in expand_formats(c):
-                                    Features.registry.setdefault(c2, {})
-                                    Features.registry[c2][feat.name] = feat
+                                for subfmt in expand_formats(fmt):
+                                    Features.registry.setdefault(subfmt, {})
+                                    Features.registry[subfmt][feat.name] = feat
         if exe is not None and exe.format in Features.registry:
             self._rawdata = Extractors(exe)
             todo, counts, reg = deque(), {}, Features.registry[exe.format]
@@ -149,10 +149,13 @@ class Features(dict, metaclass=MetaFeatures):
                         raise ValueError("Too much iterations of '%s'" % n)
                 except ValueError:  # occurs when FobiddenNodeError is thrown
                     continue
-            # once converged, ensure that we did not leave a feature that should be kept
+            # once converged, ensure that we did not leave a feature that should not be kept
+            do_not_keep = []
             for name in self:
                 if not reg[name].keep:
-                    self.pop(name, None)
+                    do_not_keep.append(name)
+            for name in do_not_keep:
+                del self[name]
     
     def __getitem__(self, name):
         value = super(Features, self).__getitem__(name)
