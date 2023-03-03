@@ -218,7 +218,8 @@ class Dataset:
         self.logger.debug("saving dataset '%s'..." % self.basename)
         self._metadata['formats'] = sorted(collapse_formats(*self._metadata['formats']))
         try:
-            self._metadata['counts'] = self._data.label.value_counts().to_dict()
+            self._metadata['counts'] = {k: v for k, v in self._data.label.value_counts().to_dict().items() \
+                                        if k not in [NOT_LABELLED, NOT_PACKED]}
         except AttributeError:
             self.logger.warning("No label found")
             self._remove()
@@ -510,7 +511,7 @@ class Dataset:
         ls = len(self)
         if ls > 0:
             p = sorted(list(set([lb for lb in self._data.label.values if isinstance(lb, str)])))
-            l.info("Used packers: %s" % ", ".join(_ for _ in p if _ != NOT_PACKED))
+            l.info("Used packers: %s" % ", ".join(_ for _ in p if _ not in [NOT_LABELLED, NOT_PACKED]))
             l.info("#Executables: %d" % ls)
         if ls - n1 < n:
             l.warning("Found too few candidate executables")
@@ -588,7 +589,7 @@ class Dataset:
         if len(self) > 0:
             c = List(["**#Executables**: %d" % self._metadata['executables'],
                       "**Format(s)**:    %s" % ", ".join(self._metadata['formats']),
-                      "**Packer(s)**:    %s" % ", ".join(x for x in self._metadata['counts'].keys() if x != NOT_PACKED),
+                      "**Packer(s)**:    %s" % (", ".join(self._metadata['counts'].keys()) or "-"),
                       "**Size**:         %s" % human_readable_size(self.path.size),
                       "**Labelled**:     %.2f%%" % self.labelling])
             if len(self._alterations) > 0:
@@ -619,7 +620,9 @@ class Dataset:
             h = e.hash
             lbl = labels.get(h) or NOT_LABELLED
             # executable does not exist yet => create it without a label
-            if h not in self:
+            try:
+                self._data[self._data.hash == h].iloc[0]
+            except (AttributeError, IndexError):  # AttributeError occurs when no data yet (hence no headers)
                 self[e] = NOT_LABELLED
             # label is found in the input labels dictionary and is not already NOT_LABELLED => update
             if lbl != NOT_LABELLED:
@@ -913,14 +916,14 @@ class Dataset:
             with dset.joinpath("metadata.json").open() as meta:
                 metadata = json.load(meta)
             try:
-                counts = {k: v for k, v in metadata['counts'].items() if k != NOT_PACKED}
                 row = [
                     dset.basename,
                     str(metadata['executables']),
                     human_readable_size(dset.size),
                 ] + [[["no", "yes"][dset.joinpath("files").exists()]], []][hide_files] + [
                     ",".join(sorted(metadata['formats'])),
-                    shorten_str(",".join("%s{%d}" % i for i in sorted(counts.items(), key=lambda x: (-x[1], x[0])))),
+                    shorten_str(",".join("%s{%d}" % i for i in sorted(metadata['counts'].items(),
+                                                                      key=lambda x: (-x[1], x[0])))),
                 ]
             except Exception as err:
                 row = None
