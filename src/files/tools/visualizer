@@ -30,6 +30,17 @@ LABELS = {
 }
 
 
+class LegendLoc:
+    def __call__(self, string):
+        ver, hor = string.split("-", 1)
+        if ver not in ["lower", "center", "upper"] or hor not in ["left", "center", "right"]:
+            raise ValueError(string)
+        return string.replace("-", " ")
+    
+    def __repr__(self):
+        return "legend location"
+
+
 def __add_folder(parser, alias=False, fmt=False):
     parser.add_argument("filename", help="binary to be represented ; format is regex")
     parser.add_argument("folder", type=ts.folder_exists, help="target folder")
@@ -168,6 +179,9 @@ if __name__ == "__main__":
     find.add_argument("-d", "--no-display", action="store_false", help="do not display packer label matches")
     plot = __add_folder(sparsers.add_parser("plot", help="plot files matching the regex given the selected labels"),
                         alias=True, fmt=True)
+    plot.add_argument("-l", "--legend-location", default="lower center", type=LegendLoc,
+                      help="hyphen-separated pair of locators for the plot's legend")
+    plot.add_argument("-n", "--no-title", action="store_true", help="do not generate a title")
     plot.add_argument("-s", "--scale", action="store_true", help="scale plots according to the first binary")
     rm = __add_folder(sparsers.add_parser("remove", help="remove files matching the regex with the input labels"))
     initialize()
@@ -202,7 +216,7 @@ if __name__ == "__main__":
             logger.info("Making plot to %s.%s..." % (imgn, args.format))
             for f in files:
                 logger.debug(f)
-            bintropy.plot(*files, img_name=imgn, labels=labels, sublabel="size-ep-ent", scale=args.scale, logger=logger)
+            bintropy.plot(*files, img_name=imgn, labels=labels, sublabel="size-ep-ent", logger=logger, **vars(args))
     elif args.command == "remove":
         logger.info("Removing" + msg)
         for file, data in find_files(*ff_args, remove=True).items():
