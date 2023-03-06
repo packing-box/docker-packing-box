@@ -194,6 +194,8 @@ Unsupervised:
     metrics:
       - classification
       - clustering
+    preprocessors:
+      - Std
   AC:
     base:        !!python/name:sklearn.cluster.AgglomerativeClustering
     description: Agglomerative Clustering
