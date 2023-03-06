@@ -195,7 +195,6 @@ class Model:
             for exe in exes:
                 if not isinstance(exe, Executable):
                     exe = Executable(str(exe))
-                exe.selection = feature
                 if not data_only:
                     self._features.update(exe.features)
                 self._data = self._data.append(exe.data, ignore_index=True)
@@ -204,10 +203,9 @@ class Model:
         # case 1: fileless dataset (where features are already computed)
         if isinstance(ds, FilelessDataset):
             l.info("Loading features...")
-            for exe in ds:
+            for exe in ds:  # take the very first sample
                 break
             exe = Executable(exe)
-            exe.selection = feature
             if not data_only:
                 self._features.update(exe.features)
             self._data = ds._data[list(exe.features.keys())]
