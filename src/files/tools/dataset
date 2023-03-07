@@ -5,7 +5,7 @@ from pbox.__info__ import *
 from tinyscript import *
 
 
-__version__     = "2.2.0"
+__version__     = "2.2.1"
 __doc__         = """
 This tool aims to manipulate a dataset in many ways including its creation, enlargement, update, alteration, selection,
  merging, export or purge.
@@ -182,7 +182,7 @@ if __name__ == '__main__':
             Modifiers.source = args.modifiers_set  # configure the modifiers set's YAML definition source
         if hasattr(args, "features_set"):
             Features.source = args.features_set  # configure the features set's YAML definition source
-        ds = (FilelessDataset if getattr(args, "fileless", False) or \
+        ds = (FilelessDataset if getattr(args, "fileless", args.command == "list") or \
               name and FilelessDataset.check(name) else Dataset)(**vars(args))
         getattr(ds, args.command)(**vars(args))
         # it may occur that packing fails with a silenced error and that the related executable file remains in the

@@ -380,4 +380,11 @@ class FilelessDataset(Dataset):
         for dataset in Path(config['datasets']).listdir(Dataset.check):
             yield open_dataset(dataset) if instantiate else dataset
     Dataset.iteritems = iteritems
+    
+    @staticmethod
+    def summarize(path=None, show=False, hide_files=False):
+        section, table = Dataset.summarize(path, show, hide_files)
+        _, table2 = Dataset.summarize(path, show, hide_files, FilelessDataset.check)
+        table.data = sorted(table.data + table2.data, key=lambda x: x[0])
+        return [section.__class__("Datasets (%d)" % len(table.data)), table]
 

@@ -393,7 +393,7 @@ class Dataset:
     def list(self, show_all=False, hide_files=False, raw=False, **kw):
         """ List all the datasets from the given path. """
         self.logger.debug("summarizing datasets from %s..." % config['datasets'])
-        d = Dataset.summarize(str(config['datasets']), show_all, hide_files)
+        d = self.__class__.summarize(str(config['datasets']), show_all, hide_files)
         if len(d) > 0:
             r = mdv.main(Report(*d).md())
             print(ansi_seq_strip(r) if raw else r)
@@ -910,9 +910,9 @@ class Dataset:
         return {h: l or NOT_PACKED for h, l in labels.items()}
     
     @staticmethod
-    def summarize(path=None, show=False, hide_files=False):
+    def summarize(path=None, show=False, hide_files=False, check_func=None):
         datasets, headers = [], ["Name", "#Executables", "Size"] + [["Files"], []][hide_files] + ["Formats", "Packers"]
-        for dset in Path(config['datasets']).listdir(Dataset.check):
+        for dset in Path(config['datasets']).listdir(check_func or Dataset.check):
             with dset.joinpath("metadata.json").open() as meta:
                 metadata = json.load(meta)
             try:
