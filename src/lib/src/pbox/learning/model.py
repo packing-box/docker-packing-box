@@ -131,7 +131,7 @@ class Model:
                 with p.open() as f:
                     setattr(self, "_" + n, json.load(f))
     
-    def _metrics(self, data ,prediction, target=None, proba=None, metrics="classification", proctime=None):
+    def _metrics(self, data, prediction, target=None, proba=None, metrics="classification", proctime=None):
         """ Metrics computation method. """
         l, mfunc = self.logger, "%s_metrics" % metrics
         if mfunc not in globals():
@@ -139,7 +139,10 @@ class Model:
             return
         m = globals()[mfunc]
         l.debug("Computing metrics...")
-        values, headers = m(data, prediction, y_true=target, y_proba=proba, proctime=proctime, logger=self.logger)
+        df2np = lambda df: df.to_numpy() if isinstance(df, pd.DataFrame) else df
+        fix = lambda v: df2np(v) if getattr(df2np(v), "ndim", 1) == 1 else df2np(v).transpose()[0]
+        values, headers = m(data, fix(prediction), y_true=fix(target), y_proba=fix(proba), proctime=proctime,
+                            logger=self.logger)
         return [f(v) for v, f in zip(values, headers.values())], list(headers.keys())
     
     def _prepare(self, dataset=None, preprocessor=None, multiclass=False, labels=None, feature=None, data_only=False,
@@ -513,7 +516,8 @@ class Model:
         if cls.labelling == "full" and ds.labelling < 1.:
             l.error("'%s' won't work with a dataset that is not fully labelled" % algo)
             return
-        # check that, if the algorithm is semi-supervised, it is not labelled at all
+        # check that, if the algorithm is semi-supervised, it is not labelled at all ; if so, stop here (should be
+        #  unsupervised, that is, cls.labelling == "none")
         if cls.labelling == "partial" and ds.labelling == 0.:
             l.error("'%s' won't work with a dataset that is not labelled" % algo)
             return
@@ -526,7 +530,7 @@ class Model:
             return
         if self.name is None:
             c = sorted(collapse_formats(*ds._metadata['formats']))
-            self.name = "%s_%s_%d_%s_f%d" % (ds.path.stem, "-".join(map(lambda x: x.lower(), c)),
+            self.name = "%s_%s_%d_%s_f%d" % (ds.path.stem, "-".join(map(lambda x: x.lower(), c)).replace(".", ""),
                                              ds._metadata['executables'],
                                              algo.lower().replace(".", ""), len(self._features))
         if reset:
@@ -603,18 +607,20 @@ class Model:
         metrics = cls.metrics if isinstance(cls.metrics, (list, tuple)) else [cls.metrics]
         print(mdv.main(Report(Title("Name: %s" % self.name)).md()))
         for metric in metrics:
-            d = []
+            d, h = [], []
             for dset in ["train", "test"]:
                 s = getattr(self, "_" + dset)
                 if len(s.data) > 0:
                     try:
-                        m, h = self._metrics(s.data, s.target, s.predict, s.predict_proba, metric)
+                        m, h = self._metrics(s.data, s.predict, s.target, s.predict_proba, metric)
                     except TypeError:  # when None is returned because of a bad metrics category
+                        l.warning("metric category '%s' ignored" % metric)
                         continue
                     d.append([dset.capitalize()] + m)
                     h = ["."] + h
-            print(mdv.main(Table(d, column_headers=h,
-                                 title="%s metrics" % metric.capitalize() if len(metrics) > 0 else None)).md())
+            if len(h) > 0:
+                print(mdv.main(Table(d, column_headers=h,
+                                     title="%s metrics" % metric.capitalize() if len(metrics) > 0 else None).md()))
         l.info("Parameters:\n- %s" % "\n- ".join("%s = %s" % p for p in params.items()))
         self._metadata['algorithm']['parameters'] = params
         self._save()

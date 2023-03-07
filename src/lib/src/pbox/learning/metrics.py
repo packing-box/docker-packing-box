@@ -115,10 +115,13 @@ def _map_values_to_integers(*arrays, **kwargs):
     if len(r) > 0:
         out_arrays = [a if a is None else np.delete(a, r) for a in out_arrays]
     out_arrays.append(d)
-    if len([k for k in d.keys() if k != NOT_LABELLED]) <= 2:
-        tn, fp, fn, tp = confusion_matrix(*arrays[:2]).ravel()
-    else:
-        tn, fp, fn, tp = multilabel_confusion_matrix(*arrays[:2], **kwargs).ravel()
+    try:
+        if len([k for k in d.keys() if k != NOT_LABELLED]) <= 2:
+            tn, fp, fn, tp = confusion_matrix(*arrays[:2]).ravel()
+        else:
+            tn, fp, fn, tp = multilabel_confusion_matrix(*arrays[:2], **kwargs).ravel()
+    except ValueError:
+        tn, fp, fn, tp = 0, 0, 0, 0
     l = kwargs.get('logger')
     if l:
         l.debug("TN: %d ; TP: %d ; FN: %d ; FP: %d" % (tn, tp, fn, fp))
@@ -155,7 +158,7 @@ def classification_metrics(X, y_pred, y_true=None, y_proba=None, labels=None, av
     mcc = matthews_corrcoef(yt, yp)
     try:
         auc = roc_auc_score(yt, ypr)
-    except ValueError:
+    except (TypeError, ValueError):
         auc = -1
     return [accuracy, precision, recall, fmeasure, mcc, auc], metric_headers("classification", **kw)
 
@@ -164,7 +167,7 @@ def classification_metrics(X, y_pred, y_true=None, y_proba=None, labels=None, av
 def clustering_metrics(X, y_pred, y_true=None, **kw):
     """ Compute clustering-related metrics based on the input data and the true and predicted values. """
     # labels not known: no mapping to integers and filtering of not-labelled values as we only consider predicted ones
-    if y_true is None:
+    if y_true is None or all(y == NOT_LABELLED for y in y_true):
         return [silhouette_score(X, y_pred, metric="euclidean"), calinski_harabasz_score(X, y_pred), \
                 davies_bouldin_score(X, y_pred)], metric_headers("clustering",
                                                                  include=["Silhouette", "Calinski", "Davies"], **kw)
