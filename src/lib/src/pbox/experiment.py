@@ -3,14 +3,10 @@ from tinyscript import logging
 from tinyscript.helpers import Path
 from tinyscript.report import *
 
-from .algorithm import *
-from .dataset import *
-from .features import *
-from .model import *
-from ..items import *
-from ..common.config import *
-from ..common.modifiers import *
-from ..common.utils import *
+from .common import *
+from .common.utils import *
+from .items import *
+from .learning import *
 
 
 __all__ = ["Experiment"]
