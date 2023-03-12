@@ -434,8 +434,8 @@ class Model:
             # compute the ranked list of features with non-null importances (including the importance value)
             best_feat = [(i, n) for i, n in \
                          sorted(zip(fi, sorted(self._features.keys())), key=lambda x: -x[0]) if i > 0.]
-            l = max(map(len, best_feat))
-            best_feat = [("{: <%s}: {} (%.3f)" % ((l + 1) if l >= 10 and i < 9 else l, p[0])) \
+            l, nf = max(map(len, [x[1] for x in best_feat])), len(str(len(best_feat)))
+            best_feat = [("{: <%s}: {} (%.3f)" % (l + nf - len(str(i+1)), p[0])) \
                          .format(p[1], self._features[p[1]]) for i, p in enumerate(best_feat)]
             fi_str = ["**Features**:      %d (%d with non-null importance)\n\n\t1. %s\n\n" % \
                       (len(self._features), len(best_feat), "\n\n\t1. ".join(best_feat))]
