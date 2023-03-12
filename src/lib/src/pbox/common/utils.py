@@ -16,8 +16,9 @@ from .executable import Executable
 
 
 __all__ = ["aggregate_formats", "backup", "benchmark", "bin_label", "class_or_instance_method", "collapse_formats",
-           "data_to_temp_file", "dict2", "edit_file", "expand_formats", "file_or_folder_or_dataset", "highlight_best",
-           "is_exe", "make_registry", "mdv", "shorten_str", "strip_version", "ExeFormatDict", "FORMATS"]
+           "data_to_temp_file", "dict2", "edit_file", "expand_formats", "file_or_folder_or_dataset", "get_counts",
+           "highlight_best", "is_exe", "make_registry", "mdv", "shorten_str", "strip_version", "ExeFormatDict",
+           "FORMATS"]
 
 _EVAL_NAMESPACE = {k: getattr(builtins, k) for k in ["abs", "divmod", "float", "hash", "hex", "id", "int", "len",
                                                      "list", "max", "min", "oct", "ord", "pow", "range", "range2",
@@ -35,6 +36,8 @@ FORMATS = {
 bin_label = lambda l: {NOT_LABELLED.lower(): -1, 'false': 0, NOT_PACKED.lower(): 0, 'true': 1, None: None} \
                       .get(l.lower(), 1)
 bold = lambda text: "\033[1m{}\033[0m".format(text)
+get_counts = lambda metadata, packed=True: {k: v for k, v in metadata['counts'].items() if k not in \
+                                            ([NOT_LABELLED, NOT_PACKED] if packed else [NOT_LABELLED])}
 is_exe = lambda e: Executable(e).format is not None
 
 

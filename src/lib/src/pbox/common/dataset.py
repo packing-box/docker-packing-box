@@ -218,8 +218,7 @@ class Dataset:
         self.logger.debug("saving dataset '%s'..." % self.basename)
         self._metadata['formats'] = sorted(collapse_formats(*self._metadata['formats']))
         try:
-            self._metadata['counts'] = {k: v for k, v in self._data.label.value_counts().to_dict().items() \
-                                        if k not in [NOT_LABELLED, NOT_PACKED]}
+            self._metadata['counts'] = {k: v for k, v in self._data.label.value_counts().to_dict().items()}
         except AttributeError:
             self.logger.warning("No label found")
             self._remove()
@@ -393,9 +392,9 @@ class Dataset:
     def list(self, show_all=False, hide_files=False, raw=False, **kw):
         """ List all the datasets from the given path. """
         self.logger.debug("summarizing datasets from %s..." % config['datasets'])
-        d = self.__class__.summarize(str(config['datasets']), show_all, hide_files)
-        if len(d) > 0:
-            r = mdv.main(Report(*d).md())
+        section, table = self.__class__.summarize(str(config['datasets']), show_all, hide_files)
+        if section is not None and table is not None:
+            r = mdv.main(Report(section, table).md())
             print(ansi_seq_strip(r) if raw else r)
         else:
             self.logger.warning("No dataset found in the workspace (%s)" % config['datasets'])
@@ -589,7 +588,7 @@ class Dataset:
         if len(self) > 0:
             c = List(["**#Executables**: %d" % self._metadata['executables'],
                       "**Format(s)**:    %s" % ", ".join(self._metadata['formats']),
-                      "**Packer(s)**:    %s" % (", ".join(self._metadata['counts'].keys()) or "-"),
+                      "**Packer(s)**:    %s" % (", ".join(get_counts(self._metadata).keys()) or "-"),
                       "**Size**:         %s" % human_readable_size(self.path.size),
                       "**Labelled**:     %.2f%%" % self.labelling])
             if len(self._alterations) > 0:
@@ -739,7 +738,7 @@ class Dataset:
     @property
     def labelling(self):
         """ Get the percentage of labels set. """
-        return 100 * sum(self._metadata['counts'].values()) / self._metadata['executables']
+        return 100 * sum(get_counts(self._metadata, False).values()) / self._metadata['executables']
     
     @property
     def labels(self):
@@ -922,7 +921,7 @@ class Dataset:
                     human_readable_size(dset.size),
                 ] + [[["no", "yes"][dset.joinpath("files").exists()]], []][hide_files] + [
                     ",".join(sorted(metadata['formats'])),
-                    shorten_str(",".join("%s{%d}" % i for i in sorted(metadata['counts'].items(),
+                    shorten_str(",".join("%s{%d}" % i for i in sorted(get_counts(metadata).items(),
                                                                       key=lambda x: (-x[1], x[0])))),
                 ]
             except Exception as err:
@@ -941,5 +940,7 @@ class Dataset:
             if row:
                 datasets.append(row)
         n = len(datasets)
-        return [] if n == 0 else [Section("Datasets (%d)" % n), Table(datasets, column_headers=headers)]
+        if n > 0:
+            return [Section("Datasets (%d)" % n), Table(datasets, column_headers=headers)]
+        return None, None
 

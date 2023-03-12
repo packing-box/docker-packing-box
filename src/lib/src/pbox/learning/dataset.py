@@ -8,6 +8,7 @@ from sklearn.preprocessing import StandardScaler
 from textwrap import wrap
 from tinyscript import code, colored, itertools, ts
 from tinyscript.helpers import ansi_seq_strip, get_terminal_size, ints2hex, txt2bold, Path
+from tinyscript.report import *
 from tqdm import tqdm
 
 from .executable import Executable
@@ -383,8 +384,12 @@ class FilelessDataset(Dataset):
     
     @staticmethod
     def summarize(path=None, show=False, hide_files=False):
-        section, table = Dataset.summarize(path, show, hide_files)
+        _, table = Dataset.summarize(path, show, hide_files)
         _, table2 = Dataset.summarize(path, show, hide_files, FilelessDataset.check)
-        table.data = sorted(table.data + table2.data, key=lambda x: x[0])
-        return [section.__class__("Datasets (%d)" % len(table.data)), table]
+        t, t2 = [] if table is None else table.data, [] if table2 is None else table2.data
+        datasets = sorted(t + t2, key=lambda x: x[0])
+        if len(datasets) > 0:
+            table = Table(datasets, column_headers=(table or table2).column_headers)
+            return [Section("Datasets (%d)" % len(table.data)), table]
+        return None, None
 

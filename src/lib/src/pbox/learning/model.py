@@ -382,7 +382,6 @@ class Model:
                 with model.joinpath("metadata.json").open() as meta:
                     metadata = json.load(meta)
                 alg, ds = metadata['algorithm'], metadata['dataset']
-                counts = {k: v for k, v in ds['counts'].items() if k != NOT_PACKED}
                 d.append([
                     model.stem,
                     alg['name'].upper(),
@@ -390,7 +389,8 @@ class Model:
                     ds['name'],
                     str(ds['executables']),
                     ",".join(sorted(ds['formats'])),
-                    shorten_str(",".join("%s{%d}" % i for i in sorted(counts.items(), key=lambda x: (-x[1], x[0])))),
+                    shorten_str(",".join("%s{%d}" % i for i in sorted(get_counts(ds).items(),
+                                                                      key=lambda x: (-x[1], x[0])))),
                 ])
             if len(d) == 0:
                 self.logger.warning("No model found in the workspace (%s)" % config['models'])
@@ -454,7 +454,7 @@ class Model:
                   "**Size**:         %s" % human_readable_size(ds_path.size),
                   "**#Executables**: %d" % ds['executables'],
                   "**Formats**:      %s" % ", ".join(ds['formats']),
-                  "**Packers**:      %s" % ", ".join(x for x in ds['counts'].keys() if x != NOT_PACKED)])
+                  "**Packers**:      %s" % ", ".join(get_counts(ds).keys())])
         print(mdv.main(Report(Section("Reference dataset"), c).md()))
     
     def test(self, executable, **kw):
@@ -469,10 +469,9 @@ class Model:
         cls = self._algorithm = Algorithm.get(self._metadata['algorithm']['name'])
         l.debug("Testing %s on %s..." % (self.name, ds))
         prediction, dt = benchmark(self.pipeline.predict)(self._data)
-        dt = 1000 * dt
         try:
             proba, dt2 = benchmark(self.pipeline.predict_proba)(self._data)
-            dt += 1000 * dt2
+            dt += dt2
             proba = proba[:, 1]
         except AttributeError:
             proba = None
