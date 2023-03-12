@@ -1,6 +1,6 @@
+This template applies for the proposal of a new packer to be integrated in the Packing Box.
+
 - [] (only if the new packer is pre-built) The new packer was put in the `files/packers` directory
-- [] (only if the new packer is pre-built and is a Linux executable) The Dockerfile is updated with a copy of the new packer to `/opt/packers/.bin`
-- [] (only if the new packer is pre-built and is NOT a Linux executable) The Dockerfile is updated with a copy of the new packer to `/opt/packers`
 - [] (only if the new packer is downloaded and installed) The new packer installs in the box with no error
-- [] New packer's status is green in the startup help message
 - [] The new packer was tested
+- [] New packer's status is green in the startup help message
