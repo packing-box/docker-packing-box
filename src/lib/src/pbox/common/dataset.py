@@ -17,6 +17,9 @@ __all__ = ["Dataset"]
 
 BACKUP_COPIES = 3
 
+ds_check = lambda p: Dataset.check(p, ncheck=False) or \
+                     (self.__class__.check(p, ncheck=False) if self.__class__ is not Dataset else False)
+
 
 class Dataset:
     """ Folder structure:
@@ -29,9 +32,11 @@ class Dataset:
       +-- (alterations.json)  # if the dataset was altered, this contains the hashes of the altered executables
     """
     @logging.bindLogger
-    def __init__(self, name="dataset", source_dir=None, load=True, **kw):
+    def __init__(self, name="dataset", source_dir=None, load=True, check=True, **kw):
         self._files = getattr(self.__class__, "_files", True)
-        self.path = Path(config['datasets'].joinpath(check_name(name)), create=load).absolute()
+        if check:
+            check_name(Path(name).basename)
+        self.path = Path(config['datasets'].joinpath(name), create=load).absolute()
         self.sources = source_dir or PACKING_BOX_SOURCES
         if isinstance(self.sources, list):
             self.sources = {'All': [str(x) for x in self.sources]}
@@ -162,32 +167,38 @@ class Dataset:
     
     def _copy(self, path):
         """ Copy the current dataset to a given destination. """
+        self.logger.debug("copying dataset '%s' to %s" % (self.basename, path))
         self.path.copy(path)
     
     def _filter(self, query=None, **kw):
         """ Yield executables' hashes from the dataset using Pandas' query language. """
-        i = -1
+        i, l = -1, self.logger
         try:
             for i, row in enumerate(self._data.query(query or "()").itertuples()):
                 yield row
             if i == -1:
-                self.logger.warning("No data selected")
+                l.warning("No data selected")
         except (AttributeError, KeyError) as e:
-            self.logger.error("Invalid query syntax ; %s" % e)
+            l.error("Invalid query syntax ; %s" % e)
         except SyntaxError:
-            self.logger.error("Invalid query syntax ; please checkout Pandas' documentation for more information")
+            l.error("Invalid query syntax ; please checkout Pandas' documentation for more information")
         except pd.errors.UndefinedVariableError as e:
-            self.logger.error(e)
-            self.logger.info("Possible values:\n%s" % "".join("- %s\n" % n for n in self._data.columns))
+            l.error(e)
+            l.info("Possible values:\n%s" % "".join("- %s\n" % n for n in self._data.columns))
     
     def _load(self):
         """ Load dataset's associated files or create them. """
-        self.path.mkdir(exist_ok=True)
+        l = self.logger
+        if not self.path.exists():
+            l.debug("creating path %s..." % self.path)
+            self.path.mkdir(exist_ok=True)
         try:
             if len(self) > 0:
-                self.logger.debug("loading dataset '%s'..." % self.basename)
+                l.debug("loading dataset '%s'..." % self.basename)
         except AttributeError:  # self._data does not exist yet
             pass
+        l.debug("dataset: type=%s (class: %s), name=%s" % \
+                (["fileless", "normal"][self._files], self.__class__.__name__, self.name))
         if self._files:
             self.files.mkdir(exist_ok=True)
         for n in ["alterations", "data", "metadata"] + [["features"], []][self._files]:
@@ -202,6 +213,7 @@ class Dataset:
                     setattr(self, "_" + n, json.load(f))
             else:
                 setattr(self, "_" + n, {})
+        
     
     def _remove(self):
         """ Remove the current dataset. """
@@ -210,17 +222,18 @@ class Dataset:
     
     def _save(self):
         """ Save dataset's state to JSON files. """
+        l = self.logger
         if not self.__change:
             return
         if len(self) == 0 and not Dataset.check(self.basename):
             self._remove()
             return
-        self.logger.debug("saving dataset '%s'..." % self.basename)
+        l.debug("saving dataset '%s'..." % self.basename)
         self._metadata['formats'] = sorted(collapse_formats(*self._metadata['formats']))
         try:
             self._metadata['counts'] = {k: v for k, v in self._data.label.value_counts().to_dict().items()}
         except AttributeError:
-            self.logger.warning("No label found")
+            l.warning("No label found")
             self._remove()
             return
         self._metadata['executables'] = len(self)
@@ -240,7 +253,8 @@ class Dataset:
     
     def _walk(self, walk_all=False, sources=None, silent=False):
         """ Walk the sources for random in-scope executables. """
-        [self.logger.info, self.logger.debug][silent]("Searching for executables...")
+        l = self.logger
+        [l.info, l.debug][silent]("Searching for executables...")
         m, candidates, packers = 0, [], [p.name for p in Packer.registry]
         for cat, srcs in (sources or self.sources).items():
             if all(c not in expand_formats(cat) for c in self._formats_exp):
@@ -303,8 +317,9 @@ class Dataset:
     
     def edit(self, **kw):
         """ Edit the data CSV file. """
-        self.logger.debug("editing dataset's data.csv...")
-        edit_file(self.path.joinpath("data.csv").absolute(), logger=self.logger)
+        l = self.logger
+        l.debug("editing dataset's data.csv...")
+        edit_file(self.path.joinpath("data.csv").absolute(), logger=l)
     
     def exists(self):
         """ Dummy exists method. """
@@ -391,13 +406,14 @@ class Dataset:
     
     def list(self, show_all=False, hide_files=False, raw=False, **kw):
         """ List all the datasets from the given path. """
-        self.logger.debug("summarizing datasets from %s..." % config['datasets'])
+        l = self.logger
+        l.debug("summarizing datasets from %s..." % config['datasets'])
         section, table = self.__class__.summarize(str(config['datasets']), show_all, hide_files)
         if section is not None and table is not None:
             r = mdv.main(Report(section, table).md())
             print(ansi_seq_strip(r) if raw else r)
         else:
-            self.logger.warning("No dataset found in the workspace (%s)" % config['datasets'])
+            l.warning("No dataset found in the workspace (%s)" % config['datasets'])
     
     @backup
     def make(self, n=0, formats=["All"], balance=False, packer=None, pack_all=False, **kw):
@@ -701,27 +717,40 @@ class Dataset:
     @property
     def backup(self):
         """ Get the latest backup. """
+        l = self.logger
+        l.debug("backup %s" % ["disabled", "enabled"][config['keep_backups']])
         tmp = TempPath(".dataset-backup", hex(hash(self))[2:])
-        for backup in sorted(tmp.listdir(self.__class__.check), key=lambda p: -int(p.basename)):
-            return self.__class__(backup)
+        l.debug("backup root: %s" % tmp)
+        backups = sorted(tmp.listdir(ds_check), key=lambda p: -int(p.basename))
+        if len(backups) > 0:
+            l.debug("> found: %s" % ", ".join(map(lambda p: p.basename, backups)))
+        for backup in backups:
+            return self.__class__(backup, check=False)
     
     @backup.setter
     def backup(self, dataset):
         """ Make a backup copy. """
         if len(self._data) == 0:
             return
+        l = self.logger
         tmp = TempPath(".dataset-backup", hex(hash(self))[2:])
+        l.debug("backup root: %s" % tmp)
         backups, i = [], 0
-        for i, backup in enumerate(sorted(tmp.listdir(Dataset.check), key=lambda p: -int(p.basename))):
-            backup, n = self.__class__(backup), 0
+        for i, backup in enumerate(sorted(tmp.listdir(ds_check), key=lambda p: -int(p.basename))):
+            backup, n = self.__class__(backup, check=False), 0
             # if there is a change since the last backup, create a new one
             if i == 0 and dataset != backup:
-                dataset._copy(tmp.joinpath(str(int(time.time()))))
+                name = int(time.time())
+                l.debug("> creating backup %d" % name)
+                dataset._copy(tmp.joinpath(str(name)))
                 n = 1
             elif i >= BACKUP_COPIES - n:
+                l.debug("> removing backup %s (limit: %d)" % (backup.basename, BACKUP_COPIES))
                 backup._remove()
         if i == 0:
-            dataset._copy(tmp.joinpath(str(int(time.time()))))
+            name = int(time.time())
+            l.debug("> creating backup %d" % name)
+            dataset._copy(tmp.joinpath(str(name)))
     
     @property
     def basename(self):
@@ -809,15 +838,16 @@ class Dataset:
                 continue
             # per-size-range statitics
             data1.setdefault(fmt, [])
+            percent = lambda x, y: "%.2f" % (100 * (float(x) / y)) if y > 0 else 0
             for c in CAT:
                 # 0:   category
                 # 1,2: count and percentage of not labelled
                 # 3,4: count and percentage of not packed
                 # 5,6: count and percentage of packed
-                data1[fmt].append([c, d[c][0], "%.2f" % (100 * (float(d[c][0]) / totalnl)) if totalnl > 0 else 0,
-                                      d[c][1], "%.2f" % (100 * (float(d[c][1]) / totalnp)) if totalnp > 0 else 0,
-                                      d[c][2], "%.2f" % (100 * (float(d[c][2]) / totalp)) if totalp > 0 else 0])
-            data1[fmt].append(["Total", str(totalnl), "", str(totalnp), "", str(totalp), ""])
+                data1[fmt].append([c, d[c][0], percent(d[c][0], totalnl), d[c][1], percent(d[c][1], totalnp),
+                                      d[c][2], percent(d[c][2], totalp)])
+            data1[fmt].append(["Total", str(totalnl), percent(totalnl, total), str(totalnp), percent(totalnp, total),
+                               str(totalp), percent(totalp, total)])
         # display statistics if any (meaning that null stats are filtered out)
         if len(data1) > 0:
             r.append(Section("Executables per size%s" % ["" ," and format"][self.__per_format]))
@@ -873,17 +903,17 @@ class Dataset:
         return r
     
     @classmethod
-    def check(cls, name):
+    def check(cls, name, ncheck=True):
         try:
-            cls.validate(name, False)
+            cls.validate(name, False, ncheck)
             return True
         except ValueError as e:
             return False
     
     @classmethod
-    def validate(cls, name, load=True):
+    def validate(cls, name, load=True, ncheck=True):
         f = getattr(cls, "_files", True)
-        ds = cls(name, load=False)
+        ds = cls(name, load=False, check=ncheck)
         p = ds.path
         if not p.is_dir():
             raise ValueError
