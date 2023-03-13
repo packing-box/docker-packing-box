@@ -109,7 +109,7 @@ The *VISUALIZE* phase can be performed with the [`dataset`](https://github.com/p
 In order to visualize feature values:
 
 ```console
-$ dataset features test-mix byte_0_after_ep byte_1_after_ep --multiclass
+$ dataset plot test-mix byte_0_after_ep byte_1_after_ep --multiclass
 ```
 
 ![](docs/pages/imgs/data-visualization-features.png)
@@ -126,11 +126,11 @@ This will work for instance for a structure formatted as such:
 
 ```
 folder/
-  +-- not-packed/PSExec.exe
+  +-- not-packed/PsExec.exe
   +-- packed
-        +-- MEW/mew_PSExec.exe
-        +-- RLPack/rlpack_PSExec.exe
-        +-- UPX/upx_PSExec.exe
+        +-- MEW/mew_PsExec.exe
+        +-- RLPack/rlpack_PsExec.exe
+        +-- UPX/upx_PsExec.exe
 ```
 
 ### Model Manipulations
