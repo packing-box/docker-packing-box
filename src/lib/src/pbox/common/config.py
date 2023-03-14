@@ -1,12 +1,12 @@
 # -*- coding: UTF-8 -*-
 import mdv
-from tinyscript import configparser, re
+from tinyscript import configparser, logging, re
 from tinyscript.helpers import slugify, ConfigPath, Path
 from tinyscript.report import *
 
 
-__all__ = ["check_name", "config", "LABELS_BACK_CONV", "LOG_FORMATS", "NOT_LABELLED", "NOT_PACKED",
-           "PACKING_BOX_SOURCES", "RENAME_FUNCTIONS"]
+__all__ = ["check_name", "config", "null_logger",
+           "LABELS_BACK_CONV", "LOG_FORMATS", "NOT_LABELLED", "NOT_PACKED", "PACKING_BOX_SOURCES", "RENAME_FUNCTIONS"]
 
 LOG_FORMATS = ["%(asctime)s [%(levelname)s] %(message)s", "%(asctime)s [%(levelname)-8s] %(name)-18s - %(message)s"]
 PACKING_BOX_SOURCES = {
@@ -27,6 +27,8 @@ _bl = lambda v: str(v).lower() in ["1", "true", "y", "yes"]
 _np = lambda v: Path(str(v), create=True, expand=True).absolute()
 _rp = lambda v: Path(str(v), expand=True).absolute()
 _ws = lambda s, v: Path(s['workspace'].joinpath(v), create=True, expand=True).absolute()
+
+null_logger = logging.nullLogger
 
 
 def check_name(name, raise_error=True):

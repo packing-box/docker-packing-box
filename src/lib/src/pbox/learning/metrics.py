@@ -105,6 +105,7 @@ def _labels_to_integers(array, transdict=None, not_labelled_idx=None):
 
 def _map_values_to_integers(*arrays, **kwargs):
     """ Map values from the given arrays to integers. """
+    l = kwargs.get('logger', null_logger)
     out_arrays, d, r = [], {}, []
     for i, array in enumerate(arrays):
         if array is None:
@@ -115,16 +116,13 @@ def _map_values_to_integers(*arrays, **kwargs):
     if len(r) > 0:
         out_arrays = [a if a is None else np.delete(a, r) for a in out_arrays]
     out_arrays.append(d)
-    try:
-        if len([k for k in d.keys() if k != NOT_LABELLED]) <= 2:
-            tn, fp, fn, tp = confusion_matrix(*arrays[:2]).ravel()
-        else:
-            tn, fp, fn, tp = multilabel_confusion_matrix(*arrays[:2], **kwargs).ravel()
-    except ValueError:
-        tn, fp, fn, tp = 0, 0, 0, 0
-    l = kwargs.get('logger')
-    if l:
-        l.debug("TN: %d ; TP: %d ; FN: %d ; FP: %d" % (tn, tp, fn, fp))
+    binary = len([k for k in d.keys() if k != NOT_LABELLED]) <= 2
+    kw = {k: v for k, v in kwargs.items() if k in ["sample_weight", "labels", "samplewise"]}
+    for i, matrix in enumerate(multilabel_confusion_matrix(*arrays[:2], **kw)):
+        if binary and i == 0:
+            continue
+        tn, fp, fn, tp = matrix.ravel()
+        l.debug("%sTN: %d ; TP: %d ; FN: %d ; FP: %d" % (["[%d] " % i, ""][binary], tn, tp, fn, fp))
     return out_arrays
 
 
@@ -145,16 +143,21 @@ def metric_headers(metrics, **kw):
 
 
 @_convert_output
-def classification_metrics(X, y_pred, y_true=None, y_proba=None, labels=None, average="micro", sample_weight=None,
+def classification_metrics(X, y_pred, y_true=None, y_proba=None, labels=None, sample_weight=None,
                            **kw):
     """ Compute some classification metrics based on the true and predicted values. """
+    binary = len(set([k for k in y_pred if k != NOT_LABELLED])) <= 2 and \
+             len(set([k for k in y_true if k != NOT_LABELLED])) <= 2
     # get the true and predicted values without the not-labelled ones and as integers
     yt, yp, ypr, d = _map_values_to_integers(y_true, y_pred, y_proba, **kw)
     if labels is None and d is not None:
         labels = [k for k in d.keys() if k not in [NOT_LABELLED, NOT_PACKED]]
     accuracy = accuracy_score(yt, yp, sample_weight=sample_weight)
-    precision, recall, fmeasure, _ = precision_recall_fscore_support(yt, yp, labels=labels or None, average=average,
+    precision, recall, fmeasure, _ = precision_recall_fscore_support(yt, yp, labels=labels or None,
+                                                                     average=["weighted", None][binary],
                                                                      sample_weight=sample_weight)
+    if binary:
+        precision, recall, fmeasure = precision[1], recall[1], fmeasure[1]
     mcc = matthews_corrcoef(yt, yp)
     try:
         auc = roc_auc_score(yt, ypr)
