@@ -21,26 +21,6 @@ from ..items.packer import Packer
 __all__ = ["open_dataset", "Dataset", "FilelessDataset"]
 
 
-COLORMAP = {
-    'red':        (255, 0,   0),
-    'lightCoral': (240, 128, 128),
-    'purple':     (128, 0,   128),
-    'peru':       (205, 133, 63),
-    'salmon':     (250, 128, 114),
-    'rosyBrown':  (188, 143, 143),
-    'sandyBrown': (244, 164, 96),
-    'sienna':     (160, 82,  45),
-    'plum':       (221, 160, 221),
-    'pink':       (255, 192, 203),
-    'tan':        (210, 180, 140),
-    'tomato':     (255, 99,  71),
-    'violet':     (238, 130, 238),
-    'magenta':    (255, 0,   255),
-    'fireBrick':  (178, 34,  34),
-    'indigo':     (75,  0,   130),
-}
-
-
 # patch plotext to support Y labels with ANSI sequences for colored text
 code.add_line(plotext._monitor.monitor_class.build_plot, 1, "from tinyscript.helpers import ansi_seq_strip")
 code.replace(plotext._monitor.monitor_class.build_plot, "len(el[0])", "len(ansi_seq_strip(el[0]))")
@@ -356,7 +336,7 @@ class FilelessDataset(Dataset):
             yticks = [str(k[0]) if isinstance(k, (tuple, list)) and len(k) == 1 else str(k) \
                       for k in counts.keys()]
             plt.figure(figsize=(8, (len(title.splitlines()) * 24 + 11 * len(counts) + 120) / 80))
-            plt.title(title, pad=20)
+            plt.title(title, pad=20, fontweight="bold")
             plt.xlabel(x_label, fontdict=font)
             plt.ylabel(y_label, fontdict=font)
             starts = [0 for i in range(len(values[0]))]

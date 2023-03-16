@@ -68,6 +68,9 @@ if __name__ == '__main__':
                          help="features set's YAML definition")
     convert.add_argument("-n", "--new-name", help="name for the new converted dataset",
                          note="if None, the original dataset is overwritten")
+    descr = __add_name(sparsers.add_parser("describe", help="plot the distribution of labels in a pie chart"))
+    descr.add_argument("-f", "--format", choices=("jpg", "png", "tif", "svg"), default="png",
+                       help="image file format for plotting", note="no format means plotting in the terminal")
     __add_name(sparsers.add_parser("edit", help="edit the data file"))
     export = __add_name(sparsers.add_parser("export", help="export packed samples from a dataset or export the dataset"
                                                            " to a given format"))

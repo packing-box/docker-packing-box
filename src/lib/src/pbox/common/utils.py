@@ -18,12 +18,31 @@ from .executable import Executable
 __all__ = ["aggregate_formats", "backup", "benchmark", "bin_label", "class_or_instance_method", "collapse_formats",
            "data_to_temp_file", "dict2", "edit_file", "expand_formats", "file_or_folder_or_dataset", "get_counts",
            "highlight_best", "is_exe", "make_registry", "mdv", "shorten_str", "strip_version", "ExeFormatDict",
-           "FORMATS"]
+           "COLORMAP", "FORMATS"]
 
 _EVAL_NAMESPACE = {k: getattr(builtins, k) for k in ["abs", "divmod", "float", "hash", "hex", "id", "int", "len",
                                                      "list", "max", "min", "oct", "ord", "pow", "range", "range2",
                                                      "round", "set", "str", "sum", "tuple", "type"]}
 WL_EXTRA_NODES = ("arg", "arguments", "keyword", "lambda")
+
+COLORMAP = {
+    'red':        (255, 0,   0),
+    'lightCoral': (240, 128, 128),
+    'purple':     (128, 0,   128),
+    'peru':       (205, 133, 63),
+    'salmon':     (250, 128, 114),
+    'rosyBrown':  (188, 143, 143),
+    'sandyBrown': (244, 164, 96),
+    'sienna':     (160, 82,  45),
+    'plum':       (221, 160, 221),
+    'pink':       (255, 192, 203),
+    'tan':        (210, 180, 140),
+    'tomato':     (255, 99,  71),
+    'violet':     (238, 130, 238),
+    'magenta':    (255, 0,   255),
+    'fireBrick':  (178, 34,  34),
+    'indigo':     (75,  0,   130),
+}
 
 FORMATS = {
     'All':    ["ELF", "Mach-O", "MSDOS", "PE"],
