@@ -1,11 +1,10 @@
 # -*- coding: UTF-8 -*-
 from tinyscript import logging
-from tinyscript.helpers import Path
+from tinyscript.helpers import ansi_seq_strip, Path
 from tinyscript.report import *
 
 from .common import *
 from .common.utils import *
-from .items import *
 from .learning import *
 
 
@@ -89,7 +88,7 @@ class Experiment:
             data.append([folder.basename, Dataset.count(), Model.count(), ", ".join(cfg)])
         if len(data) > 0:
             r = mdv.main(Report(*[Section("Experiments (%d)" % len(data)), Table(data, column_headers=headers)]).md())
-            print(ts.ansi_seq_strip(r) if raw else r)
+            print(ansi_seq_strip(r) if raw else r)
         else:
             self.logger.warning("No experiment found in the workspace (%s)" % config['experiments'])
     

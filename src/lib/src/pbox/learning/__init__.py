@@ -1,4 +1,8 @@
 # -*- coding: UTF-8 -*-
+"""
+This subpackage contains the code that handles everything related to Machine Learning, including the abstractions for
+ automating the learning pipeline.
+"""
 from .algorithm import *
 from .algorithm import __all__ as _algorithm
 from .dataset import *
