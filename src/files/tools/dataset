@@ -5,7 +5,7 @@ from pbox.__info__ import *
 from tinyscript import *
 
 
-__version__     = "2.2.1"
+__version__     = "2.3.0"
 __doc__         = """
 This tool aims to manipulate a dataset in many ways including its creation, enlargement, update, alteration, selection,
  merging, export or purge.
@@ -21,8 +21,9 @@ __examples__    = [
     "make my-dataset -f ELF -n 500 --source-dir /path/to/dotnet/exe",
     "make my-dataset -f PE,ELF -n 2000",
     "merge my-dataset dataset-to-be-merged",
-    "plot my-dataset byte_0_after_ep byte_1_after_ep",
-    "plot my-dataset number_resources --output-format png",
+    "plot features my-dataset byte_0_after_ep byte_1_after_ep",
+    "plot features my-dataset number_resources --format png",
+    "plot labels my-dataset",
     "purge all",
     "purge test-*",
     "select my-dataset my-new-dataset --query \"label == 'upx'\"",
@@ -58,22 +59,19 @@ def _percentage(p):
 
 
 if __name__ == '__main__':
-    sparsers = parser.add_subparsers(dest="command", help="command to be executed")
-    alter = __add_name(sparsers.add_parser("alter", help="alter the target dataset with a set of transformations"))
+    cmds = parser.add_subparsers(dest="command", help="command to be executed")
+    alter = __add_name(cmds.add_parser("alter", help="alter the target dataset with a set of transformations"))
     alter.add_argument("-a", "--modifiers-set", type=ts.file_exists, default=str(config['modifiers']),
                        help="modifiers set's YAML definition")
     alter.add_argument("-p", "--percentage", type=_percentage, default=.1, help="percentage of samples to be altered")
-    convert = __add_name(sparsers.add_parser("convert", help="convert the target dataset to a fileless one"))
+    convert = __add_name(cmds.add_parser("convert", help="convert the target dataset to a fileless one"))
     convert.add_argument("-f", "--features-set", type=ts.file_exists, default=str(config['features']),
                          help="features set's YAML definition")
     convert.add_argument("-n", "--new-name", help="name for the new converted dataset",
                          note="if None, the original dataset is overwritten")
-    descr = __add_name(sparsers.add_parser("describe", help="plot the distribution of labels in a pie chart"))
-    descr.add_argument("-f", "--format", choices=("jpg", "png", "tif", "svg"), default="png",
-                       help="image file format for plotting", note="no format means plotting in the terminal")
-    __add_name(sparsers.add_parser("edit", help="edit the data file"))
-    export = __add_name(sparsers.add_parser("export", help="export packed samples from a dataset or export the dataset"
-                                                           " to a given format"))
+    __add_name(cmds.add_parser("edit", help="edit the data file"))
+    export = __add_name(cmds.add_parser("export", help="export packed samples from a dataset or export the dataset"
+                                                       " to a given format"))
     export.add_argument("-f", "--format", default="dsff", choices=("arff", "csv", "dsff", "packed-samples"),
                         help="output format")
     export.add_argument("-o", "--output", default="export", metavar="F", type=ts.folder_does_not_exist,
@@ -81,14 +79,14 @@ if __name__ == '__main__':
     export_ = export.add_argument_group("option when exporting packed samples", before="extra arguments")
     export_.add_argument("-n", "--number-samples", dest="n", type=ts.pos_int, default=0,
                          help="number of packed samples to be exported")
-    feat = __add_name(sparsers.add_parser("features", help="compute and view features"))
+    feat = __add_name(cmds.add_parser("features", help="compute and view features"))
     feat.add_argument("-f", "--features-set", type=ts.file_exists, default=str(config['features']),
                       help="features set's YAML definition")
-    fix = __add_name(sparsers.add_parser("fix", help="fix a corrupted dataset"))
+    fix = __add_name(cmds.add_parser("fix", help="fix a corrupted dataset"))
     fgroup = fix.add_mutually_exclusive_group()
     fgroup.add_argument("-d", "--detect", action="store_true", help="detect used packer with installed detectors")
     fgroup.add_argument("-l", "--labels", type=ts.json_config, help="set labels from a JSON file")
-    ingest = sparsers.add_parser("ingest", help="ingest samples from a folder into new dataset(s)")
+    ingest = cmds.add_parser("ingest", help="ingest samples from a folder into new dataset(s)")
     ingest.add_argument("folder", type=ts.folder_exists, help="target folder with subfolders containing samples")
     igroup = ingest.add_mutually_exclusive_group()
     igroup.add_argument("-d", "--detect", action="store_true", help="detect used packer with installed detectors")
@@ -102,12 +100,12 @@ if __name__ == '__main__':
     ingest.add_argument("-r", "--rename", default="slugify", choices=tuple(RENAME_FUNCTIONS.keys()),
                         help="apply a function for naming the new dataset(s)")
     ingest.add_argument("-x", "--exclude", nargs="*", help="folder to be excluded")
-    listds = sparsers.add_parser("list", help="list all the datasets from the workspace")
+    listds = cmds.add_parser("list", help="list all the datasets from the workspace")
     listds.add_argument("-a", "--show-all", action="store_true", help="show all datasets even those that are corrupted")
     listds.add_argument("-f", "--hide-files", action="store_true", help="hide the 'files' column")
     listds.add_argument("-r", "--raw", action="store_true", help="display unformatted text", note="useful with grep")
-    make = __add_name(sparsers.add_parser("make", help="add n randomly chosen executables from input sources to the "
-                                                       "dataset"), True)
+    make = __add_name(cmds.add_parser("make", help="add n randomly chosen executables from input sources to the "
+                                                   "dataset"), True)
     make_ = make.add_mutually_exclusive_group()
     make_.add_argument("-a", "--pack-all", action="store_true", help="pack all executables",
                        note="this cannot be set with -b/--balance")
@@ -120,35 +118,41 @@ if __name__ == '__main__':
                       help="packer to be used")
     make.add_argument("-s", "--source-dir", action="extend", nargs="*", type=lambda p: ts.Path(p, expand=True),
                       help="executables source directory to be included")
-    merge = __add_name(sparsers.add_parser("merge", help="merge two datasets"))
+    merge = __add_name(cmds.add_parser("merge", help="merge two datasets"))
     __add_name(merge, name="name2", help="name of the dataset to merge")
     merge.add_argument("-n", "--new-name", help="name for the new merged dataset",
                        note="if None, the original dataset is overwritten")
-    plot = __add_name(sparsers.add_parser("plot", help="plot the distribution of a given feature or multiple features "
-                                                       "combined"))
-    plot.add_argument("feature", action="extend", nargs="*", help="feature identifiers")
-    plot.add_argument("-f", "--format", choices=("jpg", "png", "tif", "svg"),
-                      help="image file format for plotting", note="no format means plotting in the terminal")
-    plot.add_argument("-m", "--multiclass", action="store_true", help="process features using multiple label classes")
-    purge = __add_name(sparsers.add_parser("purge", help="purge a dataset"), True,
+    plot = cmds.add_parser("plot", help="plot something about the dataset")
+    pcmds = plot.add_subparsers(dest="subcommand", help="command to be executed")
+    plot_feat = __add_name(pcmds.add_parser("features", help="plot the distribution of a given feature or multiple "
+                                                             "features combined (bar chart)"))
+    plot_feat.add_argument("feature", action="extend", nargs="*", help="feature identifiers")
+    plot_feat.add_argument("-f", "--format", choices=("jpg", "png", "tif", "svg"), default="png",
+                           help="image file format for plotting", note="no format means plotting in the terminal")
+    plot_feat.add_argument("-m", "--multiclass", action="store_true",
+                           help="process features using multiple label classes")
+    plot_lab = __add_name(pcmds.add_parser("labels", help="plot the distribution of labels in the dataset (pie chart)"))
+    plot_lab.add_argument("-f", "--format", choices=("jpg", "png", "tif", "svg"), default="png",
+                          help="image file format for plotting")
+    purge = __add_name(cmds.add_parser("purge", help="purge a dataset"), True,
                        note="use 'all' to purge every dataset or the wildcard '*' to select a part of them")
     purge.add_argument("-b", "--backup", action="store_true", help="only purge backups")
-    remove = __add_name(sparsers.add_parser("remove", help="remove executables from a dataset"))
+    remove = __add_name(cmds.add_parser("remove", help="remove executables from a dataset"))
     remove.add_argument("-q", "--query", help="query for selecting records to be removed",
                         note="see <https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.query.html>")
-    rename = __add_name(sparsers.add_parser("rename", help="rename a dataset"))
+    rename = __add_name(cmds.add_parser("rename", help="rename a dataset"))
     rename.add_argument("name2", type=ts.folder_does_not_exist, help="new name of the dataset")
-    __add_name(sparsers.add_parser("revert", help="revert a dataset to its previous state"))
-    select = __add_name(sparsers.add_parser("select", help="select a subset of the dataset"))
+    __add_name(cmds.add_parser("revert", help="revert a dataset to its previous state"))
+    select = __add_name(cmds.add_parser("select", help="select a subset of the dataset"))
     select.add_argument("name2", type=ts.folder_does_not_exist, help="name of the new dataset")
     select.add_argument("-n", "--number", dest="limit", type=ts.pos_int, default=0,
                         help="limit number of executables for the output dataset", note="0 means all")
     select.add_argument("-q", "--query", help="query for selecting records to be selected",
                         note="see <https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.query.html>")
-    show = __add_name(sparsers.add_parser("show", help="get an overview of the dataset"))
+    show = __add_name(cmds.add_parser("show", help="get an overview of the dataset"))
     show.add_argument("-l", "--limit", default=10, type=int, help="number of executables to be displayed per format")
     show.add_argument("--per-format", action="store_true", help="display statistics per format")
-    update = __add_name(sparsers.add_parser("update", help="update a dataset with new executables"), True)
+    update = __add_name(cmds.add_parser("update", help="update a dataset with new executables"), True)
     ugroup = update.add_mutually_exclusive_group()
     ugroup.add_argument("-d", "--detect", action="store_true", help="detect used packer with installed detectors")
     ugroup.add_argument("-l", "--labels", type=ts.json_config, help="set labels from a JSON file")
@@ -157,7 +161,7 @@ if __name__ == '__main__':
     update.add_argument("-r", "--refresh", action="store_true", help="refresh labels of already existing executables")
     update.add_argument("-s", "--source-dir", action="extend", nargs="*", type=lambda p: ts.Path(p, expand=True),
                         help="executables source directory to be included")
-    view = __add_name(sparsers.add_parser("view", help="view executables filtered from a dataset"))
+    view = __add_name(cmds.add_parser("view", help="view executables filtered from a dataset"))
     view.add_argument("-q", "--query", help="query for selecting records to be viewed",
                       note="see <https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.query.html>")
     initialize(noargs_action="help")

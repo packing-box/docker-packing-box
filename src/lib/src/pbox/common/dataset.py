@@ -318,34 +318,6 @@ class Dataset:
         self._metadata['altered'] = a + c / len(self)
         self._save()
     
-    def describe(self, format="png", dpi=200, **kw):
-        """ Describe the dataset with a pie chart. """
-        c = self._metadata['counts']
-        c.setdefault(NOT_LABELLED, 0)
-        c.setdefault(NOT_PACKED, 0)
-        classes, cmap, n = [], [], 0
-        if c[NOT_LABELLED] > 0:
-            classes.append(NOT_LABELLED)
-            cmap.append("gray")
-            n += 1
-        if c[NOT_PACKED] > 0:
-            classes.append(NOT_PACKED)
-            cmap.append("green")
-            n += 1
-        classes += [k for k in self._metadata['counts'] if k not in [NOT_LABELLED, NOT_PACKED]]
-        cmap += [list(COLORMAP.keys())[i % len(COLORMAP)] for i in range(len(classes) - n)]
-        tot = sum(c.values())
-        perc = {k: "%.1f%%" % (100 * v / tot) for k, v in c.items()}
-        labels = [Packer.get(k).cname.replace("_", " ") if i >= n else \
-                  {NOT_LABELLED: "Not labelled", NOT_PACKED: "Not packed"}[k] for i, k in enumerate(classes)]
-        plt.figure(figsize=(8, 4))
-        plt.title("Distribution of labels for dataset %s" % self.name, pad=10, fontweight="bold")
-        plt.pie([c[k] for k in classes], colors=cmap, startangle=180, radius=.8,
-                autopct=lambda p: "{:.1f}%\n({:.0f})".format(p, p/100*tot), textprops={'color': "white", 'fontsize': 8})
-        for wedge in plt.pie([c[k] for k in classes], labels=labels, labeldistance=1, startangle=180)[0]:
-            wedge.set_alpha(0.)
-        plt.savefig("%s.%s" % (self.basename, format), format=format, dpi=dpi, bbox_inches="tight")
-    
     def edit(self, **kw):
         """ Edit the data CSV file. """
         l = self.logger
