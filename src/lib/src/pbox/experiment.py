@@ -1,6 +1,6 @@
 # -*- coding: UTF-8 -*-
 from tinyscript import logging
-from tinyscript.helpers import ansi_seq_strip, Path
+from tinyscript.helpers import ansi_seq_strip, confirm, Path
 from tinyscript.report import *
 
 from .common import *
@@ -9,6 +9,14 @@ from .learning import *
 
 
 __all__ = ["Experiment"]
+
+
+COMMIT_VALID_COMMANDS = [
+    # OS commands
+    "cp", "mkdir", "mv",
+    # packing-box commands
+    "dataset", "detector", "model", "packer", "unapcker", "visualizer",
+]
 
 
 class Experiment:
@@ -63,6 +71,26 @@ class Experiment:
     def close(self, **kw):
         """ Close the currently open experiment. """
         del config['experiment']
+    
+    def commit(self, force=False, **kw):
+        """ Commit the latest executed OS command to the resource file (.rc). """
+        rc = self.path.joinpath("commands.rc")
+        rc.touch()
+        for rc_last_line in rc.read_lines():
+            pass
+        try:
+            rc_last_line
+        except NameError:
+            rc_last_line = ""
+        hist = list(Path("~/.bash_history", expand=True).read_lines())
+        while len(hist) > 0 and all(not hist[-1].startswith(cmd + " ") for cmd in COMMIT_VALID_COMMANDS):
+            hist.pop()
+        if len(hist) == 0 or hist[-1].strip() == rc_last_line.strip():
+            self.logger.warning("Nothing to commit")
+        elif force or confirm("Do you really want to commit this command: %s ?" % hist[-1]):
+            self.logger.debug("writing command '%s' to commands.rc..." % hist[-1])
+            with rc.open('a') as f:
+                f.write(hist[-1].strip())
     
     def edit(self, **kw):
         """ Edit the README or a YAML configuration file. """

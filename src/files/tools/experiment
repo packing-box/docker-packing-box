@@ -5,7 +5,7 @@ from pbox.__info__ import *
 from tinyscript import *
 
 
-__version__     = "1.0.0"
+__version__     = "1.0.1"
 __doc__         = """
 This tool aims to manage an experiment (a structure that can hold custom YAML configurations, datasets and models).
 """
@@ -24,6 +24,8 @@ if __name__ == '__main__':
     sparsers = parser.add_subparsers(dest="command", help="command to be executed")
     if name != "":
         sparsers.add_parser("close", help="close the current experiment")
+        sparsers.add_parser("commit", help="commit the last OS command to the resource file (commands.rc)") \
+                .add_argument("-f", "--force", action="store_true", help="commit without confirmation")
         sparsers.add_parser("edit", help="edit the target experiment's README file or a YAML configuration file") \
                 .add_argument("-c", "--config", choices=config.DEFAULTS['definitions'].keys(),
                               help="edit the target experiment's specified YAML configuration file")
