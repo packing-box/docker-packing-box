@@ -131,7 +131,8 @@ class Model:
                 with p.open() as f:
                     setattr(self, "_" + n, json.load(f))
     
-    def _metrics(self, data, prediction, target=None, proba=None, metrics="classification", proctime=None):
+    def _metrics(self, data, prediction, target=None, proba=None, metrics="classification", proctime=None,
+                 ignore_labels=False):
         """ Metrics computation method. """
         l, mfunc = self.logger, "%s_metrics" % metrics
         if mfunc not in globals():
@@ -142,7 +143,7 @@ class Model:
         df2np = lambda df: df.to_numpy() if isinstance(df, pd.DataFrame) else df
         fix = lambda v: df2np(v) if getattr(df2np(v), "ndim", 1) == 1 else df2np(v).transpose()[0]
         values, headers = m(data, fix(prediction), y_true=fix(target), y_proba=fix(proba), proctime=proctime,
-                            logger=self.logger)
+                            ignore_labels=ignore_labels, logger=self.logger)
         return [f(v) for v, f in zip(values, headers.values())], list(headers.keys())
     
     def _prepare(self, dataset=None, preprocessor=None, multiclass=False, labels=None, feature=None, data_only=False,
@@ -457,7 +458,7 @@ class Model:
                   "**Packers**:      %s" % ", ".join(get_counts(ds).keys())])
         print(mdv.main(Report(Section("Reference dataset"), c).md()))
     
-    def test(self, executable, **kw):
+    def test(self, executable, ignore_labels=False, **kw):
         """ Test a single executable or a set of executables and evaluate metrics. """
         l, ds, unlab = self.logger, executable, kw.get('unlabelled', False)
         if len(self.pipeline.steps) == 0:
@@ -479,7 +480,7 @@ class Model:
         print(mdv.main(Report(Section("Test results for: " + ds)).md()))
         for metric in metrics:
             try:
-                m, h = self._metrics(self._data, prediction, self._target, proba, metric, dt)
+                m, h = self._metrics(self._data, prediction, self._target, proba, metric, dt, ignore_labels)
             except TypeError:
                 continue
             for header in [[], ["Model"]][self.__class__ is DumpedModel] + ["Dataset"] + h:
@@ -496,7 +497,7 @@ class Model:
         if len(self._data) > 0:
             self._save()
     
-    def train(self, algorithm=None, cv=5, n_jobs=N_JOBS, param=None, reset=False, **kw):
+    def train(self, algorithm=None, cv=5, n_jobs=N_JOBS, param=None, reset=False, ignore_labels=False, **kw):
         """ Training method handling cross-validation. """
         l, n_cpu, ds = self.logger, mp.cpu_count(), kw['dataset']
         try:
@@ -611,7 +612,8 @@ class Model:
                 s = getattr(self, "_" + dset)
                 if len(s.data) > 0:
                     try:
-                        m, h = self._metrics(s.data, s.predict, s.target, s.predict_proba, metric)
+                        m, h = self._metrics(s.data, s.predict, s.target, s.predict_proba, metric,
+                                             ignore_labels=ignore_labels)
                     except TypeError:  # when None is returned because of a bad metrics category
                         l.warning("metric category '%s' ignored" % metric)
                         continue

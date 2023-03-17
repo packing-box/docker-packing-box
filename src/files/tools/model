@@ -6,7 +6,7 @@ from tinyscript import *
 
 __author__      = "Alexandre D'Hondt"
 __email__       = "alexandre.dhondt@gmail.com"
-__version__     = "1.2.5"
+__version__     = "1.2.6"
 __copyright__   = ("A. D'Hondt", 2021)
 __license__     = "gpl-3.0"
 __doc__         = """
@@ -60,6 +60,7 @@ if __name__ == '__main__':
     test.add_argument("-f", "--features-set", type=ts.file_exists, default=config['features'],
                       help="features set's YAML definition")
     test.add_argument("-u", "--unlabeled", action="store_true", help="do not use assigned labels (if any)")
+    test.add_argument("--ignore-labels", help="while computing metrics, only consider those not requiring labels")
     test.add_argument("--sep", default=",", choices=",;|\t", help="set the CSV separator",
                       note="required when using input CSV data instead of a Dataset")
     train = sparsers.add_parser("train", help="train a model on the given dataset")
@@ -77,6 +78,7 @@ if __name__ == '__main__':
     train.add_argument("-r", "--reset", action="store_true", help="reset the model before (re)training")
     train.add_argument("--cv", default=5, type=ts.pos_int, help="number of Cross-Validation folds")
     train.add_argument("--feature", action="extend", nargs="*", help="list of features to be selected")
+    train.add_argument("--ignore-labels", help="while computing metrics, only consider those not requiring labels")
     train.add_argument("--n-jobs", default=N_JOBS, help="number of jobs to be run in parallel")
     train.add_argument("--param", action="extend", nargs="*", type=lambda x: x.split(","),
                        help="comma-separated list of parameters for the algorithm",
