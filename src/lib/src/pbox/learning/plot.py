@@ -7,7 +7,7 @@ from sklearn.covariance import empirical_covariance
 from sklearn.preprocessing import StandardScaler
 from textwrap import wrap
 from tinyscript import code, colored
-from tinyscript.helpers import ansi_seq_strip, get_terminal_size, ints2hex, txt2bold
+from tinyscript.helpers import ansi_seq_strip, get_terminal_size, ints2hex, txt2bold, Path
 
 from ..common.config import *
 from ..common.utils import *
@@ -198,15 +198,22 @@ def _dataset_features_bar_chart(dataset, feature=None, multiclass=False, format=
 
 def plot(obj, ptype, dpi=200, **kw):
     """ Generic plot function. """
+    try:
+        with Path("~/.packing-box/experiment.env", expand=True).open() as f:
+            root = Path(f.read().strip()).joinpath("figures")
+        root.mkdir(exist_ok=True)
+    except FileNotFoundError:
+        root = Path(".")
     obj.logger.info("Preparing data...")
     try:
-        img = PLOTS[ptype](obj, **kw)
+        img = root.joinpath(PLOTS[ptype](obj, **kw))
     except KeyError:
         obj.logger.error("Plot type does not exist (should be one of [%s])" % "|".join(PLOTS.keys()))
         return
-    if img is not None:
-        obj.logger.info("Saving to %s..." % img)
-        matplotlib.pyplot.savefig(img, format=kw.get('format'), dpi=dpi, bbox_inches="tight")
+    except TypeError:
+        return
+    obj.logger.info("Saving to %s..." % img)
+    matplotlib.pyplot.savefig(img, format=kw.get('format'), dpi=dpi, bbox_inches="tight")
 
 
 PLOTS = {

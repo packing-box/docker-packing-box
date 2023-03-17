@@ -375,6 +375,19 @@ FSG:
   source: https://in4k.github.io/wiki/exe-packers-tweakers-and-linkers
   status: broken
 
+GoPacker:
+  categories:
+    - compressor
+  description: UPX-like packer to shrink executables written in Go.
+  formats:
+    - PE
+  install:
+    - wget: https://github.com/nirhaas/gopacker/archive/refs/heads/master.zip
+    - unzip: $OPT
+    - go: github.com/nirhaas/gopacker
+    - lsh: gopacker
+  source: https://github.com/nirhaas/gopacker
+
 GZEXE:
   categories:
     - compressor

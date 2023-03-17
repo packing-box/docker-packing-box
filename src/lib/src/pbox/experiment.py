@@ -13,7 +13,7 @@ __all__ = ["Experiment"]
 
 COMMIT_VALID_COMMANDS = [
     # OS commands
-    "cp", "mkdir", "mv",
+    "cd", "cp", "mkdir", "mv",
     # packing-box commands
     "dataset", "detector", "model", "packer", "unapcker", "visualizer",
 ]
