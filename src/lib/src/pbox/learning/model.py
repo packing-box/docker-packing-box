@@ -365,7 +365,7 @@ class Model:
         # display performance data
         h = list(perf.columns)
         data = sorted(perf.values.tolist(), key=lambda row: (row[0], row[1]))
-        print(mdv.main(Table(highlight_best(data, h, [0, 1, -1], METRIC_DISPLAYS), column_headers=h).md()))
+        print(mdv.main(Table(highlight_best(data, h, [0, 1, -1]), column_headers=h).md()))
     
     def edit(self, **kw):
         """ Edit the performance log file. """
@@ -481,8 +481,8 @@ class Model:
         for metric in metrics:
             try:
                 m, h = self._metrics(self._data, prediction, self._target, proba, metric, dt, ignore_labels)
-            except TypeError:
-                continue
+            except TypeError:  # when None is returned because of a bad metrics category OR ignore_labels is
+                continue       #  True and labels were required for the metrics category
             for header in [[], ["Model"]][self.__class__ is DumpedModel] + ["Dataset"] + h:
                 if header not in self._performance.columns:
                     self._performance[header] = np.nan
@@ -614,9 +614,8 @@ class Model:
                     try:
                         m, h = self._metrics(s.data, s.predict, s.target, s.predict_proba, metric,
                                              ignore_labels=ignore_labels)
-                    except TypeError:  # when None is returned because of a bad metrics category
-                        l.warning("metric category '%s' ignored" % metric)
-                        continue
+                    except TypeError:  # when None is returned because of a bad metrics category OR ignore_labels is
+                        continue       #  True and labels were required for the metrics category
                     d.append([dset.capitalize()] + m)
                     h = ["."] + h
             if len(h) > 0:

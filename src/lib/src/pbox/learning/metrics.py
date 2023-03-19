@@ -8,12 +8,11 @@ from ..common.config import *
 
 
 __all__ = ["classification_metrics", "clustering_metrics", "regression_metrics",
-           "metric_headers", "METRIC_DISPLAY", "METRIC_DISPLAYS"]
+           "highlight_best", "metric_headers", "METRIC_DISPLAY"]
 
 
 # metric format function: p=precision, m=multiplier, s=symbol
 mformat = lambda p=3, m=1, s=None: lambda x: "-" if x == "-" else ("{:.%df}{}" % p).format(m * x, s or "")
-METRIC_CATEGORIES = ["classification", "clustering", "regression"]
 METRIC_DISPLAY = {
     # helpers
     '%':   mformat(2, 100, "%"),
@@ -42,11 +41,13 @@ METRIC_DISPLAY = {
         'MAE': "nbr",
     },
 }
-METRIC_DISPLAYS = {}
-for k in METRIC_CATEGORIES:
-    for m, v in METRIC_DISPLAY[k].items():
-        METRIC_DISPLAYS[m] = METRIC_DISPLAY.get(v, v)
 NO_VALUE = "-"
+
+_METRIC_CATEGORIES = ["classification", "clustering", "regression"]
+_METRIC_DISPLAYS = {}
+for k in _METRIC_CATEGORIES:
+    for m, v in METRIC_DISPLAY[k].items():
+        _METRIC_DISPLAYS[m] = METRIC_DISPLAY.get(v, v)
 
 # add -1 to zero_division possible values
 code.replace(sklearn.metrics._classification._check_zero_division,
@@ -126,12 +127,32 @@ def _map_values_to_integers(*arrays, **kwargs):
     return out_arrays
 
 
+def highlight_best(data, headers=None, exclude_cols=[0, -1], formats=_METRIC_DISPLAYS):
+    """ Highlight the highest values in the given table. """
+    if len(data[0]) != len(headers):
+        raise ValueError("headers and row lengths mismatch")
+    ndata, exc_cols = [], [x % len(headers) for x in exclude_cols]
+    maxs = [None if i in exc_cols else 0 for i, _ in enumerate(headers)]
+    fl = lambda f: -1. if f == "-" else float(f)
+    # search for best values
+    for d in data:
+        for i, v in enumerate(d):
+            if maxs[i] is None:
+                continue
+            maxs[i] = max(maxs[i], fl(v))
+    # reformat the table, setting bold text for best values
+    for d in data:
+        ndata.append([bold((formats or {}).get(k, lambda x: x)(v)) if maxs[i] and fl(v) == maxs[i] else \
+                     (formats or {}).get(k, lambda x: x)(v) for i, (k, v) in enumerate(zip(headers, d))])
+    return ndata
+
+
 def metric_headers(metrics, **kw):
-    """ Select the list of headers. """
+    """ Select the list of headers, including the processing time if specified. """
     try:
         selection = METRIC_DISPLAY[metrics]
     except KeyError:
-        raise ValueError("Bad metrics category ; should be one of: %s" % "|".join(METRIC_CATEGORIES))
+        raise ValueError("Bad metrics category ; should be one of: %s" % "|".join(_METRIC_CATEGORIES))
     for name, func in selection.items():
         selection[name] = METRIC_DISPLAY.get(func, func)
     patterns = kw.get('include')
@@ -143,9 +164,10 @@ def metric_headers(metrics, **kw):
 
 
 @_convert_output
-def classification_metrics(X, y_pred, y_true=None, y_proba=None, labels=None, sample_weight=None,
-                           **kw):
+def classification_metrics(X, y_pred, y_true=None, y_proba=None, labels=None, sample_weight=None, **kw):
     """ Compute some classification metrics based on the true and predicted values. """
+    if ignore_labels:
+        return
     binary = len(set([k for k in y_pred if k != NOT_LABELLED])) <= 2 and \
              len(set([k for k in y_true if k != NOT_LABELLED])) <= 2
     # get the true and predicted values without the not-labelled ones and as integers
@@ -167,10 +189,10 @@ def classification_metrics(X, y_pred, y_true=None, y_proba=None, labels=None, sa
 
 
 @_convert_output
-def clustering_metrics(X, y_pred, y_true=None, **kw):
+def clustering_metrics(X, y_pred, y_true=None, ignore_labels=False, **kw):
     """ Compute clustering-related metrics based on the input data and the true and predicted values. """
     # labels not known: no mapping to integers and filtering of not-labelled values as we only consider predicted ones
-    if y_true is None or all(y == NOT_LABELLED for y in y_true):
+    if ignore_labels or y_true is None or all(y == NOT_LABELLED for y in y_true):
         return [silhouette_score(X, y_pred, metric="euclidean"), calinski_harabasz_score(X, y_pred), \
                 davies_bouldin_score(X, y_pred)], metric_headers("clustering",
                                                                  include=["Silhouette", "Calinski", "Davies"], **kw)
@@ -184,6 +206,8 @@ def clustering_metrics(X, y_pred, y_true=None, **kw):
 @_convert_output
 def regression_metrics(X, y_pred, y_true=None, **kw):
     """ Compute regression metrics (MSE, MAE) based on the true and predicted values. """
+    if ignore_labels:
+        return
     # get the true and predicted values without the not-labelled ones and as integers
     yt, yp, _ = _map_values_to_integers(y_true, y_pred, **kw)
     return [mean_squared_error(yt, yp), mean_absolute_error(yt, yp)], metric_headers("regression", **kw)

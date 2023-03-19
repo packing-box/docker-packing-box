@@ -17,8 +17,7 @@ from .executable import Executable
 
 __all__ = ["aggregate_formats", "backup", "benchmark", "bin_label", "class_or_instance_method", "collapse_formats",
            "data_to_temp_file", "dict2", "edit_file", "expand_formats", "file_or_folder_or_dataset", "get_counts",
-           "highlight_best", "is_exe", "make_registry", "mdv", "shorten_str", "strip_version", "ExeFormatDict",
-           "COLORMAP", "FORMATS"]
+           "is_exe", "make_registry", "mdv", "shorten_str", "strip_version", "ExeFormatDict", "COLORMAP", "FORMATS"]
 
 _EVAL_NAMESPACE = {k: getattr(builtins, k) for k in ["abs", "divmod", "float", "hash", "hex", "id", "int", "len",
                                                      "list", "max", "min", "oct", "ord", "pow", "range", "range2",
@@ -318,26 +317,6 @@ def file_or_folder_or_dataset(method):
         if i == -1:
             self.logger.error("No (valid) executable selected")
     return _wrapper
-
-
-def highlight_best(data, headers=None, exclude_cols=[0, -1], formats=None):
-    """ Highlight the highest values in the given table. """
-    if len(data[0]) != len(headers):
-        raise ValueError("headers and row lengths mismatch")
-    ndata, exc_cols = [], [x % len(headers) for x in exclude_cols]
-    maxs = [None if i in exc_cols else 0 for i, _ in enumerate(headers)]
-    fl = lambda f: -1. if f == "-" else float(f)
-    # search for best values
-    for d in data:
-        for i, v in enumerate(d):
-            if maxs[i] is None:
-                continue
-            maxs[i] = max(maxs[i], fl(v))
-    # reformat the table, setting bold text for best values
-    for d in data:
-        ndata.append([bold((formats or {}).get(k, lambda x: x)(v)) if maxs[i] and fl(v) == maxs[i] else \
-                     (formats or {}).get(k, lambda x: x)(v) for i, (k, v) in enumerate(zip(headers, d))])
-    return ndata
 
 
 def make_registry(cls):
