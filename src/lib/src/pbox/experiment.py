@@ -26,6 +26,7 @@ class Experiment:
       +-- conf          custom YAML configuration files
       +-- datasets      datasets specific to the experiment
       +-- models        models specific to the experiment
+      +-- (figures)     figures generated with visualization tools
       +-- (scripts)     additional scripts
       +-- README.md     notes for explaining the experiment
     """
@@ -38,31 +39,36 @@ class Experiment:
                 folder = self.path.joinpath(folder)
                 if not folder.exists():
                     folder.mkdir()
-            self.path.joinpath("README.md").touch()
+            self['README'].touch()
             config['experiment'] = config['workspace'] = self.path
+            # setup YAML configurations from the experiment in the config
             for conf in self.path.joinpath("conf").listdir():
                 config[conf.stem] = conf
     
     def __getitem__(self, name):
-        """ Get something from the experiment folder, either a config file, a dataset or a model. """
-        # case 1: 'name' matches a reserved word for a YAML configuration file
-        for conf in config.DEFAULTS['definitions'].keys():
-            if name == conf:
-                conf = self.path.joinpath("conf").joinpath(conf + ".conf")
-                if not conf.exists():
-                    conf = config[conf]
-                n = conf.capitalize()
-                # if the name exists in the global scope, this will not trigger ; e.g. Features
-                if not n in globals():
-                    n = n[:-1]  # strip the last character ; e.g. Algorithms => Algorithm (class in global scope)
-                cls = globals()[n]
-                cls.source = str(conf)
-                return cls.registry
-        # case 2: 'name' matches a dataset from the experiment
+        """ Get something from the experiment folder, either a config file, a dataset or a model.
+        
+        NB: In the case of YAML configuration files, this method aims to return the actually used YAML, not specifically
+             the one from the experiment (if exists) ; therefore, when a YAML has not been edited within the scope of
+             the experiment yet, this method will return the YAML from the main workspace.
+        """
+        # case 1: 'name' is README(.md) or commands(.rc) ; return a Path instance
+        if name in ["README", "README.md"]:
+            return self.path.joinpath("README.md")
+        if name in ["commands", "commands.rc"]:
+            return self.path.joinpath("commands.rc")
+        # case 2: 'name' matches a reserved word for a YAML configuration file ; return a Path instance
+        #          get it either from the main workspace or, if existing, from the experiment
+        if name in config.DEFAULTS['definitions'].keys():
+            conf = self.path.joinpath("conf").joinpath(name + ".conf")
+            if not conf.exists():
+                conf = config[name]
+            return conf
+        # case 3: 'name' matches a dataset from the experiment ; return a (Fileless)Dataset instance
         for ds in self.path.joinpath("datasets").listdir():
             if name == ds.stem:
                 return open_dataset(ds)
-        # case 3: 'name' matches a model from the experiment
+        # case 4: 'name' matches a model from the experiment ; return a (Dumped)Model instance
         for ds in self.path.joinpath("models").listdir():
             if name == ds.stem:
                 return open_model(ds)
@@ -74,7 +80,8 @@ class Experiment:
     
     def commit(self, force=False, **kw):
         """ Commit the latest executed OS command to the resource file (.rc). """
-        rc = self.path.joinpath("commands.rc")
+        l = self.logger
+        rc = self['commands']
         rc.touch()
         for rc_last_line in rc.read_lines():
             pass
@@ -86,26 +93,36 @@ class Experiment:
         while len(hist) > 0 and all(not hist[-1].startswith(cmd + " ") for cmd in COMMIT_VALID_COMMANDS):
             hist.pop()
         if len(hist) == 0 or hist[-1].strip() == rc_last_line.strip():
-            self.logger.warning("Nothing to commit")
+            l.warning("Nothing to commit")
         elif force or confirm("Do you really want to commit this command: %s ?" % hist[-1]):
-            self.logger.debug("writing command '%s' to commands.rc..." % hist[-1])
+            l.debug("writing command '%s' to commands.rc..." % hist[-1])
             with rc.open('a') as f:
                 f.write(hist[-1].strip())
     
+    def compress(self, **kw):
+        """ Compress the experiment by converting all datasets to fileless datasets. """
+        l, done = self.logger, False
+        for dset in Path(config['datasets']).listdir(Dataset.check):
+            l.info("Dataset: %s" % dset)
+            open_dataset(dset).convert()
+            done = True
+        if not done:
+            l.warning("No dataset to be converted")
+    
     def edit(self, **kw):
         """ Edit the README or a YAML configuration file. """
-        cfg_file = kw.get('config')
-        if cfg_file is None:
-            self.logger.debug("editing experiment's README.md...")
-            edit_file(self.path.joinpath("README.md").absolute(), text=True, logger=self.logger)
-        else:
-            p = self.path.joinpath("conf", cfg_file + ".conf")
-            if not p.exists():
-                cfg = config[cfg_file]
-                self.logger.debug("copying configuration file from '%s'..." % cfg)
-                cfg.copy(p)
-            self.logger.debug("editing experiment's %s configuration..." % cfg_file)
-            edit_file(p, text=True, logger=self.logger)
+        l, conf = self.logger, kw.get('config')
+        p = self[conf] # can be README.md, commands.rc or YAML config files
+        try:
+            p_main, p_exp = config[conf], self.path.joinpath("conf").joinpath(conf + ".conf")
+            if not p_main.is_samepath(p_exp):
+                l.debug("copying configuration file from '%s'..." % p_main)
+                p_main.copy(p_exp)
+            l.debug("editing experiment's %s configuration..." % conf)
+            edit_file(p_exp, text=True, logger=l)
+        except KeyError:
+            l.debug("editing experiment's %s..." % p.basename)
+            edit_file(p, text=True, logger=l)
     
     def list(self, raw=False):
         """ List all valid experiment folders. """
@@ -122,10 +139,11 @@ class Experiment:
     
     def show(self, **kw):
         """ Show an overview of the experiment. """
-        Experiment.summarize(self.path)
+        Dataset(load=False).list()
+        Model(load=False).list()
     
     @property
-    def basename(self):
+    def name(self):
         """ Dummy shortcut for dataset's path.basename. """
         return self.path.basename
     
@@ -136,11 +154,6 @@ class Experiment:
             return True
         except (TypeError, ValueError):
             return False
-    
-    @staticmethod
-    def summarize(path=None):
-        Dataset(load=False).list()
-        Model(load=False).list()
     
     @staticmethod
     def validate(folder, warn=False, logger=None):
@@ -159,7 +172,7 @@ class Experiment:
             if fn not in ["conf", "datasets", "models", "scripts"] and warn and logger is not None:
                 logger.warning("Unknown subfolder '%s'" % fn)
         for fn in f.listdir(Path.is_file):
-            if fn not in ["README.md"] and warn and logger is not None:
+            if fn not in ["commands.rc", "README.md"] and warn and logger is not None:
                 logger.warning("Unknown file '%s'" % fn)
         return f
 
