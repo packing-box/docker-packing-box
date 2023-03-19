@@ -21,6 +21,7 @@ pbox-update() {
   if [ "$*" = "-h" ] || [ "$*" = "--help" ]; then
     echo "Usage: pbox-update [-n/--no-internet]"
   else
+    printf "${CYA}Copying files from packing-box...${RST}\n"
     local OPT=$HOME/.opt
     cp -f /mnt/share/src/files/tools/* $OPT/tools/
     mv -f $OPT/tools/help $OPT/tools/?
@@ -32,9 +33,16 @@ pbox-update() {
     source $HOME/.bashrc
     find /mnt/share/src/files/detectors/ -type f \( ! -iname \"*\.*\" \) -exec cp -f {} $OPT/bin/ \;
     mv -f $OPT/bin/userdb*.txt $OPT/detectors/
-    if [ ! "$*" = "-n" ] && [ ! "$*" = "--no-internet" ]; then
+    wget -q --spider -T 1 http://www.google.com
+    local ret=$?
+    if [ ! "$*" = "-n" ] && [ ! "$*" = "--no-internet" ] && [ $ret -eq 0 ]; then
+      printf "${CYA}Upgrading Pip...${RST}\n"
       pip3 -qq install --user --no-warn-script-location --upgrade pip
+      printf "${CYA}Upgrading pbox library...${RST}\n"
+      pip3 -qq install --user --no-warn-script-location --upgrade /mnt/share/src/lib/
+    else
+      printf "${CYA}Upgrading pbox library (ignore package index)...${RST}\n"
+      pip3 -qq install --user --no-warn-script-location --no-index --no-build-isolation --upgrade /mnt/share/src/lib/
     fi
-    pip3 -qq install --user --no-warn-script-location --upgrade /mnt/share/src/lib/
   fi
 }
