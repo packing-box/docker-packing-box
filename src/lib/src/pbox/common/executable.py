@@ -3,7 +3,7 @@ from datetime import datetime
 from functools import cached_property
 from magic import from_file
 from tinyscript import classproperty, hashlib, shutil
-from tinyscript.helpers import is_filetype, Path
+from tinyscript.helpers import is_filetype, Path, TempPath
 
 from .config import NOT_LABELLED
 
@@ -40,7 +40,7 @@ class Executable(Path):
         if len(parts) == 1:
             e = parts[0]
             # if reinstantiating an Executable instance, simply immediately return it
-            if isinstance(e, Executable):
+            if isinstance(e, Executable) and not kwargs.get('force', False):
                 return e
             # case (1) arises when a series is passed from Pandas' .itertuples() ; this produces an orphan executable
             if all(hasattr(e, f) for f in fields) and hasattr(e, "_fields"):
@@ -118,8 +118,8 @@ class Executable(Path):
     def destination(self):
         if hasattr(self, "_destination"):
             return self._destination
-        if hasattr(self, "_dataset") and hasattr(self._dataset, "files") and self.hash is not None:
-            return self._dataset.files.joinpath(self.hash)
+        if hasattr(self, "_dataset") and self.hash is not None:
+            return (self._dataset.files if self._dataset._files else TempPath()).joinpath(self.hash)
         raise ValueError("Could not compute destination path for '%s'" % self)
     
     @cached_property

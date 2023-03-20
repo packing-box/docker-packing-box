@@ -49,17 +49,24 @@ class FilelessDataset(Dataset):
             yield exe
     Dataset.__iter__ = __iter__
     
-    def _compute_features(self):
-        """ Convenience funcion for computing the self._data pandas.DataFrame containing the feature values. """
+    def _compute_features(self, exe):
+        """ Compute the features for a single Executable instance. """
+        exe = Executable(exe, dataset=self, force=True)
+        d = self[exe.hash, True]
+        d.update(exe.data)
+        return d
+    Dataset._compute_features = _compute_features
+    
+    def _compute_all_features(self):
+        """ Convenience function for computing the self._data pandas.DataFrame containing the feature values. """
         pbar = tqdm(total=self._metadata['executables'], unit="executable")
         for exe in self:
-            h = exe.basename
             d = self[exe.hash, True]
             d.update(exe.data)
             self[exe.hash] = (d, True)  # True: force updating the row
             pbar.update()
         pbar.close()
-    Dataset._compute_features = _compute_features
+    Dataset._compute_all_features = _compute_all_features
     
     @backup
     def convert(self, new_name=None, **kw):
@@ -78,7 +85,7 @@ class FilelessDataset(Dataset):
         l.info("Size of dataset:     %s" % human_readable_size(s1))
         self._files = False
         self.path.joinpath("features.json").write_text("{}")
-        self._compute_features()
+        self._compute_all_features()
         l.debug("removing files...")
         self.files.remove(error=False)
         l.debug("removing eventual backups...")
@@ -124,7 +131,7 @@ class FilelessDataset(Dataset):
             return
         if self._files:
             l.info("Computing features...")
-            self._compute_features()
+            self._compute_all_features()
         try:
             self._metadata['counts'] = self._data.label.value_counts().to_dict()
         except AttributeError:
@@ -158,7 +165,7 @@ class FilelessDataset(Dataset):
     Dataset.export = export
     
     def features(self, **kw):
-        self._compute_features()
+        self._compute_all_features()
         with data_to_temp_file(self._data, prefix="dataset-features-") as tmp:
             edit_file(tmp, logger=self.logger)
     Dataset.features = features

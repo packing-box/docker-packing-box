@@ -20,8 +20,8 @@ plt.rcParams['font.family'] = "serif"
 
 BACKUP_COPIES = 3
 
-ds_check = lambda p: Dataset.check(p, ncheck=False) or \
-                     (self.__class__.check(p, ncheck=False) if self.__class__ is not Dataset else False)
+ds_check = lambda s: lambda p: Dataset.check(p, ncheck=False) or \
+                               (s.__class__.check(p, ncheck=False) if s.__class__ is not Dataset else False)
 
 
 class Dataset:
@@ -333,17 +333,18 @@ class Dataset:
         """ Make dataset's structure and files match. """
         self.logger.debug("dropping duplicates...")
         self._data = self._data.drop_duplicates()
-        for exe in self.files.listdir(is_exe):
-            h = exe.basename
-            if Executable(exe).format is None:  # unsupported or bad format (e.g. Bash script)
-                del self[h]
-            elif h not in self._data.hash.values:
-                del self[h]
+        if self._files:
+            for exe in self.files.listdir(is_exe):
+                h = exe.basename
+                if Executable(exe).format is None:  # unsupported or bad format (e.g. Bash script)
+                    del self[h]
+                elif h not in self._data.hash.values:
+                    del self[h]
         for exe in self:
             h = exe.hash
             if exe.format is None:
                 del self[h]
-            elif not self.files.joinpath(h).exists():
+            elif self._files and not self.files.joinpath(h).exists():
                 del self[h]
         self._save()
     
@@ -463,7 +464,7 @@ class Dataset:
                 l.debug("unsupported file (%s)" % exe)
                 continue
             # check 4: was this executable already included in the dataset?
-            if len(self._data) > 0 and exe.destination.exists():
+            if len(self._data) > 0 and self._files and exe.destination.exists():
                 l.debug("already in the dataset (%s)" % exe)
                 continue
             l.debug("handling %s..." % exe)
@@ -520,6 +521,9 @@ class Dataset:
                     pass
             if not pack_all or pack_all and label not in [NOT_PACKED, NOT_LABELLED]:
                 self[exe] = short_label
+                if not self._files:
+                    self[exe.hash] = (self._compute_features(exe), True)  # True: force updating the row
+                    exe.destination.remove(False)
                 i += 1
                 pbar.update()
             else:
@@ -651,6 +655,8 @@ class Dataset:
             # label was not found and is not set yet and detection is enabled => detect
             elif detect:
                 self[e] = (Detector.detect(e), True)
+            if not self._files:
+                self[h] = (self._compute_features(e), True)  # True: force updating the row
         # case (1) source directories provided, eventually with labels => ingest samples
         #           labels available   => packed / not packed
         #           labels unavailable => not labelled
@@ -724,7 +730,7 @@ class Dataset:
         l.debug("backup %s" % ["disabled", "enabled"][config['keep_backups']])
         tmp = TempPath(".dataset-backup", hex(hash(self))[2:])
         l.debug("backup root: %s" % tmp)
-        backups = sorted(tmp.listdir(ds_check), key=lambda p: -int(p.basename))
+        backups = sorted(tmp.listdir(ds_check(self)), key=lambda p: -int(p.basename))
         if len(backups) > 0:
             l.debug("> found: %s" % ", ".join(map(lambda p: p.basename, backups)))
         for backup in backups:
@@ -739,7 +745,7 @@ class Dataset:
         tmp = TempPath(".dataset-backup", hex(hash(self))[2:])
         l.debug("backup root: %s" % tmp)
         backups, i = [], 0
-        for i, backup in enumerate(sorted(tmp.listdir(ds_check), key=lambda p: -int(p.basename))):
+        for i, backup in enumerate(sorted(tmp.listdir(ds_check(self)), key=lambda p: -int(p.basename))):
             backup, n = self.__class__(backup, check=False), 0
             # if there is a change since the last backup, create a new one
             if i == 0 and dataset != backup:
