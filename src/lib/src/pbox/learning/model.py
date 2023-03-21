@@ -593,13 +593,14 @@ class Model:
         l.debug("> fitting the classifier...")
         self.pipeline.fit(self._train.data, self._train.target.values.ravel())
         l.debug("> making predictions...")
-        self._train.predict = self.pipeline.predict(self._train.data)
+        predict = self.pipeline.predict if hasattr(self.pipeline.steps[-1], "predict") else self.pipeline.fit_predict
+        self._train.predict = predict(self._train.data)
         try:
             self._train.predict_proba = self.pipeline.predict_proba(self._train.data)[:, 1]
         except AttributeError:  # some algorithms do not support .predict_proba(...)
             self._train.predict_proba = None
         if len(self._test.data) > 0:
-            self._test.predict = self.pipeline.predict(self._test.data)
+            self._test.predict = predict(self._test.data)
             try:
                 self._test.predict_proba = self.pipeline.predict_proba(self._test.data)[:, 1]
             except AttributeError:  # some algorithms do not support .predict_proba(...)

@@ -164,7 +164,8 @@ def metric_headers(metrics, **kw):
 
 
 @_convert_output
-def classification_metrics(X, y_pred, y_true=None, y_proba=None, labels=None, sample_weight=None, ignore_labels=False, **kw):
+def classification_metrics(X, y_pred, y_true=None, y_proba=None, labels=None, sample_weight=None, ignore_labels=False,
+                           **kw):
     """ Compute some classification metrics based on the true and predicted values. """
     if ignore_labels:
         return
