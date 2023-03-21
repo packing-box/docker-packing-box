@@ -592,6 +592,7 @@ class Model:
         # now fit the (best) classifier and predict labels
         l.debug("> fitting the classifier...")
         self.pipeline.fit(self._train.data, self._train.target.values.ravel())
+        Pipeline.silent = True
         l.debug("> making predictions...")
         predict = self.pipeline.predict if hasattr(self.pipeline.steps[-1], "predict") else self.pipeline.fit_predict
         self._train.predict = predict(self._train.data)

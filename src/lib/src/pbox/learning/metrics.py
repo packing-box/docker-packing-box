@@ -57,9 +57,13 @@ code.replace(sklearn.metrics._classification._check_zero_division,
 
 def _convert_output(f):
     @functools.wraps(f)
-    def _wrapper(*a, **kw):
-        pt = kw.get('proctime')
+    def _wrapper(X, yp, *a, **kw):
+        l, pt = kw.get('logger', null_logger), kw.get('proctime')
         kw['proctime'] = pt is not None
+        if all(x == LABELS_BACK_CONV[NOT_LABELLED] for x in yp):
+            l.warning("No prediction (returned values mean 'not labelled'), hence no %s metric" % \
+                      f.__name__.split("_")[0])
+            return
         r = f(*a, **kw)
         if isinstance(r, (list, tuple)):
             v = list(map(lambda x: NO_VALUE if x == -1 else x, r[0]))
@@ -67,6 +71,17 @@ def _convert_output(f):
                 v.append(pt)
             return (v, ) + [(), r[1:]][len(r) > 1]
         return r
+    return _wrapper
+
+
+def _skip_if_labels_ignored(f):
+    @functools.wraps(f)
+    def _wrapper(*a, **kw):
+        l, ignore = kw.get('logger', null_logger), kw.get('ignore_labels')
+        if ignore:
+            l.debug("> labels ignored, skipping %s metrics..." % f.__name__.split("_")[0])
+            return
+        return f(*a, **kw)
     return _wrapper
 
 
@@ -108,6 +123,7 @@ def _map_values_to_integers(*arrays, **kwargs):
     """ Map values from the given arrays to integers. """
     l = kwargs.get('logger', null_logger)
     out_arrays, d, r = [], {}, []
+    l.debug("> filtering out not labelled samples...")
     for i, array in enumerate(arrays):
         if array is None:
             out_array = None
@@ -123,7 +139,7 @@ def _map_values_to_integers(*arrays, **kwargs):
         if binary and i == 0:
             continue
         tn, fp, fn, tp = matrix.ravel()
-        l.debug("%sTN: %d ; TP: %d ; FN: %d ; FP: %d" % (["[%d] " % i, ""][binary], tn, tp, fn, fp))
+        l.debug("> %sTN: %d ; TP: %d ; FN: %d ; FP: %d" % (["[%d] " % i, ""][binary], tn, tp, fn, fp))
     return out_arrays
 
 
@@ -163,11 +179,14 @@ def metric_headers(metrics, **kw):
     return selection
 
 
+@_skip_if_labels_ignored
 @_convert_output
 def classification_metrics(X, y_pred, y_true=None, y_proba=None, labels=None, sample_weight=None, ignore_labels=False,
                            **kw):
     """ Compute some classification metrics based on the true and predicted values. """
+    l = kw.get('logger', null_logger)
     if ignore_labels:
+        l.debug("> labels ignored, skipping classification metrics...")
         return
     binary = len(set([k for k in y_pred if k != NOT_LABELLED])) <= 2 and \
              len(set([k for k in y_true if k != NOT_LABELLED])) <= 2
@@ -192,23 +211,26 @@ def classification_metrics(X, y_pred, y_true=None, y_proba=None, labels=None, sa
 @_convert_output
 def clustering_metrics(X, y_pred, y_true=None, ignore_labels=False, **kw):
     """ Compute clustering-related metrics based on the input data and the true and predicted values. """
+    l = kw.get('logger', null_logger)
     # labels not known: no mapping to integers and filtering of not-labelled values as we only consider predicted ones
     if ignore_labels or y_true is None or all(y == NOT_LABELLED for y in y_true):
+        if ignore_labels:
+            l.debug("> labels ignored, skipping label-dependent clustering metrics...")
         return [silhouette_score(X, y_pred, metric="euclidean"), calinski_harabasz_score(X, y_pred), \
                 davies_bouldin_score(X, y_pred)], metric_headers("clustering",
                                                                  include=["Silhouette", "Calinski", "Davies"], **kw)
     # labels known: get the true and predicted values without the not-labelled ones and as integers
     yt, yp, _ = _map_values_to_integers(y_true, y_pred, **kw)
+    print(y_true, y_pred)
     return [rand_score(yt, yp), adjusted_mutual_info_score(yt, yp), homogeneity_completeness_v_measure(yt, yp), \
             silhouette_score(X, y_pred, metric="euclidean"), calinski_harabasz_score(X, y_pred), \
             davies_bouldin_score(X, y_pred)], metric_headers("clustering", **kw)
 
 
+@_skip_if_labels_ignored
 @_convert_output
 def regression_metrics(X, y_pred, y_true=None, ignore_labels=False, **kw):
     """ Compute regression metrics (MSE, MAE) based on the true and predicted values. """
-    if ignore_labels:
-        return
     # get the true and predicted values without the not-labelled ones and as integers
     yt, yp, _ = _map_values_to_integers(y_true, y_pred, **kw)
     return [mean_squared_error(yt, yp), mean_absolute_error(yt, yp)], metric_headers("regression", **kw)
