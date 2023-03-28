@@ -27,7 +27,8 @@ def _preprocess(f):
     @wraps(f)
     def _wrapper(*args, **kwargs):
         X = kwargs['data']
-        n, p = kwargs.get('pca_components', 20), kwargs.get('perplexity', 30)
+        n, p = kwargs.get('pca_components', min(20, len(X.columns))), kwargs.get('perplexity', 30)
+        suffix = "_pca%d" % n
         X = SimpleImputer(missing_values=np.nan, strategy=kwargs.get('imputer_strategy', "mean")).fit_transform(X)
         # preprocess data with a PCA with n components to reduce the high dimensionality (better performance)
         pca = PCA(n, random_state=42)
@@ -39,8 +40,11 @@ def _preprocess(f):
         # now reduce the n components to 2 dimensions with t-SNE (better results but less performance) if relevant
         if n > 2:
             X = TSNE(2, random_state=42, perplexity=p).fit_transform(X)
+            suffix += "_tsne2-p%d" % p
         kwargs['data'] = X
-        return f(*args, **kwargs)
+        fig = f(*args, **kwargs)
+        fig.dst_suffix = suffix
+        return fig
     return _wrapper
 
 

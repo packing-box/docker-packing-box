@@ -633,27 +633,29 @@ class Model:
             self.logger.warning("Model shall be trained before visualizing")
             return
         a = self._metadata['algorithm']
-        viz = VISUALIZATIONS.get(a['name']).get(["text", "image"][export])
-        if viz is None:
+        viz_dict = VISUALIZATIONS.get(a['name'], {})
+        viz_func = viz_dict.get(["text", "image"][export])
+        if viz_func is None:
             self.logger.warning("Visualization not available for this algorithm%s" % [" in text mode", ""][export])
             return
         params = {'algo_name' : a['name'], 'algo_params': a['parameters'],
                   'feature_names': sorted(self._features.keys()), 'logger': self.logger}
         params.update(kw.pop('viz_params', {}))
         # if visualization requires the original data (e.g. kNN), use self._prepare to create self._data/self._target
-        if VISUALIZATIONS.get(a['name']).get("data", False):
+        if viz_dict.get("data", False):
             kw['data_only'] = True
             if not self._prepare(**kw):
                 return
             params['data'] = self._data
-            if VISUALIZATIONS[a['name']].get("target", True):
+            if viz_dict.get("target", True):
                 params['target'] = self._target
         if export:
-            destination = str(Path(output_dir).joinpath("%s.png" % self.name))
-            viz(self.classifier, **params).savefig(destination, format="png", bbox_inches="tight")
-            self.logger.warning("Visualization saved to %s" % destination)
+            fig = viz_func(self.classifier, **params)
+            dst = str(Path(output_dir).joinpath("%s%s.png" % (self.name, getattr(fig, "dst_suffix", "")))
+            fig.savefig(dst, format="png", bbox_inches="tight")
+            self.logger.warning("Visualization saved to %s" % dst)
         else:
-            print(viz(self.classifier, **params))
+            print(viz_func(self.classifier, **params))
     
     @property
     def algorithm(self):
