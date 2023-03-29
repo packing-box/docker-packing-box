@@ -651,7 +651,7 @@ class Model:
                 params['target'] = self._target
         if export:
             fig = viz_func(self.classifier, **params)
-            dst = str(Path(output_dir).joinpath("%s%s.png" % (self.name, getattr(fig, "dst_suffix", "")))
+            dst = str(Path(output_dir).joinpath("%s%s.png" % (self.name, getattr(fig, "dst_suffix", ""))))
             fig.savefig(dst, format="png", bbox_inches="tight")
             self.logger.warning("Visualization saved to %s" % dst)
         else:
