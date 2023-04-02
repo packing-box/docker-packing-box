@@ -140,7 +140,7 @@ class Model:
             l.error("Bad metrics type '%s'" % metrics)
             return
         m = globals()[mfunc]
-        l.debug("Computing metrics...")
+        l.debug("Computing %s metrics..." % metrics)
         df2np = lambda df: df.to_numpy() if isinstance(df, pd.DataFrame) else df
         fix = lambda v: df2np(v) if getattr(df2np(v), "ndim", 1) == 1 else df2np(v).transpose()[0]
         values, headers = m(data, fix(prediction), y_true=fix(target), y_proba=fix(proba), proctime=proctime,
@@ -170,9 +170,8 @@ class Model:
                 return False
             # copy relevant information from the input dataset (which is the reference one for the trained model)
             l.debug("Preparing dataset...")
-            self._metadata['dataset'] = {k: v for k, v in ds._metadata.items()}
-            self._metadata['dataset']['path'] = str(ds.path)
-            self._metadata['dataset']['name'] = ds.path.stem
+            self._metadata['dataset'] = {'name': ds.path.stem, 'path': str(ds.path)}
+            self._metadata['dataset'].update({k: v for k, v in ds._metadata.items()})
         # if using data only (thus not training), this could be for preprocessing and visualizing features ; then the
         #  model's reference dataset is to be used
         elif ds is None:
@@ -294,11 +293,14 @@ class Model:
             return True
         # apply variance threshold of 0.0 to remove useless features and rectify the list of features
         l.debug("> remove 0-variance features")
-        #TODO: log features that are removed
         selector = VarianceThreshold()
         selector.fit(self._data)
         self._data = self._data[self._data.columns[selector.get_support(indices=True)]]
+        removed = [f for f in self._features.keys() if f not in self._data]
         self._features = {k: v for k, v in self._features.items() if k in self._data.columns}
+        if len(removed) > 0:
+            self.logger.debug("> features removed:\n- %s" % "\n- ".join(sorted(removed)))
+            self._metadata['dataset']['dropped-features'] = removed
         # prepare for training and testing sets
         class Dummy: pass
         self._train, self._test = Dummy(), Dummy()
@@ -332,7 +334,7 @@ class Model:
                 p.chmod(0o444)
             self.__read_only = True
         p = self.path.joinpath("performance.csv")
-        l.debug("> saving %s..." % p.basename)
+        l.debug("> saving %s..." % str(p))
         self._performance.to_csv(str(p), sep=";", index=False, header=True, float_format=FLOAT_FORMAT)
     
     def compare(self, dataset=None, model=None, include=False, **kw):
@@ -616,7 +618,8 @@ class Model:
             except AttributeError:  # some algorithms do not support .predict_proba(...)
                 self._test.predict_proba = None
         metrics = cls.metrics if isinstance(cls.metrics, (list, tuple)) else [cls.metrics]
-        render(Title("Name: %s" % self.name))
+        render(Section("Name: %s" % self.name))
+        print("\n")
         for metric in metrics:
             d, h = [], []
             for dset in ["train", "test"]:
