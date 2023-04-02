@@ -26,8 +26,7 @@ pbox-update() {
     cp -f /mnt/share/src/files/tools/* $OPT/tools/
     mv -f $OPT/tools/help $OPT/tools/?
     cp -f /mnt/share/src/conf/*.yml $OPT/
-    cp -f "/mnt/share/src/term/profile" "$HOME/.profile"
-    for F in /mnt/share/src/term/[^profile]*; do
+    for F in /mnt/share/src/term/*; do
       cp -f "$F" "$HOME/.${F##*/}"
     done
     source $HOME/.bashrc
