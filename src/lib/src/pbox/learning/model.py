@@ -4,6 +4,7 @@ import multiprocessing as mp
 import numpy as np
 import pandas as pd
 from _pickle import UnpicklingError
+from sklearn.base import BaseEstimator, TransformerMixin
 from sklearn.decomposition import PCA
 from sklearn.feature_selection import VarianceThreshold
 from sklearn.model_selection import train_test_split, GridSearchCV
@@ -66,7 +67,7 @@ class DebugPipeline:
         self._args = (args, kwargs)
     
     def __getattribute__(self, name):
-        if name in ["_args", "_log_message", "append", "logger", "pipeline", "pop", "serialize"]:
+        if name in ["_args", "_log_message", "append", "logger", "pipeline", "pop", "preprocess", "serialize"]:
             return object.__getattribute__(self, name)
         return object.__getattribute__(object.__getattribute__(self, "pipeline"), name)
     
@@ -88,6 +89,20 @@ class DebugPipeline:
     
     def pop(self, idx=None):
         self.pipeline.steps.pop() if idx is None else self.pipeline.steps.pop(idx)
+    
+    def preprocess(self, X):
+        pipeline = self.pipeline[:-1]
+        pipeline.steps.append(("debug", DebugTransformer()))
+        return pipeline.fit_transform(X)
+
+
+class DebugTransformer(BaseEstimator, TransformerMixin):
+    def transform(self, X):
+        self.shape = X.shape
+        return X
+
+    def fit(self, X, y=None, **params):
+        return self
 
 
 class Model:
@@ -188,7 +203,7 @@ class Model:
                 l.error("Bad input dataset (%s)" % ds)
                 return False
         self._dataset = ds
-        l.info("%s dataset:  %s" % (["Reference", "Test"][data_only], ds))
+        l.info("%s dataset:  %s" % (kw.get('ds_type', ["Reference", "Test"][data_only]), ds))
         self._data, self._target = pd.DataFrame(), pd.DataFrame(columns=["label"])
         Features.boolean_only = self.algorithm.boolean
         # start input dataset parsing
@@ -337,6 +352,34 @@ class Model:
         l.debug("> saving %s..." % str(p))
         self._performance.to_csv(str(p), sep=";", index=False, header=True, float_format=FLOAT_FORMAT)
     
+    def browse(self, executable=None, query=None, **kw):
+        """ Browse the data from a dataset, including its predictions. """
+        l, ds = self.logger, executable or self._metadata['dataset']['name']
+        if len(self.pipeline.steps) == 0:
+            l.warning("Model shall be trained before browsing a dataset")
+            return
+        kw['data_only'], kw['dataset'] = True, ds
+        if not self._prepare(ds_type="Target", **kw):
+            return
+        l.debug("Applying predictions with %s on %s..." % (self.name, ds))
+        pred = self.pipeline.predict(self._data)
+        try:
+            data = open_dataset(ds)._data
+        except ValueError:
+            data = self._data
+        for f in self._metadata['dataset']['dropped-features']:
+            try:
+                del data[f]
+            except KeyError:
+                continue
+            l.debug("> dropped feature: %s" % f)
+        # if the prediction relates to a cluster, name it accordingly
+        k = 'cluster' if 'n_clusters' in self.algorithm.parameters or \
+                      any('n_clusters' in d for d in self.algorithm.parameters.values()) else 'prediction'
+        data[k] = pred
+        with data_to_temp_file(filter_data(data, query, logger=self.logger), prefix="model-data-") as tmp:
+            edit_file(tmp, logger=self.logger)
+    
     def compare(self, dataset=None, model=None, include=False, **kw):
         """ Compare the last performance of this model on the given dataset with other ones. """
         l, data, models = self.logger, [], [self]
@@ -413,18 +456,14 @@ class Model:
                                           "Packers"])]
         render(*r)
     
-    def preprocess(self, **kw):
+    def preprocess(self, executable=None, **kw):
         """ Preprocess an input dataset given selected features and display it with visidata for review. """
-        kw['data_only'] = True
+        kw['data_only'], kw['dataset'] = True, executable or self._metadata['dataset']['name']
         if not self._prepare(**kw):
-            self.logger.debug("could not prepare dataset")
             return
-        self.pipeline.fit(self._data, self._target)  # fit_transform with all the transformers, not with the estimator
-        tmp_p = TempPath(prefix="model-preprocess-", length=8)
-        tmp_f = tmp_p.tempfile("data.csv")
-        self._data.to_csv(str(tmp_f), sep=";", index=False, header=True)
-        edit_file(tmp_f, logger=self.logger)
-        tmp_p.remove()
+        df = pd.DataFrame(self.pipeline.preprocess(self._data), columns=self._data.columns)
+        with data_to_temp_file(df, prefix="model-preprocess-") as tmp:
+            edit_file(tmp, logger=self.logger)
     
     def purge(self, **kw):
         """ Purge the current model. """
@@ -472,7 +511,7 @@ class Model:
     
     def test(self, executable, ignore_labels=False, **kw):
         """ Test a single executable or a set of executables and evaluate metrics. """
-        l, ds, unlab = self.logger, executable, kw.get('unlabelled', False)
+        l, ds = self.logger, executable
         if len(self.pipeline.steps) == 0:
             l.warning("Model shall be trained before testing")
             return
@@ -501,7 +540,7 @@ class Model:
             render(Table([m], column_headers=h, title="%s metrics" % metric.capitalize() if len(metrics) > 0 else None))
             if len(self._data) > 0:
                 row = {'Model': self.name} if self.__class__ is DumpedModel else {}
-                row['Dataset'] = str(ds) + ["", "(unlabelled)"][unlab]
+                row['Dataset'] = str(ds) + ["", "(unlabelled)"][ignore_labels]
                 for k, v in zip(h, m):
                     row[k] = v
                 self._performance = self._performance.append(row, ignore_index=True)

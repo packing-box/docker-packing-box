@@ -7,7 +7,7 @@ from tinyscript import *
 
 __author__      = "Alexandre D'Hondt"
 __email__       = "alexandre.dhondt@gmail.com"
-__version__     = "1.2.7"
+__version__     = "1.3.0"
 __copyright__   = ("A. D'Hondt", 2021)
 __license__     = "gpl-3.0"
 __doc__         = """
@@ -17,9 +17,9 @@ This utility aims to train Machine Learning models based on an input dataset. It
 __description__ = "Train Machine Learning models"
 __examples__    = [
     "list",
-    "preprocess my-dataset",
+    "preprocess [model_name] my-dataset",
     "train my-dataset -a mnb",
-    "show my-dataset",
+    "show [model_name]",
 ]
 
 
@@ -28,7 +28,7 @@ def at_interrupt():
     logger.warn("Interrupted by the user.")
 
 
-def __add_name(parser, optional=False, force=False, joblib=False):
+def __add_name(parser, optional=False, force=False):
     def model_exists(string):
         if string == "all":
             return string
@@ -45,7 +45,13 @@ def __add_name(parser, optional=False, force=False, joblib=False):
 
 if __name__ == '__main__':
     sparsers = parser.add_subparsers(dest="command", help="command to be executed")
-    compare = __add_name(sparsers.add_parser("compare", help="compare the selected model with others"), joblib=True)
+    browse = __add_name(sparsers.add_parser("browse", help="browse input data (including predictions) based on the "
+                                                           "selected criteria"))
+    browse.add_argument("executable", nargs="?",
+                        help="executable or folder containing executables or dataset or data CSV file")
+    browse.add_argument("-q", "--query", help="query for filtering records to be selected",
+                        note="see <https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.query.html>")
+    compare = __add_name(sparsers.add_parser("compare", help="compare the selected model with others"))
     compare.add_argument("-d", "--dataset", type=open_dataset, action="extend", nargs="*",
                          help="dataset to be selected for the comparison")
     compare.add_argument("-i", "--include", action="store_true", help="include unformatted models")
@@ -55,21 +61,23 @@ if __name__ == '__main__':
     listm = sparsers.add_parser("list", help="list all the models from the workspace")
     listm.add_argument("--algorithms", action="store_true", help="show available algorithms instead of models")
     preproc = __add_name(sparsers.add_parser("preprocess", help="preprocess features and visualize the result"))
+    preproc.add_argument("executable", nargs="?",
+                         help="executable or folder containing executables or dataset or data CSV file")
     preproc.add_argument("-f", "--features-set", type=ts.file_exists, default=config['features'],
-                         help="features set's YAML definition")
+                         help="features set's YAML definition", note="similar to 'dataset browse', except that it "
+                         "requires a model to apply its preprocessors in addition")
     __add_name(sparsers.add_parser("purge", help="purge the selected model"), force=True)
     rename = __add_name(sparsers.add_parser("rename", help="rename the selected model"))
     rename.add_argument("name2", type=ts.folder_does_not_exist, help="new name of the model")
     __add_name(sparsers.add_parser("show", help="get an overview of the model"))
-    test = __add_name(sparsers.add_parser("test", help="test the model on a given input"), joblib=True)
+    test = __add_name(sparsers.add_parser("test", help="test the model on a given input"))
     test.add_argument("executable", help="executable or folder containing executables or dataset or data CSV file")
     test.add_argument("-f", "--features-set", type=ts.file_exists, default=config['features'],
                       help="features set's YAML definition")
-    test.add_argument("-u", "--unlabeled", action="store_true", help="do not use assigned labels (if any)")
     test.add_argument("--ignore-labels", action="store_true",
                       help="while computing metrics, only consider those not requiring labels")
     test.add_argument("--sep", default=",", choices=",;|\t", help="set the CSV separator",
-                      note="required when using input CSV data instead of a Dataset")
+                      note="required when using input CSV data instead of a Dataset (no effect otherwise)")
     train = sparsers.add_parser("train", help="train a model on the given dataset")
     train.add_argument("dataset", type=open_dataset, help="dataset for training the model")
     __add_name(train, True)

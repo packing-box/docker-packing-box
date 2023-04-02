@@ -5,16 +5,17 @@ from pbox.__info__ import *
 from tinyscript import *
 
 
-__version__     = "2.3.0"
+__version__     = "2.4.0"
 __doc__         = """
 This tool aims to manipulate a dataset in many ways including its creation, enlargement, update, alteration, selection,
  merging, export or purge.
 """
 __examples__    = [
+    "browse my-dataset",
+    "browse my-dataset --query \"label == 'upx'\"",
     "convert my-dataset --new-name my-fileless-dataset",
     "export my-dataset",
     "export my-dataset -f packed-samples -o my-dataset-files -n 100",
-    "features my-dataset",
     "ingest dataset-packed-elf --detect",
     "ingest dataset-packed-pe --labels /path/to/exe/labels.json --merge --rename as-is",
     "list --show-all",
@@ -64,6 +65,11 @@ if __name__ == '__main__':
     alter.add_argument("-a", "--modifiers-set", type=ts.file_exists, default=str(config['modifiers']),
                        help="modifiers set's YAML definition")
     alter.add_argument("-p", "--percentage", type=_percentage, default=.1, help="percentage of samples to be altered")
+    browse = __add_name(cmds.add_parser("browse", help="compute features and browse the resulting data"))
+    browse.add_argument("-f", "--features-set", type=ts.file_exists, default=str(config['features']),
+                        help="features set's YAML definition")
+    browse.add_argument("-q", "--query", help="query for filtering records to be selected",
+                        note="see <https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.query.html>")
     convert = __add_name(cmds.add_parser("convert", help="convert the target dataset to a fileless one"))
     convert.add_argument("-f", "--features-set", type=ts.file_exists, default=str(config['features']),
                          help="features set's YAML definition")
@@ -79,9 +85,6 @@ if __name__ == '__main__':
     export_ = export.add_argument_group("option when exporting packed samples", before="extra arguments")
     export_.add_argument("-n", "--number-samples", dest="n", type=ts.pos_int, default=0,
                          help="number of packed samples to be exported")
-    feat = __add_name(cmds.add_parser("features", help="compute and view features"))
-    feat.add_argument("-f", "--features-set", type=ts.file_exists, default=str(config['features']),
-                      help="features set's YAML definition")
     fix = __add_name(cmds.add_parser("fix", help="fix a corrupted dataset"))
     fgroup = fix.add_mutually_exclusive_group()
     fgroup.add_argument("-d", "--detect", action="store_true", help="detect used packer with installed detectors")
@@ -138,7 +141,7 @@ if __name__ == '__main__':
                        note="use 'all' to purge every dataset or the wildcard '*' to select a part of them")
     purge.add_argument("-b", "--backup", action="store_true", help="only purge backups")
     remove = __add_name(cmds.add_parser("remove", help="remove executables from a dataset"))
-    remove.add_argument("-q", "--query", help="query for selecting records to be removed",
+    remove.add_argument("-q", "--query", help="query for filtering records to be removed",
                         note="see <https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.query.html>")
     rename = __add_name(cmds.add_parser("rename", help="rename a dataset"))
     rename.add_argument("name2", type=ts.folder_does_not_exist, help="new name of the dataset")
@@ -147,7 +150,7 @@ if __name__ == '__main__':
     select.add_argument("name2", type=ts.folder_does_not_exist, help="name of the new dataset")
     select.add_argument("-n", "--number", dest="limit", type=ts.pos_int, default=0,
                         help="limit number of executables for the output dataset", note="0 means all")
-    select.add_argument("-q", "--query", help="query for selecting records to be selected",
+    select.add_argument("-q", "--query", help="query for filtering records to be selected",
                         note="see <https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.query.html>")
     show = __add_name(cmds.add_parser("show", help="get an overview of the dataset"))
     show.add_argument("-l", "--limit", default=10, type=int, help="number of executables to be displayed per format")
@@ -162,7 +165,7 @@ if __name__ == '__main__':
     update.add_argument("-s", "--source-dir", action="extend", nargs="*", type=lambda p: ts.Path(p, expand=True),
                         help="executables source directory to be included")
     view = __add_name(cmds.add_parser("view", help="view executables filtered from a dataset"))
-    view.add_argument("-q", "--query", help="query for selecting records to be viewed",
+    view.add_argument("-q", "--query", help="query for filtering records to be viewed",
                       note="see <https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.query.html>")
     initialize(noargs_action="help")
     logger.name = "dataset"

@@ -173,22 +173,6 @@ class Dataset:
         self.logger.debug("copying dataset '%s' to %s" % (self.basename, path))
         self.path.copy(path)
     
-    def _filter(self, query=None, **kw):
-        """ Yield executables' hashes from the dataset using Pandas' query language. """
-        i, l = -1, self.logger
-        try:
-            for i, row in enumerate(self._data.query(query or "()").itertuples()):
-                yield row
-            if i == -1:
-                l.warning("No data selected")
-        except (AttributeError, KeyError) as e:
-            l.error("Invalid query syntax ; %s" % e)
-        except SyntaxError:
-            l.error("Invalid query syntax ; please checkout Pandas' documentation for more information")
-        except pd.errors.UndefinedVariableError as e:
-            l.error(e)
-            l.info("Possible values:\n%s" % "".join("- %s\n" % n for n in self._data.columns))
-    
     def _load(self):
         """ Load dataset's associated files or create them. """
         l = self.logger
@@ -554,7 +538,7 @@ class Dataset:
     def remove(self, query=None, **kw):
         """ Remove executables from the dataset given multiple criteria. """
         self.logger.debug("removing files from %s based on query '%s'..." % (self.basename, query))
-        for e in self._filter(query, **kw):
+        for e in filter_data(self._data, query, logger=self.logger):
             del self[e.hash]
         self._save()
     
@@ -588,7 +572,7 @@ class Dataset:
         ds2 = self.__class__(name2)
         ds2._metadata['sources'] = self._metadata['sources'][:]
         _tmp, i = {s: 0 for s in ds2._metadata['sources']}, 0
-        for e in self._filter(query, **kw):
+        for e in filter_data(self._data, query, logger=self.logger):
             if i >= limit > 0:
                 break
             for s in ds2._metadata['sources']:
@@ -699,7 +683,7 @@ class Dataset:
     
     def view(self, query=None, **kw):
         """ View executables from the dataset given multiple criteria. """
-        src = self._metadata.get('sources', [])
+        src = [Path(s, expand=True) for s in self._metadata.get('sources', [])]
         def _shorten(path):
             p = Path(path)
             for i, s in enumerate(src):
@@ -709,7 +693,7 @@ class Dataset:
         # prepare the table of records
         d, h = [], ["Hash", "Path", "Size", "Creation", "Modification", "Label"]
         Executable._metadata_only = True
-        for e in self._filter(query, **kw):
+        for e in filter_data(self._data, query, logger=self.logger):
             e = Executable(dataset=self, hash=e.hash)
             i, p = _shorten(e.realpath)
             if i >= 0:

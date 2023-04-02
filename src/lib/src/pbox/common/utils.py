@@ -17,8 +17,8 @@ from .executable import Executable
 
 __all__ = ["aggregate_formats", "backup", "benchmark", "bin_label", "class_or_instance_method", "collapse_formats",
            "data_to_temp_file", "dict2", "edit_file", "expand_formats", "expand_parameters",
-           "file_or_folder_or_dataset", "get_counts", "is_exe", "make_registry", "shorten_str", "strip_version", "tqdm",
-           "ExeFormatDict", "COLORMAP", "FORMATS"]
+           "file_or_folder_or_dataset", "filter_data", "get_counts", "is_exe", "make_registry", "shorten_str",
+           "strip_version", "tqdm", "ExeFormatDict", "COLORMAP", "FORMATS"]
 
 _EVAL_NAMESPACE = {k: getattr(builtins, k) for k in ["abs", "divmod", "float", "hash", "hex", "id", "int", "len",
                                                      "list", "max", "min", "oct", "ord", "pow", "range", "range2",
@@ -333,6 +333,25 @@ def file_or_folder_or_dataset(method):
         if i == -1:
             self.logger.error("No (valid) executable selected")
     return _wrapper
+
+
+def filter_data(df, query=None, **kw):
+    """ Fitler an input Pandas DataFrame based on a given query. """
+    i, l = -1, kw.get('logger', null_logger)
+    if query is None or query.lower() == "all":
+        return df
+    try:
+        r = df.query(query)
+        if len(r) == 0:
+            l.warning("No data selected")
+        return r
+    except (AttributeError, KeyError) as e:
+        l.error("Invalid query syntax ; %s" % e)
+    except SyntaxError:
+        l.error("Invalid query syntax ; please checkout Pandas' documentation for more information")
+    except pd.errors.UndefinedVariableError as e:
+        l.error(e)
+        l.info("Possible values:\n%s" % "".join("- %s\n" % n for n in df.columns))
 
 
 def make_registry(cls):

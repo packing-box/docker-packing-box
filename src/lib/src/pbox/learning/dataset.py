@@ -58,14 +58,27 @@ class FilelessDataset(Dataset):
     
     def _compute_all_features(self):
         """ Convenience function for computing the self._data pandas.DataFrame containing the feature values. """
-        pbar = tqdm(total=self._metadata['executables'], unit="executable")
+        l = self.logger
+        if self._files:
+            l.info("Computing features...")
+            pbar = tqdm(total=self._metadata['executables'], unit="executable")
+        else:
+            l.info("Loading features...")
         for exe in self:
-            d = self[exe.hash, True]
-            d.update(exe.data)
-            self[exe.hash] = (d, True)  # True: force updating the row
-            pbar.update()
-        pbar.close()
+            d = self[exe.hash, True]  # retrieve executable's record as a dictionary
+            d.update(exe.data)        # be sure to include the features
+            if self._files:
+                self[exe.hash] = (d, True)  # True: force updating the row
+                pbar.update()
+        if self._files:
+            pbar.close()
     Dataset._compute_all_features = _compute_all_features
+    
+    def browse(self, query=None, **kw):
+        self._compute_all_features()
+        with data_to_temp_file(filter_data(self._data, query, logger=self.logger), prefix="dataset-features-") as tmp:
+            edit_file(tmp, logger=self.logger)
+    Dataset.browse = browse
     
     @backup
     def convert(self, new_name=None, **kw):
@@ -82,11 +95,11 @@ class FilelessDataset(Dataset):
         l.info("Converting to fileless dataset...")
         s1 = self.path.size
         l.info("Size of dataset:     %s" % human_readable_size(s1))
-        self._files = False
         self.path.joinpath("features.json").write_text("{}")
         self._compute_all_features()
         l.debug("removing files...")
         self.files.remove(error=False)
+        self._files = False
         l.debug("removing eventual backups...")
         try:
             self.backup.purge()
@@ -162,12 +175,6 @@ class FilelessDataset(Dataset):
         else:
             raise ValueError("Unknown target format (%s)" % format)
     Dataset.export = export
-    
-    def features(self, **kw):
-        self._compute_all_features()
-        with data_to_temp_file(self._data, prefix="dataset-features-") as tmp:
-            edit_file(tmp, logger=self.logger)
-    Dataset.features = features
     
     @backup
     def merge(self, name2=None, new_name=None, silent=False, **kw):
