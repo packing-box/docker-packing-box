@@ -1,6 +1,5 @@
 # -*- coding: UTF-8 -*-
 import builtins
-import mdv
 import pandas as pd
 import re
 import yaml
@@ -10,6 +9,7 @@ from time import perf_counter, time
 from tinyscript import inspect, logging, os, random, subprocess
 from tinyscript.helpers import is_file, is_folder, Path, TempPath
 from tinyscript.helpers.expressions import WL_NODES
+from tqdm import tqdm
 
 from .config import *
 from .executable import Executable
@@ -17,7 +17,7 @@ from .executable import Executable
 
 __all__ = ["aggregate_formats", "backup", "benchmark", "bin_label", "class_or_instance_method", "collapse_formats",
            "data_to_temp_file", "dict2", "edit_file", "expand_formats", "file_or_folder_or_dataset", "get_counts",
-           "is_exe", "make_registry", "mdv", "shorten_str", "strip_version", "ExeFormatDict", "COLORMAP", "FORMATS"]
+           "is_exe", "make_registry", "shorten_str", "strip_version", "tqdm", "ExeFormatDict", "COLORMAP", "FORMATS"]
 
 _EVAL_NAMESPACE = {k: getattr(builtins, k) for k in ["abs", "divmod", "float", "hash", "hex", "id", "int", "len",
                                                      "list", "max", "min", "oct", "ord", "pow", "range", "range2",

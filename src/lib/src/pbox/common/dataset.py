@@ -4,11 +4,11 @@ import pandas as pd
 from tinyscript import b, colored, hashlib, json, logging, random, subprocess, time, ts
 from tinyscript.helpers import ansi_seq_strip, confirm, human_readable_size, slugify, Path, TempPath
 from tinyscript.report import *
-from tqdm import tqdm
 
 from .config import *
 from .executable import *
 from .modifiers import *
+from .rendering import render
 from .utils import *
 from ..items import *
 
@@ -414,8 +414,7 @@ class Dataset:
         l.debug("summarizing datasets from %s..." % config['datasets'])
         section, table = self.__class__.summarize(str(config['datasets']), show_all, hide_files)
         if section is not None and table is not None:
-            r = mdv.main(Report(section, table).md())
-            print(ansi_seq_strip(r) if raw else r)
+            render(section, table)
         else:
             l.warning("No dataset found in the workspace (%s)" % config['datasets'])
     
@@ -618,9 +617,9 @@ class Dataset:
                 c._data.append("**Altered**:      %d%%" % (int(round(100 * self._metadata['altered'], 0))))
                 c._data.append("**Alterations**:  %s" % ", ".join(self._alterations.keys()))
             c._data.append("**With files**:   %s" % ["no", "yes"][self._files])
-            r = Report(Section("Dataset characteristics"), c)
+            r = [Section("Dataset characteristics"), c]
             r.extend(self.overview)
-            print(mdv.main(r.md()))
+            render(*r)
         else:
             self.logger.warning("Empty dataset")
     
@@ -721,7 +720,7 @@ class Dataset:
             return
         r = [Text("Sources:\n%s" % "\n".join("[%d] %s" % (i, s) for i, s in enumerate(src))),
              Table(d, title="Filtered records", column_headers=h)]
-        print(mdv.main(Report(*r).md()))
+        render(*r)
     
     @property
     def backup(self):
@@ -905,8 +904,7 @@ class Dataset:
                 if fmt in data2:
                     if fmt != "All":
                         r.append(Subsection(fmt))
-                    r += [Table(data2[fmt], title=fmt,
-                                column_headers=["Hash", "Path", "Creation", "Modification", "Label"])]
+                    r += [Table(data2[fmt], column_headers=["Hash", "Path", "Creation", "Modification", "Label"])]
                 if fmt == "All":
                     break
         return r

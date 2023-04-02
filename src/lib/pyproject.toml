@@ -41,6 +41,7 @@ dependencies = [
   "peid",
   "plotext",
   "pyelftools",
+  "rich",
   "scikit-learn",
   "tinyscript>=1.26.21",
   "weka",

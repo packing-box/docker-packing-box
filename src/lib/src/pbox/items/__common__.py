@@ -7,6 +7,7 @@ from tinyscript.report import *
 from ..common.config import *
 from ..common.executable import Executable
 from ..common.item import *
+from ..common.rendering import *
 from ..common.utils import *
 
 
@@ -37,17 +38,6 @@ mv -f "$DST" "$SRC"{{postamble}}
 OS_COMMANDS = subprocess.check_output("compgen -c", shell=True, executable="/bin/bash").splitlines()
 ERR_PATTERN = r"^\x07?\s*(?:\-\s*)?(?:\[(?:ERR(?:OR)?|\!)\]|ERR(?:OR)?\:)\s*"
 PARAM_PATTERN = r"{{([^\{\}]*?)(?:\[([^\{\[\]\}]*?)\])?}}"
-STATUS = {
-    'broken':        _c("☒", "magenta"),
-    'commercial':    "💰",
-    'gui':           _c("🗗", "cyan"),
-    'info':          _c("ⓘ", "grey"),
-    'installed':     _c("☑", "orange"),
-    'not installed': _c("☒", "red"),
-    'ok':            _c("☑", "green"),
-    'todo':          _c("☐", "grey"),
-    'useless':       _c("ⓘ", "grey"),
-}
 STATUS_DISABLED = ["broken", "commercial", "info", "useless"]
 STATUS_ENABLED = [s for s in STATUS.keys() if s not in STATUS_DISABLED + ["not installed"]]
 TEST_FILES = {

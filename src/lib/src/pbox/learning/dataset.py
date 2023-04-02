@@ -2,7 +2,6 @@
 from dsff import DSFF
 from tinyscript.helpers import human_readable_size, Path
 from tinyscript.report import *
-from tqdm import tqdm
 
 from .executable import Executable
 from .plot import *

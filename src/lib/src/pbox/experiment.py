@@ -4,6 +4,7 @@ from tinyscript.helpers import ansi_seq_strip, confirm, Path
 from tinyscript.report import *
 
 from .common import *
+from .common.rendering import render
 from .common.utils import *
 from .learning import *
 
@@ -132,8 +133,7 @@ class Experiment:
             cfg = [f.stem for f in exp.path.joinpath("conf").listdir(Path.is_file) if f.extension == ".conf"]
             data.append([folder.basename, Dataset.count(), Model.count(), ", ".join(cfg)])
         if len(data) > 0:
-            r = mdv.main(Report(*[Section("Experiments (%d)" % len(data)), Table(data, column_headers=headers)]).md())
-            print(ansi_seq_strip(r) if raw else r)
+            render(*[Section("Experiments (%d)" % len(data)), Table(data, column_headers=headers)])
         else:
             self.logger.warning("No experiment found in the workspace (%s)" % config['experiments'])
     

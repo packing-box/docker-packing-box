@@ -2,16 +2,13 @@
 # -*- coding: UTF-8 -*-
 from pbox import *
 from pbox.__info__ import *
+from pbox.common.rendering import *
 from tinyscript import *
 from tinyscript.report import *
-try:  # from Python3.9
-    import mdv3 as mdv
-except ImportError:
-    import mdv
 
 
 __script__      = "packing-box"
-__version__     = "1.1.2"
+__version__     = "1.2.0"
 __description__ = "Display this help message or packer's help"
 
 
@@ -25,7 +22,7 @@ This Docker image is a ready-to-use platform for making datasets of packed and n
 
 def overview(show=False, format=None, category=None, keep=None):
     """ Display an overview of tools, detectors, packers, unpackers and datasets. """
-    report, n = Report(Text(TEMPLATE)), 0
+    report, n = [Text(TEMPLATE)], 0
     if keep is None:
         tools = []
         tools_headers = ["Name", "Description", "Version"]
@@ -39,7 +36,8 @@ def overview(show=False, format=None, category=None, keep=None):
                 continue
             if row[1]:
                 tools.append(row)
-        report.append(Section("Tools (%d)" % len(tools)), Table(tools, column_headers=tools_headers))
+        report.append(Section("Tools (%d)" % len(tools)))
+        report.append(Table(tools, column_headers=tools_headers))
     descr = {}
     for cls in ([Analyzer, Detector, Packer, Unpacker] if keep is None else [globals()[keep[:-1].capitalize()]]):
         r, d = cls.summary(show, format, **({'categories': category} if cls is Packer else {}))
@@ -50,18 +48,20 @@ def overview(show=False, format=None, category=None, keep=None):
             data = []
             for row in table.data:
                 dcls = Detector.get(row[0])
-                cred, cgreen = ("red", "green") if dcls.status == "ok" else ("grey", "grey")
+                bad, good = (NOK, OK) if dcls.status == "ok" else (NOK_GREY, OK_GREY)
                 for col, default in [("multiclass", True), ("weak", False), ("vote", True)]:
-                    row.insert(-1, [colored("☒", cred), colored("☑", cgreen)][getattr(dcls, col, default)])
+                    row.insert(-1, [bad, good][getattr(dcls, col, default)])
                 data.append(row)
             table.data = data
-        report.append(*r)
+        for _ in r:
+            report.append(_)
         descr.update(d)
-    report.append(Section("Legend"),
-                  Text(" ; ".join("%s  %s" % (k, v) for k, v in sorted(descr.items(), key=lambda x: x[1]))))
+    report.append(Section("Legend"))
+    report.append(Text(" ; ".join("%s  %s" % (k, v) for k, v in sorted(descr.items(), key=lambda x: x[1]))))
     if keep is None:
-        report.append(*Dataset.summarize(".", args.show_all))
-    return report.md()
+        for s in Dataset.summarize(".", args.show_all):
+            report.append(s)
+    return report
 
 
 if __name__ == '__main__':
@@ -78,13 +78,13 @@ if __name__ == '__main__':
     logger.name = "help"
     logging.configLogger(logger, ["INFO", "DEBUG"][args.verbose], fmt=LOG_FORMATS[args.verbose], relative=True)
     if args.item is None:
-        print(mdv.main(overview(args.show_all, args.format, args.category, args.keep)))
+        render(*overview(args.show_all, args.format, args.category, args.keep))
     else:
         subcls = None
         for cls in [Detector, Packer, Unpacker]:
             subcls = cls.get(args.item, error=False)
             if subcls:
-                print(mdv.main(subcls.help()))
+                render(subcls.help())
                 break
         if subcls is None:
             logger.error("%s not found" % args.item)

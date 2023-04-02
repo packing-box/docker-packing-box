@@ -9,7 +9,7 @@ from sklearn.feature_selection import VarianceThreshold
 from sklearn.model_selection import train_test_split, GridSearchCV
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import *
-from tinyscript import ast, json, logging, subprocess
+from tinyscript import ast, json, itertools, logging, subprocess
 from tinyscript.helpers import human_readable_size, is_generator, Path, TempPath
 from tinyscript.report import *
 
@@ -20,6 +20,7 @@ from .features import Features
 from .metrics import *
 from .visualization import *
 from ..common.config import *
+from ..common.rendering import render
 from ..common.utils import *
 
 
@@ -196,6 +197,10 @@ class Model:
             l.info("Computing features...")
             if not isinstance(exes, list) and not is_generator(exes):
                 exes = [exes]
+            exes, cnt = itertools.tee(exes)
+            n = sum(1 for _ in cnt)
+            if n > 1:
+                pbar = tqdm(total=n, unit="executable")
             for exe in exes:
                 if not isinstance(exe, Executable):
                     exe = Executable(str(exe))
@@ -204,6 +209,10 @@ class Model:
                 self._data = self._data.append(exe.data, ignore_index=True)
                 if label:
                     self._target = self._target.append({'label': labels.get(exe.hash)}, ignore_index=True)
+                if n > 1:
+                    pbar.update()
+            if n > 1:
+                pbar.close()
         # case 1: fileless dataset (where features are already computed)
         if isinstance(ds, FilelessDataset):
             l.info("Loading features...")
@@ -285,6 +294,7 @@ class Model:
             return True
         # apply variance threshold of 0.0 to remove useless features and rectify the list of features
         l.debug("> remove 0-variance features")
+        #TODO: log features that are removed
         selector = VarianceThreshold()
         selector.fit(self._data)
         self._data = self._data[self._data.columns[selector.get_support(indices=True)]]
@@ -365,7 +375,7 @@ class Model:
         # display performance data
         h = list(perf.columns)
         data = sorted(perf.values.tolist(), key=lambda row: (row[0], row[1]))
-        print(mdv.main(Table(highlight_best(data, h, [0, 1, -1]), column_headers=h).md()))
+        render(Table(highlight_best(data, h, [0, 1, -1]), column_headers=h))
     
     def edit(self, **kw):
         """ Edit the performance log file. """
@@ -399,7 +409,7 @@ class Model:
             r = [Section("Models (%d)" % len(d)),
                  Table(d, column_headers=["Name", "Algorithm", "Description", "Dataset", "Size", "Formats",
                                           "Packers"])]
-        print(mdv.main(Report(*r).md()))
+        render(*r)
     
     def preprocess(self, **kw):
         """ Preprocess an input dataset given selected features and display it with visidata for review. """
@@ -449,14 +459,14 @@ class Model:
                   "**Multiclass**:    %s" % "NY"[a['multiclass']]] + fi_str + \
                  ["**Preprocessors**: \n\n\t- %s\n\n" % "\n\t- ".join(a['preprocessors']),
                   "**Parameters**: \n\n\t- %s\n\n" % "\n\t- ".join(params)])
-        print(mdv.main(Report(Section("Model characteristics"), c).md()))
+        render(Section("Model characteristics"), c)
         ds_path = config['datasets'].joinpath(ds['name'])
         c = List(["**Path**:         %s" % ds_path,
                   "**Size**:         %s" % human_readable_size(ds_path.size),
                   "**#Executables**: %d" % ds['executables'],
                   "**Formats**:      %s" % ", ".join(ds['formats']),
                   "**Packers**:      %s" % ", ".join(get_counts(ds).keys())])
-        print(mdv.main(Report(Section("Reference dataset"), c).md()))
+        render(Section("Reference dataset"), c)
     
     def test(self, executable, ignore_labels=False, **kw):
         """ Test a single executable or a set of executables and evaluate metrics. """
@@ -477,7 +487,7 @@ class Model:
         except AttributeError:
             proba = None
         metrics = cls.metrics if isinstance(cls.metrics, (list, tuple)) else [cls.metrics]
-        print(mdv.main(Report(Section("Test results for: " + ds)).md()))
+        render(Section("Test results for: " + ds))
         for metric in metrics:
             try:
                 m, h = self._metrics(self._data, prediction, self._target, proba, metric, dt, ignore_labels)
@@ -486,8 +496,7 @@ class Model:
             for header in [[], ["Model"]][self.__class__ is DumpedModel] + ["Dataset"] + h:
                 if header not in self._performance.columns:
                     self._performance[header] = np.nan
-            print(mdv.main(Report(Table([m], column_headers=h,
-                                        title="%s metrics" % metric.capitalize() if len(metrics) > 0 else None)).md()))
+            render(Table([m], column_headers=h, title="%s metrics" % metric.capitalize() if len(metrics) > 0 else None))
             if len(self._data) > 0:
                 row = {'Model': self.name} if self.__class__ is DumpedModel else {}
                 row['Dataset'] = str(ds) + ["", "(unlabelled)"][unlab]
@@ -607,7 +616,7 @@ class Model:
             except AttributeError:  # some algorithms do not support .predict_proba(...)
                 self._test.predict_proba = None
         metrics = cls.metrics if isinstance(cls.metrics, (list, tuple)) else [cls.metrics]
-        print(mdv.main(Report(Title("Name: %s" % self.name)).md()))
+        render(Title("Name: %s" % self.name))
         for metric in metrics:
             d, h = [], []
             for dset in ["train", "test"]:
@@ -621,8 +630,8 @@ class Model:
                     d.append([dset.capitalize()] + m)
                     h = ["."] + h
             if len(h) > 0:
-                print(mdv.main(Table(d, column_headers=h,
-                                     title="%s metrics" % metric.capitalize() if len(metrics) > 0 else None).md()))
+                t = "%s metrics" % metric.capitalize() if len(metrics) > 0 else None
+                render(Table(d, column_headers=h, title=t))
         l.info("Parameters:\n- %s" % "\n- ".join("%s = %s" % p for p in params.items()))
         self._metadata['algorithm']['parameters'] = params
         self._save()

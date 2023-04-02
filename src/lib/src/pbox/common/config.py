@@ -1,8 +1,9 @@
 # -*- coding: UTF-8 -*-
-import mdv
 from tinyscript import configparser, logging, re
 from tinyscript.helpers import slugify, ConfigPath, Path
 from tinyscript.report import *
+
+from .rendering import render
 
 
 __all__ = ["check_name", "config", "null_logger",
@@ -182,7 +183,7 @@ class Config(configparser.ConfigParser):
             for opt, val in sec.items():
                 l.append("%s = %s" % (opt.ljust(mlen), str(val)))
             r.append(List(l))
-        print(mdv.main(Report(*r).md()))
+        render(*r)
     
     def save(self):
         with self.path.open('w') as f:
