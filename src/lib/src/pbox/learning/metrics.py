@@ -28,15 +28,15 @@ METRIC_DISPLAY = {
     },
     'clustering': {
         # labels known
-        'Randomness Score': "nbr",
-        'Adjusted Mutual Information Score': "nbr",
+        'Randomness\nScore': "nbr",
+        'Adjusted\nMutual\nInformation': "nbr",
         'Homogeneity': "nbr",
         'Completeness': "nbr",
         'V-Measure': "nbr",
         # labels not known
-        'Silhouette Score': "nbr",
-        'Calinski HarabaszScore': "nbr",
-        'Davies Bouldin Score': "nbr",
+        'Silhouette\nScore': "nbr",
+        'Calinski\nHarabasz\nScore': "nbr",
+        'Davies\nBouldin\nScore': "nbr",
     },
     'regression': {
         'MSE': "nbr",
@@ -50,6 +50,7 @@ _METRIC_DISPLAYS = {}
 for k in _METRIC_CATEGORIES:
     for m, v in METRIC_DISPLAY[k].items():
         _METRIC_DISPLAYS[m] = METRIC_DISPLAY.get(v, v)
+_N_LAB = 30
 
 # add -1 to zero_division possible values
 code.replace(sklearn.metrics._classification._check_zero_division,
@@ -142,6 +143,9 @@ def _map_values_to_integers(*arrays, **kwargs):
             continue
         tn, fp, fn, tp = matrix.ravel()
         l.debug("> %sTN: %d ; TP: %d ; FN: %d ; FP: %d" % (["[%d] " % i, ""][binary], tn, tp, fn, fp))
+    for i, y in enumerate(out_arrays[:2]):
+        n = min(_N_LAB, len(y))
+        l.debug("> %d first %s labels: %s%s" % (n, ["true", "predicted"][i], ["     ", ""][i], str(y[:n])))
     return out_arrays
 
 

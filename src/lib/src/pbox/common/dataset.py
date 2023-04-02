@@ -864,33 +864,19 @@ class Dataset:
                 if fmt in data1:
                     if fmt != "All":
                         r.append(Subsection(fmt))
-                    # all not labelled (so not_packed=0 and packed=0)
-                    if data1[fmt][-1][3] == "0" and data1[fmt][-1][5] == "0":
-                        h = ["Size Range", "Not Labelled", "%"]
-                        d = [[r[0], r[1], r[2]] for r in data1[fmt]]
-                    # all not packed (so not_labelled=0 and packed=0)
-                    elif data1[fmt][-1][1] == "0" and data1[fmt][-1][5] == "0":
-                        h = ["Size Range", "Not Packed", "%"]
-                        d = [[r[0], r[3], r[4]] for r in data1[fmt]]
-                    # all packed (so not_labelled=0 and not_packed=0)
-                    elif data1[fmt][-1][1] == "0" and data1[fmt][-1][3] == "0":
-                        h = ["Size Range", "Packed", "%"]
-                        d = [[r[0], r[5], r[6]] for r in data1[fmt]]
-                    # none packed
-                    elif data1[fmt][-1][5] == "0":
-                        h = ["Size Range", "Not Labelled", "%", "Not Packed", "%"]
-                        d = [r[:5] for r in data1[fmt]]
-                    # none not packed
-                    elif data1[fmt][-1][3] == "0":
-                        h = ["Size Range", "Not Labelled", "%", "Packed", "%"]
-                        d = [[r[0], r[1], r[2], r[5], r[6]] for r in data1[fmt]]
-                    # none not labelled
-                    elif data1[fmt][-1][1] == "0":
-                        h = ["Size Range", "Not Packed", "%", "Packed", "%"]
-                        d = [[r[0], r[3], r[4], r[5], r[6]] for r in data1[fmt]]
-                    # mix of all
-                    else:
-                        h = ["Size Range", "Not Labelled", "%", "Not Packed", "%", "Packed", "%"]
+                    h = ["Size\nRange", "Not\nLabelled", "%", "Not\nPacked", "%", "Packed", "%"]
+                    if data1[fmt][-1][3] == "0" and data1[fmt][-1][5] == "0":  # all not labelled
+                        h, d = h[:3], [[r[0], r[1], r[2]] for r in data1[fmt]]
+                    elif data1[fmt][-1][1] == "0" and data1[fmt][-1][5] == "0":  # all not packed
+                        h, d = [h[0]] + h[3:5], [[r[0], r[3], r[4]] for r in data1[fmt]]
+                    elif data1[fmt][-1][1] == "0" and data1[fmt][-1][3] == "0":  # all packed
+                        h, d = [h[0]] + h[5:7], [[r[0], r[5], r[6]] for r in data1[fmt]]
+                    elif data1[fmt][-1][5] == "0":  # none packed
+                        h, d = h[:6], [r[:5] for r in data1[fmt]]
+                    elif data1[fmt][-1][3] == "0":  # none not packed
+                        h, d = h[:3] + h[5:7], [[r[0], r[1], r[2], r[5], r[6]] for r in data1[fmt]]
+                    elif data1[fmt][-1][1] == "0":  # none not labelled
+                        h, d = [h[0]] + h[3:7], [[r[0], r[3], r[4], r[5], r[6]] for r in data1[fmt]]
                     r += [Table(d, title=fmt, column_headers=h)]
                 if fmt == "All":
                     break
