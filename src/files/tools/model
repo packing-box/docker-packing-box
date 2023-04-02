@@ -98,10 +98,14 @@ if __name__ == '__main__':
                                help="strategy for imputing missing values")
     viz_dependent.add_argument("-a", "--reduction-algorithm", default="PCA", choices=("ICA", "PCA"),
                                help="dimensionality reduction algorithm")
+    viz_dependent.add_argument("-f", "--features", nargs="*",type=lambda x: x.split(","),help="comma separated list of features to be selected", default="")
     viz_dependent.add_argument("-n", "--n-components", metavar="N", default=20, type=int,
                                help="number of components for dimensionality reduction")
     viz_dependent.add_argument("-p", "--perplexity", metavar="P", default=30, type=int,
                                help="t-SNE perplexity for dimensionality reduction")
+    viz_dependent.add_argument("-r", "--reduce-train-data", action="store_true",
+                               help="reduce the training data",
+                               note="the data is only reduced for the visualization by default")
     initialize(noargs_action="help")
     logger.name = "model"
     logging.configLogger(logger, ["INFO", "DEBUG"][args.verbose], fmt=LOG_FORMATS[args.verbose], relative=True)
@@ -126,7 +130,7 @@ if __name__ == '__main__':
             name = Model(**vars(args))
         if args.command == "visualize":
             args.viz_params = {}
-            for a in ["reduction_algorithm", "imputer_strategy", "n_components", "perplexity"]:
+            for a in ["reduction_algorithm", "imputer_strategy", "n_components", "perplexity", "reduce_train_data", "features"]:
                 args.viz_params[a] = getattr(args, a)
                 delattr(args, a)
         if args.command != "purge" or args.name is not None:
