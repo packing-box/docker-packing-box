@@ -510,7 +510,7 @@ class Model:
     
     def train(self, algorithm=None, cv=5, n_jobs=N_JOBS, param=None, reset=False, ignore_labels=False, **kw):
         """ Training method handling cross-validation. """
-        l, n_cpu, ds = self.logger, mp.cpu_count(), kw['dataset']
+        l, n_cpu, ds, multiclass = self.logger, mp.cpu_count(), kw['dataset'], kw.get('multiclass', False)
         try:
             cls = self._algorithm = Algorithm.get(algorithm)
         except KeyError:
@@ -521,7 +521,7 @@ class Model:
         self._metadata.setdefault('algorithm', {})
         self._metadata['algorithm']['name'] = algo
         self._metadata['algorithm']['description'] = cls.description
-        self._metadata['algorithm']['multiclass'] = kw.get('multiclass', False)
+        self._metadata['algorithm']['multiclass'] = multiclass
         self._metadata['algorithm']['preprocessors'] = kw['preprocessor']
         # check that, if the algorithm is supervised, it has full labels
         if cls.labelling == "full" and ds.labelling < 1.:
@@ -551,7 +551,7 @@ class Model:
             l.warning("Cannot retrain a model")
             l.warning("You can remove it first with the following command: model purge %s" % self.name)
             return
-        if not getattr(cls, "multiclass", True) and kw.get('multiclass', False):
+        if not getattr(cls, "multiclass", True) and multiclass:
             l.error("'%s' does not support multiclass" % algo)
             return
         # get classifer and parameters
@@ -563,18 +563,18 @@ class Model:
             l.error("'%s' does not support grid search (while CV parameters are specified)" % algo)
             return
         # apply user-defined parameters
-        if param is not None:
-            for p in param:
-                n, v = p.split("=")
-                try:
-                    v = ast.literal_eval(v)
-                except ValueError:
-                    pass
-                params[n] = v
-                try:
-                    del param_grid[n]
-                except KeyError:
-                    pass
+        for n, v in param.items():
+            params[n] = v
+            try:
+                del param_grid[n]
+            except KeyError:
+                pass
+        # set particular parameters ;
+        # - n_clusters
+        if params.get('n_clusters') == "auto":
+            params['n_clusters'] = n = 2 if ds.labelling == .0 or not multiclass or ignore_labels else \
+                                   len(set(l for l in self._metadata['dataset']['counts'].keys() if l != NOT_LABELLED))
+            l.debug("> parameter n_clusters=\"auto\" set to %d%s" % (n, [" based on labels", ""][ignore_labels]))
         l.info("Training model...")
         self.pipeline.append((cls.name, cls.base(**params)))
         # if a param_grid is input, perform cross-validation and select the best classifier

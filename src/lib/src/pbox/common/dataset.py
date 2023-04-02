@@ -877,7 +877,7 @@ class Dataset:
                         h, d = h[:3] + h[5:7], [[r[0], r[1], r[2], r[5], r[6]] for r in data1[fmt]]
                     elif data1[fmt][-1][1] == "0":  # none not labelled
                         h, d = [h[0]] + h[3:7], [[r[0], r[3], r[4], r[5], r[6]] for r in data1[fmt]]
-                    r += [Table(d, title=fmt, column_headers=h)]
+                    r += [Table(d, column_headers=h)]
                 if fmt == "All":
                     break
         r.append(Rule())

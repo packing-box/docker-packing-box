@@ -6,7 +6,7 @@ import yaml
 from contextlib import contextmanager
 from functools import wraps
 from time import perf_counter, time
-from tinyscript import inspect, logging, os, random, subprocess
+from tinyscript import ast, inspect, logging, os, random, subprocess
 from tinyscript.helpers import is_file, is_folder, Path, TempPath
 from tinyscript.helpers.expressions import WL_NODES
 from tqdm import tqdm
@@ -16,8 +16,9 @@ from .executable import Executable
 
 
 __all__ = ["aggregate_formats", "backup", "benchmark", "bin_label", "class_or_instance_method", "collapse_formats",
-           "data_to_temp_file", "dict2", "edit_file", "expand_formats", "file_or_folder_or_dataset", "get_counts",
-           "is_exe", "make_registry", "shorten_str", "strip_version", "tqdm", "ExeFormatDict", "COLORMAP", "FORMATS"]
+           "data_to_temp_file", "dict2", "edit_file", "expand_formats", "expand_parameters",
+           "file_or_folder_or_dataset", "get_counts", "is_exe", "make_registry", "shorten_str", "strip_version", "tqdm",
+           "ExeFormatDict", "COLORMAP", "FORMATS"]
 
 _EVAL_NAMESPACE = {k: getattr(builtins, k) for k in ["abs", "divmod", "float", "hash", "hex", "id", "int", "len",
                                                      "list", "max", "min", "oct", "ord", "pow", "range", "range2",
@@ -232,6 +233,21 @@ def expand_formats(*formats, **kw):
                     if ssc not in selected:
                         selected.append(ssc)
     return selected
+
+
+def expand_parameters(*strings, **kw):
+    """ This simple helper expands a [sep]-separated string of keyword-arguments defined with [key]=[value]. """
+    sep = kw.get('sep', ",")
+    d = {}
+    for s in strings:
+        for p in s.split(sep):
+            k, v = p.split("=", 1)
+            try:
+                v = ast.literal_eval(v)
+            except ValueError:
+                pass
+            d[k] = v
+    return d
 
 
 def file_or_folder_or_dataset(method):
