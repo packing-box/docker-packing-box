@@ -1,12 +1,13 @@
 #!/usr/bin/python3
 # -*- coding: UTF-8 -*-
 from pbox import *
+from pbox.common.utils import *
 from tinyscript import *
 
 
 __author__      = "Alexandre D'Hondt"
 __email__       = "alexandre.dhondt@gmail.com"
-__version__     = "1.2.6"
+__version__     = "1.2.7"
 __copyright__   = ("A. D'Hondt", 2021)
 __license__     = "gpl-3.0"
 __doc__         = """
@@ -31,7 +32,12 @@ def __add_name(parser, optional=False, force=False, joblib=False):
     def model_exists(string):
         if string == "all":
             return string
-        return open_model(string)
+        try:
+            return open_model(string)
+        except:
+            if force:
+                return
+            raise
     a, kw = ("-n", "--name", ) if optional else ("name", ), {'type': model_exists, 'help': "name of the model"}
     parser.add_argument(*a, **kw)
     return parser
@@ -51,7 +57,7 @@ if __name__ == '__main__':
     preproc = __add_name(sparsers.add_parser("preprocess", help="preprocess features and visualize the result"))
     preproc.add_argument("-f", "--features-set", type=ts.file_exists, default=config['features'],
                          help="features set's YAML definition")
-    __add_name(sparsers.add_parser("purge", help="purge the selected model"))
+    __add_name(sparsers.add_parser("purge", help="purge the selected model"), force=True)
     rename = __add_name(sparsers.add_parser("rename", help="rename the selected model"))
     rename.add_argument("name2", type=ts.folder_does_not_exist, help="new name of the model")
     __add_name(sparsers.add_parser("show", help="get an overview of the model"))
@@ -60,7 +66,8 @@ if __name__ == '__main__':
     test.add_argument("-f", "--features-set", type=ts.file_exists, default=config['features'],
                       help="features set's YAML definition")
     test.add_argument("-u", "--unlabeled", action="store_true", help="do not use assigned labels (if any)")
-    test.add_argument("--ignore-labels", action="store_true", help="while computing metrics, only consider those not requiring labels")
+    test.add_argument("--ignore-labels", action="store_true",
+                      help="while computing metrics, only consider those not requiring labels")
     test.add_argument("--sep", default=",", choices=",;|\t", help="set the CSV separator",
                       note="required when using input CSV data instead of a Dataset")
     train = sparsers.add_parser("train", help="train a model on the given dataset")
@@ -78,10 +85,10 @@ if __name__ == '__main__':
     train.add_argument("-r", "--reset", action="store_true", help="reset the model before (re)training")
     train.add_argument("--cv", default=5, type=ts.pos_int, help="number of Cross-Validation folds")
     train.add_argument("--feature", action="extend", nargs="*", help="list of features to be selected")
-    train.add_argument("--ignore-labels", action="store_true", help="while computing metrics, only consider those not requiring labels")
+    train.add_argument("--ignore-labels", action="store_true",
+                       help="while computing metrics, only consider those not requiring labels")
     train.add_argument("--n-jobs", default=N_JOBS, help="number of jobs to be run in parallel")
-    train.add_argument("--param", action="extend", nargs="*", type=lambda x: x.split(","),
-                       help="comma-separated list of parameters for the algorithm",
+    train.add_argument("-p", "--param", nargs="*", help="comma-separated list of parameters for the algorithm",
                        note="fixing a parameter with this option disables it from the cross-validation")
     visualize = __add_name(sparsers.add_parser("visualize", help="visualize the model"))
     visualize.add_argument("-e", "--export", action="store_true", help="export to PNG")
@@ -89,8 +96,10 @@ if __name__ == '__main__':
     viz_dependent = visualize.add_argument_group("options depending on the chosen algorithm", before="extra arguments")
     viz_dependent.add_argument("--imputer-strategy", default="mean", choices=("constant", "mean", "most_frequent"),
                                help="strategy for imputing missing values")
-    viz_dependent.add_argument("-n", "--pca-components", metavar="N", default=20, type=int,
-                               help="PCA components for dimensionality reduction")
+    viz_dependent.add_argument("-a", "--reduction-algorithm", default="PCA", choices=("ICA", "PCA"),
+                               help="dimensionality reduction algorithm")
+    viz_dependent.add_argument("-n", "--n-components", metavar="N", default=20, type=int,
+                               help="number of components for dimensionality reduction")
     viz_dependent.add_argument("-p", "--perplexity", metavar="P", default=30, type=int,
                                help="t-SNE perplexity for dimensionality reduction")
     initialize(noargs_action="help")
@@ -113,11 +122,13 @@ if __name__ == '__main__':
         if hasattr(args, "features_set"):
             Features.source = args.features_set  # configure the features set's YAML definition source
         if args.command == "train":
+            args.param = expand_parameters(*(args.param or []))
             name = Model(**vars(args))
         if args.command == "visualize":
             args.viz_params = {}
-            for a in ["imputer_strategy", "pca_components", "perplexity"]:
+            for a in ["reduction_algorithm", "imputer_strategy", "n_components", "perplexity"]:
                 args.viz_params[a] = getattr(args, a)
                 delattr(args, a)
-        getattr(name, args.command)(**vars(args))
+        if args.command != "purge" or args.name is not None:
+            getattr(name, args.command)(**vars(args))
 

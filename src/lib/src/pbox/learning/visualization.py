@@ -7,12 +7,13 @@ from functools import wraps
 from math import ceil
 from matplotlib.colors import ListedColormap
 from sklearn.cluster import KMeans
-from sklearn.decomposition import PCA
+from sklearn.decomposition import FastICA, PCA
 from sklearn.impute import SimpleImputer
 from sklearn.inspection import DecisionBoundaryDisplay
 from sklearn.manifold import TSNE
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.tree import export_text, plot_tree
+
 from .algorithm import Algorithm 
 
 
@@ -27,16 +28,20 @@ def _preprocess(f):
     @wraps(f)
     def _wrapper(*args, **kwargs):
         X = kwargs['data']
-        n, p = kwargs.get('pca_components', min(20, len(X.columns))), kwargs.get('perplexity', 30)
-        suffix = "_pca%d" % n
+        n_cols = len(X.columns)
+        n, p = kwargs.get('n_components', min(20, n_cols)), kwargs.get('perplexity', 30)
+        suffix = ""
         X = SimpleImputer(missing_values=np.nan, strategy=kwargs.get('imputer_strategy', "mean")).fit_transform(X)
         # preprocess data with a PCA with n components to reduce the high dimensionality (better performance)
-        pca = PCA(n, random_state=42)
-        if 'target' in kwargs:
-            pca.fit(X, kwargs['target'])
-            X = pca.transform(X)
-        else:
-            X = pca.fit_transform(X)
+        if n < n_cols:
+            ra = kwargs.get('reduction_algorithm', "PCA")
+            a = {'ICA': FastICA, 'PCA': PCA}[ra](n, random_state=42)
+            suffix += "_%s%d" % (ra.lower(), n)
+            if 'target' in kwargs:
+                a.fit(X, kwargs['target'])
+                X = a.transform(X)
+            else:
+                X = a.fit_transform(X)
         # now reduce the n components to 2 dimensions with t-SNE (better results but less performance) if relevant
         if n > 2:
             X = TSNE(2, random_state=42, perplexity=p).fit_transform(X)
