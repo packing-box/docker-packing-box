@@ -2,7 +2,7 @@ Supervised:
   defaults:
     metrics: classification
     preprocessors:
-      - Std
+      - MM
   AB:
     base:        !!python/name:sklearn.ensemble.AdaBoostClassifier
     description: Adaptive Boosting
@@ -195,7 +195,7 @@ Unsupervised:
       - classification
       - clustering
     preprocessors:
-      - Std
+      - MM
   AC:
     base:        !!python/name:sklearn.cluster.AgglomerativeClustering
     description: Agglomerative Clustering
