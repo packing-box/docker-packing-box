@@ -76,7 +76,7 @@ class DebugPipeline:
         NB: verbosity is controlled via the logger, therefore we output None so that it is not natively displayed.  """
         if not getattr(Pipeline, "silent", False):
             name, _ = self.steps[step_idx]
-            logger.info("(step %d/%d) Processing %s" % (step_idx + 1, len(self.steps), name))
+            logger.info("[%d/%d] %s" % (step_idx + 1, len(self.steps), name))
     Pipeline._log_message = _log_message
     
     def append(self, step):
@@ -97,10 +97,11 @@ class DebugPipeline:
 
 
 class DebugTransformer(BaseEstimator, TransformerMixin):
+    """ Transformer class for debugging the pipeline. """
     def transform(self, X):
         self.shape = X.shape
         return X
-
+    
     def fit(self, X, y=None, **params):
         return self
 
@@ -461,8 +462,17 @@ class Model:
         kw['data_only'], kw['dataset'] = True, executable or self._metadata['dataset']['name']
         if not self._prepare(**kw):
             return
+        ds = open_dataset(kw['dataset'])
+        result = pd.DataFrame()
+        for col in ["hash"] + Executable.FIELDS:
+            result[col] = ds._data[col]
         df = pd.DataFrame(self.pipeline.preprocess(self._data), columns=self._data.columns)
-        with data_to_temp_file(df, prefix="model-preprocess-") as tmp:
+        for col in self._data.columns:
+            result[col] = df[col]
+            col2 = "*" + col
+            result[col2] = ds._data[col]
+        result['label'] = ds._data['label']
+        with data_to_temp_file(result, prefix="model-preprocess-") as tmp:
             edit_file(tmp, logger=self.logger)
     
     def purge(self, **kw):
