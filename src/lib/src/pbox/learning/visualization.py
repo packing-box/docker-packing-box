@@ -12,6 +12,7 @@ from sklearn.impute import SimpleImputer
 from sklearn.inspection import DecisionBoundaryDisplay
 from sklearn.manifold import TSNE
 from sklearn.neighbors import KNeighborsClassifier
+from sklearn.preprocessing import StandardScaler
 from sklearn.tree import export_text, plot_tree
 
 from .algorithm import Algorithm 
@@ -32,6 +33,7 @@ def _preprocess(f):
         n, p = kwargs.get('n_components', min(20, n_cols)), kwargs.get('perplexity', 30)
         suffix = ""
         X = SimpleImputer(missing_values=np.nan, strategy=kwargs.get('imputer_strategy', "mean")).fit_transform(X)
+        X = StandardScaler().fit_transform(X)
         # preprocess data with a PCA with n components to reduce the high dimensionality (better performance)
         if n < n_cols:
             ra = kwargs.get('reduction_algorithm', "PCA")
@@ -46,7 +48,7 @@ def _preprocess(f):
         if n > 2:
             X = TSNE(2, random_state=42, perplexity=p).fit_transform(X)
             suffix += "_tsne2-p%d" % p
-        kwargs['data'] = X
+        kwargs['reduced_data'] = X
         fig = f(*args, **kwargs)
         fig.dst_suffix = suffix
         return fig
@@ -93,16 +95,46 @@ def image_rf(classifier, width=5, fontsize=10, **params):
 
 @_preprocess
 def image_clustering(classifier, **params):
-    X = params['data']
-    # retrain with the preprocessed data (with dimensionality reduced to N=2, hence not using 'classifier')
+    X, y = params['data'], params['target']
+    X_reduced = params['reduced_data']        
+    # retrain either with the preprocessing data or with the original data
     cls = Algorithm.get(params['algo_name']).base(**params['algo_params'])
-    label = cls.fit_predict(X)
+    if params.get('reduce_train_data', False):
+        label = cls.fit_predict(X_reduced)
+    else : 
+        label = cls.fit_predict(X)
+    features = params['features'][0] 
     # now set color map then plot
-    labels = np.unique(label)
-    colors = mpl.cm.get_cmap("jet", len(labels))
-    fig, axes = plt.subplots()
-    for i in labels:
-        plt.scatter(X[label == i, 0], X[label == i, 1] , label=i, cmap=colors)
+    model_labels = np.unique(label)
+    colors = mpl.cm.get_cmap("jet", len(model_labels))
+    fig, axes = plt.subplots(2 + len(features),figsize=(10 , 6 + (3*len(features))))
+    # Plot cluster labels
+    for i in model_labels:
+        axes[0].scatter(X_reduced[label == i, 0], X_reduced[label == i, 1] , label=i, cmap=colors)
+    # Plot true labels
+    y_labels = np.unique(y.label.ravel())
+    for y_label in y_labels:
+        axes[1].scatter(X_reduced[y.label.ravel() == y_label, 0], X_reduced[y.label.ravel() == y_label, 1],
+                        label=y_label, cmap=colors, alpha=1.0)
+    axes[1].legend()  
+    axes[1].set_title("Target")
+    # Plot selected features
+    if features :
+        for i, feature in enumerate(features) : 
+            unique_feature_values = np.unique(X[feature])
+            # Plot a continous colorbar if the feature is not boolean and a legend otherwise 
+            if len(unique_feature_values) > 2:
+                axes[2 + i].scatter(X_reduced[:, 0], X_reduced[:, 1], c=X[feature].to_numpy(), cmap=colors, alpha=1.0)
+                norm = mpl.colors.Normalize(vmin=X[feature].min(), vmax=X[feature].max())
+                fig.colorbar(mpl.cm.ScalarMappable(norm=norm, cmap=colors), ax=axes[2+i],
+                orientation='vertical')
+            else : 
+                for feature_value in unique_feature_values:
+                    axes[2 + i].scatter(X_reduced[X[feature] == feature_value, 0], X_reduced[X[feature] == feature_value, 1],
+                                        label=feature_value, cmap=colors, alpha=1.0)
+                    axes[2 + i].legend()  
+            axes[2 + i].set_title(feature)
+    plt.subplots_adjust(hspace=0.5)
     return fig
 
 
@@ -124,5 +156,5 @@ VISUALIZATIONS = {
     'RF':  {'image': image_rf, 'text': text_rf},
 }
 for a in ['AC', 'AP', 'Birch', 'DBSCAN', 'KMeans', 'MBKMeans', 'MS', 'OPTICS', 'SC']:
-    VISUALIZATIONS[a] = {'image': image_clustering, 'data': True, 'target': False}
+    VISUALIZATIONS[a] = {'image': image_clustering, 'data': True, 'target': True}
 
