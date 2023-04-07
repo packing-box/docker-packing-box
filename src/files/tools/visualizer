@@ -183,6 +183,14 @@ if __name__ == "__main__":
     plot.add_argument("-n", "--no-title", action="store_true", help="do not generate a title")
     plot.add_argument("-s", "--scale", action="store_true", help="scale plots according to the first binary")
     rm = __add_folder(sparsers.add_parser("remove", help="remove files matching the regex with the input labels"))
+    compare = __add_folder(sparsers.add_parser("compare", help="compare files from two sources"), fmt=True)
+    compare.add_argument("filename2", help="second binary to be represented ; format is regex")
+    compare.add_argument("folder2", type=ts.folder_exists, help="second target folder")
+    compare.add_argument("-t", "--text", action="store_true", help="textual comparison")
+    compare.add_argument("-o", "--out-file", default=None, help="file to store the output to. For images, the format is determined basde on the extension")
+    #compare.add_argument("-n", "--no-title", action="store_true", help="do not generate a title")
+    #compare.add_argument("-l2", "--label2", nargs="*", action="extend", help="select a particular label for the second binary (keeps order)")
+    
     initialize(noargs_action="usage", autocomplete=True)
     ff_args = args.folder, args.filename, args.label, args.max_not_matching
     logger.name = "visualizer"
@@ -216,6 +224,29 @@ if __name__ == "__main__":
             for f in files:
                 logger.debug(f)
             bintropy.plot(*files, img_name=imgn, labels=labels, sublabel="size-ep-ent", logger=logger, **vars(args))
+    
+    elif args.command == "compare":
+        msg2 = " files from %s matching '%s'%s..." % (args.folder2, args.filename2,
+                                                 [" with the selected labels", ""][args.label is None])
+        logger.info("Comparing" + msg + " to " + msg2)
+        ff2_args = (args.folder2, args.filename2, args.label, args.max_not_matching)
+        for f1, f2  in zip(find_files(*ff_args).items(), find_files(*ff2_args).items()):
+            
+            data1 = f1[1]
+            data2 = f2[1]
+            
+            if args.text:
+                print(binary_diff_readable(*data1['files'], *data2['files'], label1="Executable 1", label2="Executable 2"))    
+            else:
+                
+                if args.out_file is None:
+                    imgn = ts.Path(file1).stem + '_' + ts.Path(file2).stem
+                else:
+                    imgn = args.out_file
+                logger.info("Making plot to %s..." % (imgn))
+                binary_diff_plot(data1['files'][0], data2['files'][0], img_name=imgn, label1="Executable 1", label2="Executable 2")
+        
+        
     elif args.command == "remove":
         logger.info("Removing" + msg)
         for file, data in find_files(*ff_args, remove=True).items():
