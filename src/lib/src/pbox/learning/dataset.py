@@ -7,6 +7,7 @@ from .executable import Executable
 from .plot import *
 from ..common.config import *
 from ..common.dataset import Dataset
+from ..common.rendering import progress_bar
 from ..common.utils import *
 
 
@@ -58,20 +59,13 @@ class FilelessDataset(Dataset):
     
     def _compute_all_features(self):
         """ Convenience function for computing the self._data pandas.DataFrame containing the feature values. """
-        l = self.logger
-        if self._files:
-            l.info("Computing features...")
-            pbar = tqdm(total=self._metadata['executables'], unit="executable")
-        else:
-            l.info("Loading features...")
-        for exe in self:
-            d = self[exe.hash, True]  # retrieve executable's record as a dictionary
-            d.update(exe.data)        # be sure to include the features
-            if self._files:
-                self[exe.hash] = (d, True)  # True: force updating the row
-                pbar.update()
-        if self._files:
-            pbar.close()
+        self.logger.info("Computing features..." if self._files else "Loading features...")
+        with progress_bar() as p:
+            for exe in p.track(self):
+                d = self[exe.hash, True]  # retrieve executable's record as a dictionary
+                d.update(exe.data)        # be sure to include the features
+                if self._files:
+                    self[exe.hash] = (d, True)  # True: force updating the row
     Dataset._compute_all_features = _compute_all_features
     
     def browse(self, query=None, **kw):
@@ -127,19 +121,14 @@ class FilelessDataset(Dataset):
             l.info("Exporting %d packed executables from %s to '%s'..." % (n, self.basename, dst))
             if 0 < n < len(lst):
                 random.shuffle(lst)
-            pbar = tqdm(total=n or len(lst), unit="packed executable")
-            for i, exe in enumerate(lst):
-                if i >= n:
-                    break
-                fn = "%s_%s" % (exe.label, Path(exe.realpath).filename)
-                if fn in tmp:
-                    l.warning("duplicate '%s'" % fn)
-                    n += 1
-                    continue
-                exe.destination.copy(dst.joinpath(fn))
-                tmp.append(fn)
-                pbar.update()
-            pbar.close()
+            with progress_bar("packed samples") as p:
+                for exe in enumerate(lst[:n]):
+                    fn = "%s_%s" % (exe.label, Path(exe.realpath).filename)
+                    if fn in tmp:
+                        l.warning("duplicate '%s'" % fn)
+                        continue
+                    exe.destination.copy(dst.joinpath(fn))
+                    tmp.append(fn)
             return
         if self._files:
             l.info("Computing features...")
@@ -193,14 +182,9 @@ class FilelessDataset(Dataset):
             return
         # add rows from the input dataset
         getattr(l, ["info", "debug"][silent])("Merging rows from %s into %s..." % (ds2.basename, self.basename))
-        if not silent:
-            pbar = tqdm(total=ds2._metadata['executables'], unit="executable")
-        for r in ds2:
-            self[Executable(hash=r.hash, dataset=ds2, dataset2=self)] = r._row._asdict()
-            if not silent:
-                pbar.update()
-        if not silent:
-            pbar.close()
+        with progress_bar(silent=silent) as p:
+            for r in p.track(ds2):
+                self[Executable(hash=r.hash, dataset=ds2, dataset2=self)] = r._row._asdict()
         # as the previous operation does not update formats and features, do it manually
         self._metadata.setdefault('formats', [])
         for fmt in ds2._metadata.get('formats', []):

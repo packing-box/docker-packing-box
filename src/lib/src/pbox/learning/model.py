@@ -21,7 +21,7 @@ from .features import Features
 from .metrics import *
 from .visualization import *
 from ..common.config import *
-from ..common.rendering import render
+from ..common.rendering import *
 from ..common.utils import *
 
 
@@ -214,20 +214,15 @@ class Model:
                 exes = [exes]
             exes, cnt = itertools.tee(exes)
             n = sum(1 for _ in cnt)
-            if n > 1:
-                pbar = tqdm(total=n, unit="executable")
-            for exe in exes:
-                if not isinstance(exe, Executable):
-                    exe = Executable(str(exe))
-                if not data_only:
-                    self._features.update(exe.features)
-                self._data = self._data.append(exe.data, ignore_index=True)
-                if label:
-                    self._target = self._target.append({'label': labels.get(exe.hash)}, ignore_index=True)
-                if n > 1:
-                    pbar.update()
-            if n > 1:
-                pbar.close()
+            with progress_bar(silent=n <= 1) as p:
+                for exe in p.track(exes):
+                    if not isinstance(exe, Executable):
+                        exe = Executable(str(exe))
+                    if not data_only:
+                        self._features.update(exe.features)
+                    self._data = self._data.append(exe.data, ignore_index=True)
+                    if label:
+                        self._target = self._target.append({'label': labels.get(exe.hash)}, ignore_index=True)
         # case 1: fileless dataset (where features are already computed)
         if isinstance(ds, FilelessDataset):
             l.info("Loading features...")

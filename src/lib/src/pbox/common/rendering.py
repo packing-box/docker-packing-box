@@ -2,6 +2,7 @@
 from rich import box
 from rich.console import Console
 from rich.markdown import Heading, Markdown
+from rich.progress import *
 from rich.style import Style
 from rich.table import Table as RichTable
 from rich.text import Text as RichText
@@ -13,7 +14,7 @@ except ImportError:
     import mdv
 
 
-__all__ = ["render", "NOK", "NOK_GREY", "OK", "OK_GREY", "STATUS"]
+__all__ = ["progress_bar", "render", "NOK", "NOK_GREY", "OK", "OK_GREY", "STATUS"]
 
 DEFAULT_BACKEND = "rich"
 NOK, NOK_GREY = colored("☒", "red"), colored("☒", "grey")
@@ -34,6 +35,24 @@ _STATUS_CONV = {colored(u, c): RichText(u, style=c) for u, c in \
 
 
 code.replace(Heading.__rich_console__, "text.justify = \"center\"", "")
+
+
+def progress_bar(unit="samples", silent=False, **kwargs):
+    class CustomProgress(Progress):
+        def track(self, sequence, *args, **kwargs):
+            for value in (sequence if silent else super(CustomProgress, self).track(sequence, *args, **kwargs)):
+                yield value
+    return CustomProgress(
+        TextColumn("[progress.percentage]{task.percentage:>3.0f}%"),
+        BarColumn(),
+        MofNCompleteColumn(),
+        TextColumn(unit, style="progress.download"),
+        TextColumn("•"),
+        TimeElapsedColumn(),
+        TextColumn("•"),
+        TimeRemainingColumn(),
+        **kwargs,
+    )
 
 
 def render(*elements, **kw):

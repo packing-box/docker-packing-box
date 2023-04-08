@@ -17,7 +17,7 @@ from .rendering import progress_bar
 
 __all__ = ["aggregate_formats", "backup", "benchmark", "bin_label", "class_or_instance_method", "collapse_formats",
            "data_to_temp_file", "dict2", "edit_file", "expand_formats", "expand_parameters",
-           "file_or_folder_or_dataset", "filter_data", "get_counts", "is_exe", "make_registry",
+           "file_or_folder_or_dataset", "filter_data", "filter_data_iter", "get_counts", "is_exe", "make_registry",
            "shorten_str", "strip_version", "ExeFormatDict", "COLORMAP", "FORMATS"]
 
 _EVAL_NAMESPACE = {k: getattr(builtins, k) for k in ["abs", "divmod", "float", "hash", "hex", "id", "int", "len",
@@ -355,6 +355,32 @@ def filter_data(df, query=None, **kw):
     except pd.errors.UndefinedVariableError as e:
         l.error(e)
         l.info("Possible values:\n%s" % "".join("- %s\n" % n for n in df.columns))
+    return pd.DataFrame()
+
+
+def filter_data_iter(df, query=None, limit=0, sample=True, progress=True, transient=False, **kw):
+    """ Generator for the filtered data from an input Pandas DataFrame based on a given query. """
+    df = filter_data(df, query, **kw)
+    n = len(df.index)
+    limit = n if limit <= 0 else min(n, limit)
+    if sample and limit < n:
+        df = df.sample(n=limit)
+    i, genenerator = 0, filter_data(df, query, **kw).itertuples()
+    if progress:
+        with progress_bar(transient=transient) as p:
+            task = p.add_task("", total=limit)
+            for row in genenerator:
+                yield row
+                i += 1
+                p.update(task, advance=1.)
+                if i >= limit > 0:
+                    break
+    else:
+        for row in genenerator:
+            yield row
+            i += 1
+            if i >= limit > 0:
+                break
 
 
 def make_registry(cls):

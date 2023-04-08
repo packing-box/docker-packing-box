@@ -8,7 +8,7 @@ from tinyscript.report import *
 from .config import *
 from .executable import *
 from .modifiers import *
-from .rendering import render
+from .rendering import *
 from .utils import *
 from ..items import *
 
@@ -32,7 +32,8 @@ class Dataset:
       |     +-- {executables, renamed to their SHA256 hashes}
       +-- data.csv            # metadata and labels of the executable
       +-- metadata.json       # simple statistics about the dataset
-      +-- (alterations.json)  # if the dataset was altered, this contains the hashes of the altered executables
+      +-- (alterations.json)  # if the dataset was altered, this contains the hashes of the altered executables with the
+                              #  alterations applied
     """
     @logging.bindLogger
     def __init__(self, name="dataset", source_dir=None, load=True, check=True, **kw):
@@ -102,7 +103,7 @@ class Dataset:
     
     def __len__(self):
         """ Get dataset's length. """
-        return len(self._data)
+        return len(self._data.index)
     
     def __repr__(self):
         """ Custom string representation. """
@@ -261,45 +262,41 @@ class Dataset:
                 yield exe
     
     @backup
-    def alter(self, new_name=None, percentage=.1, **kw):
+    def alter(self, new_name=None, percentage=10, query=None, **kw):
         """ Alter executables with some given modifiers. """
         l = self.logger
         if not self._files:
-            l.warning("Modifiers only work on a normal dataset (not on a fileless one)")
+            l.warning("Modifiers work only if the files are available")
             return
         if new_name is not None:
             ds = Dataset(new_name)
             ds.merge(self.path.basename, silent=True, **kw)
             ds.alter(**kw)
             return
-        # keep previous alteration percentage into account
-        a = self._metadata.get('altered', .0)
-        p = min(1. - a, percentage)
-        p_ = round(p * 100, 0)
-        if p != percentage:
-            if p == .0:
-                l.warning("Nothing more to alter")
-                return
-            else:
-                l.warning("Setting alterations percentage to %d" % p_)
-        l.info("Altering %d%% of the dataset..." % p_)
-        hashes = self._data.hash.values[:]
-        # randomly sort hashes
-        if p < 1.:
-            random.shuffle(hashes)
-        # then apply alterations until the desired percentage is reached
-        n, c = int(round(len(self)*p, 0)), 0
-        for h in hashes:
-            if any(h in altered_hs for altered_hs in self._alterations.values()):
-                continue
-            exe = Executable(dataset=self, hash=h)
+        if query in [None, "all"]:
+            # keep previous alteration percentage into account
+            a = self._metadata.get('altered', .0)
+            p = min(1. - a, percentage)
+            p_ = round(p * 100, 0)
+            if p != percentage:
+                if p == .0:
+                    l.warning("Nothing more to alter")
+                    return
+                else:
+                    l.warning("Setting alterations percentage to %d" % p_)
+            l.info("Altering %d%% of the dataset..." % p_)
+            limit = int(round(len(self)*p, 0))
+        else:
+            l.info("Altering the selected records of the dataset...")
+            limit = 0
+        altered_h = [h for hlst in self._alterations.values() for h in hlst]
+        df = self._data[~self._data.hash.isin(altered_h)]
+        for e in filter_data_iter(df, query, limit, logger=self.logger):
+            exe = Executable(dataset=self, hash=e.hash)
             for m in Modifiers(exe):
                 self._alterations.setdefault(m, [])
                 self._alterations[m].append(h)
-            c += 1
-            if c >= n:
-                break
-        self._metadata['altered'] = a + c / len(self)
+        self._metadata['altered'] = sum(1 for hl in self._alterations.values() for h in hl) / len(self)
         self._save()
     
     def edit(self, **kw):
@@ -431,88 +428,85 @@ class Dataset:
         # get executables to be randomly packed or not
         n1 = self._metadata.get('executables', 0)
         CBAD, CGOOD = n // 3, n // 3
-        i, cbad, cgood, pbar = 0, {p: CBAD for p in packers}, {p: CGOOD for p in packers}, None
-        for exe in self._walk(n <= 0):
-            label = short_label = NOT_PACKED
-            to_be_packed = pack_all or random.randint(0, len(packers) if balance else 1)
-            # check 1: are there already samples enough?
-            if i >= n > 0:
-                break
-            # check 2: are there working packers remaining?
-            if len(packers) == 0:
-                l.critical("No packer left")
-                return
-            # check 3: is the selected Executable supported by any of the remaining packers?
-            if all(not p._check(exe, silent=True) for p in packers):
-                l.debug("unsupported file (%s)" % exe)
-                continue
-            # check 4: was this executable already included in the dataset?
-            if len(self._data) > 0 and self._files and exe.destination.exists():
-                l.debug("already in the dataset (%s)" % exe)
-                continue
-            l.debug("handling %s..." % exe)
-            # set the progress bar now to not overlap with self._walk's logging
-            if pbar is None:
-                pbar = tqdm(total=n, unit="executable")
-            if to_be_packed:
-                if len(packers) > 1:
-                    random.shuffle(packers)
-                dest = exe.copy(extension=True)
-                if dest is None:  # occurs when the copy failed
-                    continue
-                dest = dest.absolute()
-                for p in packers[:]:
-                    fmt = dest.format
-                    dest.chmod(0o700 if getattr(p, "xflag", False) else 0o600)
-                    label = p.pack(dest)
-                    # means that this kind of executable is not supported by this packer
-                    if label is None:
-                        continue
-                    # means that the executable was packed but modifying the file type
-                    if fmt != dest.format and label not in [NOT_LABELLED, NOT_PACKED]:
-                        self.logger.debug("resetting %s..." % exe)
-                        dest.remove()
-                        dest = exe.copy(extension=True).absolute()  # reset the original executable
-                        label = NOT_PACKED
-                        continue
-                    if label == NOT_PACKED or p._bad:
-                        # if we reached the limit of GOOD packing occurrences, we consider the packer as GOOD again
-                        if cgood[p] <= 0:
-                            p._bad, cbad[p] = False, n // 3
-                        # but if BAD, we reset the GOOD counter and eventually disable it
-                        if p._bad:
-                            cbad[p] -= 1      # update BAD counter
-                            cgood[p] = CGOOD  # reset GOOD counter ; if still in BAD state, then we need 'cgood'
-                                              #  successful packings to return to the GOOD state
-                            if cbad[p] <= 0:  # BAD counter exhausted => disable the packer
-                                l.warning("Disabling %s..." % p.__class__.__name__)
-                                packers.remove(p)
-                        # if GOOD and label is None
-                        else:
-                            cgood[p] -= 1   # update GOOD counter
-                            cbad[p] = CBAD  # reset BAD counter
-                        label = NOT_PACKED
-                        continue
-                    # consider short label (e.g. "midgetpack", not "midgetpack[<password>]")
-                    short_label = label.split("[")[0]
+        i, cbad, cgood = 0, {p: CBAD for p in packers}, {p: CGOOD for p in packers}
+        with progress_bar() as progress:
+            pbar = progress.add_task("", total=None if n <= 0 else n)
+            for exe in self._walk(n <= 0):
+                label = short_label = NOT_PACKED
+                to_be_packed = pack_all or random.randint(0, len(packers) if balance else 1)
+                # check 1: are there already samples enough?
+                if i >= n > 0:
                     break
-                dest.chmod(0o400)
-                # ensure we did not left the executable name with its hash AND extension behind
-                try:
-                    dest.rename(exe.destination)
-                except FileNotFoundError:
-                    pass
-            if not pack_all or pack_all and label not in [NOT_PACKED, NOT_LABELLED]:
-                self[exe] = short_label
-                if not self._files:
-                    self[exe.hash] = (self._compute_features(exe), True)  # True: force updating the row
-                    exe.destination.remove(False)
-                i += 1
-                pbar.update()
-            else:
-                del self[exe]
-        if pbar:
-            pbar.close()
+                # check 2: are there working packers remaining?
+                if len(packers) == 0:
+                    l.critical("No packer left")
+                    return
+                # check 3: is the selected Executable supported by any of the remaining packers?
+                if all(not p._check(exe, silent=True) for p in packers):
+                    l.debug("unsupported file (%s)" % exe)
+                    continue
+                # check 4: was this executable already included in the dataset?
+                if len(self._data) > 0 and self._files and exe.destination.exists():
+                    l.debug("already in the dataset (%s)" % exe)
+                    continue
+                l.debug("handling %s..." % exe)
+                if to_be_packed:
+                    if len(packers) > 1:
+                        random.shuffle(packers)
+                    dest = exe.copy(extension=True)
+                    if dest is None:  # occurs when the copy failed
+                        continue
+                    dest = dest.absolute()
+                    for p in packers[:]:
+                        fmt = dest.format
+                        dest.chmod(0o700 if getattr(p, "xflag", False) else 0o600)
+                        label = p.pack(dest)
+                        # means that this kind of executable is not supported by this packer
+                        if label is None:
+                            continue
+                        # means that the executable was packed but modifying the file type
+                        if fmt != dest.format and label not in [NOT_LABELLED, NOT_PACKED]:
+                            self.logger.debug("resetting %s..." % exe)
+                            dest.remove()
+                            dest = exe.copy(extension=True).absolute()  # reset the original executable
+                            label = NOT_PACKED
+                            continue
+                        if label == NOT_PACKED or p._bad:
+                            # if we reached the limit of GOOD packing occurrences, we consider the packer as GOOD again
+                            if cgood[p] <= 0:
+                                p._bad, cbad[p] = False, n // 3
+                            # but if BAD, we reset the GOOD counter and eventually disable it
+                            if p._bad:
+                                cbad[p] -= 1      # update BAD counter
+                                cgood[p] = CGOOD  # reset GOOD counter ; if still in BAD state, then we need 'cgood'
+                                                  #  successful packings to return to the GOOD state
+                                if cbad[p] <= 0:  # BAD counter exhausted => disable the packer
+                                    l.warning("Disabling %s..." % p.__class__.__name__)
+                                    packers.remove(p)
+                            # if GOOD and label is None
+                            else:
+                                cgood[p] -= 1   # update GOOD counter
+                                cbad[p] = CBAD  # reset BAD counter
+                            label = NOT_PACKED
+                            continue
+                        # consider short label (e.g. "midgetpack", not "midgetpack[<password>]")
+                        short_label = label.split("[")[0]
+                        break
+                    dest.chmod(0o400)
+                    # ensure we did not left the executable name with its hash AND extension behind
+                    try:
+                        dest.rename(exe.destination)
+                    except FileNotFoundError:
+                        pass
+                if not pack_all or pack_all and label not in [NOT_PACKED, NOT_LABELLED]:
+                    self[exe] = short_label
+                    if not self._files:
+                        self[exe.hash] = (self._compute_features(exe), True)  # True: force updating the row
+                        exe.destination.remove(False)
+                    i += 1
+                    progress.update(pbar, advance=1)
+                else:
+                    del self[exe]
         ls = len(self)
         if ls > 0:
             p = sorted(list(set([lb for lb in self._data.label.values if isinstance(lb, str)])))
@@ -538,7 +532,7 @@ class Dataset:
     def remove(self, query=None, **kw):
         """ Remove executables from the dataset given multiple criteria. """
         self.logger.debug("removing files from %s based on query '%s'..." % (self.basename, query))
-        for e in filter_data(self._data, query, logger=self.logger):
+        for e in filter_data_iter(self._data, query, logger=self.logger):
             del self[e.hash]
         self._save()
     
@@ -570,21 +564,13 @@ class Dataset:
         """ Select a subset from the current dataset based on multiple criteria. """
         self.logger.debug("selecting a subset of %s based on query '%s'..." % (self.basename, query))
         ds2 = self.__class__(name2)
-        ds2._metadata['sources'] = self._metadata['sources'][:]
-        _tmp, i = {s: 0 for s in ds2._metadata['sources']}, 0
-        for e in filter_data(self._data, query, logger=self.logger):
-            if i >= limit > 0:
-                break
-            for s in ds2._metadata['sources']:
-                if e.realpath.startswith(s):
-                    _tmp[s] += 1
+        ds2._metadata['sources'] = []
+        for e in filter_data_iter(self._data, query, limit, logger=self.logger):
+            for s in self._metadata['sources']:
+                if Path(e.realpath).is_under(Path(s, expand=True)) and s not in ds2._metadata['sources']:
+                    ds2._metadata['sources'].append(s)
                     break
             ds2[Executable(dataset=self, dataset2=ds2, hash=e.hash)] = self[e.hash, True]
-            i += 1
-        # remove sources that, given the selection, have no associated file
-        for s, cnt in _tmp.items():
-            if cnt == 0:
-                ds2._metadata['sources'].remove(s)
         ds2._save()
     
     def show(self, limit=10, per_format=False, **kw):
@@ -649,7 +635,6 @@ class Dataset:
                 l.info("Source directories: %s" % ",".join(map(str, set(source_dir))))
             self._metadata.setdefault('formats', [])
             self._metadata['sources'] = list(set(map(str, self._metadata.get('sources', []) + source_dir)))
-            i, pbar = -1, None
             if n > 0:
                 files = [p for p in self._walk(True, {'All': source_dir}, True)]
                 random.shuffle(files)
@@ -657,28 +642,20 @@ class Dataset:
             else:
                 files = self._walk(True, {'All': source_dir}, silent)
                 total = sum(1 for _ in self._walk(True, {'All': source_dir}, True))
-            for i, exe in enumerate(files):
-                # set the progress bar now to not overlap with self._walk's logging
-                if pbar is None:
-                    pbar = tqdm(total=total, unit="executable")
-                if exe.format not in self._metadata['formats']:
-                    self._metadata['formats'].append(exe.format)
-                _update(exe)
-                pbar.update()
-            if pbar:
-                pbar.close()
-            if i < 0:
+            found = False
+            with progress_bar() as p:
+                for exe in p.track(files):
+                    if exe.format not in self._metadata['formats']:
+                        self._metadata['formats'].append(exe.format)
+                    _update(exe)
+                    found = True
+            if not found:
                 l.warning("No executable found")
         # case (2) empty source directory, but labels were provided and are to be applied
         else:
-            pbar = None
-            for exe in self:
-                if pbar is None:
-                    pbar = tqdm(total=len(self), unit="executable")
-                _update(exe)
-                pbar.update()
-            if pbar:
-                pbar.close()
+            with progress_bar() as p:
+                for exe in p.track(self):
+                    _update(exe)
         self._save()
     
     def view(self, query=None, **kw):
@@ -692,9 +669,7 @@ class Dataset:
             return -1, path
         # prepare the table of records
         d, h = [], ["Hash", "Path", "Size", "Creation", "Modification", "Label"]
-        Executable._metadata_only = True
-        for e in filter_data(self._data, query, logger=self.logger):
-            e = Executable(dataset=self, hash=e.hash)
+        for e in filter_data_iter(self._data, query, logger=self.logger):
             i, p = _shorten(e.realpath)
             if i >= 0:
                 p = "[%d]/%s" % (i, p)
@@ -702,8 +677,8 @@ class Dataset:
                       e.mtime.strftime("%d/%m/%y"), e.label])
         if len(d) == 0:
             return
-        r = [Text("Sources:\n%s" % "\n".join("[%d] %s" % (i, s) for i, s in enumerate(src))),
-             Table(d, title="Filtered records", column_headers=h)]
+        r = [Text("**Sources**:\n\n%s" % "\n".join("[%d] %s" % (i, s) for i, s in enumerate(src))),
+             Section("Filtered records"), Table(d, column_headers=h)]
         render(*r)
     
     @property
