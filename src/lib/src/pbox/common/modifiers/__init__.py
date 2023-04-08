@@ -45,7 +45,7 @@ class Modifiers(list):
                 #  collapsed class "All"
                 for clist in [expand_formats("All"), list(FORMATS.keys())[1:], ["All"]]:
                     for c in clist:
-                        expr = r.get(c)
+                        expr = r.get(c) if isinstance(r, dict) else str(r)
                         if expr:
                             m = Modifier(params, name=name, parent=self, result=expr)
                             for c2 in expand_formats(c):

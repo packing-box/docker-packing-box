@@ -2,6 +2,7 @@ defaults:
   parser: !!python/name:lief.parse
 
 replace_one_section_name_with_random_bytes:
+  apply:  false
   result: section_name(choice(sections).name, randstr())
 
 replace_text_with_null_bytes:
