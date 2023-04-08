@@ -109,7 +109,7 @@ class Detector(Base):
             registry = [d for d in (kwargs.get('select') or Detector.registry) if d.check(exe.format, **kwargs)]
             l = kwargs['n_detectors'] = len(registry)
             results, details = {'unknown': -l} if multiclass else {}, {}
-            # step 1: collect trings per packer and suspicions
+            # step 1: collect strings per packer and suspicions
             kwargs['silent'] = True
             for detector in registry:
                 label = list(detector.detect(exe, **kwargs))[0]
@@ -142,9 +142,9 @@ class Detector(Base):
                 self.logger.debug("did not detect anything")
             else:
                 label = label.strip()
-                # if binary classification, convert the result to 1|0 (Yes|No)
-                if not multiclass:
-                    label = bin_label(label)
+            # if binary classification, convert the result to 1|0 (Yes|No)
+            if not multiclass:
+                label = bin_label(label)
             if dslen:
                 exe.len = dslen
             return exe, label, actual_label

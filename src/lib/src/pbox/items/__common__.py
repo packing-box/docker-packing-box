@@ -289,7 +289,7 @@ class Base(Item):
                 except Exception as e:
                     self.logger.error(str(e))
                     output, error, retc = None, str(e), 1
-                output = ensure_str(output).strip()
+                output = ensure_str(output or NOT_LABELLED).strip()
                 # filter out error lines from stdout
                 out_err = "\n".join(re.sub(ERR_PATTERN, "", l) for l in output.splitlines() if re.match(ERR_PATTERN, l))
                 output  = "\n".join(l for l in output.splitlines() if not re.match(ERR_PATTERN, l) and l.strip() != "")

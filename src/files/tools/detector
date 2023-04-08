@@ -2,13 +2,13 @@
 # -*- coding: UTF-8 -*-
 from pbox import *
 from pbox.__info__ import *
+from pbox.common.rendering import *
 from pbox.common.utils import *
 from tinyscript import *
 from tinyscript.report import *
-from tqdm import tqdm
 
 
-__version__     = "1.2.2"
+__version__     = "1.3.0"
 __doc__         = """
 This tool aims to detect the packer used on an input executable, folder of executables or Dataset.
 """
@@ -52,50 +52,50 @@ if __name__ == '__main__':
     kw['vote'] = v = len(args.detector) == 0
     single = len(args.detector) == 1
     kw['select'] = lst = [d for d in (args.detector or Detector.registry) if d.check(**kw)]
+    if len(lst) == 0:
+        sys.exit(0)
     NL, NP = [-1, NOT_LABELLED][mc], [0, NOT_PACKED][mc]
     if not single:
         logger.info("%s: %s" % (["Detectors", "Superdetector"][v], ", ".join(i.cname for i in lst)))
     try:
-        for out in Detector.detect(args.executable, **kw):
-            # ([exe]cutable, [r]esulting label of the detector, actual [l]abel, [d]etails) 
-            details = {}
-            if kw['debug']:
-                exe, r, l, details = out
-            else:
-                exe, r, l = out
-            if not args.do_not_strip_version and not args.binary:
-                l = strip_version(l)
-            decision = "not labelled" if r == NL else "not packed" if r == NP else ["packed", r][mc]
-            if not single:
-                logger.debug("final decision: %s" % decision)
-            if pbar is None and hasattr(exe, "len") and exe.len > 1:
-                pbar = tqdm(total=exe.len, unit="executable")
-            if not single and not args.metrics_only:
-                mlen = 0
-                for name in details.keys():
-                    mlen = max(mlen, len(name))
-                msg = "Decisions:"
-                for name, label in details.items():
-                    msg += ("\n{: <%d}: {}" % mlen).format(name, label)
-                if msg != "Decisions:":
-                    logger.warning(msg)
-            if not args.failures_only or r != l:
-                log = [logger.warning if r == NL else logger.failure if r != l else \
-                       logger.success, logger.debug][l == NL]
-                log("{}: {}".format(exe, decision))
-            stats.setdefault(decision, 0)
-            stats[decision] += 1
-            if l != NL:
-                cmatrix[['tp', 'tn'][r == NP] if r == l else ['fp', 'fn'][r == NP]] += 1
-            if pbar is not None:
-                pbar.update()
+        with progress_bar(transient=True) as p:
+            task = p.add_task("", total=None)
+            for out in Detector.detect(args.executable, **kw):
+                # ([exe]cutable, [r]esulting label of the detector, actual [l]abel, [d]etails) 
+                details = {}
+                if kw['debug']:
+                    exe, r, l, details = out
+                else:
+                    exe, r, l = out
+                if not args.do_not_strip_version and not args.binary:
+                    l = strip_version(l)
+                p._tasks[task].total = exe.len
+                decision = "not labelled" if r == NL else "not packed" if r == NP else ["packed", r][mc]
+                if not single:
+                    logger.debug("final decision: %s" % decision)
+                if not single and not args.metrics_only:
+                    mlen = 0
+                    for name in details.keys():
+                        mlen = max(mlen, len(name))
+                    msg = "Decisions:"
+                    for name, label in details.items():
+                        msg += ("\n{: <%d}: {}" % mlen).format(name, label)
+                    if msg != "Decisions:":
+                        logger.warning(msg)
+                if not args.failures_only or r != l:
+                    log = [logger.warning if r == NL else logger.failure if r != l else \
+                           logger.success, logger.debug][l == NL]
+                    log("{}: {}".format(exe, decision))
+                stats.setdefault(decision, 0)
+                stats[decision] += 1
+                if l != NL:
+                    cmatrix[['tp', 'tn'][r == NP] if r == l else ['fp', 'fn'][r == NP]] += 1
+                p.update(task, advance=1.)
     except Exception as e:
         (logger.exception if args.verbose > 0 else logger.error)(e)
         if args.metrics_only:
             print("E,E,E,E")
         sys.exit(1)
-    if pbar is not None:
-        pbar.close()
     ph, h, m = metric_headers("classification"), ["Accuracy", "Precision", "Recall", "F-Measure"], _metrics(**cmatrix)
     m = [ph[k](v) if v >= 0 else "-" for k, v in zip(h, m)]
     n = sum(stats.values())
@@ -109,7 +109,7 @@ if __name__ == '__main__':
             print(r)
         else:
             rpt.append(Table([m], column_headers=h))
-            print(mdv.main(Report(*rpt).md()))
+            render(*rpt)
     else:
         logger.debug("Statistics: %s" % stats)
         if args.metrics_only:
@@ -120,5 +120,5 @@ if __name__ == '__main__':
                 data.append([l, c, "%.2f%%" % (100 * c / tot)])
             if len(data) > 0:
                 rpt.append(Table(data, column_headers=["Label", "Count", "Percentage"]))
-                print(mdv.main(Report(*rpt).md()))
+                render(*rpt)
 

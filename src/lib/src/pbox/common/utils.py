@@ -9,16 +9,16 @@ from time import perf_counter, time
 from tinyscript import ast, inspect, logging, os, random, subprocess
 from tinyscript.helpers import is_file, is_folder, Path, TempPath
 from tinyscript.helpers.expressions import WL_NODES
-from tqdm import tqdm
 
 from .config import *
 from .executable import Executable
+from .rendering import progress_bar
 
 
 __all__ = ["aggregate_formats", "backup", "benchmark", "bin_label", "class_or_instance_method", "collapse_formats",
            "data_to_temp_file", "dict2", "edit_file", "expand_formats", "expand_parameters",
-           "file_or_folder_or_dataset", "filter_data", "get_counts", "is_exe", "make_registry", "shorten_str",
-           "strip_version", "tqdm", "ExeFormatDict", "COLORMAP", "FORMATS"]
+           "file_or_folder_or_dataset", "filter_data", "get_counts", "is_exe", "make_registry",
+           "shorten_str", "strip_version", "ExeFormatDict", "COLORMAP", "FORMATS"]
 
 _EVAL_NAMESPACE = {k: getattr(builtins, k) for k in ["abs", "divmod", "float", "hash", "hex", "id", "int", "len",
                                                      "list", "max", "min", "oct", "ord", "pow", "range", "range2",
@@ -276,6 +276,9 @@ def file_or_folder_or_dataset(method):
                     i = Path(i)
                     i.dataset = None
                     e.append(i)
+                    lbl = kwargs.get('label')
+                    if lbl:
+                        l = {i.stem: lbl}
                 return True
             # normal folder or FilelessDataset's path or Dataset's files path
             elif is_folder(i):
