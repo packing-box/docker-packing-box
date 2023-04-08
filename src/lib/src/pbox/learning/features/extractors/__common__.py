@@ -36,24 +36,10 @@ LIEF2CS_ARCH = {
     ARCHITECTURES.XCORE: {32: CS_ARCH_XCORE, 64: CS_ARCH_XCORE},
 }
 
-__cache = {}
-
 
 def parse_binary(f):
-    def _wrapper(executable, *args, **kwargs):
-        if str(executable) in __cache:
-            binary = __cache[str(executable)]
-        else:
-            # try to parse the binary first ; capture the stderr messages from LIEF
-            tmp_fd, null_fd = os.dup(2), os.open(os.devnull, os.O_RDWR)
-            os.dup2(null_fd, 2)
-            binary = parse(str(executable))
-            os.dup2(tmp_fd, 2)  # restore stderr
-            os.close(null_fd)
-            if binary is None:
-                raise OSError("Unknown format")
-            __cache[str(executable)] = binary
-        return f(binary, *args, **kwargs)
+    def _wrapper(target, *args, **kwargs):
+        return f(parse(target), *args, **kwargs)
     return _wrapper
 
 
