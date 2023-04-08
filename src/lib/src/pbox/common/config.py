@@ -1,6 +1,7 @@
 # -*- coding: UTF-8 -*-
-from tinyscript import configparser, logging, re
-from tinyscript.helpers import slugify, ConfigPath, Path
+import lief
+from tinyscript import configparser, functools, logging, os, re
+from tinyscript.helpers import slugify, Capture, ConfigPath, Path
 from tinyscript.report import *
 
 from .rendering import render
@@ -32,6 +33,21 @@ _ws = lambda s, v: Path(s['workspace'].joinpath(v), create=True, expand=True).ab
 null_logger = logging.nullLogger
 
 
+def _capture_output(f):
+    def _wrapper(*args, **kwargs):
+        with Capture() as (out, err):
+            r = f(*args, **kwargs)
+        return r
+    return _wrapper
+
+
+cls = lief.Binary
+for attr in cls.__dict__:
+    func = getattr(cls, attr)
+    if callable(func):
+        setattr(cls, attr, _capture_output(func))
+
+
 def check_name(name, raise_error=True):
     """ Helper function for checking valid names according to the naming convention. """
     if name in [x for y in Config.DEFAULTS.values() for x in y.keys()] or name == "all" or \
@@ -47,10 +63,11 @@ class Config(configparser.ConfigParser):
     """ Simple Config class for handling some packing-box settings. """
     DEFAULTS = {
         'main': {
-            'workspace':    (PBOX_HOME, "PATH", "path to the workspace", _np, ["experiment"]),
-            'experiments':  ("/mnt/share/experiments", "PATH", "path to the experiments folder", _np),
-            'keep_backups': ("true", "BOOL", "keep backups of datasets ; for commands that trigger backups", _bl),
-            'exec_timeout': ("10", "SECONDS", "execution timeout of items (detectors, packers, ...)", int),
+            'workspace':     (PBOX_HOME, "PATH", "path to the workspace", _np, ["experiment"]),
+            'experiments':   ("/mnt/share/experiments", "PATH", "path to the experiments folder", _np),
+            'keep_backups':  ("true", "BOOL", "keep backups of datasets ; for commands that trigger backups", _bl),
+            'exec_timeout':  ("10", "SECONDS", "execution timeout of items (detectors, packers, ...)", int),
+            'cache_entries': ("1048576", "ENTRIES", "number of LIEF-parsed samples in LRU cache", int),
         },
         'definitions': {
             'algorithms': ("~/.opt/algorithms.yml", "PATH", "path to the algorithms' YAML definition", _rp),
@@ -191,4 +208,18 @@ class Config(configparser.ConfigParser):
 
 
 config = Config()
+
+
+@functools.lru_cache(config['cache_entries'])
+def _lief_parse(target, *args, **kwargs):
+    # try to parse the binary first ; capture the stderr messages from LIEF
+    tmp_fd, null_fd = os.dup(2), os.open(os.devnull, os.O_RDWR)
+    os.dup2(null_fd, 2)
+    binary = lief._parse(str(target))
+    os.dup2(tmp_fd, 2)  # restore stderr
+    os.close(null_fd)
+    if binary is None:
+        raise OSError("Unknown format")
+    return binary
+lief._parse, lief.parse = lief.parse, _lief_parse
 
