@@ -1,13 +1,4 @@
 # -*- coding: UTF-8 -*-
-import builtins
-import lief
-import os
-import yaml
-from ast import literal_eval
-from bintropy import entropy
-from tinyscript import logging
-from tinyscript.helpers.expressions import WL_NODES  # note: eval2 is bound to the builtins, hence not imported
-
 from .__common__ import *
 from .elf import *
 from .pe import *
