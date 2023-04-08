@@ -4,12 +4,8 @@ import multiprocessing as mp
 import numpy as np
 import pandas as pd
 from _pickle import UnpicklingError
-from sklearn.base import BaseEstimator, TransformerMixin
-from sklearn.decomposition import PCA
 from sklearn.feature_selection import VarianceThreshold
 from sklearn.model_selection import train_test_split, GridSearchCV
-from sklearn.pipeline import Pipeline
-from sklearn.preprocessing import *
 from tinyscript import ast, json, itertools, logging, subprocess
 from tinyscript.helpers import human_readable_size, is_generator, Path, TempPath
 from tinyscript.report import *
@@ -19,31 +15,18 @@ from .dataset import *
 from .executable import Executable
 from .features import Features
 from .metrics import *
+from .pipeline import *
 from .visualization import *
 from ..common.config import *
 from ..common.rendering import *
 from ..common.utils import *
 
 
-__all__ = ["open_model", "DumpedModel", "Model", "N_JOBS", "PREPROCESSORS"]
+__all__ = ["open_model", "DumpedModel", "Model", "N_JOBS"]
 
 
 FLOAT_FORMAT = "%.6f"
 N_JOBS = mp.cpu_count() // 2
-PREPROCESSORS = {
-    'MA':         MaxAbsScaler,
-    'MM':         MinMaxScaler,
-    'Norm':       Normalizer,
-    'OneHot':     (OneHotEncoder, {'drop': "if_binary", 'handle_unknown': "ignore"}),
-    'Ord':        OrdinalEncoder,
-    'PT-bc':      (PowerTransformer, {'method': "box-cox"}),
-    'PT-yj':      (PowerTransformer, {'method': "yeo-johnson"}),
-    'QT-normal':  (QuantileTransformer, {'output_distribution': "normal"}),
-    'QT-uniform': (QuantileTransformer, {'output_distribution': "uniform"}),
-    'Rob':        (RobustScaler, {'quantile_range': (25, 75)}),
-    'PCA':        (PCA, {'n_components': 2}),
-    'Std':        StandardScaler,
-}
 
 
 def open_model(item):
@@ -59,53 +42,6 @@ def open_model(item):
         raise ValueError("%s is not a valid model" % item)
 
 
-class DebugPipeline:
-    """ Proxy class for attaching a logger ; NOT subclassed as logger cannot be pickled (cfr Model._save). """
-    def __init__(self, *args, **kwargs):
-        self.pipeline = None
-        kwargs['verbose'] = False  # ensure no verbose, this is managed by self.logger with self._log_message
-        self._args = (args, kwargs)
-    
-    def __getattribute__(self, name):
-        if name in ["_args", "_log_message", "append", "logger", "pipeline", "pop", "preprocess", "serialize"]:
-            return object.__getattribute__(self, name)
-        return object.__getattribute__(object.__getattribute__(self, "pipeline"), name)
-    
-    def _log_message(self, step_idx):
-        """ Overload original method to display messages with our own logger.
-        NB: verbosity is controlled via the logger, therefore we output None so that it is not natively displayed.  """
-        if not getattr(Pipeline, "silent", False):
-            name, _ = self.steps[step_idx]
-            logger.info("[%d/%d] %s" % (step_idx + 1, len(self.steps), name))
-    Pipeline._log_message = _log_message
-    
-    def append(self, step):
-        if not isinstance(step, tuple):
-            step = (step.__class__.__name__, step)
-        if self.pipeline is None:
-            self.pipeline = Pipeline([step], *self._args[0], **self._args[1])
-        else:
-            self.pipeline.steps.append(step)
-    
-    def pop(self, idx=None):
-        self.pipeline.steps.pop() if idx is None else self.pipeline.steps.pop(idx)
-    
-    def preprocess(self, X):
-        pipeline = self.pipeline[:-1]
-        pipeline.steps.append(("debug", DebugTransformer()))
-        return pipeline.fit_transform(X)
-
-
-class DebugTransformer(BaseEstimator, TransformerMixin):
-    """ Transformer class for debugging the pipeline. """
-    def transform(self, X):
-        self.shape = X.shape
-        return X
-    
-    def fit(self, X, y=None, **params):
-        return self
-
-
 class Model:
     """ Folder structure:
     
@@ -117,8 +53,6 @@ class Model:
     """
     @logging.bindLogger
     def __init__(self, name=None, load=True, **kw):
-        global logger
-        logger = self.logger
         self.__read_only = False
         self._features, self._metadata = {}, {}
         self._performance = pd.DataFrame()
@@ -215,7 +149,8 @@ class Model:
             exes, cnt = itertools.tee(exes)
             n = sum(1 for _ in cnt)
             with progress_bar(silent=n <= 1) as p:
-                for exe in p.track(exes):
+                task = p.add_task("", total=n)
+                for exe in exes:
                     if not isinstance(exe, Executable):
                         exe = Executable(str(exe))
                     if not data_only:
@@ -223,6 +158,7 @@ class Model:
                     self._data = self._data.append(exe.data, ignore_index=True)
                     if label:
                         self._target = self._target.append({'label': labels.get(exe.hash)}, ignore_index=True)
+                    p.update(task, advance=1.)
         # case 1: fileless dataset (where features are already computed)
         if isinstance(ds, FilelessDataset):
             l.info("Loading features...")
@@ -649,7 +585,7 @@ class Model:
         self.pipeline.fit(self._train.data, self._train.target.values.ravel())
         Pipeline.silent = True
         l.debug("> making predictions...")
-        predict = self.pipeline.predict if hasattr(self.pipeline.steps[-1], "predict") else self.pipeline.fit_predict
+        predict = self.pipeline.predict if hasattr(self.pipeline.steps[-1][1], "predict") else self.pipeline.fit_predict
         self._train.predict = predict(self._train.data)
         try:
             self._train.predict_proba = self.pipeline.predict_proba(self._train.data)[:, 1]
