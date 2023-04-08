@@ -73,8 +73,10 @@ if __name__ == '__main__':
     agroup.add_argument("-q", "--query", default="all", help="query for filtering records to be selected",
                         note="see <https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.query.html>")
     browse = __add_name(cmds.add_parser("browse", help="compute features and browse the resulting data"))
-    browse.add_argument("-f", "--features-set", type=ts.file_exists, default=str(config['features']),
+    bgroup = browse.add_mutually_exclusive_group()
+    bgroup.add_argument("-f", "--features-set", type=ts.file_exists, default=str(config['features']),
                         help="features set's YAML definition")
+    bgroup.add_argument("-n", "--no-feature", action="store_true", help="do not compute features")
     browse.add_argument("-q", "--query", default="all", help="query for filtering records to be selected",
                         note="see <https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.query.html>")
     convert = __add_name(cmds.add_parser("convert", help="convert the target dataset to a fileless one"))

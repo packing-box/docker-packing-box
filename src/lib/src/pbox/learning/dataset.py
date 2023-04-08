@@ -68,8 +68,9 @@ class FilelessDataset(Dataset):
                     self[exe.hash] = (d, True)  # True: force updating the row
     Dataset._compute_all_features = _compute_all_features
     
-    def browse(self, query=None, **kw):
-        self._compute_all_features()
+    def browse(self, query=None, no_feature=False, **kw):
+        if not no_feature:
+            self._compute_all_features()
         with data_to_temp_file(filter_data(self._data, query, logger=self.logger), prefix="dataset-features-") as tmp:
             edit_file(tmp, logger=self.logger)
     Dataset.browse = browse
