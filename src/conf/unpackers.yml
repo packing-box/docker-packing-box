@@ -1,3 +1,7 @@
+BZEXE:
+  base:   packer
+  status: ok
+
 GZEXE:
   base:   packer
   status: ok
