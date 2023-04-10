@@ -179,6 +179,26 @@ BurnEye:
   source: https://packetstormsecurity.com/files/29691/burneye-1.0-linux-static.tar.gz.html
   status: broken
 
+BZEXE:
+  categories:
+    - compressor
+  comment: (FIXME) This utility converts ELF's to a POSIX shell script executable embedding the compressed binary data. This is unsuitable at the moment as it breaks the rule of packing an executable of a given format to a new executable of the same format.
+  description: The bzexe utility allows you to compress executables in place and have them automatically uncompress and execute when you run them (at a penalty in performance).
+  formats:
+    - ELF
+  install:
+    - apt: bzip2
+  references:
+    - https://www.commandlinux.com/man-page/man1/bzexe.1.html
+    - https://www.unix.com/man-page/linux/1/bzexe
+  silent:
+    - "{{executable}}"
+  source: http://www.bzip.org
+  status: ok
+  steps:
+    - bzexe {{executable}}
+    - rm -f {{executable}}~
+
 ConfuserEx:
   categories:
     - protector
