@@ -5,8 +5,10 @@ from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import *
 from tinyscript import logging
 
+from ..common.config import null_logger
 
-__all__ = ["DebugPipeline", "DebugTransformer", "Pipeline", "PREPROCESSORS"]
+
+__all__ = ["make_pipeline", "DebugPipeline", "DebugTransformer", "Pipeline", "PREPROCESSORS"]
 
 
 PREPROCESSORS = {
@@ -23,6 +25,26 @@ PREPROCESSORS = {
     'PCA':        (PCA, {'n_components': 2}),
     'Std':        StandardScaler,
 }
+
+
+def make_pipeline(pipeline, preprocessors, logger=null_logger):
+    """ Make the ML pipeline by chaining the input preprocessors. """
+    for p in preprocessors:
+        p, params = PREPROCESSORS.get(p, p), {}
+        if isinstance(p, tuple):
+            try:
+                p, params = p
+            except ValueError:
+                logger.error("Bad preprocessor format: %s" % p)
+                raise
+            m = "%s with %s" % (p.__name__, ", ".join("{}={}".format(*i) for i in params.items()))
+        else:
+            m = p.__name__
+        n = p.__name__
+        v = "transform" if n.endswith("Transformer") else "encode" if n.endswith("Encoder") else \
+            "standardize" if n.endswith("Scaler") else "normalize" if n.endswith("Normalizer") or n == "PCA" \
+             else "discretize" if n.endswith("Discretizer") else "preprocess"
+        pipeline.append(("%s (%s)" % (v, m), p(**params)))
 
 
 class DebugPipeline:

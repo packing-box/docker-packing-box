@@ -1,8 +1,6 @@
 # -*- coding: UTF-8 -*-
 import joblib
 import multiprocessing as mp
-import numpy as np
-import pandas as pd
 from _pickle import UnpicklingError
 from sklearn.feature_selection import VarianceThreshold
 from sklearn.model_selection import train_test_split, GridSearchCV
@@ -198,7 +196,6 @@ class Model:
         if len(self._features) == 0:
             l.warning("No selectable feature ; this may be due to a model unrelated to the input")
             return False
-        self._target = self._target.replace(LABELS_BACK_CONV)
         # ensure features are sorted and data has its columns sorted too
         self._features = {k: v for k, v in sorted(self._features.items(), key=lambda x: x[0]) if v != ""}
         try:
@@ -206,11 +203,12 @@ class Model:
         except KeyError as e:
             missing_cols = ast.literal_eval(e.args[0].replace("not in index", ""))
             for col in missing_cols:
-                self._features[col] = ""
+                self._features[col] = np.nan
             self._data = self._data.reindex(columns=sorted(self._features.keys()))
+        self._target = self._target.replace(LABELS_BACK_CONV)
         if unlabelled:
-            self._target['label'] = np.nan
-        self._data, self._target = self._data.fillna(-1), self._target.fillna("")
+            self._target['label'] = NOT_LABELLED
+        self._data, self._target = self._data.fillna(-1), self._target.fillna(NOT_LABELLED)
         if not multiclass:  # convert to binary class
             self._target.loc[self._target.label == "", "label"] = 0
             self._target.loc[self._target.label != 0, "label"] = 1
@@ -219,22 +217,7 @@ class Model:
         if not data_only:
             self.pipeline = DebugPipeline()
             l.info("Making pipeline...")
-            for p in preprocessor:
-                p, params = PREPROCESSORS.get(p, p), {}
-                if isinstance(p, tuple):
-                    try:
-                        p, params = p
-                    except ValueError:
-                        l.error("Bad preprocessor format: %s" % p)
-                        raise
-                    m = "%s with %s" % (p.__name__, ", ".join("{}={}".format(*i) for i in params.items()))
-                else:
-                    m = p.__name__
-                n = p.__name__
-                v = "transform" if n.endswith("Transformer") else "encode" if n.endswith("Encoder") else \
-                    "standardize" if n.endswith("Scaler") else "normalize" if n.endswith("Normalizer") or n == "PCA" \
-                     else "discretize" if n.endswith("Discretizer") else "preprocess"
-                self.pipeline.append(("%s (%s)" % (v, m), p(**params)))
+            make_pipeline(self.pipeline, preprocessor, self.logger)
         # if only data is to be processed (i.e. while testing), stop here, the rest is for training the model
         else:
             return True
@@ -388,7 +371,7 @@ class Model:
                                           "Packers"])]
         render(*r)
     
-    def preprocess(self, executable=None, **kw):
+    def preprocess(self, executable=None, query=None, **kw):
         """ Preprocess an input dataset given selected features and display it with visidata for review. """
         kw['data_only'], kw['dataset'] = True, executable or self._metadata['dataset']['name']
         if not self._prepare(**kw):
@@ -403,7 +386,7 @@ class Model:
             col2 = "*" + col
             result[col2] = ds._data[col]
         result['label'] = ds._data['label']
-        with data_to_temp_file(result, prefix="model-preprocess-") as tmp:
+        with data_to_temp_file(filter_data(result, query, logger=self.logger), prefix="model-preproc-") as tmp:
             edit_file(tmp, logger=self.logger)
     
     def purge(self, **kw):

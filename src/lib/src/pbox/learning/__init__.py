@@ -15,9 +15,11 @@ from .metrics import *
 from .metrics import __all__ as _metrics
 from .model import *
 from .model import __all__ as _model
+from .pipeline import *
+from .pipeline import __all__ as _pipeline
 from .visualization import *
 from .visualization import __all__ as _viz
 
 
-__all__ = _algorithm + _dataset + _executable + _features + _metrics + _model + _viz
+__all__ = _algorithm + _dataset + _executable + _features + _metrics + _model + _pipeline + _viz
 
