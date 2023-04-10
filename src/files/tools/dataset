@@ -27,6 +27,7 @@ __examples__    = [
     "plot features my-dataset byte_0_after_ep byte_1_after_ep",
     "plot features my-dataset number_resources --format png",
     "plot labels my-dataset",
+    "preprocess --preprocessor Std",
     "purge all",
     "purge test-*",
     "remove my-dataset --query \"label == 'aspack'\"",
@@ -54,7 +55,7 @@ def __add_name(parser, force=False, name="name", help="name of the dataset", not
 
 
 __add_format = lambda p: p.add_argument("-f", "--format", default="png", choices=("jpg", "png", "tif", "svg"),
-                                        default="png", help="image file format for plotting")
+                                        help="image file format for plotting")
 __add_query = lambda p: p.add_argument("-q", "--query", default="all", help="query for filtering records to be "
                                        "selected", note="see <https://pandas.pydata.org/docs/reference/api/pandas.Data"
                                        "Frame.query.html>")
