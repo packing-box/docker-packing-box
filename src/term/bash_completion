@@ -1,87 +1,42 @@
 #/usr/bin/env bash
-_dataset_completions()
-{
-  COMPREPLY+=("alter")
-  COMPREPLY+=("browse")
-  COMPREPLY+=("convert")
-  COMPREPLY+=("edit")
-  COMPREPLY+=("export")
-  COMPREPLY+=("fix")
-  COMPREPLY+=("ingest")
-  COMPREPLY+=("list")
-  COMPREPLY+=("make")
-  COMPREPLY+=("merge")
-  COMPREPLY+=("plot")
-  COMPREPLY+=("preprocess")
-  COMPREPLY+=("purge")
-  COMPREPLY+=("remove")
-  COMPREPLY+=("rename")
-  COMPREPLY+=("revert")
-  COMPREPLY+=("select")
-  COMPREPLY+=("show")
-  COMPREPLY+=("update")
-  COMPREPLY+=("view")
+_dataset_completions() {
+  COMPREPLY=($(compgen -W "alter browse convert edit export fix ingest list make merge plot preprocess purge remove rename revert select show update view" "${COMP_WORDS[1]}"))
 }
 
-complete -F _dataset_completions dataset
-
-
-_experiment_completions()
-{
+_experiment_completions() {
   if test -z "$EXPERIMENT" ; then
-    COMPREPLY+=("compress")
-    COMPREPLY+=("list")
-    COMPREPLY+=("open")
+    COMPREPLY+=($(compgen -W "compress list open" "${COMP_WORDS[1]}"))
   else
-    COMPREPLY+=("close")
-    COMPREPLY+=("commit")
-    COMPREPLY+=("compress")
-    COMPREPLY+=("edit")
-    COMPREPLY+=("list")
-    COMPREPLY+=("show")
+    COMPREPLY+=($(compgen -W "close commit compress edit list show" "${COMP_WORDS[1]}"))
   fi
 }
 
+_model_completions() {
+  COMPREPLY+=($(compgen -W "browse compare edit list preprocess purge rename show test train visualize" "${COMP_WORDS[1]}"))
+}
+
+_pbox_completions() {
+  local cur prev
+  COMPREPLY=()
+  cur=${COMP_WORDS[COMP_CWORD]}
+  prev=${COMP_WORDS[COMP_CWORD-1]}
+  if [ $COMP_CWORD -eq 1 ]; then
+    COMPREPLY=($(compgen -W "clean config list setup test workspace" "${COMP_WORDS[1]}"))
+  elif [ $COMP_CWORD -eq 2 ]; then
+    case "$prev" in
+      "list"|"setup"|"test")
+        COMPREPLY=($(compgen -W "analyzer detector packer unpacker" "${COMP_WORDS[2]}")) ;;
+      *) ;;
+    esac
+  fi
+}
+
+_visualizer_completions() {
+  COMPREPLY+=($(compgen -W "features find plot remove" "${COMP_WORDS[1]}"))
+}
+
+complete -F _dataset_completions dataset
 complete -F _experiment_completions experiment
-
-
-_model_completions()
-{
-  COMPREPLY+=("browse")
-  COMPREPLY+=("compare")
-  COMPREPLY+=("edit")
-  COMPREPLY+=("list")
-  COMPREPLY+=("preprocess")
-  COMPREPLY+=("purge")
-  COMPREPLY+=("rename")
-  COMPREPLY+=("show")
-  COMPREPLY+=("test")
-  COMPREPLY+=("train")
-  COMPREPLY+=("visualize")
-}
-
 complete -F _model_completions model
-
-
-_pbox_completions()
-{
-  COMPREPLY+=("clean")
-  COMPREPLY+=("config")
-  COMPREPLY+=("list")
-  COMPREPLY+=("setup")
-  COMPREPLY+=("test")
-  COMPREPLY+=("workspace")
-}
-
 complete -F _pbox_completions packing-box
-
-
-_visualizer_completions()
-{
-  COMPREPLY+=("features")
-  COMPREPLY+=("find")
-  COMPREPLY+=("plot")
-  COMPREPLY+=("remove")
-}
-
 complete -F _visualizer_completions visualizer
