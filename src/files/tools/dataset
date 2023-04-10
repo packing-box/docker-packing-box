@@ -5,7 +5,7 @@ from pbox.__info__ import *
 from tinyscript import *
 
 
-__version__     = "2.6.0"
+__version__     = "2.6.1"
 __doc__         = """
 This tool aims to manipulate a dataset in many ways including its creation, enlargement, update, alteration, selection,
  merging, export or purge.
@@ -53,9 +53,11 @@ def __add_name(parser, force=False, name="name", help="name of the dataset", not
     return parser
 
 
-def __add_query(parser):
-    parser.add_argument("-q", "--query", default="all", help="query for filtering records to be selected",
-                        note="see <https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.query.html>")
+__add_format = lambda p: p.add_argument("-f", "--format", default="png", choices=("jpg", "png", "tif", "svg"),
+                                        default="png", help="image file format for plotting")
+__add_query = lambda p: p.add_argument("-q", "--query", default="all", help="query for filtering records to be "
+                                       "selected", note="see <https://pandas.pydata.org/docs/reference/api/pandas.Data"
+                                       "Frame.query.html>")
 
 
 def _percentage(p):
@@ -144,16 +146,19 @@ if __name__ == '__main__':
                        note="if None, the original dataset is overwritten")
     plot = cmds.add_parser("plot", help="plot something about the dataset")
     pcmds = plot.add_subparsers(dest="subcommand", help="command to be executed")
-    plot_feat = __add_name(pcmds.add_parser("features", help="plot the distribution of a given feature or multiple "
-                                                             "features combined (bar chart)"))
+    plot_feat = __add_name(pcmds.add_parser("features", help="distribution of a given feature or multiple features "
+                                                             "combined (bar chart)"))
     plot_feat.add_argument("feature", action="extend", nargs="*", help="feature identifiers")
-    plot_feat.add_argument("-f", "--format", choices=("jpg", "png", "tif", "svg"), default="png",
-                           help="image file format for plotting", note="no format means plotting in the terminal")
+    __add_format(plot_feat)
     plot_feat.add_argument("-m", "--multiclass", action="store_true",
                            help="process features using multiple label classes")
-    plot_lab = __add_name(pcmds.add_parser("labels", help="plot the distribution of labels in the dataset (pie chart)"))
-    plot_lab.add_argument("-f", "--format", choices=("jpg", "png", "tif", "svg"), default="png",
-                          help="image file format for plotting")
+    plot_ig = __add_name(pcmds.add_parser("infogain", help="sorted distribution of information gains for the selected "
+                                                           "features (bar chart)"))
+    plot_ig.add_argument("feature", action="extend", nargs="*", help="feature identifiers")
+    __add_format(plot_ig)
+    plot_ig.add_argument("-z", "--filter-zero-ig", action="store_true", help="filter features with IG=0")
+    plot_lab = __add_name(pcmds.add_parser("labels", help="distribution of labels in the dataset (pie chart)"))
+    __add_format(plot_lab)
     preproc = __add_name(cmds.add_parser("preprocess", help="preprocess the input dataset given preprocessors"))
     preproc.add_argument("-p", "--preprocessor", action="extend", nargs="*", choices=PREPROCESSORS.keys(), help=pp_help)
     __add_query(preproc)

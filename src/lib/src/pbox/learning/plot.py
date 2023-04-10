@@ -26,6 +26,18 @@ matplotlib.pyplot.rcParams['font.family'] = "serif"
 cmap_light = ListedColormap(["orange", "cyan", "cornflowerblue"])
 
 
+def _dataset_information_gain_bar_chart(dataset, feature=None, format="png", filter_zero_ig=True, **kw):
+    """ Plot a bar chart of the information gain of features in descending order. """
+    l = dataset.logger
+    feature = select_features(feature)
+    # plot
+    l.debug("plotting figure...")
+    plt = matplotlib.pyplot
+    plt.figure(figsize=(8, 0))
+    #TODO
+    return "%s.%s" % (dataset.basename, format)
+
+
 def _dataset_labels_pie_chart(dataset, format="png", **kw):
     """ Describe the dataset with a pie chart. """
     l = dataset.logger
@@ -54,7 +66,7 @@ def _dataset_labels_pie_chart(dataset, format="png", **kw):
     plt = matplotlib.pyplot
     plt.figure(figsize=(8, 4))
     plt.title("Distribution of labels for dataset %s" % dataset.name, pad=10, fontweight="bold")
-    # d- raw a first pie with white labels on the wedges
+    # - draw a first pie with white labels on the wedges
     plt.pie([c[k] for k in classes], colors=cmap, startangle=180, radius=.8,
             autopct=lambda p: "{:.1f}%\n({:.0f})".format(p, p/100*tot), textprops={'color': "white", 'fontsize': 8})
     # - draw a second pie, transparent, just to use black labels
@@ -69,8 +81,7 @@ def _dataset_features_bar_chart(dataset, feature=None, multiclass=False, format=
         return  # no feature to handle
     l = dataset.logger
     # data preparation
-    if not isinstance(feature, (tuple, list)):
-        feature = [feature]
+    feature = select_features(feature)
     l.info("Counting values for feature%s %s..." % (["", "s"][len(feature) > 1], ", ".join(feature)))
     # start counting, keeping 'Not packed' counts separate (to prevent it from being sorted with others)
     counts_np, counts, labels, data = {}, {}, [], pandas.DataFrame()
@@ -217,6 +228,7 @@ def plot(obj, ptype, dpi=200, **kw):
 
 
 PLOTS = {
+    'ds-infogain': _dataset_information_gain_bar_chart,
     'ds-labels':   _dataset_labels_pie_chart,
     'ds-features': _dataset_features_bar_chart,
 }

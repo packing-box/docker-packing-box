@@ -7,7 +7,7 @@ import yaml
 from contextlib import contextmanager
 from functools import wraps
 from time import perf_counter, time
-from tinyscript import ast, inspect, logging, os, random, subprocess
+from tinyscript import ast, inspect, logging, os, random, re, subprocess
 from tinyscript.helpers import is_file, is_folder, Path, TempPath
 from tinyscript.helpers.expressions import WL_NODES
 
@@ -19,7 +19,7 @@ from .rendering import progress_bar
 __all__ = ["aggregate_formats", "backup", "benchmark", "bin_label", "class_or_instance_method", "collapse_formats",
            "data_to_temp_file", "dict2", "edit_file", "expand_formats", "expand_parameters",
            "file_or_folder_or_dataset", "filter_data", "filter_data_iter", "get_counts", "is_exe", "make_registry",
-           "np", "pd", "shorten_str", "strip_version", "ExeFormatDict", "COLORMAP", "FORMATS"]
+           "np", "pd", "select_features", "shorten_str", "strip_version", "ExeFormatDict", "COLORMAP", "FORMATS"]
 
 _EVAL_NAMESPACE = {k: getattr(builtins, k) for k in ["abs", "divmod", "float", "hash", "hex", "id", "int", "len",
                                                      "list", "max", "min", "oct", "ord", "pow", "range", "range2",
@@ -452,6 +452,28 @@ def make_registry(cls):
             _setattr(vi, vdata)
             glob['__all__'].append(vitem)
             cls.registry.append(vi())
+
+
+def select_features(dataset, feature=None):
+    """ Handle features selection based on a simple wildcard. """
+    if not hasattr(dataset, "_features"):
+        dataset._compute_all_features()
+    if feature is None:
+        feature = list(dataset._features.keys())
+    # data preparation
+    if not isinstance(feature, (tuple, list)):
+        feature = [feature]
+    nfeature = []
+    for pattern in feature:
+        # handle wildcard for bulk-selecting features
+        if "*" in pattern:
+            regex = re.compile(pattern.replace("*", ".*"))
+            for f in dataset._features.keys():
+                if regex.search(f):
+                    nfeature.append(f)
+        else:
+            nfeature.append(pattern)
+    return sorted(nfeature)
 
 
 def shorten_str(string, l=80):
