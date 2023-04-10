@@ -212,6 +212,9 @@ config = Config()
 
 @functools.lru_cache(config['cache_entries'])
 def _lief_parse(target, *args, **kwargs):
+    target = Path(target, expand=True)
+    if not target.exists():
+        raise OSError("Target binary does not exist")
     # try to parse the binary first ; capture the stderr messages from LIEF
     tmp_fd, null_fd = os.dup(2), os.open(os.devnull, os.O_RDWR)
     os.dup2(null_fd, 2)

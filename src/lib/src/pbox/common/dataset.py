@@ -1,6 +1,5 @@
 # -*- coding: UTF-8 -*-
 import matplotlib.pyplot as plt
-import pandas as pd
 from tinyscript import b, colored, hashlib, json, logging, random, subprocess, time, ts
 from tinyscript.helpers import ansi_seq_strip, confirm, human_readable_size, slugify, Path, TempPath
 from tinyscript.report import *

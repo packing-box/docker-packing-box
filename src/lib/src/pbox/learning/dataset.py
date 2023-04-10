@@ -4,6 +4,7 @@ from tinyscript.helpers import human_readable_size, Path
 from tinyscript.report import *
 
 from .executable import Executable
+from .pipeline import *
 from .plot import *
 from ..common.config import *
 from ..common.dataset import Dataset
@@ -52,8 +53,8 @@ class FilelessDataset(Dataset):
     def _compute_features(self, exe):
         """ Compute the features for a single Executable instance. """
         exe = Executable(exe, dataset=self, force=True)
-        d = self[exe.hash, True]
-        d.update(exe.data)
+        d = self[exe.hash, True]  # retrieve executable's record as a dictionary
+        d.update(exe.data)        # be sure to include the features
         return d
     Dataset._compute_features = _compute_features
     
@@ -62,8 +63,7 @@ class FilelessDataset(Dataset):
         self.logger.info("Computing features..." if self._files else "Loading features...")
         with progress_bar() as p:
             for exe in p.track(self):
-                d = self[exe.hash, True]  # retrieve executable's record as a dictionary
-                d.update(exe.data)        # be sure to include the features
+                d = self._compute_features(exe)
                 if self._files:
                     self[exe.hash] = (d, True)  # True: force updating the row
     Dataset._compute_all_features = _compute_all_features
@@ -71,7 +71,7 @@ class FilelessDataset(Dataset):
     def browse(self, query=None, no_feature=False, **kw):
         if not no_feature:
             self._compute_all_features()
-        with data_to_temp_file(filter_data(self._data, query, logger=self.logger), prefix="dataset-features-") as tmp:
+        with data_to_temp_file(filter_data(self._data, query, logger=self.logger), prefix="dataset-browsing-") as tmp:
             edit_file(tmp, logger=self.logger)
     Dataset.browse = browse
     
@@ -134,17 +134,9 @@ class FilelessDataset(Dataset):
         if self._files:
             l.info("Computing features...")
             self._compute_all_features()
-        try:
-            self._metadata['counts'] = self._data.label.value_counts().to_dict()
-        except AttributeError:
-            self.logger.warning("No label found")
-            return
-        self._metadata['executables'] = len(self)
-        self._metadata['formats'] = sorted(collapse_formats(*self._metadata['formats']))
-        self._data = self._data.sort_values("hash")
-        fields = ["hash"] + Executable.FIELDS + ["label"]
-        fnames = [h for h in self._data.columns if h not in fields + ["Index"]]
-        c = fields[:-1] + fnames + [fields[-1]]
+        fields = ["hash"] + Executable.FIELDS
+        fnames = [h for h in self._data.columns if h not in fields + ["label", "Index"]]
+        c = fields[:-1] + fnames + ["label"]
         d = self._data[c].values.tolist()
         d.insert(0, c)
         ext = ".%s" % format
@@ -207,6 +199,31 @@ class FilelessDataset(Dataset):
         """ Plot something about the dataset. """
         plot(self, "ds-%s" % subcommand, **kw)
     Dataset.plot = plot
+    
+    def preprocess(self, query=None, preprocessor=None, **kw):
+        """ Preprocess dataset given selected features and preprocessors and display it with visidata for review. """
+        self._compute_all_features()
+        result = pd.DataFrame()
+        for col in ["hash"] + Executable.FIELDS:
+            result[col] = self._data[col]
+        fnames = sorted(self._features.keys())
+        data = self._data[fnames]
+        if preprocessor:
+            p = DebugPipeline()
+            make_pipeline(p, preprocessor, self.logger)
+            p.steps.append(("debug", DebugTransformer()))
+            df = pd.DataFrame(p.preprocess(np.array(data)), columns=data.columns)
+        for col in data.columns:
+            if preprocessor:
+                result[col] = df[col]
+                col2 = "*" + col
+                result[col2] = data[col]
+            else:
+                result[col] = data[col]
+        result['label'] = self._data['label']
+        with data_to_temp_file(filter_data(result, query, logger=self.logger), prefix="dataset-preproc-") as tmp:
+            edit_file(tmp, logger=self.logger)
+    Dataset.browse = browse
     
     @staticmethod
     def count():

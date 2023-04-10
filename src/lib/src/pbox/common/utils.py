@@ -1,5 +1,6 @@
 # -*- coding: UTF-8 -*-
 import builtins
+import numpy as np
 import pandas as pd
 import re
 import yaml
@@ -18,7 +19,7 @@ from .rendering import progress_bar
 __all__ = ["aggregate_formats", "backup", "benchmark", "bin_label", "class_or_instance_method", "collapse_formats",
            "data_to_temp_file", "dict2", "edit_file", "expand_formats", "expand_parameters",
            "file_or_folder_or_dataset", "filter_data", "filter_data_iter", "get_counts", "is_exe", "make_registry",
-           "shorten_str", "strip_version", "ExeFormatDict", "COLORMAP", "FORMATS"]
+           "np", "pd", "shorten_str", "strip_version", "ExeFormatDict", "COLORMAP", "FORMATS"]
 
 _EVAL_NAMESPACE = {k: getattr(builtins, k) for k in ["abs", "divmod", "float", "hash", "hex", "id", "int", "len",
                                                      "list", "max", "min", "oct", "ord", "pow", "range", "range2",

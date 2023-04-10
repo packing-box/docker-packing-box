@@ -5,7 +5,7 @@ from pbox.__info__ import *
 from tinyscript import *
 
 
-__version__     = "2.5.0"
+__version__     = "2.6.0"
 __doc__         = """
 This tool aims to manipulate a dataset in many ways including its creation, enlargement, update, alteration, selection,
  merging, export or purge.
@@ -53,6 +53,11 @@ def __add_name(parser, force=False, name="name", help="name of the dataset", not
     return parser
 
 
+def __add_query(parser):
+    parser.add_argument("-q", "--query", default="all", help="query for filtering records to be selected",
+                        note="see <https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.query.html>")
+
+
 def _percentage(p):
     try:
         p = float(p)
@@ -64,21 +69,24 @@ def _percentage(p):
 
 
 if __name__ == '__main__':
+    pp_help = "preprocessor for shaping the data\n- %s\n" % \
+              "\n- ".join("%s: %s" % (k.ljust(10), "none" if v is None else v.__name__ \
+              if not isinstance(v, tuple) else "%s with %s" % \
+              (v[0].__name__, ", ".join("{}={}".format(*i) for i in v[1].items()))) \
+              for k, v in sorted(PREPROCESSORS.items(), key=lambda x: x[0] or "none") if k is not None)
     cmds = parser.add_subparsers(dest="command", help="command to be executed")
     alter = __add_name(cmds.add_parser("alter", help="alter the target dataset with a set of transformations"))
     alter.add_argument("-a", "--modifiers-set", type=ts.file_exists, default=str(config['modifiers']),
                        help="modifiers set's YAML definition")
     agroup = alter.add_mutually_exclusive_group()
     agroup.add_argument("-p", "--percentage", type=_percentage, default=20, help="percentage of samples to be altered")
-    agroup.add_argument("-q", "--query", default="all", help="query for filtering records to be selected",
-                        note="see <https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.query.html>")
+    __add_query(agroup)
     browse = __add_name(cmds.add_parser("browse", help="compute features and browse the resulting data"))
     bgroup = browse.add_mutually_exclusive_group()
     bgroup.add_argument("-f", "--features-set", type=ts.file_exists, default=str(config['features']),
                         help="features set's YAML definition")
     bgroup.add_argument("-n", "--no-feature", action="store_true", help="do not compute features")
-    browse.add_argument("-q", "--query", default="all", help="query for filtering records to be selected",
-                        note="see <https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.query.html>")
+    __add_query(browse)
     convert = __add_name(cmds.add_parser("convert", help="convert the target dataset to a fileless one"))
     convert.add_argument("-f", "--features-set", type=ts.file_exists, default=str(config['features']),
                          help="features set's YAML definition")
@@ -146,12 +154,14 @@ if __name__ == '__main__':
     plot_lab = __add_name(pcmds.add_parser("labels", help="plot the distribution of labels in the dataset (pie chart)"))
     plot_lab.add_argument("-f", "--format", choices=("jpg", "png", "tif", "svg"), default="png",
                           help="image file format for plotting")
+    preproc = __add_name(cmds.add_parser("preprocess", help="preprocess the input dataset given preprocessors"))
+    preproc.add_argument("-p", "--preprocessor", action="extend", nargs="*", choices=PREPROCESSORS.keys(), help=pp_help)
+    __add_query(preproc)
     purge = __add_name(cmds.add_parser("purge", help="purge a dataset"), True,
                        note="use 'all' to purge every dataset or the wildcard '*' to select a part of them")
     purge.add_argument("-b", "--backup", action="store_true", help="only purge backups")
     remove = __add_name(cmds.add_parser("remove", help="remove executables from a dataset"))
-    remove.add_argument("-q", "--query", default="all", help="query for filtering records to be removed",
-                        note="see <https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.query.html>")
+    __add_query(remove)
     rename = __add_name(cmds.add_parser("rename", help="rename a dataset"))
     rename.add_argument("name2", type=ts.folder_does_not_exist, help="new name of the dataset")
     __add_name(cmds.add_parser("revert", help="revert a dataset to its previous state"))
@@ -159,8 +169,7 @@ if __name__ == '__main__':
     select.add_argument("name2", type=ts.folder_does_not_exist, help="name of the new dataset")
     select.add_argument("-n", "--number", dest="limit", type=ts.pos_int, default=0,
                         help="limit number of executables for the output dataset", note="0 means all")
-    select.add_argument("-q", "--query", default="all", help="query for filtering records to be selected",
-                        note="see <https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.query.html>")
+    __add_query(select)
     show = __add_name(cmds.add_parser("show", help="get an overview of the dataset"))
     show.add_argument("-l", "--limit", default=10, type=int, help="number of executables to be displayed per format")
     show.add_argument("--per-format", action="store_true", help="display statistics per format")
@@ -174,8 +183,7 @@ if __name__ == '__main__':
     update.add_argument("-s", "--source-dir", action="extend", nargs="*", type=lambda p: ts.Path(p, expand=True),
                         help="executables source directory to be included")
     view = __add_name(cmds.add_parser("view", help="view executables filtered from a dataset"))
-    view.add_argument("-q", "--query", default="all", help="query for filtering records to be viewed",
-                      note="see <https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.query.html>")
+    __add_query(view)
     initialize(noargs_action="help")
     logger.name = "dataset"
     logging.configLogger(logger, ["INFO", "DEBUG"][args.verbose], fmt=LOG_FORMATS[args.verbose], relative=True)
