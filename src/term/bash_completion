@@ -1,0 +1,87 @@
+#/usr/bin/env bash
+_dataset_completions()
+{
+  COMPREPLY+=("alter")
+  COMPREPLY+=("browse")
+  COMPREPLY+=("convert")
+  COMPREPLY+=("edit")
+  COMPREPLY+=("export")
+  COMPREPLY+=("fix")
+  COMPREPLY+=("ingest")
+  COMPREPLY+=("list")
+  COMPREPLY+=("make")
+  COMPREPLY+=("merge")
+  COMPREPLY+=("plot")
+  COMPREPLY+=("preprocess")
+  COMPREPLY+=("purge")
+  COMPREPLY+=("remove")
+  COMPREPLY+=("rename")
+  COMPREPLY+=("revert")
+  COMPREPLY+=("select")
+  COMPREPLY+=("show")
+  COMPREPLY+=("update")
+  COMPREPLY+=("view")
+}
+
+complete -F _dataset_completions dataset
+
+
+_experiment_completions()
+{
+  if test -z "$EXPERIMENT" ; then
+    COMPREPLY+=("compress")
+    COMPREPLY+=("list")
+    COMPREPLY+=("open")
+  else
+    COMPREPLY+=("close")
+    COMPREPLY+=("commit")
+    COMPREPLY+=("compress")
+    COMPREPLY+=("edit")
+    COMPREPLY+=("list")
+    COMPREPLY+=("show")
+  fi
+}
+
+complete -F _experiment_completions experiment
+
+
+_model_completions()
+{
+  COMPREPLY+=("browse")
+  COMPREPLY+=("compare")
+  COMPREPLY+=("edit")
+  COMPREPLY+=("list")
+  COMPREPLY+=("preprocess")
+  COMPREPLY+=("purge")
+  COMPREPLY+=("rename")
+  COMPREPLY+=("show")
+  COMPREPLY+=("test")
+  COMPREPLY+=("train")
+  COMPREPLY+=("visualize")
+}
+
+complete -F _model_completions model
+
+
+_pbox_completions()
+{
+  COMPREPLY+=("clean")
+  COMPREPLY+=("config")
+  COMPREPLY+=("list")
+  COMPREPLY+=("setup")
+  COMPREPLY+=("test")
+  COMPREPLY+=("workspace")
+}
+
+complete -F _pbox_completions packing-box
+
+
+_visualizer_completions()
+{
+  COMPREPLY+=("features")
+  COMPREPLY+=("find")
+  COMPREPLY+=("plot")
+  COMPREPLY+=("remove")
+}
+
+complete -F _visualizer_completions visualizer
