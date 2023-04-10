@@ -621,7 +621,8 @@ class Model:
             kw['data_only'] = True
             if not self._prepare(**kw):
                 return
-            params['data'] = self._data
+            params['data'], params['format'] = self._data, self._dataset._data['format']
+            params['extension'] = self._dataset._data['realpath'].apply(lambda p: Path(p).extension)
             if viz_dict.get("target", True):
                 params['target'] = self._target
         if export:
