@@ -52,6 +52,13 @@ dynamic = ["version"]
 file = "README.md"
 content-type = "text/markdown"
 
+[project.scripts]
+dslst = "pboxtools.utils:dslst"
+dsflst = "pboxtools.utils:dsflst"
+mdlst = "pboxtools.utils:mdlst"
+xplst = "pboxtools.utils:xplst"
+xpcfglst = "pboxtools.utils:xpcfglst"
+
 [project.urls]
 documentation = "https://docker-packing-box.readthedocs.io/en/latest/?badge=latest"
 homepage = "https://github.com/packing-box/docker-packing-box"

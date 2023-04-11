@@ -1,18 +1,87 @@
 #/usr/bin/env bash
 _dataset_completions() {
-  COMPREPLY=($(compgen -W "alter browse convert edit export fix ingest list make merge plot preprocess purge remove rename revert select show update view" "${COMP_WORDS[1]}"))
+  local curr prev sprev
+  COMPREPLY=()
+  curr=${COMP_WORDS[COMP_CWORD]}
+  prev=${COMP_WORDS[COMP_CWORD-1]}
+  sprev=${COMP_WORDS[COMP_CWORD-2]}
+  if [ $COMP_CWORD -eq 1 ]; then
+    COMPREPLY=($(compgen -W "alter browse convert edit export fix ingest list make merge plot preprocess purge remove rename revert select show update view" "${COMP_WORDS[1]}"))
+  elif [ $COMP_CWORD -eq 2 ]; then
+    case "$prev" in
+      "alter"|"browse"|"edit"|"export"|"fix"|"ingest"|"make"|"merge"|"preprocess"|"purge"|"remove"|"rename"|"revert"|"select"|"show"|"update"|"view")
+        COMPREPLY=($(compgen -W "`dslst`" "${COMP_WORDS[2]}")) ;;
+      "convert")
+        COMPREPLY=($(compgen -W "`dsflst`" "${COMP_WORDS[2]}")) ;;
+      "plot")
+        COMPREPLY=($(compgen -W "features infogain labels" "${COMP_WORDS[2]}")) ;;
+      *) ;;
+    esac
+  elif [ $COMP_CWORD -eq 3 ]; then
+    case "$sprev" in
+      "plot")
+        case "$prev" in
+          "features"|"infogain"|"labels")
+            COMPREPLY=($(compgen -W "`dslst`" "${COMP_WORDS[3]}")) ;;
+          *) ;;
+        esac ;;
+      *) ;;
+    esac
+  fi
 }
 
 _experiment_completions() {
-  if test -z "$EXPERIMENT" ; then
-    COMPREPLY+=($(compgen -W "compress list open" "${COMP_WORDS[1]}"))
+  local curr prev exp
+  COMPREPLY=()
+  curr=${COMP_WORDS[COMP_CWORD]}
+  prev=${COMP_WORDS[COMP_CWORD-1]}
+  if [[ -f "$HOME/.packing-box/experiment.env" ]]; then
+    if [ $COMP_CWORD -eq 1 ]; then
+      COMPREPLY+=($(compgen -W "close commit compress edit list show" "${COMP_WORDS[1]}"))
+    elif [ $COMP_CWORD -eq 2 ]; then
+      case "$prev" in
+        "edit")
+          exp=`cat $HOME/.packing-box/experiment.env | rev | cut -d/ -f1 | rev`
+          COMPREPLY=($(compgen -W "`xpcfglst $exp`" "${COMP_WORDS[2]}")) ;;
+        *) ;;
+      esac
+    fi
   else
-    COMPREPLY+=($(compgen -W "close commit compress edit list show" "${COMP_WORDS[1]}"))
+    if [ $COMP_CWORD -eq 1 ]; then
+      COMPREPLY+=($(compgen -W "compress list open" "${COMP_WORDS[1]}"))
+    elif [ $COMP_CWORD -eq 2 ]; then
+      case "$prev" in
+        "compress"|"open")
+          COMPREPLY=($(compgen -W "`xplst`" "${COMP_WORDS[2]}")) ;;
+        *) ;;
+      esac
+    fi
   fi
 }
 
 _model_completions() {
-  COMPREPLY+=($(compgen -W "browse compare edit list preprocess purge rename show test train visualize" "${COMP_WORDS[1]}"))
+  local curr prev sprev
+  COMPREPLY=()
+  curr=${COMP_WORDS[COMP_CWORD]}
+  prev=${COMP_WORDS[COMP_CWORD-1]}
+  sprev=${COMP_WORDS[COMP_CWORD-2]}
+  if [ $COMP_CWORD -eq 1 ]; then
+    COMPREPLY+=($(compgen -W "browse compare edit list preprocess purge rename show test train visualize" "${COMP_WORDS[1]}"))
+  elif [ $COMP_CWORD -eq 2 ]; then
+    case "$prev" in
+      "browse"|"compare"|"edit"|"preprocess"|"purge"|"rename"|"show"|"test"|"visualize")
+        COMPREPLY=($(compgen -W "`mdlst`" "${COMP_WORDS[2]}")) ;;
+      "train")
+        COMPREPLY=($(compgen -W "`dslst`" "${COMP_WORDS[2]}")) ;;
+      *) ;;
+    esac
+  elif [ $COMP_CWORD -eq 3 ]; then
+    case "$sprev" in
+      "preprocess"|"test")
+        COMPREPLY=($(compgen -W "`dslst`" "${COMP_WORDS[3]}")) ;;
+      *) ;;
+    esac
+  fi
 }
 
 _pbox_completions() {
