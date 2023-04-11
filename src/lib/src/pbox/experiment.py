@@ -61,7 +61,7 @@ class Experiment:
         # case 2: 'name' matches a reserved word for a YAML configuration file ; return a Path instance
         #          get it either from the main workspace or, if existing, from the experiment
         if name in config.DEFAULTS['definitions'].keys():
-            conf = self.path.joinpath("conf").joinpath(name + ".conf")
+            conf = self.path.joinpath("conf").joinpath(name + ".yml")
             if not conf.exists():
                 conf = config[name]
             return conf
@@ -115,7 +115,7 @@ class Experiment:
         l, conf = self.logger, kw.get('config')
         p = self[conf] # can be README.md, commands.rc or YAML config files
         try:
-            p_main, p_exp = config[conf], self.path.joinpath("conf").joinpath(conf + ".conf")
+            p_main, p_exp = config[conf], self.path.joinpath("conf").joinpath(conf + ".yml")
             if not p_main.is_samepath(p_exp):
                 l.debug("copying configuration file from '%s'..." % p_main)
                 p_main.copy(p_exp)
@@ -130,7 +130,7 @@ class Experiment:
         data, headers = [], ["Name", "#Datasets", "#Models", "Custom configs"]
         for folder in config['experiments'].listdir(Experiment.check):
             exp = Experiment(folder, False)
-            cfg = [f.stem for f in exp.path.joinpath("conf").listdir(Path.is_file) if f.extension == ".conf"]
+            cfg = [f.stem for f in exp.path.joinpath("conf").listdir(Path.is_file) if f.extension == ".yml"]
             data.append([folder.basename, Dataset.count(), Model.count(), ", ".join(cfg)])
         if len(data) > 0:
             render(*[Section("Experiments (%d)" % len(data)), Table(data, column_headers=headers)])
@@ -166,7 +166,7 @@ class Experiment:
             if not f.joinpath(fn).exists():
                 raise ValueError("Does not have %s" % fn)
         for cfg in f.joinpath("conf").listdir():
-            if cfg.stem not in config.DEFAULTS['definitions'].keys() or cfg.extension != ".conf":
+            if cfg.stem not in config.DEFAULTS['definitions'].keys() or cfg.extension != ".yml":
                 raise ValueError("Unknown configuration file '%s'" % cfg)
         for fn in f.listdir(Path.is_dir):
             if fn not in ["conf", "datasets", "models", "scripts"] and warn and logger is not None:

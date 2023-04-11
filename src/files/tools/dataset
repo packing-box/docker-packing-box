@@ -27,7 +27,7 @@ __examples__    = [
     "plot features my-dataset byte_0_after_ep byte_1_after_ep",
     "plot features my-dataset number_resources --format png",
     "plot labels my-dataset",
-    "preprocess --preprocessor Std",
+    "preprocess my-dataset --preprocessor Std",
     "purge all",
     "purge test-*",
     "remove my-dataset --query \"label == 'aspack'\"",

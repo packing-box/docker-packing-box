@@ -4,6 +4,7 @@ import multiprocessing as mp
 from _pickle import UnpicklingError
 from sklearn.feature_selection import VarianceThreshold
 from sklearn.model_selection import train_test_split, GridSearchCV
+from sklearn.preprocessing import StandardScaler
 from tinyscript import ast, json, itertools, logging, subprocess
 from tinyscript.helpers import human_readable_size, is_generator, Path, TempPath
 from tinyscript.report import *
@@ -699,12 +700,12 @@ class Model:
 
 class DumpedModel:
     @logging.bindLogger
-    def __init__(self, name=None, is_pipeline=False, **kw):
+    def __init__(self, name=None, is_pipeline=False, default_scaler=StandardScaler, **kw):
         global logger
         logger = self.logger
         obj, self.pipeline = joblib.load(str(name)), DebugPipeline()
         if not is_pipeline:
-            self.pipeline.append(StandardScaler())
+            self.pipeline.append(default_scaler())
             self.pipeline.append(obj)
         else:
             for s in obj.steps:
