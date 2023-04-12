@@ -119,7 +119,6 @@ def image_clustering(classifier, **params):
     colors_bool = mpl.cm.get_cmap("jet", 2)
     y_labels = np.unique(y.label.ravel())
     label_map = {0: 'Not packed', 1: 'Packed'}
-    print(params['target'])
     for y_label in y_labels:
         axes[1].scatter(X_reduced[y.label.ravel() == y_label, 0], X_reduced[y.label.ravel() == y_label, 1],
                         label=label_map[y_label], color=colors_bool(i), alpha=1.0)
@@ -137,7 +136,6 @@ def image_clustering(classifier, **params):
     # Plot file extensions
     if params['plot_extensions']:
         unique_extensions = np.unique(params['extension'])
-        print(params['extension'])
         for file_extension in unique_extensions:
             extension_mask = params['extension'] == file_extension
             axes[2 + int(params['plot_formats'])].scatter(X_reduced[extension_mask, 0], X_reduced[extension_mask, 1],
