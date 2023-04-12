@@ -102,39 +102,72 @@ def image_clustering(classifier, **params):
     if params.get('reduce_train_data', False):
         label = cls.fit_predict(X_reduced)
     else : 
-        label = cls.fit_predict(X)
-    features = params['features'][0] 
-    # now set color map then plot
+        label = cls.fit_predict(X) 
+    # now set color map
     model_labels = np.unique(label)
-    colors = mpl.cm.get_cmap("jet", len(model_labels))
-    fig, axes = plt.subplots(2 + len(features),figsize=(10 , 6 + (3*len(features))))
+    colors = mpl.cm.get_cmap("jet")
+    # Adjust number of plots and size of figure
+    features = params['features'][0]
+    n_features = len(features)
+    n_plots = 2 + int(params['plot_extensions']) + int(params['plot_formats']) + n_features
+    fig, axes = plt.subplots(n_plots ,figsize=(10 , 6 + 2 * n_plots))
     # Plot cluster labels
     for i in model_labels:
         axes[0].scatter(X_reduced[label == i, 0], X_reduced[label == i, 1] , label=i, cmap=colors)
+    axes[0].set_title("Clusters")
     # Plot true labels
+    colors_bool = mpl.cm.get_cmap("jet", 2)
     y_labels = np.unique(y.label.ravel())
+    label_map = {0: 'Not packed', 1: 'Packed'}
+    print(params['target'])
     for y_label in y_labels:
         axes[1].scatter(X_reduced[y.label.ravel() == y_label, 0], X_reduced[y.label.ravel() == y_label, 1],
-                        label=y_label, cmap=colors, alpha=1.0)
-    axes[1].legend()  
+                        label=label_map[y_label], color=colors_bool(i), alpha=1.0)
+    axes[1].legend(loc='upper left', bbox_to_anchor=(1, 1))  
     axes[1].set_title("Target")
+    # Plot file formats
+    if params['plot_formats']:
+        unique_formats = np.unique(params['format'])
+        for file_format in unique_formats:
+            format_mask = params['format'] == file_format
+            axes[2].scatter(X_reduced[format_mask, 0], X_reduced[format_mask, 1],
+                            label=file_format, cmap=colors, alpha=1.0)
+        axes[2].legend(loc='upper left', bbox_to_anchor=(1, 1))
+        axes[2].set_title("File Formats")
+    # Plot file extensions
+    if params['plot_extensions']:
+        unique_extensions = np.unique(params['extension'])
+        print(params['extension'])
+        for file_extension in unique_extensions:
+            extension_mask = params['extension'] == file_extension
+            axes[2 + int(params['plot_formats'])].scatter(X_reduced[extension_mask, 0], X_reduced[extension_mask, 1],
+                            label=file_extension, cmap=colors, alpha=1.0)
+        axes[2 + int(params['plot_formats'])].legend(loc='upper left', bbox_to_anchor=(1, 1))
+        axes[2 + int(params['plot_formats'])].set_title("File Extensions")
     # Plot selected features
     if features :
         for i, feature in enumerate(features) : 
             unique_feature_values = np.unique(X[feature])
             # Plot a continous colorbar if the feature is not boolean and a legend otherwise 
             if len(unique_feature_values) > 2:
-                axes[2 + i].scatter(X_reduced[:, 0], X_reduced[:, 1], c=X[feature].to_numpy(), cmap=colors, alpha=1.0)
+                axes[n_plots - n_features + i].scatter(X_reduced[:, 0], X_reduced[:, 1], c=X[feature].to_numpy(), cmap=colors, alpha=1.0)
                 norm = mpl.colors.Normalize(vmin=X[feature].min(), vmax=X[feature].max())
-                fig.colorbar(mpl.cm.ScalarMappable(norm=norm, cmap=colors), ax=axes[2+i],
-                orientation='vertical')
+                # fig.colorbar(mpl.cm.ScalarMappable(norm=norm, cmap=colors), ax=axes[n_plots - n_features +i],
+                # orientation='vertical')
+                colorbar_ax = fig.add_axes([axes[n_plots - n_features + i].get_position().x1 + 0.02,
+                            axes[n_plots - n_features + i].get_position().y0 - 0.08,
+                            0.02,
+                            axes[n_plots - n_features + i].get_position().height])
+                fig.colorbar(mpl.cm.ScalarMappable(norm=norm, cmap=colors), cax=colorbar_ax, orientation='vertical')
             else : 
+                label_map = {0: 'False', 1: 'True'}
                 for feature_value in unique_feature_values:
-                    axes[2 + i].scatter(X_reduced[X[feature] == feature_value, 0], X_reduced[X[feature] == feature_value, 1],
-                                        label=feature_value, cmap=colors, alpha=1.0)
-                    axes[2 + i].legend()  
-            axes[2 + i].set_title(feature)
+                    axes[n_plots - n_features + i].scatter(X_reduced[X[feature] == feature_value, 0], X_reduced[X[feature] == feature_value, 1],
+                                        label=label_map[feature_value], cmap=colors, alpha=1.0)
+                    axes[n_plots - n_features + i].legend(loc='upper left', bbox_to_anchor=(1, 1))  
+            axes[n_plots - n_features + i].set_title(feature)
     plt.subplots_adjust(hspace=0.5)
+    plt.tight_layout()
     return fig
 
 
