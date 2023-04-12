@@ -114,6 +114,8 @@ if __name__ == '__main__':
                                help="t-SNE perplexity for dimensionality reduction")
     viz_dependent.add_argument("-r", "--reduce-train-data", action="store_true", help="reduce the training data",
                                note="the data is only reduced for the visualization by default")
+    viz_dependent.add_argument("--plot-extensions", action="store_true", help="plot the file extensions")
+    viz_dependent.add_argument("--plot-formats", action="store_true", help="plot the file formats")
     initialize(noargs_action="help")
     logger.name = "model"
     logging.configLogger(logger, ["INFO", "DEBUG"][args.verbose], fmt=LOG_FORMATS[args.verbose], relative=True)
@@ -139,7 +141,7 @@ if __name__ == '__main__':
         if args.command == "visualize":
             args.viz_params = {}
             for a in ["reduction_algorithm", "imputer_strategy", "n_components", "perplexity", "reduce_train_data",
-                      "features"]:
+                      "features", "plot_extensions", "plot_formats"]:
                 args.viz_params[a] = getattr(args, a)
                 delattr(args, a)
         if args.command != "purge" or args.name is not None:
