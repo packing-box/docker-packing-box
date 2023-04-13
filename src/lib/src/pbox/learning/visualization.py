@@ -104,24 +104,30 @@ def image_clustering(classifier, **params):
     else : 
         label = cls.fit_predict(X) 
     # now set color map
-    model_labels = np.unique(label)
     colors = mpl.cm.get_cmap("jet")
     # Adjust number of plots and size of figure
     features = params['features'][0]
     n_features = len(features)
     n_plots = 2 + int(params['plot_extensions']) + int(params['plot_formats']) + n_features
     fig, axes = plt.subplots(n_plots ,figsize=(10 , 6 + 2 * n_plots))
-    # Plot cluster labels
-    for i in model_labels:
+    # Plot predicted cluster labels
+    predicted_labels = np.unique(label)
+    for i in predicted_labels:
         axes[0].scatter(X_reduced[label == i, 0], X_reduced[label == i, 1] , label=i, cmap=colors)
     axes[0].set_title("Clusters")
     # Plot true labels
-    colors_bool = mpl.cm.get_cmap("jet", 2)
-    y_labels = np.unique(y.label.ravel())
-    label_map = {0: 'Not packed', 1: 'Packed'}
-    for y_label in y_labels:
-        axes[1].scatter(X_reduced[y.label.ravel() == y_label, 0], X_reduced[y.label.ravel() == y_label, 1],
-                        label=label_map[y_label], color=colors_bool(i), alpha=1.0)
+    if params['multiclass']:
+        y_labels = np.unique(params['labels'])
+        colors_labels = mpl.cm.get_cmap("jet", len(y_labels))
+        label_map = {label: 'Not packed' if label == '-' else f'Packed : {label}' for label in y_labels}
+    else : 
+        colors_labels = mpl.cm.get_cmap("jet", 2)
+        y_labels = np.unique(y.label.ravel())
+        label_map = {0: 'Not packed', 1: 'Packed'}
+    for i, y_label in enumerate(y_labels):
+        labels_mask = params['labels'] == y_label if params['multiclass'] else y.label.ravel() == y_label
+        axes[1].scatter(X_reduced[labels_mask, 0], X_reduced[labels_mask, 1],
+                        label=label_map[y_label], color=colors_labels(i), alpha=1.0)
     axes[1].legend(loc='upper left', bbox_to_anchor=(1, 1))  
     axes[1].set_title("Target")
     # Plot file formats
