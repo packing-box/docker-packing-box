@@ -12,7 +12,7 @@ from sklearn.impute import SimpleImputer
 from sklearn.inspection import DecisionBoundaryDisplay
 from sklearn.manifold import TSNE
 from sklearn.neighbors import KNeighborsClassifier
-from sklearn.preprocessing import StandardScaler
+from sklearn.preprocessing import MinMaxScaler
 from sklearn.tree import export_text, plot_tree
 
 from .algorithm import Algorithm 
@@ -33,7 +33,9 @@ def _preprocess(f):
         n, p = kwargs.get('n_components', min(20, n_cols)), kwargs.get('perplexity', 30)
         suffix = ""
         X = SimpleImputer(missing_values=np.nan, strategy=kwargs.get('imputer_strategy', "mean")).fit_transform(X)
-        X = StandardScaler().fit_transform(X)
+        X = MinMaxScaler().fit_transform(X)
+        # Update the keyword-arguments with the scaled data, since it may be used in the visualization
+        kwargs['data'] = X 
         # preprocess data with a PCA with n components to reduce the high dimensionality (better performance)
         if n < n_cols:
             ra = kwargs.get('reduction_algorithm', "PCA")
@@ -170,10 +172,27 @@ def image_clustering(classifier, **params):
                                         label=label_map[feature_value], cmap=colors, alpha=1.0)
                     axes[n_plots - n_features + i].legend(loc='upper left', bbox_to_anchor=(1, 1))  
             axes[n_plots - n_features + i].set_title(feature)
+    title = generate_title(params)
+    plt.suptitle(title, fontweight="bold", fontsize=14, y=1.01)
     plt.subplots_adjust(hspace=0.5)
     plt.tight_layout()
     return fig
 
+def generate_title(params):
+    algo_name = params['algo_name']
+    dataset_name = params['dataset_name']
+    n_components = params.get('n_components', None)
+    reduction_algorithm = params.get('reduction_algorithm', None)
+    perplexity = params.get('perplexity', None)
+    dimensionality_reduction_info = ""
+    if n_components is not None and reduction_algorithm is not None:
+        dimensionality_reduction_info = f"{reduction_algorithm} ({n_components} Components)"
+        if reduction_algorithm == "PCA" and n_components > 2:
+            dimensionality_reduction_info += f" and t-SNE (2 Components, Perplexity: {perplexity})"
+    elif n_components is not None:
+        dimensionality_reduction_info = f"Dimensionality Reduction ({n_components} Components)"
+    title = f"{algo_name} Visualization of dataset {dataset_name} \n with {dimensionality_reduction_info}"
+    return title
 
 def text_dt(classifier, **params):
     return export_text(classifier, **params)
