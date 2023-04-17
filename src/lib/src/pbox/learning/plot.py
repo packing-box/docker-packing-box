@@ -81,7 +81,7 @@ def _dataset_features_bar_chart(dataset, feature=None, multiclass=False, format=
         return  # no feature to handle
     l = dataset.logger
     # data preparation
-    feature = select_features(feature)
+    feature = select_features(dataset, feature)
     l.info("Counting values for feature%s %s..." % (["", "s"][len(feature) > 1], ", ".join(feature)))
     # start counting, keeping 'Not packed' counts separate (to prevent it from being sorted with others)
     counts_np, counts, labels, data = {}, {}, [], pandas.DataFrame()

@@ -624,6 +624,7 @@ class Model:
                 return
             params['data'], params['format'] = self._data, self._dataset._data['format']
             params['labels'] =self._dataset._data['label']
+            params['dataset_name'] = self._dataset.name
             params['extension'] = self._dataset._data['realpath'].apply(lambda p: Path(p).extension)
             if viz_dict.get("target", True):
                 params['target'] = self._target
