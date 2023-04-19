@@ -5,7 +5,6 @@ from tinyscript.report import *
 
 from .executable import Executable
 from .pipeline import *
-from .plot import *
 from ..common.config import *
 from ..common.dataset import Dataset
 from ..common.rendering import progress_bar
