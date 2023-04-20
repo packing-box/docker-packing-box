@@ -1,11 +1,12 @@
 import lief
 from .parsers import parser_handler
-
+from math import ceil
 
 __all__ = ["section_name", "add_section", "append_to_section", "move_entrypoint_to_new_section",
-           "move_entrypoint_to_slack_space", "add_API_to_IAT", "add_lib_to_IAT",
+           "move_entrypoint_to_slack_space", "add_API_to_IAT", "add_lib_to_IAT", "get_section_name",
            "sections_with_slack_space", "sections_with_slack_space_entry_jump",
-           "section_name_all", "loop", "grid",
+           "virtual_size", "raw_data_size", "append_to_section_force", "get_section",
+           "section_name_all", "set_checksum", "loop", "grid", "content_size","has_characteristic",
            "SECTION_TYPES", "SECTION_CHARACTERISTICS"]
 
 ##############################################################################
@@ -13,7 +14,7 @@ __all__ = ["section_name", "add_section", "append_to_section", "move_entrypoint_
 ##############################################################################
 
 SECTION_CHARACTERISTICS = lief.PE.SECTION_CHARACTERISTICS.__entries
-SECTION_CHARACTERISTICS.update((k, SECTION_CHARACTERISTICS[k][0].value)
+SECTION_CHARACTERISTICS.update((k, SECTION_CHARACTERISTICS[k][0])
                                for k in SECTION_CHARACTERISTICS)
 SECTION_TYPES = lief.PE.SECTION_TYPES.__entries
 SECTION_TYPES.update((k, SECTION_TYPES[k][0]) for k in SECTION_TYPES)
@@ -39,14 +40,32 @@ def parse_section_name(section_input):
         raise TypeError(
             f"Section must be lief.PE.Section or str, not {section_input.__class__}")
 
+def get_section(section_name, sections):
+    for s in sections:
+        if s.name == section_name:
+            return s
 
 def sections_with_slack_space(sections, l=1):
     return [s for s in sections if s.size - len(s.content) >= l]
 
 
-def sections_with_slack_space_entry_jump(sections, pre_data_len=0):
-    return sections_with_slack_space(sections, 6 + pre_data_len)
+def sections_with_slack_space_entry_jump(sections, data_len=0):
+    return sections_with_slack_space(sections, 6 + data_len)
 
+def get_section_name(section):
+    return section.name
+
+def virtual_size(section):
+    return section.virtual_size
+
+def raw_data_size(section):
+    return section.size
+
+def content_size(section):
+    return len(section.content)
+
+def has_characteristic(section, charact):
+    return section.has_characteristic(charact)
 
 ##############################################################################
 #############################    Modifiers   #################################
@@ -61,14 +80,11 @@ def section_name(old_section, new_name, raise_error=True):
     Returns:
         function: modifier function
     """
-
+    if len(new_name) > 8:
+        raise ValueError("Section name can't be longer than 8 characters")
     old_name = parse_section_name(old_section)
     @parser_handler("lief_parser")
     def _section_name(parsed=None, **kw):
-        # if parsed is None:
-        #    print("A parsed executable must be provided !")
-        # if not isinstance(parsed, lief.PE.Binary):
-        #    print("Only the lief parser can be used for this function")
 
         sec = parsed.get_section(old_name)
         if sec is None:
@@ -103,7 +119,7 @@ def pipeline(modifiers):
 def grid(modifier, params_grid, **eval_data):
     def _grid(parser=None, **kw):
         for params in params_grid:
-            d = {}
+            d = globals()
             d.update(params)
             d.update(eval_data)
             parser = modifier(d, parser=parser, **kw)
@@ -117,7 +133,7 @@ def loop(modifier, n, **eval_data):
 
 def add_section(name,
                 section_type=SECTION_TYPES["TEXT"],
-                characteristics=SECTION_CHARACTERISTICS["MEM_READ"] +
+                characteristics=SECTION_CHARACTERISTICS["MEM_READ"] |
                 SECTION_CHARACTERISTICS["MEM_EXECUTE"],
                 data=b""):
     """Modifier that adds a section to a binary parsed by lief
@@ -132,7 +148,8 @@ def add_section(name,
     Returns:
         function: modifier function
     """
-
+    if len(name) > 8:
+        raise ValueError("Section name can't be longer than 8 characters")
     @parser_handler("lief_parser")
     def _add_section(parsed=None, **kw):
         # if parsed is None:
@@ -153,6 +170,40 @@ def add_section(name,
     return _add_section
 
 
+def append_to_section_force(section_input, data):
+    """Modifier that appends bytes at the end of a section even it is larger than
+        the slack space before the next section
+
+    Args:
+        section_input (lief.PE.Section or str): The section to append bytes to.
+        data (bytes): The data to append. 
+
+    Returns:
+        function: modifier function
+    """
+    section_name = parse_section_name(section_input)
+    @parser_handler("lief_parser")
+    def _append_to_section_force(parsed=None, **kw):
+        
+        section = parsed.get_section(section_name)
+        
+        if section.offset == 0:
+            # When the SizeOfRawData of the section is 0
+            # It is not verified by lief !
+            off = parsed.optional_header.sizeof_headers
+            for s in parsed.sections:
+                if s.offset != 0:
+                    off = s.offset + s.size
+
+            section.offset = off
+        
+        section.content = list(section.content) + list(data)
+        # change the header size SizeOfRawDatavalue
+        section.size = len(section.content)
+        
+    return _append_to_section_force
+
+
 def append_to_section(section_input, data_source):
     """Modifier that appends bytes at the end of a section, in the slack space
         before the next section
@@ -168,7 +219,7 @@ def append_to_section(section_input, data_source):
         function: modifier function
     """
     section_name = parse_section_name(section_input)
-
+    print(section_name)
     @parser_handler("lief_parser")
     def _append_to_section(parsed=None, **kw):
         # if parsed is None:
@@ -195,7 +246,7 @@ def append_to_section(section_input, data_source):
 
 def move_entrypoint_to_new_section(name,
                                    section_type=SECTION_TYPES["TEXT"],
-                                   characteristics=SECTION_CHARACTERISTICS["MEM_READ"] +
+                                   characteristics=SECTION_CHARACTERISTICS["MEM_READ"] |
                                    SECTION_CHARACTERISTICS["MEM_EXECUTE"],
                                    pre_data=b"",
                                    post_data=b""):
@@ -259,13 +310,17 @@ def move_entrypoint_to_slack_space(section_input,
     section_name = parse_section_name(section_input)
 
     @parser_handler("lief_parser")
-    def _move_entrypoint_to_slack_space(parsed=None, **kw):
+    def _move_entrypoint_to_slack_space(parsed=None, executable=None, **kw):
+        if "32" in executable.format:
+            address_bitsize = 32
+        else:
+            address_bitsize = 64
 
         old_entry = parsed.entrypoint + 0x10000
         # push current_entrypoint
         # ret
         entrypoint_data = [0x68] + \
-            list(old_entry.to_bytes(4, 'little')) + [0xc3]
+            list(old_entry.to_bytes(address_bitsize//8, 'little')) + [0xc3]
 
         # Other possibility:
         # mov eax current_entrypoint
@@ -341,3 +396,5 @@ def set_checksum(value):
     @parser_handler("lief_parser")
     def _set_checksum(parsed, **kw):
         parsed.optional_header.checksum = value
+    
+    return _set_checksum
