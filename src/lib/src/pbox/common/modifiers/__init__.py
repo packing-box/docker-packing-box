@@ -17,8 +17,9 @@ __all__ = ["Modifiers"]
 
 
 class Modifier(dict2):
-    _fields = {'apply': True, 'loop': None, 'grid': None}
+    _fields = {'apply': True, 'loop': None, 'grid': None, 'parameters':{}}
     def __call__(self, d, parser=None, **kw):
+        d.update(self.parameters)
         if self.loop is not None:
             for _ in range(self.loop):
                 parser = super().__call__(d, parser=parser, **kw)
@@ -75,7 +76,8 @@ class Modifiers(list):
                 d = {}
                 if parser is None:
                     tmp_parser = lief.parse(str(exe.destination))
-                    d.update(sections=list(tmp_parser.sections))
+                    d.update(sections=list(tmp_parser.sections),
+                             compute_checksum=lambda _:tmp_parser.optional_header.computed_checksum)
                 else:
                     d.update(sections=list(parser.get_sections()),
                              compute_checksum=parser.compute_checksum)
