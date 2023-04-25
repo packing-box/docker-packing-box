@@ -177,8 +177,21 @@ function setprompt(){
   if test -z "$EXPERIMENT" ; then
     PT_EXP=""
   else
-    _EXP_RELPATH="`[[ -z "${EXPERIMENTS}" ]] && echo "." || echo "$EXPERIMENTS"`"
-    PT_EXP="${PT_BH}$EXP_COLOR`realpath --relative-base="$_EXP_RELPATH" $EXPERIMENT`${PT_BT}"
+    EXP_BN="`basename $EXPERIMENT`"
+    EXPS_BN="`basename $EXPERIMENTS`"
+    ABS_PATH=`pwd`
+    REL_PATH="`realpath --relative-base=. "$EXPERIMENT"`"
+    if [[ "$EXP_BN" == "$REL_PATH" ]]; then
+      PT_PATH="${PT_BH}${PATH_COLOR}`dirname $ABS_PATH`/${BPUR}${EXPS_BN}${PT_BT}"
+      PT_EXP="${PT_BH}${EXP_COLOR}${EXP_BN}${PT_BT}"
+    elif [[ "$EXPS_BN" == "`dirname $REL_PATH`" ]]; then
+      PT_EXP="${PT_BH}${BPUR}`dirname $REL_PATH`${EXP_COLOR}/${EXP_BN}${PT_BT}"
+    elif [[ "$EXPERIMENT" == "$REL_PATH" ]]; then
+      ABS_PATH="`dirname $EXPERIMENT`"
+      PT_EXP="${PT_BH}${EXP_COLOR}`dirname $ABS_PATH`/${BPUR}`basename $ABS_PATH`${EXP_COLOR}/`basename $REL_PATH`${PT_BT}"
+    else
+      PT_EXP="${PT_BH}${EXP_COLOR}${REL_PATH}${PT_BT}"
+    fi
   fi
   PT_GIT='$(promptpart gitstatus)'
   PT_ERR='$(promptpart last_cmd_errcode)'
