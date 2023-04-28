@@ -1,13 +1,13 @@
 # -*- coding: UTF-8 -*-
-import yaml
 from collections import deque
 from functools import cached_property
 from tinyscript import logging, re
-from tinyscript.helpers import  Path
+from tinyscript.helpers import lazy_load_module, Path
 
-from .extractors import Extractors
 from ...common.config import config
 from ...common.utils import dict2, expand_formats, FORMATS
+
+lazy_load_module("yaml")
 
 
 __all__ = ["Features"]
@@ -105,6 +105,7 @@ class Features(dict, metaclass=MetaFeatures):
                                     Features.registry.setdefault(subfmt, {})
                                     Features.registry[subfmt][feat.name] = feat
         if exe is not None and exe.format in Features.registry:
+            from .extractors import Extractors
             self._rawdata = Extractors(exe)
             todo, counts, reg = deque(), {}, Features.registry[exe.format]
             # compute features based on the extracted values first

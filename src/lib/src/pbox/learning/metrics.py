@@ -1,10 +1,15 @@
 # -*- coding: UTF-8 -*-
-import numpy as np
-import sklearn
-from sklearn.metrics import *
 from tinyscript import code, functools, re
 
 from ..common.config import *
+from ..common.utils import *
+
+def __init_skm():
+    # add -1 to zero_division possible values
+    code.replace(skm._classification._check_zero_division,
+                 "elif isinstance(zero_division, (int, float)) and zero_division in [0, 1]:",
+                 "elif isinstance(zero_division, (int, float)) and zero_division in [0, 1, -1]:")
+lazy_load_module("sklearn.metrics", alias="skm", postload=__init_skm)
 
 
 __all__ = ["classification_metrics", "clustering_metrics", "regression_metrics",
@@ -52,10 +57,6 @@ for k in _METRIC_CATEGORIES:
         _METRIC_DISPLAYS[m] = METRIC_DISPLAY.get(v, v)
 _N_LAB = 30
 
-# add -1 to zero_division possible values
-code.replace(sklearn.metrics._classification._check_zero_division,
-             "elif isinstance(zero_division, (int, float)) and zero_division in [0, 1]:",
-             "elif isinstance(zero_division, (int, float)) and zero_division in [0, 1, -1]:")
 
 
 def _convert_output(f):
@@ -138,7 +139,7 @@ def _map_values_to_integers(*arrays, **kwargs):
     out_arrays.append(d)
     binary = len([k for k in d.keys() if k != NOT_LABELLED]) <= 2
     kw = {k: v for k, v in kwargs.items() if k in ["sample_weight", "labels", "samplewise"]}
-    for i, matrix in enumerate(multilabel_confusion_matrix(*arrays[:2], **kw)):
+    for i, matrix in enumerate(skm.multilabel_confusion_matrix(*arrays[:2], **kw)):
         if binary and i == 0:
             continue
         tn, fp, fn, tp = matrix.ravel()
@@ -196,15 +197,15 @@ def classification_metrics(X, y_pred, y_true=None, y_proba=None, labels=None, sa
     yt, yp, ypr, d = _map_values_to_integers(y_true, y_pred, y_proba, **kw)
     if labels is None and d is not None:
         labels = [k for k in d.keys() if k not in [NOT_LABELLED, NOT_PACKED]]
-    accuracy = accuracy_score(yt, yp, sample_weight=sample_weight)
-    precision, recall, fmeasure, _ = precision_recall_fscore_support(yt, yp, labels=labels or None,
-                                                                     average=["weighted", None][binary],
-                                                                     sample_weight=sample_weight)
+    accuracy = skm.accuracy_score(yt, yp, sample_weight=sample_weight)
+    precision, recall, fmeasure, _ = skm.precision_recall_fscore_support(yt, yp, labels=labels or None,
+                                                                         average=["weighted", None][binary],
+                                                                         sample_weight=sample_weight)
     if binary:
-        precision, recall, fmeasure = precision[1], recall[1], fmeasure[1]
-    mcc = matthews_corrcoef(yt, yp)
+        precision, recall, fmeasure = precision[0], recall[0], fmeasure[0]
+    mcc = skm.matthews_corrcoef(yt, yp)
     try:
-        auc = roc_auc_score(yt, ypr)
+        auc = skm.roc_auc_score(yt, ypr)
     except (TypeError, ValueError):
         auc = -1
     return [accuracy, precision, recall, fmeasure, mcc, auc], metric_headers("classification", **kw)
@@ -218,15 +219,15 @@ def clustering_metrics(X, y_pred, y_true=None, ignore_labels=False, **kw):
     if ignore_labels or y_true is None or all(y == NOT_LABELLED for y in y_true):
         if ignore_labels:
             l.debug("> labels ignored, skipping label-dependent clustering metrics...")
-        return [silhouette_score(X, y_pred, metric="euclidean"), calinski_harabasz_score(X, y_pred), \
-                davies_bouldin_score(X, y_pred)], metric_headers("clustering",
-                                                                 include=["Silhouette", "Calinski", "Davies"], **kw)
+        return [skm.silhouette_score(X, y_pred, metric="euclidean"), skm.calinski_harabasz_score(X, y_pred), \
+                skm.davies_bouldin_score(X, y_pred)], metric_headers("clustering",
+                                                                     include=["Silhouette", "Calinski", "Davies"], **kw)
     # labels known: get the true and predicted values without the not-labelled ones and as integers
     yt, yp, _ = _map_values_to_integers(y_true, y_pred, **kw)
-    homogeneity, completeness, v_measure = homogeneity_completeness_v_measure(yt, yp)
-    return [rand_score(yt, yp), adjusted_mutual_info_score(yt, yp), homogeneity, completeness, v_measure, \
-            silhouette_score(X, y_pred, metric="euclidean"), calinski_harabasz_score(X, y_pred), \
-            davies_bouldin_score(X, y_pred)], metric_headers("clustering", **kw)
+    homogeneity, completeness, v_measure = skm.homogeneity_completeness_v_measure(yt, yp)
+    return [skm.rand_score(yt, yp), skm.adjusted_mutual_info_score(yt, yp), homogeneity, completeness, v_measure, \
+            skm.silhouette_score(X, y_pred, metric="euclidean"), skm.calinski_harabasz_score(X, y_pred), \
+            skm.davies_bouldin_score(X, y_pred)], metric_headers("clustering", **kw)
 
 
 @_convert_output
@@ -235,5 +236,5 @@ def regression_metrics(X, y_pred, y_true=None, **kw):
     """ Compute regression metrics (MSE, MAE) based on the true and predicted values. """
     # get the true and predicted values without the not-labelled ones and as integers
     yt, yp, _ = _map_values_to_integers(y_true, y_pred, **kw)
-    return [mean_squared_error(yt, yp), mean_absolute_error(yt, yp)], metric_headers("regression", **kw)
+    return [skm.mean_squared_error(yt, yp), skm.mean_absolute_error(yt, yp)], metric_headers("regression", **kw)
 

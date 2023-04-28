@@ -1,5 +1,4 @@
 # -*- coding: UTF-8 -*-
-from dsff import DSFF
 from tinyscript.helpers import human_readable_size, Path
 from tinyscript.report import *
 
@@ -142,6 +141,7 @@ class FilelessDataset(Dataset):
         ext = ".%s" % format
         if not dst.endswith(ext):
             dst += ext
+        from dsff import DSFF
         if format == "dsff":
             l.info("Exporting dataset %s to '%s'..." % (self.basename, dst))
             with DSFF(self.basename, 'w+') as f:
@@ -235,6 +235,11 @@ class FilelessDataset(Dataset):
         for dataset in Path(config['datasets']).listdir(Dataset.check):
             yield open_dataset(dataset) if instantiate else dataset
     Dataset.iteritems = iteritems
+    
+    @staticmethod
+    def open(name):
+        return open_dataset(name)
+    Dataset.open = open
     
     @staticmethod
     def summarize(path=None, show=False, hide_files=False):

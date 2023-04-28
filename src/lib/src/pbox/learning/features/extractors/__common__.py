@@ -39,7 +39,7 @@ LIEF2CS_ARCH = {
 
 def parse_binary(f):
     def _wrapper(target, *args, **kwargs):
-        return f(parse(target), *args, **kwargs)
+        return f(parse(str(target)), *args, **kwargs)
     return _wrapper
 
 

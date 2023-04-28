@@ -1,25 +1,30 @@
 # -*- coding: UTF-8 -*-
 import builtins
-import numpy as np
-import pandas as pd
-import re
-import yaml
 from contextlib import contextmanager
 from functools import wraps
-from time import perf_counter, time
-from tinyscript import ast, inspect, logging, os, random, re, subprocess
-from tinyscript.helpers import is_file, is_folder, Path, TempPath
+from tinyscript import inspect, logging, os, random, re
+from tinyscript.helpers import is_file, is_folder, lazy_load_module, lazy_object, Path, TempPath
 from tinyscript.helpers.expressions import WL_NODES
 
 from .config import *
 from .executable import Executable
 from .rendering import progress_bar
 
+def set_font(*a):
+    plt.rcParams['font.family'] = "serif"
+
+lazy_load_module("matplotlib", alias="mpl")
+lazy_load_module("matplotlib.pyplot", alias="plt", postload=set_font)
+lazy_load_module("numpy", alias="np")
+lazy_load_module("pandas", alias="pd")
+lazy_load_module("yaml")
+
 
 __all__ = ["aggregate_formats", "backup", "benchmark", "bin_label", "class_or_instance_method", "collapse_formats",
-           "data_to_temp_file", "dict2", "edit_file", "expand_formats", "expand_parameters",
-           "file_or_folder_or_dataset", "filter_data", "filter_data_iter", "get_counts", "is_exe", "make_registry",
-           "np", "pd", "select_features", "shorten_str", "strip_version", "ExeFormatDict", "COLORMAP", "FORMATS"]
+           "data_to_temp_file", "dict2", "edit_file", "expand_formats", "expand_parameters", "filter_data",
+           "file_or_folder_or_dataset", "filter_data_iter", "get_counts", "is_exe", "lazy_load_module", "lazy_object",
+           "make_registry", "mpl", "np", "pd", "plt", "select_features", "shorten_str", "strip_version",
+           "ExeFormatDict", "COLORMAP", "FORMATS"]
 
 _EVAL_NAMESPACE = {k: getattr(builtins, k) for k in ["abs", "divmod", "float", "hash", "hex", "id", "int", "len",
                                                      "list", "max", "min", "oct", "ord", "pow", "range", "range2",
@@ -169,6 +174,7 @@ def backup(f):
 
 def benchmark(f):
     """ Decorator for benchmarking function executions. """
+    from time import perf_counter, time
     def _wrapper(*args, **kwargs):
         t = perf_counter if kwargs.pop("perf", True) else time
         start = t()
@@ -215,6 +221,7 @@ def data_to_temp_file(data, prefix="temp"):
 
 def edit_file(path, csv_sep=";", text=False, **kw):
     """" Edit a target file with visidata. """
+    import subprocess
     cmd = "%s %s" % (os.getenv('EDITOR'), path) if text else "vd %s --csv-delimiter \"%s\"" % (path, csv_sep)
     l = kw.pop('logger', None)
     if l:
@@ -238,13 +245,14 @@ def expand_formats(*formats, **kw):
 
 def expand_parameters(*strings, **kw):
     """ This simple helper expands a [sep]-separated string of keyword-arguments defined with [key]=[value]. """
+    from ast import literal_eval
     sep = kw.get('sep', ",")
     d = {}
     for s in strings:
         for p in s.split(sep):
             k, v = p.split("=", 1)
             try:
-                v = ast.literal_eval(v)
+                v = literal_eval(v)
             except ValueError:
                 pass
             d[k] = v
@@ -452,6 +460,24 @@ def make_registry(cls):
             _setattr(vi, vdata)
             glob['__all__'].append(vitem)
             cls.registry.append(vi())
+
+
+def purge_items(cls, name):
+    purged = False
+    if name == "all":
+        for obj in cls.iteritems(True):
+            obj.purge()
+            purged = True
+    elif "*" in name:
+        name = r"^%s$" % name.replace("*", "(.*)")
+        for obj in cls.iteritems(False):
+            if re.search(name, obj.stem):
+                cls.open(obj).purge()
+                purged = True
+    else:
+        cls.open(name).purge()
+        purged = True
+    return purged
 
 
 def select_features(dataset, feature=None):

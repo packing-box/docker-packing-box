@@ -1,15 +1,10 @@
 # -*- coding: UTF-8 -*-
-import joblib
-import multiprocessing as mp
 from _pickle import UnpicklingError
-from sklearn.feature_selection import VarianceThreshold
-from sklearn.model_selection import train_test_split, GridSearchCV
-from sklearn.preprocessing import StandardScaler
-from tinyscript import ast, json, itertools, logging, subprocess
+from tinyscript import json, itertools, logging
 from tinyscript.helpers import human_readable_size, is_generator, Path, TempPath
 from tinyscript.report import *
 
-from .algorithm import Algorithm, WekaClassifier
+from .algorithm import Algorithm
 from .dataset import *
 from .executable import Executable
 from .features import Features
@@ -20,12 +15,15 @@ from ..common.config import *
 from ..common.rendering import *
 from ..common.utils import *
 
+lazy_load_module("joblib")
+lazy_load_module("sklearn.feature_selection", alias="skfs")
+lazy_load_module("sklearn.model_selection", alias="skms")
 
-__all__ = ["open_model", "DumpedModel", "Model", "N_JOBS"]
+
+__all__ = ["open_model", "DumpedModel", "Model"]
 
 
 FLOAT_FORMAT = "%.6f"
-N_JOBS = mp.cpu_count() // 2
 
 
 def open_model(item):
@@ -110,6 +108,7 @@ class Model:
              (3) if training, model's metadata is populated AND training/test subsets are established
         IMPORTANT: data_only is necessary as self._load() occurs AFTER self._prepare(...) ; this is due to the fact that
                     self.name includes the number of features, which requires data preparation """
+        from ast import literal_eval
         ds, l, labels = dataset, self.logger, labels or {}
         # if not only the data shall be prepared, then the only supported input format is a valid dataset ;
         #  i.e. when preparing data for the train() method
@@ -154,9 +153,10 @@ class Model:
                         exe = Executable(str(exe))
                     if not data_only:
                         self._features.update(exe.features)
-                    self._data = self._data.append(exe.data, ignore_index=True)
+                    self._data = pd.concat([self._data, pd.DataFrame.from_records([exe.data])], ignore_index=True)
                     if label:
-                        self._target = self._target.append({'label': labels.get(exe.hash)}, ignore_index=True)
+                        d = {'label': labels.get(exe.hash)}
+                        self._target = pd.concat([self._target, pd.DataFrame.from_records([d])], ignore_index=True)
                     p.update(task, advance=1.)
         # case 1: fileless dataset (where features are already computed)
         if isinstance(ds, FilelessDataset):
@@ -202,7 +202,7 @@ class Model:
         try:
             self._data = self._data[sorted(self._features.keys())]
         except KeyError as e:
-            missing_cols = ast.literal_eval(e.args[0].replace("not in index", ""))
+            missing_cols = literal_eval(e.args[0].replace("not in index", ""))
             for col in missing_cols:
                 self._features[col] = np.nan
             self._data = self._data.reindex(columns=sorted(self._features.keys()))
@@ -224,7 +224,7 @@ class Model:
             return True
         # apply variance threshold of 0.0 to remove useless features and rectify the list of features
         l.debug("> remove 0-variance features")
-        selector = VarianceThreshold()
+        selector = skfs.VarianceThreshold()
         selector.fit(self._data)
         self._data = self._data[self._data.columns[selector.get_support(indices=True)]]
         removed = [f for f in self._features.keys() if f not in self._data]
@@ -242,7 +242,7 @@ class Model:
         else:  # use a default split of 80% training and 20% testing
             tsize = kw.get('split_size', .2)
             self._train.data, self._test.data, self._train.target, self._test.target = \
-                train_test_split(self._data, self._target, test_size=tsize, random_state=42, stratify=self._target)
+                skms.train_test_split(self._data, self._target, test_size=tsize, random_state=42, stratify=self._target)
         return True
     
     def _save(self):
@@ -472,8 +472,10 @@ class Model:
         if len(self._data) > 0:
             self._save()
     
-    def train(self, algorithm=None, cv=5, n_jobs=N_JOBS, param=None, reset=False, ignore_labels=False, **kw):
+    def train(self, algorithm=None, cv=5, n_jobs=None, param=None, reset=False, ignore_labels=False, **kw):
         """ Training method handling cross-validation. """
+        import multiprocessing as mp
+        n_jobs = n_jobs or mp.cpu_count() // 2
         l, n_cpu, ds, multiclass = self.logger, mp.cpu_count(), kw['dataset'], kw.get('multiclass', False)
         try:
             cls = self._algorithm = Algorithm.get(algorithm)
@@ -520,7 +522,7 @@ class Model:
             return
         # get classifer and parameters
         params = cls.parameters.get('static', cls.parameters if cls.labelling == "none" else None)
-        if isinstance(cls, WekaClassifier):
+        if cls.is_weka():
             params['model'] = self
         param_grid = {k: list(v) if isinstance(v, range) else v for k, v in cls.parameters.get('cv', {}).items()}
         if cls.labelling == "none" and len(param_grid) > 0:
@@ -548,7 +550,8 @@ class Model:
             Pipeline.silent = True
             # as we use a pipeline, we need to rename all parameters to [estimator name]__[parameter]
             param_grid = {"%s__%s" % (self.pipeline.steps[-1][0], k): v for k, v in param_grid.items()}
-            grid = GridSearchCV(self.pipeline.pipeline, param_grid=param_grid, cv=cv, scoring="accuracy", n_jobs=n_jobs)
+            grid = skms.GridSearchCV(self.pipeline.pipeline, param_grid=param_grid, cv=cv, scoring="accuracy",
+                                     n_jobs=n_jobs)
             grid.fit(self._data, self._target.values.ravel())
             results = '\n'.join("  %0.3f (+/-%0.03f) for %r" % (m, s * 2, _convert(p)) \
                                 for m, s, p in zip(grid.cv_results_['mean_test_score'],
@@ -559,7 +562,7 @@ class Model:
             l.debug("> grid scores:\n{}".format(results))
             l.debug("> best parameters found:\n  {}".format(best_params))
             params.update(best_params)
-            if isinstance(cls, WekaClassifier):
+            if cls.is_weka():
                 params['model'] = self
             self.pipeline.pop()
             self.pipeline.append((cls.name, cls.base(**params)))
@@ -572,13 +575,13 @@ class Model:
         predict = self.pipeline.predict if hasattr(self.pipeline.steps[-1][1], "predict") else self.pipeline.fit_predict
         self._train.predict = predict(self._train.data)
         try:
-            self._train.predict_proba = self.pipeline.predict_proba(self._train.data)[:, 1]
+            self._train.predict_proba = self.pipeline.predict_proba(self._train.data)[:, 0]
         except AttributeError:  # some algorithms do not support .predict_proba(...)
             self._train.predict_proba = None
         if len(self._test.data) > 0:
             self._test.predict = predict(self._test.data)
             try:
-                self._test.predict_proba = self.pipeline.predict_proba(self._test.data)[:, 1]
+                self._test.predict_proba = self.pipeline.predict_proba(self._test.data)[:, 0]
             except AttributeError:  # some algorithms do not support .predict_proba(...)
                 self._test.predict_proba = None
         metrics = cls.metrics if isinstance(cls.metrics, (list, tuple)) else [cls.metrics]
@@ -688,6 +691,10 @@ class Model:
             yield Model(model) if instantiate else model
     
     @staticmethod
+    def open(name):
+        return open_model(name)
+    
+    @staticmethod
     def validate(folder):
         f = config['models'].joinpath(folder)
         if not f.exists():
@@ -702,12 +709,13 @@ class Model:
 
 class DumpedModel:
     @logging.bindLogger
-    def __init__(self, name=None, is_pipeline=False, default_scaler=StandardScaler, **kw):
+    def __init__(self, name=None, is_pipeline=False, default_scaler=None, **kw):
+        from sklearn.preprocessing import MinMaxScaler
         global logger
         logger = self.logger
         obj, self.pipeline = joblib.load(str(name)), DebugPipeline()
         if not is_pipeline:
-            self.pipeline.append(default_scaler())
+            self.pipeline.append((default_scaler or MinMaxScaler)())
             self.pipeline.append(obj)
         else:
             for s in obj.steps:

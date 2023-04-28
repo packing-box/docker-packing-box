@@ -1,33 +1,22 @@
 # -*- coding: UTF-8 -*-
-import matplotlib as mpl
-import matplotlib.pyplot as plt
-import numpy as np
 from contextlib import suppress
 from functools import wraps
-from math import ceil
-from matplotlib.colors import ListedColormap
-from sklearn.cluster import KMeans
-from sklearn.decomposition import FastICA, PCA
-from sklearn.impute import SimpleImputer
-from sklearn.inspection import DecisionBoundaryDisplay
-from sklearn.manifold import TSNE
-from sklearn.neighbors import KNeighborsClassifier
-from sklearn.preprocessing import MinMaxScaler
-from sklearn.tree import export_text, plot_tree
 
 from .algorithm import Algorithm 
+from ..common.utils import *
+
+lazy_load_module("sklearn.tree", alias="sktree")
 
 
 __all__ = ["VISUALIZATIONS"]
-
-
-cmap_light = ListedColormap(["orange", "cyan", "cornflowerblue"])
 
 
 def _preprocess(f):
     """ This decorator preprocesses the input data and updates the keyword-arguments with this fitted data. """
     @wraps(f)
     def _wrapper(*args, **kwargs):
+        from sklearn.impute import SimpleImputer
+        from sklearn.preprocessing import MinMaxScaler
         X = kwargs['data']
         n_cols = len(X.columns)
         n, p = kwargs.get('n_components', min(20, n_cols)), kwargs.get('perplexity', 30)
@@ -38,6 +27,7 @@ def _preprocess(f):
         kwargs['data'] = X 
         # preprocess data with a PCA with n components to reduce the high dimensionality (better performance)
         if n < n_cols:
+            from sklearn.decomposition import FastICA, PCA
             ra = kwargs.get('reduction_algorithm', "PCA")
             a = {'ICA': FastICA, 'PCA': PCA}[ra](n, random_state=42)
             suffix += "_%s%d" % (ra.lower(), n)
@@ -48,6 +38,7 @@ def _preprocess(f):
                 X = a.fit_transform(X)
         # now reduce the n components to 2 dimensions with t-SNE (better results but less performance) if relevant
         if n > 2:
+            from sklearn.manifold import TSNE
             X = TSNE(2, random_state=42, perplexity=p).fit_transform(X)
             suffix += "_tsne2-p%d" % p
         kwargs['reduced_data'] = X
@@ -57,15 +48,28 @@ def _preprocess(f):
     return _wrapper
 
 
+def _title(algo_name=None, dataset_name=None, n_components=None, perplexity=None, reduction_algorithm=None, **kw):
+    dimensionality_reduction_info = ""
+    if n_components is not None and reduction_algorithm is not None:
+        dimensionality_reduction_info = f"{reduction_algorithm} ({n_components} Components)"
+        if reduction_algorithm == "PCA" and n_components > 2:
+            dimensionality_reduction_info += f" and t-SNE (2 Components, Perplexity: {perplexity})"
+    elif n_components is not None:
+        dimensionality_reduction_info = f"Dimensionality Reduction ({n_components} Components)"
+    return f"{algo_name} Visualization of dataset {dataset_name} \n with {dimensionality_reduction_info}"
+
+
 def image_dt(classifier, width=5, fontsize=10, **params):
     params['filled'] = True
     fig = plt.figure()
-    plot_tree(classifier, **params)
+    sktree.plot_tree(classifier, **params)
     return fig
 
 
 @_preprocess
 def image_knn(classifier, **params):
+    from sklearn.inspection import DecisionBoundaryDisplay
+    from sklearn.neighbors import KNeighborsClassifier
     X, y = params['data'], params['target']
     # retrain kNN with the preprocessed data (with dimensionality reduced to N=2, hence not using 'classifier')
     knn = KNeighborsClassifier(**params['algo_params'])
@@ -81,6 +85,7 @@ def image_knn(classifier, **params):
 
 
 def image_rf(classifier, width=5, fontsize=10, **params):
+    from math import ceil
     n = len(classifier.estimators_)
     rows = ceil(n / width)
     cols = width if rows > 1 else n
@@ -90,7 +95,7 @@ def image_rf(classifier, width=5, fontsize=10, **params):
         axes = [ax for lst in axes for ax in lst]
     params['filled'] = True
     for i in range(n):
-        plot_tree(classifier.estimators_[i], ax=axes[i], **params)
+        sktree.plot_tree(classifier.estimators_[i], ax=axes[i], **params)
         axes[i].set_title("Estimator: %d" % i, fontsize=fontsize)
     return fig
 
@@ -156,7 +161,8 @@ def image_clustering(classifier, **params):
             unique_feature_values = np.unique(X[feature])
             # Plot a continous colorbar if the feature is not boolean and a legend otherwise 
             if len(unique_feature_values) > 2:
-                axes[n_plots - n_features + i].scatter(X_reduced[:, 0], X_reduced[:, 1], c=X[feature].to_numpy(), cmap=colors, alpha=1.0)
+                axes[n_plots - n_features + i].scatter(X_reduced[:, 0], X_reduced[:, 1], c=X[feature].to_numpy(),
+                                                       cmap=colors, alpha=1.0)
                 norm = mpl.colors.Normalize(vmin=X[feature].min(), vmax=X[feature].max())
                 # fig.colorbar(mpl.cm.ScalarMappable(norm=norm, cmap=colors), ax=axes[n_plots - n_features +i],
                 # orientation='vertical')
@@ -168,41 +174,27 @@ def image_clustering(classifier, **params):
             else : 
                 label_map = {0: 'False', 1: 'True'}
                 for feature_value in unique_feature_values:
-                    axes[n_plots - n_features + i].scatter(X_reduced[X[feature] == feature_value, 0], X_reduced[X[feature] == feature_value, 1],
-                                        label=label_map[feature_value], cmap=colors, alpha=1.0)
+                    axes[n_plots - n_features + i].scatter(X_reduced[X[feature] == feature_value, 0],
+                                                           X_reduced[X[feature] == feature_value, 1],
+                                                           label=label_map[feature_value], cmap=colors, alpha=1.0)
                     axes[n_plots - n_features + i].legend(loc='upper left', bbox_to_anchor=(1, 1))  
             axes[n_plots - n_features + i].set_title(feature)
-    title = generate_title(params)
+    title = _title(**params)
     plt.suptitle(title, fontweight="bold", fontsize=14, y=1.01)
     plt.subplots_adjust(hspace=0.5)
     plt.tight_layout()
     return fig
 
-def generate_title(params):
-    algo_name = params['algo_name']
-    dataset_name = params['dataset_name']
-    n_components = params.get('n_components', None)
-    reduction_algorithm = params.get('reduction_algorithm', None)
-    perplexity = params.get('perplexity', None)
-    dimensionality_reduction_info = ""
-    if n_components is not None and reduction_algorithm is not None:
-        dimensionality_reduction_info = f"{reduction_algorithm} ({n_components} Components)"
-        if reduction_algorithm == "PCA" and n_components > 2:
-            dimensionality_reduction_info += f" and t-SNE (2 Components, Perplexity: {perplexity})"
-    elif n_components is not None:
-        dimensionality_reduction_info = f"Dimensionality Reduction ({n_components} Components)"
-    title = f"{algo_name} Visualization of dataset {dataset_name} \n with {dimensionality_reduction_info}"
-    return title
 
 def text_dt(classifier, **params):
-    return export_text(classifier, **params)
+    return sktree.export_text(classifier, **params)
 
 
 def text_rf(classifier, **params):
     s = ""
     for i in range(len(classifier.estimators_)):
         s += "\nEstimator: %d\n" % i
-        s += export_text(classifier.estimators_[i], **params)
+        s += sktree.export_text(classifier.estimators_[i], **params)
     return s
 
 

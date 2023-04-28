@@ -1,13 +1,12 @@
 # -*- coding: UTF-8 -*-
-from .__common__ import *
-from ..common.config import *
-from ..common.executable import Executable
-from ..common.item import update_logger
-from ..common.utils import bin_label, class_or_instance_method, file_or_folder_or_dataset
+from tinyscript.helpers import lazy_object
 
+from ..common.config import NOT_LABELLED, NOT_PACKED
 
 # this list is filled in with subclasses at the end of this module
 __all__ = ["Detector"]
+
+__initialized = False
 
 
 THRESHOLDS = {
@@ -49,131 +48,143 @@ def decide(results, **kwargs):
     return NOT_PACKED if results.get(r, l) < t else r
 
 
-class Detector(Base):
-    """ Detector abstraction.
+def __init():
+    global __initialized
+    from .__common__ import _init_base
+    from ..common.executable import Executable
+    from ..common.item import update_logger
+    from ..common.utils import bin_label, class_or_instance_method, file_or_folder_or_dataset
+    Base = _init_base()
     
-    Extra methods:
-      .detect(executable, **kwargs) [str]
-    
-    Overloaded methods:
-      .check(*formats, **kwargs)
-      .test(executable, **kwargs)
-    """
-    use_output = True
-    
-    def check(self, *formats, **kwargs):
-        """ Checks if the current item is applicable to the given formats. """
-        l = self.logger
-        i_mc, d_mc = getattr(self, "multiclass", True), kwargs.get('multiclass', True)
-        i_vote, d_vote = getattr(self, "vote", True), kwargs.get('vote', False)
-        if super(Detector, self).check(*formats, **kwargs):
-            # detector can be disabled either because it is not allowed to vote or because it is not multiclass and
-            #  detection was requested as multiclass (note that, on the other side, a multiclass-capable detector shall
-            #  always be able to output a non-multiclass result (no packer label becomes False, otherwise True)
-            if d_vote and not i_vote:
-                l.debug("not allowed to vote")
-                return False
-            if d_mc and not i_mc:
-                warn = not d_vote and not kwargs['debug']
-                (l.warning if warn else l.debug)("%sdoes not support multiclass" % ["", "%s " % self.cname][warn])
-                return False
-            return True
-        return False
-    
-    @class_or_instance_method
-    @file_or_folder_or_dataset
-    @update_logger
-    def detect(self, executable, **kwargs):
-        """ Detects the packing label(s) of a target executable, folder/dataset of executables, applying the decision
-             heuristic if used as a class (superdetecor).
+    class Detector(Base):
+        """ Detector abstraction.
         
-        If called from the class:
-            Runs every known detector on the given executable and decides the label through voting (with a penalty on
-             cases where the executable is considered not packed).
+        Extra methods:
+          .detect(executable, **kwargs) [str]
         
-        If called from an instance:
-            Runs the detector according to its command line format and outputs its label.
-        
-        Important note: Detectors are assumed to ouptut
-          - binaryclass: NOT_LABELLED, False or True
-          - multiclass:  NOT_LABELLED, NOT_PACKED, "unknown" or "[packer-label]"
+        Overloaded methods:
+          .check(*formats, **kwargs)
+          .test(executable, **kwargs)
         """
-        label, multiclass, dslen = kwargs.get('label'), kwargs.get('multiclass', True), kwargs.get('dslen')
-        exe = Executable(executable)
-        # in binaryclass, transform the output to -1|0|1
-        actual_label = label if multiclass else bin_label(label)
-        if dslen:
-            exe.len = dslen
-        # case (1) called from the class => apply all the in-scope detectors (applicable and with vote=True)
-        if isinstance(self, type):
-            registry = [d for d in (kwargs.get('select') or Detector.registry) if d.check(exe.format, **kwargs)]
-            l = kwargs['n_detectors'] = len(registry)
-            results, details = {'unknown': -l} if multiclass else {}, {}
-            # step 1: collect strings per packer and suspicions
-            kwargs['silent'] = True
-            for detector in registry:
-                label = list(detector.detect(exe, **kwargs))[0]
-                if isinstance(label, (list, tuple)):
-                    label = label[1]
-                results.setdefault(label, 0)
-                results[label] += 1
-                details[detector.name] = label
-            # step 2: make a decision on the label
-            decision = decide(results, **kwargs)
-            # format the result, appending details if in debug mode
-            r = exe, decision, actual_label
-            if kwargs.get("debug", False):
-                r += (details, )
-            return r
-        # case (2) called from an instance => apply the selected detector if relevant
-        else:
-            kwargs.pop('vote', None)
-            if not self.check(exe.format, vote=False, **kwargs) or \
-               exe.extension[1:] in getattr(self, "exclude", {}).get(exe.format, []):
-                return
-            # try to detect a packer on the input executable
-            label = self.run(exe, **kwargs)
-            if kwargs.get('verbose', False):
-                print("")
-            # if packer detection succeeded, we can return packer's label
-            if label == NOT_LABELLED:
-                self.logger.debug("detector failed")
-            elif label == NOT_PACKED:
-                self.logger.debug("did not detect anything")
-            else:
-                label = label.strip()
-            # if binary classification, convert the result to 1|0 (Yes|No)
-            if not multiclass:
-                label = bin_label(label)
+        use_output = True
+        
+        def check(self, *formats, **kwargs):
+            """ Checks if the current item is applicable to the given formats. """
+            l = self.logger
+            i_mc, d_mc = getattr(self, "multiclass", True), kwargs.get('multiclass', True)
+            i_vote, d_vote = getattr(self, "vote", True), kwargs.get('vote', False)
+            if super(Detector, self).check(*formats, **kwargs):
+                # detector can be disabled either because it is not allowed to vote or because it is not multiclass and
+                #  detection was requested as multiclass (note that, on the other side, a multiclass-capable detector shall
+                #  always be able to output a non-multiclass result (no packer label becomes False, otherwise True)
+                if d_vote and not i_vote:
+                    l.debug("not allowed to vote")
+                    return False
+                if d_mc and not i_mc:
+                    warn = not d_vote and not kwargs['debug']
+                    (l.warning if warn else l.debug)("%sdoes not support multiclass" % ["", "%s " % self.cname][warn])
+                    return False
+                return True
+            return False
+        
+        @class_or_instance_method
+        @file_or_folder_or_dataset
+        @update_logger
+        def detect(self, executable, **kwargs):
+            """ Detects the packing label(s) of a target executable, folder/dataset of executables, applying the decision
+                 heuristic if used as a class (superdetecor).
+            
+            If called from the class:
+                Runs every known detector on the given executable and decides the label through voting (with a penalty on
+                 cases where the executable is considered not packed).
+            
+            If called from an instance:
+                Runs the detector according to its command line format and outputs its label.
+            
+            Important note: Detectors are assumed to ouptut
+              - binaryclass: NOT_LABELLED, False or True
+              - multiclass:  NOT_LABELLED, NOT_PACKED, "unknown" or "[packer-label]"
+            """
+            label, multiclass, dslen = kwargs.get('label'), kwargs.get('multiclass', True), kwargs.get('dslen')
+            exe = Executable(executable)
+            # in binaryclass, transform the output to -1|0|1
+            actual_label = label if multiclass else bin_label(label)
             if dslen:
                 exe.len = dslen
-            return exe, label, actual_label
-    
-    @file_or_folder_or_dataset
-    @update_logger
-    def test(self, executable, **kwargs):
-        """ Tests the given item on some executable files. """
-        label, multiclass = kwargs.get('label'), kwargs.get('multiclass', True)
-        l = self.logger
-        self._test(kwargs.get('silent', False))
-        try:
-            label2 = list(self.detect(executable, **kwargs))[0][1]
-        except TypeError:  # NoneType ; when executable has a format not supported by the detector being tested
-            if not kwargs.get('verbose', False):
-                l.warning("'%s' has a format not supported by %s" % (executable, self.cname))
-            return
-        if multiclass:
-            if label2 == NOT_PACKED:
-                msg = "{} is not packed".format(executable)
+            # case (1) called from the class => apply all the in-scope detectors (applicable and with vote=True)
+            if isinstance(self, type):
+                registry = [d for d in (kwargs.get('select') or Detector.registry) if d.check(exe.format, **kwargs)]
+                l = kwargs['n_detectors'] = len(registry)
+                results, details = {'unknown': -l} if multiclass else {}, {}
+                # step 1: collect strings per packer and suspicions
+                kwargs['silent'] = True
+                for detector in registry:
+                    label = list(detector.detect(exe, **kwargs))[0]
+                    if isinstance(label, (list, tuple)):
+                        label = label[1]
+                    results.setdefault(label, 0)
+                    results[label] += 1
+                    details[detector.name] = label
+                # step 2: make a decision on the label
+                decision = decide(results, **kwargs)
+                # format the result, appending details if in debug mode
+                r = exe, decision, actual_label
+                if kwargs.get("debug", False):
+                    r += (details, )
+                return r
+            # case (2) called from an instance => apply the selected detector if relevant
             else:
-                msg = "{} is packed with {}".format(executable, label2)
-        else:
-            msg = "{} is {}packed".format(executable, ["not ", ""][label2])
-        if label != NOT_LABELLED:
-            msg += " ({})".format("not packed" if label in ["", True] else "packed" if label is True else label)
-        (l.warning if label == NOT_LABELLED else [l.failure, l.success][label == label2])(msg)
-
-
-# dynamically makes Detector's registry of child classes from the default dictionary of detectors (~/.opt/detectors.yml)
-Detector.source = None
+                kwargs.pop('vote', None)
+                if not self.check(exe.format, vote=False, **kwargs) or \
+                   exe.extension[1:] in getattr(self, "exclude", {}).get(exe.format, []):
+                    return
+                # try to detect a packer on the input executable
+                label = self.run(exe, **kwargs)
+                if kwargs.get('verbose', False):
+                    print("")
+                # if packer detection succeeded, we can return packer's label
+                if label == NOT_LABELLED:
+                    self.logger.debug("detector failed")
+                elif label == NOT_PACKED:
+                    self.logger.debug("did not detect anything")
+                else:
+                    label = label.strip()
+                # if binary classification, convert the result to 1|0 (Yes|No)
+                if not multiclass:
+                    label = bin_label(label)
+                if dslen:
+                    exe.len = dslen
+                return exe, label, actual_label
+        
+        @file_or_folder_or_dataset
+        @update_logger
+        def test(self, executable, **kwargs):
+            """ Tests the given item on some executable files. """
+            label, multiclass = kwargs.get('label'), kwargs.get('multiclass', True)
+            l = self.logger
+            self._test(kwargs.get('silent', False))
+            try:
+                label2 = list(self.detect(executable, **kwargs))[0][1]
+            except TypeError:  # NoneType ; when executable has a format not supported by the detector being tested
+                if not kwargs.get('verbose', False):
+                    l.warning("'%s' has a format not supported by %s" % (executable, self.cname))
+                return
+            if multiclass:
+                if label2 == NOT_PACKED:
+                    msg = "{} is not packed".format(executable)
+                else:
+                    msg = "{} is packed with {}".format(executable, label2)
+            else:
+                msg = "{} is {}packed".format(executable, ["not ", ""][label2])
+            if label != NOT_LABELLED:
+                msg += " ({})".format("not packed" if label in ["", True] else "packed" if label is True else label)
+            (l.warning if label == NOT_LABELLED else [l.failure, l.success][label == label2])(msg)
+    # ensure it initializes only once (otherwise, this loops forever)
+    if not __initialized:
+        __initialized = True
+        # dynamically makes Detector's registry of child classes from the default dictionary of detectors
+        #  (~/.opt/detectors.yml)
+        Detector.source = None
+    return Detector
+Detector = lazy_object(__init)
 

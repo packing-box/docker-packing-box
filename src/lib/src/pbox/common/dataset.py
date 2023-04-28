@@ -1,21 +1,19 @@
 # -*- coding: UTF-8 -*-
-import matplotlib.pyplot as plt
 from tinyscript import b, colored, hashlib, json, logging, random, subprocess, time, ts
-from tinyscript.helpers import ansi_seq_strip, confirm, human_readable_size, slugify, Path, TempPath
+from tinyscript.helpers import ansi_seq_strip, confirm, human_readable_size, lazy_load_module, slugify, Path, TempPath
 from tinyscript.report import *
 
 from .config import *
 from .executable import *
-from .modifiers import *
 from .rendering import *
 from .utils import *
-from ..items import *
+
+lazy_load_module("modifiers", "pbox.common")
+lazy_load_module("packer", "pbox.items", "item_packer")
 
 
 __all__ = ["Dataset"]
 
-
-plt.rcParams['font.family'] = "serif"
 
 BACKUP_COPIES = 3
 
@@ -156,13 +154,12 @@ class Dataset:
             #  (b) new fields are added, e.g. when converting to FilelessDataset (features are computed)
             if str(lbl) == "nan" or update:
                 l.debug("updating %s..." % e.hash)
-                for n, v in d.items():
-                    df.loc[df['hash'] == e.hash, n] = v
+                df.loc[df['hash'] == e.hash, d.keys()] = d.values()
             else:
                 l.debug("discarding %s%s..." % (e.hash, ["", " (already in dataset)"][lbl == d['label']]))
         else:
             l.debug("adding %s..." % e.hash)
-            self._data = df.append(d, ignore_index=True)
+            self._data = pd.concat([df, pd.DataFrame.from_records([d])], ignore_index=True)
     
     def __str__(self):
         """ Custom object's string. """
@@ -242,7 +239,7 @@ class Dataset:
         """ Walk the sources for random in-scope executables. """
         l = self.logger
         [l.info, l.debug][silent]("Searching for executables...")
-        m, candidates, packers = 0, [], [p.name for p in Packer.registry]
+        m, candidates, packers = 0, [], [p.name for p in item_packer.Packer.registry]
         for cat, srcs in (sources or self.sources).items():
             if all(c not in expand_formats(cat) for c in self._formats_exp):
                 continue
@@ -292,7 +289,7 @@ class Dataset:
         df = self._data[~self._data.hash.isin(altered_h)]
         for e in filter_data_iter(df, query, limit, logger=self.logger):
             exe = Executable(dataset=self, hash=e.hash)
-            for m in Modifiers(exe):
+            for m in modifiers.Modifiers(exe):
                 self._alterations.setdefault(m, [])
                 self._alterations[m].append(h)
         self._metadata['altered'] = sum(1 for hl in self._alterations.values() for h in hl) / len(self)
@@ -404,8 +401,8 @@ class Dataset:
              the number of distinct packers. """
         l, self.formats = self.logger, formats  # this triggers creating self._formats_exp
         # select enabled and non-failing packers among the input list
-        packers = [p for p in (packer or Packer.registry) if p in Packer.registry and \
-                                                             p.check(*self._formats_exp, silent=False)]
+        packers = [p for p in (packer or item_packer.Packer.registry) if p in item_packer.Packer.registry and \
+                                                                         p.check(*self._formats_exp, silent=False)]
         if len(packers) == 0:
             l.critical("No valid packer selected")
             return
@@ -517,7 +514,7 @@ class Dataset:
         self._save()
     
     def purge(self, backup=False, **kw):
-        """ Truncate and recreate a blank dataset. """
+        """ Completely remove the dataset, including its backups. """
         self.logger.debug("purging %s%s..." % (self.path, ["", "'s backups"][backup]))
         if not backup:
             self._remove()

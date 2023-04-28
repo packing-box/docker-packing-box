@@ -1,13 +1,12 @@
 # -*- coding: UTF-8 -*-
-import lief
 from tinyscript import configparser, functools, logging, os, re
-from tinyscript.helpers import slugify, Capture, ConfigPath, Path
+from tinyscript.helpers import lazy_load_module, slugify, ConfigPath, Path
 from tinyscript.report import *
 
 from .rendering import render
 
 
-__all__ = ["check_name", "config", "null_logger",
+__all__ = ["check_name", "config", "lief", "null_logger",
            "LABELS_BACK_CONV", "LOG_FORMATS", "NOT_LABELLED", "NOT_PACKED", "PACKING_BOX_SOURCES", "RENAME_FUNCTIONS"]
 
 LOG_FORMATS = ["%(asctime)s [%(levelname)s] %(message)s", "%(asctime)s [%(levelname)-8s] %(name)-18s - %(message)s"]
@@ -31,21 +30,6 @@ _rp = lambda v: Path(str(v), expand=True).absolute()
 _ws = lambda s, v: Path(s['workspace'].joinpath(v), create=True, expand=True).absolute()
 
 null_logger = logging.nullLogger
-
-
-def _capture_output(f):
-    def _wrapper(*args, **kwargs):
-        with Capture() as (out, err):
-            r = f(*args, **kwargs)
-        return r
-    return _wrapper
-
-
-cls = lief.Binary
-for attr in cls.__dict__:
-    func = getattr(cls, attr)
-    if callable(func):
-        setattr(cls, attr, _capture_output(func))
 
 
 def check_name(name, raise_error=True):
@@ -210,19 +194,19 @@ class Config(configparser.ConfigParser):
 config = Config()
 
 
-@functools.lru_cache(config['cache_entries'])
-def _lief_parse(target, *args, **kwargs):
-    target = Path(target, expand=True)
-    if not target.exists():
-        raise OSError("Target binary does not exist")
-    # try to parse the binary first ; capture the stderr messages from LIEF
-    tmp_fd, null_fd = os.dup(2), os.open(os.devnull, os.O_RDWR)
-    os.dup2(null_fd, 2)
-    binary = lief._parse(str(target))
-    os.dup2(tmp_fd, 2)  # restore stderr
-    os.close(null_fd)
-    if binary is None:
-        raise OSError("Unknown format")
-    return binary
-lief._parse, lief.parse = lief.parse, _lief_parse
+def __init(cache_entries):
+    def _wrapper():
+        @functools.lru_cache(cache_entries)
+        def _lief_parse(target, *args, **kwargs):
+            target = Path(target, expand=True)
+            if not target.exists():
+                raise OSError("Target binary does not exist")
+            binary = lief._parse(str(target))
+            if binary is None:
+                raise OSError("Unknown format")
+            return binary
+        lief._parse, lief.parse = lief.parse, _lief_parse
+        return lief
+    return _wrapper
+lief = lazy_load_module("lief", postload=__init(config['cache_entries']))
 
