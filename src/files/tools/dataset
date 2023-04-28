@@ -2,10 +2,11 @@
 # -*- coding: UTF-8 -*-
 from pbox import *
 from pbox.__info__ import *
+from pbox.common.utils import purge_items
 from tinyscript import *
 
 
-__version__     = "2.6.1"
+__version__     = "2.6.2"
 __doc__         = """
 This tool aims to manipulate a dataset in many ways including its creation, enlargement, update, alteration, selection,
  merging, export or purge.
@@ -45,11 +46,11 @@ def __add_name(parser, force=False, name="name", help="name of the dataset", not
     def dataset_exists(string):
         if string == "all" or "*" in string:
             return string
-        p = config['datasets'].joinpath(string)
-        (ts.folder_exists_or_create if force else ts.folder_exists)(str(p))
-        if not force and not Dataset.check(string) and not FilelessDataset.check(string):
-            raise ValueError("Bad dataset")
-        return p
+        try:
+            return open_dataset(string)
+        except:
+            if not force:
+                raise
     parser.add_argument(name, type=dataset_exists, help=help, **({} if note is None else {'note': note}))
     return parser
 
@@ -188,26 +189,16 @@ if __name__ == '__main__':
     update.add_argument("-r", "--refresh", action="store_true", help="refresh labels of already existing executables")
     update.add_argument("-s", "--source-dir", action="extend", nargs="*", type=lambda p: ts.Path(p, expand=True),
                         help="executables source directory to be included")
-    view = __add_name(cmds.add_parser("view", help="view executables filtered from a dataset"))
-    __add_query(view)
+    __add_query(__add_name(cmds.add_parser("view", help="view executables filtered from a dataset")))
     initialize(noargs_action="help")
     logger.name = "dataset"
     logging.configLogger(logger, ["INFO", "DEBUG"][args.verbose], fmt=LOG_FORMATS[args.verbose], relative=True)
     name, args.load = getattr(args, "name", None), args.command not in ["ingest", "list", "purge"]
     if args.command == "purge" and isinstance(name, str):
-        purged = False
-        if name == "all":
-            for ds in Dataset.iteritems(True):
-                ds.purge()
-                purged = True
-        elif "*" in name:
-            name = r"^%s$" % name.replace("*", "(.*)")
-            for ds in Dataset.iteritems(False):
-                if re.search(name, ds.stem):
-                    open_dataset(ds).purge()
-                    purged = True
-        if not purged:
+        if not purge_items(Dataset, name):
             logger.warning("No dataset to purge in workspace (%s)" % str(config['datasets']))
+    elif name == "all":
+        logger.warning("Model cannot be named 'all' (reserved word)")
     else:
         if args.command == "ingest":
             args.rename_func = RENAME_FUNCTIONS[args.rename]

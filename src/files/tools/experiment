@@ -2,12 +2,13 @@
 # -*- coding: UTF-8 -*-
 from pbox import *
 from pbox.__info__ import *
+from pbox.common.utils import purge_items
 from tinyscript import *
 
 
 NAME = config['experiment']
 
-__version__     = "1.0.2"
+__version__     = "1.0.3"
 __doc__         = """
 This tool aims to manage an experiment (a structure that can hold custom YAML configurations, datasets and models).
 """
@@ -24,8 +25,23 @@ __examples__ = [[
     "open my-experiment",
     "compress my-experiment",
     "list",
+    "purge test-*",
 ]][NAME == ""]
 __description__ = "Manipulate experiments (dedicated workspaces for datasets, models and custom configs)"
+
+
+def __add_name(parser, force=False, help="name of the experiment", note=None):
+    def experiment_exists(string):
+        if string == "all":
+            return string
+        try:
+            return open_experiment(string)
+        except:
+            if force:
+                return Experiment(string)
+            raise
+    parser.add_argument("name", type=experiment_exists, help=help, **({} if note is None else {'note': note}))
+    return parser
 
 
 if __name__ == '__main__':
@@ -43,18 +59,22 @@ if __name__ == '__main__':
         sparsers.add_parser("list", help="list the existing experiments")
         sparsers.add_parser("show", help="get an overview of the experiment")
     else:
-        sparsers.add_parser("compress", help="convert the datasets of an experiment to fileless datasets") \
-                .add_argument("name", help="name of the experiment to be compressed")
+        __add_name(sparsers.add_parser("compress", help="convert the datasets of an experiment to fileless datasets"))
         sparsers.add_parser("list", help="list the existing experiments")
-        sparsers.add_parser("open", help="create a new or open an existing experiment") \
-                .add_argument("name", help="name of the new or existing experiment")
+        __add_name(sparsers.add_parser("open", help="create a new or open an existing experiment"), True)
+        __add_name(sparsers.add_parser("purge", help="purge an experiment"),
+                   note="use 'all' to purge every dataset or the wildcard '*' to select a part of them")
     initialize(noargs_action="help")
     logger.name = "experiment"
     logging.configLogger(logger, ["INFO", "DEBUG"][args.verbose], fmt=LOG_FORMATS[args.verbose], relative=True)
-    if args.command == "list":
-        Experiment(load=False).list()
-    elif hasattr(args, "name"):
-        Experiment(args.name)
+    if args.command == "purge" and isinstance(name, str):
+        if not purge_items(Experiment, name):
+            logger.warning("No experiment to purge in workspace (%s)" % str(config['experiments']))
+    elif getattr(args, "name", None) == "all":
+        logger.warning("Model cannot be named 'all' (reserved word)")
     else:
-        getattr(Experiment(NAME), args.command)(**vars(args))
+        if args.command == "list":
+            Experiment(load=False).list()
+        elif not hasattr(args, "name"):
+            getattr(Experiment(NAME), args.command)(**vars(args))
 
