@@ -6,7 +6,7 @@ from pbox.common.utils import purge_items
 from tinyscript import *
 
 
-__version__     = "2.6.2"
+__version__     = "2.6.3"
 __doc__         = """
 This tool aims to manipulate a dataset in many ways including its creation, enlargement, update, alteration, selection,
  merging, export or purge.
@@ -42,6 +42,13 @@ __examples__    = [
 __description__ = "Make datasets of packed and not packed executables for use with Machine Learning"
 
 
+__add_format = lambda p: p.add_argument("-f", "--format", default="png", choices=("jpg", "png", "tif", "svg"),
+                                        help="image file format for plotting")
+__add_query = lambda p: p.add_argument("-q", "--query", default="all", help="query for filtering records to be "
+                                       "selected", note="see <https://pandas.pydata.org/docs/reference/api/pandas.Data"
+                                       "Frame.query.html>")
+
+
 def __add_name(parser, force=False, name="name", help="name of the dataset", note=None):
     def dataset_exists(string):
         if string == "all" or "*" in string:
@@ -51,15 +58,9 @@ def __add_name(parser, force=False, name="name", help="name of the dataset", not
         except:
             if not force:
                 raise
+        return string
     parser.add_argument(name, type=dataset_exists, help=help, **({} if note is None else {'note': note}))
     return parser
-
-
-__add_format = lambda p: p.add_argument("-f", "--format", default="png", choices=("jpg", "png", "tif", "svg"),
-                                        help="image file format for plotting")
-__add_query = lambda p: p.add_argument("-q", "--query", default="all", help="query for filtering records to be "
-                                       "selected", note="see <https://pandas.pydata.org/docs/reference/api/pandas.Data"
-                                       "Frame.query.html>")
 
 
 def _percentage(p):
@@ -193,25 +194,30 @@ if __name__ == '__main__':
     initialize(noargs_action="help")
     logger.name = "dataset"
     logging.configLogger(logger, ["INFO", "DEBUG"][args.verbose], fmt=LOG_FORMATS[args.verbose], relative=True)
+    # prepare parsed arguments
     name, args.load = getattr(args, "name", None), args.command not in ["ingest", "list", "purge"]
+    if hasattr(args, "modifiers_set"):
+        Modifiers.source = args.modifiers_set  # configure the modifiers set's YAML definition source
+    if hasattr(args, "features_set"):
+        Features.source = args.features_set  # configure the features set's YAML definition source
+    # now execute
     if args.command == "purge" and isinstance(name, str):
         if not purge_items(Dataset, name):
             logger.warning("No dataset to purge in workspace (%s)" % str(config['datasets']))
-    elif name == "all":
+    elif args.command == "list":
+        FilelessDataset(**vars(args)).list()
+    elif isinstance(name, str) and name == "all":
         logger.warning("Model cannot be named 'all' (reserved word)")
-    else:
-        if args.command == "ingest":
-            args.rename_func = RENAME_FUNCTIONS[args.rename]
-        if hasattr(args, "modifiers_set"):
-            Modifiers.source = args.modifiers_set  # configure the modifiers set's YAML definition source
-        if hasattr(args, "features_set"):
-            Features.source = args.features_set  # configure the features set's YAML definition source
-        ds = (FilelessDataset if getattr(args, "fileless", args.command == "list") or \
-              name and FilelessDataset.check(name) else Dataset)(**vars(args))
+    elif name is not None:
+        ds = name if isinstance(name, Dataset) else Dataset(**vars(args))
         getattr(ds, args.command)(**vars(args))
         # it may occur that packing fails with a silenced error and that the related executable file remains in the
         #  files subfolder of the dataset while not handled in data.csv, hence creating an inconsistency ;
         #  fixing the dataset right after the make command allows to avoid this inconsistency
         if args.command == "make":
             ds.fix()
+    else:
+        if args.command == "ingest":
+            args.rename_func = RENAME_FUNCTIONS[args.rename]
+        getattr(Dataset(**vars(args)), args.command)(**vars(args))
 
