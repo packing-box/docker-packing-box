@@ -13,7 +13,7 @@ DEFAULTS = {
     'experiments': "/mnt/share/experiments"
 }
 DSFILES  = ["data.csv", "metadata.json"]
-EXPFILES = ["commands.rc", "README.md", "conf", "datasets", "models", "scripts"]
+EXPFILES = ["commands.rc", "README.md", "conf", "datasets", "figures", "models", "scripts"]
 MDFILES  = ["dump.joblib", "features.json", "metadata.json", "performance.csv"]
 
 

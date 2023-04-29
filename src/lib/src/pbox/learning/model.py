@@ -60,8 +60,7 @@ class Model:
     
     def _load(self):
         """ Load model's associated files if relevant or create instance's attributes. """
-        #self.path = config['models'].joinpath(self.name)
-        if not Model.check(self.path):
+        if not Model.check(self.path):  # NB: self.path is a property computed based on self.name
             return
         self.logger.debug("loading model %s..." % self.path)
         for n in ["dump", "features", "metadata", "performance"]:
@@ -392,14 +391,18 @@ class Model:
     
     def purge(self, **kw):
         """ Purge the current model. """
-        self.logger.debug("purging model...")
-        self.path.remove(error=False)
+        if self.path:
+            self.logger.debug("purging model...")
+            self.path.remove(error=False)
     
     def rename(self, name2=None, **kw):
         """ Rename the current model. """
-        self.logger.debug("renaming model...")
-        self.path = p = config['models'].joinpath(name2)
-        if p.exists():
+        l, path2 = self.logger, config['models'].joinpath(name2)
+        if not path2.exists():
+            self.logger.debug("renaming model...")
+            self.path.rename(path2)
+            self.path = path2
+        else:
             self.logger.warning("%s already exists" % p)
     
     def show(self, **kw):
@@ -411,11 +414,12 @@ class Model:
             # compute the ranked list of features with non-null importances (including the importance value)
             best_feat = [(i, n) for i, n in \
                          sorted(zip(fi, sorted(self._features.keys())), key=lambda x: -x[0]) if i > 0.]
-            l, nf = max(map(len, [x[1] for x in best_feat])), len(str(len(best_feat)))
-            best_feat = [("{: <%s}: {} (%.3f)" % (l + nf - len(str(i+1)), p[0])) \
-                         .format(p[1], self._features[p[1]]) for i, p in enumerate(best_feat)]
-            fi_str = ["**Features**:      %d (%d with non-null importance)\n\n\t1. %s\n\n" % \
-                      (len(self._features), len(best_feat), "\n\n\t1. ".join(best_feat))]
+            if len(best_feat) > 0:
+                l, nf = max(map(len, [x[1] for x in best_feat])), len(str(len(best_feat)))
+                best_feat = [("{: <%s}: {} (%.3f)" % (l + nf - len(str(i+1)), p[0])) \
+                             .format(p[1], self._features[p[1]]) for i, p in enumerate(best_feat)]
+                fi_str = ["**Features**:      %d (%d with non-null importance)\n\n\t1. %s\n\n" % \
+                          (len(self._features), len(best_feat), "\n\n\t1. ".join(best_feat))]
         params = a['parameters'].keys()
         l = max(map(len, params))
         params = [("{: <%s} = {}" % l).format(*p) for p in sorted(a['parameters'].items(), key=lambda x: x[0])]
@@ -449,7 +453,7 @@ class Model:
         try:
             proba, dt2 = benchmark(self.pipeline.predict_proba)(self._data)
             dt += dt2
-            proba = proba[:, 1]
+            proba = proba[:, 0]
         except AttributeError:
             proba = None
         metrics = cls.metrics if isinstance(cls.metrics, (list, tuple)) else [cls.metrics]
@@ -468,7 +472,7 @@ class Model:
                 row['Dataset'] = str(ds) + ["", "(unlabelled)"][ignore_labels]
                 for k, v in zip(h, m):
                     row[k] = v
-                self._performance = self._performance.append(row, ignore_index=True)
+                self._performance = pd.concat([self._performance, pd.DataFrame.from_records([row])], ignore_index=True)
         if len(self._data) > 0:
             self._save()
     

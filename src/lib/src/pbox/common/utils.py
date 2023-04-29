@@ -21,10 +21,10 @@ lazy_load_module("yaml")
 
 
 __all__ = ["aggregate_formats", "backup", "benchmark", "bin_label", "class_or_instance_method", "collapse_formats",
-           "data_to_temp_file", "dict2", "edit_file", "expand_formats", "expand_parameters", "filter_data",
-           "file_or_folder_or_dataset", "filter_data_iter", "get_counts", "is_exe", "lazy_load_module", "lazy_object",
-           "make_registry", "mpl", "np", "pd", "plt", "select_features", "shorten_str", "strip_version",
-           "ExeFormatDict", "COLORMAP", "FORMATS"]
+           "data_to_temp_file", "dict2", "edit_file", "expand_formats", "expand_parameters", "figure_path",
+           "filter_data", "file_or_folder_or_dataset", "filter_data_iter", "get_counts", "is_exe", "lazy_load_module",
+           "lazy_object", "make_registry", "mpl", "np", "pd", "plt", "purge_items", "select_features", "shorten_str",
+           "strip_version", "ExeFormatDict", "COLORMAP", "FORMATS"]
 
 _EVAL_NAMESPACE = {k: getattr(builtins, k) for k in ["abs", "divmod", "float", "hash", "hex", "id", "int", "len",
                                                      "list", "max", "min", "oct", "ord", "pow", "range", "range2",
@@ -259,6 +259,19 @@ def expand_parameters(*strings, **kw):
     return d
 
 
+def figure_path(f):
+    """ Decorator for computing the path of a figure given the filename returned by the wrapped function ;
+         put it in the "figures" subfolder of the current experiment's folder if relevant. """
+    @wraps(f)
+    def _wrapper(*a, **kw):
+        from .config import PBOX_HOME
+        exp, filename = PBOX_HOME.joinpath("experiment.env"), f(*a, **kw)
+        if exp.exists():
+            filename = str(Path(exp.read_text()).joinpath("figures", filename))
+        return filename
+    return _wrapper
+
+
 def file_or_folder_or_dataset(method):
     """ This decorator allows to handle, as the first positional argument of an instance method, either an executable,
          a folder with executables or the executable files from a Dataset. """
@@ -463,6 +476,7 @@ def make_registry(cls):
 
 
 def purge_items(cls, name):
+    """ Purge all items designated by 'name' for the given class 'cls'. """
     purged = False
     if name == "all":
         for obj in cls.iteritems(True):

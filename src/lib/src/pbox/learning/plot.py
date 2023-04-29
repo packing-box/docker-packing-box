@@ -6,13 +6,14 @@ from ..common.config import *
 from ..common.utils import *
 
 lazy_load_module("packer", "pbox.items")
-lazy_load_module("pandas")
+lazy_load_module("pandas", alias="pd")
 lazy_load_module("textwrap")
 
 
 __all__ = ["plot", "PLOTS"]
 
 
+@figure_path
 def _dataset_information_gain_bar_chart(dataset, feature=None, format="png", filter_zero_ig=True, **kw):
     """ Plot a bar chart of the information gain of features in descending order. """
     l = dataset.logger
@@ -21,9 +22,10 @@ def _dataset_information_gain_bar_chart(dataset, feature=None, format="png", fil
     l.debug("plotting figure...")
     plt.figure(figsize=(8, 0))
     #TODO
-    return "%s.%s" % (dataset.basename, format)
+    return "%s_infogain.%s" % (dataset.basename, format)
 
 
+@figure_path
 def _dataset_labels_pie_chart(dataset, format="png", **kw):
     """ Describe the dataset with a pie chart. """
     l = dataset.logger
@@ -57,9 +59,10 @@ def _dataset_labels_pie_chart(dataset, format="png", **kw):
     # - draw a second pie, transparent, just to use black labels
     for wedge in plt.pie([c[k] for k in classes], labels=labels, labeldistance=1, startangle=180)[0]:
         wedge.set_alpha(0.)
-    return "%s.%s" % (dataset.basename, format)
+    return "%s_labels.%s" % (dataset.basename, format)
 
 
+@figure_path
 def _dataset_features_bar_chart(dataset, feature=None, multiclass=False, format="png", scaler=None, **kw):
     """ Plot the distribution of the given feature or multiple features combined. """
     if feature is None: 
@@ -72,10 +75,10 @@ def _dataset_features_bar_chart(dataset, feature=None, multiclass=False, format=
     feature = select_features(dataset, feature)
     l.info("Counting values for feature%s %s..." % (["", "s"][len(feature) > 1], ", ".join(feature)))
     # start counting, keeping 'Not packed' counts separate (to prevent it from being sorted with others)
-    counts_np, counts, labels, data = {}, {}, [], pandas.DataFrame()
+    counts_np, counts, labels, data = {}, {}, [], pd.DataFrame()
     for exe in dataset:
         row = {f: v for f, v in exe.data.items() if f in feature}
-        data = data.append(row, ignore_index=True)
+        data = pd.concat([data, pd.DataFrame.from_records([row])], ignore_index=True)
         v = tuple(row.values())
         counts_np.setdefault(v, 0)
         counts.setdefault(v, {} if multiclass else {'Packed': 0})
@@ -168,7 +171,7 @@ def _dataset_features_bar_chart(dataset, feature=None, multiclass=False, format=
         plt.bar_label(b, labels=["" if x == 0 else x for x in v], label_type="center", color="white")
     plt.yticks(**({'family': "monospace", 'fontsize': 8} if vtype is hex else {'fontsize': 9}))
     plt.legend()
-    return ["", "combo-"][len(feature) > 1] + feature[0] + "." + format
+    return dataset.basename + "_features_" + ["", "combo-"][len(feature) > 1] + feature[0] + "." + format
 
 
 def plot(obj, ptype, dpi=200, **kw):
@@ -188,6 +191,7 @@ def plot(obj, ptype, dpi=200, **kw):
     except TypeError:
         return
     obj.logger.info("Saving to %s..." % img)
+    import matplotlib.pyplot
     matplotlib.pyplot.savefig(img, format=kw.get('format'), dpi=dpi, bbox_inches="tight")
 
 

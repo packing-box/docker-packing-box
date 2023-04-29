@@ -93,12 +93,9 @@ def __init():
             l = self.logger
             rc = self['commands']
             rc.touch()
+            rc_last_line = ""
             for rc_last_line in rc.read_lines():
                 pass
-            try:
-                rc_last_line
-            except NameError:
-                rc_last_line = ""
             hist = list(Path("~/.bash_history", expand=True).read_lines())
             while len(hist) > 0 and all(not hist[-1].startswith(cmd + " ") for cmd in COMMIT_VALID_COMMANDS):
                 hist.pop()

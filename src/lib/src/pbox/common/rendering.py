@@ -1,17 +1,6 @@
 # -*- coding: UTF-8 -*-
-from rich import box
-from rich.console import Console
-from rich.markdown import Heading, Markdown
-from rich.progress import *
-from rich.style import Style
-from rich.table import Table as RichTable
-from rich.text import Text as RichText
 from tinyscript import *
 from tinyscript.report import *
-try:  # from Python3.9
-    import mdv3 as mdv
-except ImportError:
-    import mdv
 
 
 __all__ = ["progress_bar", "render", "NOK", "NOK_GREY", "OK", "OK_GREY", "STATUS"]
@@ -30,14 +19,11 @@ STATUS = {
     'todo':          colored("☐", "grey"),
     'useless':       colored("ⓘ", "grey"),
 }
-_STATUS_CONV = {colored(u, c): RichText(u, style=c) for u, c in \
-                zip("☒🗗ⓘ☑☒☑☐ⓘ", ["magenta", "cyan", "grey", "orange", "red", "green", "grey", "grey"])}
-
-
-code.replace(Heading.__rich_console__, "text.justify = \"center\"", "")
 
 
 def progress_bar(unit="samples", silent=False, **kwargs):
+    from rich.progress import BarColumn, MofNCompleteColumn, Progress, TextColumn, TimeElapsedColumn, \
+                              TimeRemainingColumn
     class CustomProgress(Progress):
         def track(self, sequence, *args, **kwargs):
             for value in (sequence if silent else super(CustomProgress, self).track(sequence, *args, **kwargs)):
@@ -59,6 +45,15 @@ def render(*elements, **kw):
     """ Helper function for rendering Tinyscript report objects to the terminal based on a selected backend. """
     backend = kw.get('backend', DEFAULT_BACKEND)
     if backend == "rich":
+        from rich import box
+        from rich.console import Console
+        from rich.markdown import Heading, Markdown
+        from rich.style import Style
+        from rich.table import Table as RichTable
+        from rich.text import Text as RichText
+        code.replace(Heading.__rich_console__, "text.justify = \"center\"", "")
+        _STATUS_CONV = {colored(u, c): RichText(u, style=c) for u, c in \
+                        zip("☒🗗ⓘ☑☒☑☐ⓘ", ["magenta", "cyan", "grey", "orange", "red", "green", "grey", "grey"])}
         for e in elements:
             if hasattr(e, "md"):
                 if isinstance(e, Table):
@@ -84,6 +79,10 @@ def render(*elements, **kw):
             elif e is not None:
                 Console().print(Markdown(e))
     elif backend == "mdv":
+        try:  # from Python3.9
+            import mdv3 as mdv
+        except ImportError:
+            import mdv
         # important notes:
         # - for an unknown reason, mdv breaks tables' layout when used via the packing-box tool and filtering the
         #    category (with -c)

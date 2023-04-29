@@ -4,7 +4,7 @@ from tinyscript import code, functools, re
 from ..common.config import *
 from ..common.utils import *
 
-def __init_skm():
+def __init_skm(*a):
     # add -1 to zero_division possible values
     code.replace(skm._classification._check_zero_division,
                  "elif isinstance(zero_division, (int, float)) and zero_division in [0, 1]:",

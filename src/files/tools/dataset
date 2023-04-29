@@ -195,7 +195,8 @@ if __name__ == '__main__':
     logger.name = "dataset"
     logging.configLogger(logger, ["INFO", "DEBUG"][args.verbose], fmt=LOG_FORMATS[args.verbose], relative=True)
     # prepare parsed arguments
-    name, args.load = getattr(args, "name", None), args.command not in ["ingest", "list", "purge"]
+    name = getattr(args, "name", None)
+    args.load = name is not None and args.command not in ["ingest", "list", "purge"]
     if hasattr(args, "modifiers_set"):
         Modifiers.source = args.modifiers_set  # configure the modifiers set's YAML definition source
     if hasattr(args, "features_set"):
@@ -207,7 +208,7 @@ if __name__ == '__main__':
     elif args.command == "list":
         FilelessDataset(**vars(args)).list()
     elif isinstance(name, str) and name == "all":
-        logger.warning("Model cannot be named 'all' (reserved word)")
+        logger.warning("Dataset cannot be named 'all' (reserved word)")
     elif name is not None:
         ds = name if isinstance(name, Dataset) else Dataset(**vars(args))
         getattr(ds, args.command)(**vars(args))

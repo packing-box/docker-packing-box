@@ -77,5 +77,4 @@ experiment*/
 # config files
 #src/conf/*.yml
 
-tests
-tests/bats
+tests/.bats

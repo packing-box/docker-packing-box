@@ -1,4 +1,7 @@
 # -*- coding: UTF-8 -*-
+from warnings import filterwarnings
+filterwarnings("ignore", "Trying to unpickle estimator DecisionTreeClassifier")
+
 from .common import *
 from .common import __all__ as _common
 from .experiment import *

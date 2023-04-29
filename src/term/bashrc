@@ -178,7 +178,7 @@ function setprompt(){
     PT_EXP=""
   else
     EXP_BN="`basename $EXPERIMENT`"
-    EXPS_BN="`basename $EXPERIMENTS`"
+    EXPS_BN="`basename $EXP_BN`"
     ABS_PATH=`pwd`
     REL_PATH="`realpath --relative-base=. "$EXPERIMENT"`"
     if [[ "$EXP_BN" == "$REL_PATH" ]]; then

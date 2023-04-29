@@ -48,7 +48,7 @@ _experiment_completions() {
     fi
   else
     if [ $COMP_CWORD -eq 1 ]; then
-      COMPREPLY+=($(compgen -W "compress list open" "${COMP_WORDS[1]}"))
+      COMPREPLY+=($(compgen -W "compress list open purge" "${COMP_WORDS[1]}"))
     elif [ $COMP_CWORD -eq 2 ]; then
       case "$prev" in
         "compress"|"open")

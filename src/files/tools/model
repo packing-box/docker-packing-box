@@ -2,11 +2,11 @@
 # -*- coding: UTF-8 -*-
 from pbox import *
 from pbox.__info__ import *
-from pbox.common.utils import purge_items
+from pbox.common.utils import *
 from tinyscript import *
 
 
-__version__     = "1.3.2"
+__version__     = "1.3.3"
 __doc__         = """
 This utility aims to train Machine Learning models based on an input dataset. It currently supports various algorithms
  and allows to select a data scaler. Moreover, it supports Grid Search cross-validation for some algorithms.
@@ -34,6 +34,7 @@ def __add_name(parser, optional=False, force=False, help="name of the model"):
         except:
             if not force:
                 raise
+        # do not return string ; it is useless as a model cannot be named at creation (automatically assigned name)
     a, kw = ("-n", "--name", ) if optional else ("name", ), {'type': model_exists, 'help': help}
     parser.add_argument(*a, **kw)
     return parser
@@ -116,26 +117,29 @@ if __name__ == '__main__':
     initialize(noargs_action="help")
     logger.name = "model"
     logging.configLogger(logger, ["INFO", "DEBUG"][args.verbose], fmt=LOG_FORMATS[args.verbose], relative=True)
-    name, args.load = getattr(args, "name", Model(load=False)), args.command not in ["list", "purge"]
+    # prepare parsed arguments
+    name = getattr(args, "name", None)
+    args.load = name is not None and args.command not in ["list", "purge"]
+    if hasattr(args, "algorithms_set"):
+        Algorithm.source = args.algorithms_set  # recompute the child classes of Algorithm with a given source
+    if hasattr(args, "features_set"):
+        Features.source = args.features_set  # configure the features set's YAML definition source
+    # now execute
     if args.command == "purge" and isinstance(name, str):
         if not purge_items(Model, name):
             logger.warning("No model to purge in workspace (%s)" % str(config['models']))
-    elif name == "all":
+    elif args.command == "list":
+        Model(**vars(args)).list()
+    elif isinstance(name, str) and name == "all":
         logger.warning("Model cannot be named 'all' (reserved word)")
     else:
-        if hasattr(args, "algorithms_set"):
-            Algorithm.source = args.algorithms_set  # recompute the child classes of Algorithm with a given source
-        if hasattr(args, "features_set"):
-            Features.source = args.features_set  # configure the features set's YAML definition source
         if args.command == "train":
             args.param = expand_parameters(*(args.param or []))
-            name = Model(**vars(args))
         if args.command == "visualize":
             args.viz_params = {}
             for a in ["reduction_algorithm", "imputer_strategy", "n_components", "perplexity", "reduce_train_data",
                       "features", "multiclass", "plot_extensions", "plot_formats"]:
                 args.viz_params[a] = getattr(args, a)
                 delattr(args, a)
-        if args.command != "purge" or args.name is not None:
-            getattr(name, args.command)(**vars(args))
+        getattr(name if isinstance(name, Model) else Model(**vars(args)), args.command)(**vars(args))
 

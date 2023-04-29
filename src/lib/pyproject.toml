@@ -43,7 +43,7 @@ dependencies = [
   "pyelftools",
   "rich",
   "scikit-learn",
-  "tinyscript>=1.26.21",
+  "tinyscript>=1.27.0",
   "weka",
 ]
 dynamic = ["version"]
