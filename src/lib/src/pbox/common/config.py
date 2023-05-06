@@ -22,7 +22,7 @@ RENAME_FUNCTIONS = {
 
 # label markers and conversion for Scikit-Learn and Weka
 NOT_LABELLED, NOT_PACKED = "?-"  # impose markers for distinguishing between unlabelled and not-packed data
-LABELS_BACK_CONV = {NOT_LABELLED: -1, NOT_PACKED: None}  # values used with Scikit-learn for unlabelled and null class
+LABELS_BACK_CONV = {NOT_LABELLED: -1, NOT_PACKED: 0}  # values used with Scikit-learn for unlabelled and null class
 
 _bl = lambda v: str(v).lower() in ["1", "true", "y", "yes"]
 _np = lambda v: Path(str(v), create=True, expand=True).absolute()
