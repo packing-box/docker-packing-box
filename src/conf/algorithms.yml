@@ -9,11 +9,11 @@ Supervised:
     link:        https://scikit-learn.org/stable/modules/generated/sklearn.ensemble.AdaBoostClassifier.html
     parameters:
       static:
-        algorithm:      SAMME.R
-        base_estimator: !!python/object:sklearn.tree.DecisionTreeClassifier {max_depth=1}
-        learning_rate:  1.
-        n_estimators:   50
-        random_state:   42
+        algorithm:     SAMME.R
+        estimator:     !!python/object:sklearn.tree.DecisionTreeClassifier {max_depth=1}  # (default, same as None)
+        learning_rate: 1.
+        n_estimators:  50
+        random_state:  42
   BN:
     base:        !!python/name:pbox.learning.algorithm.weka.BayesNet  # based on weka.classifiers.bayes.BayesNet
     description: Bayesian Network
@@ -95,7 +95,6 @@ Supervised:
       static:
         C: 0.25  # confidence threshold for pruning
         M: 2     # minimum number of instances per leaf
-        N: 3     # number of folds for reduced error pruning ; one fold is used as pruning set
         Q: 42    # random number seed
   kNN:
     base:        !!python/name:sklearn.neighbors.KNeighborsClassifier
