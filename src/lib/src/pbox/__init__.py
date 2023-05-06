@@ -1,6 +1,7 @@
 # -*- coding: UTF-8 -*-
 from warnings import filterwarnings
 filterwarnings("ignore", "Trying to unpickle estimator DecisionTreeClassifier")
+filterwarnings("ignore", "Behavior when concatenating bool-dtype and numeric-dtype arrays is deprecated")
 
 from .common import *
 from .common import __all__ as _common

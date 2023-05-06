@@ -20,12 +20,12 @@ COMMIT_VALID_COMMANDS = [
 ]
 
 
-def open_experiment(item):
+def open_experiment(folder, **kw):
     """ Open the target model with the right class. """
-    p = config['experiments'].joinpath(item)
-    if Experiment.check(item):
-        return Experiment(item)
-    raise ValueError("%s is not a valid experiment" % item)
+    try:
+        return Experiment(Experiment.validate(folder, **kw), **kw)
+    except ValueError:
+        raise ValueError("%s is not a valid experiment" % folder)
 
 
 def __init():
@@ -136,7 +136,7 @@ def __init():
             for exp in Path(config['experiments']).listdir(Experiment.check):
                 yield open_experiment(exp) if instantiate else exp
         
-        def list(self, raw=False):
+        def list(self, raw=False, **kw):
             """ List all valid experiment folders. """
             data, headers = [], ["Name", "#Datasets", "#Models", "Custom configs"]
             for folder in config['experiments'].listdir(Experiment.check):
@@ -164,7 +164,7 @@ def __init():
             return self.path.basename
         
         @staticmethod
-        def check(folder):
+        def check(folder, **kw):
             try:
                 Experiment.validate(folder)
                 return True
@@ -172,11 +172,11 @@ def __init():
                 return False
         
         @staticmethod
-        def open(name):
-            return open_experiment(name)
+        def open(folder, **kw):
+            return open_experiment(folder, **kw)
         
         @staticmethod
-        def validate(folder, warn=False, logger=None):
+        def validate(folder, warn=False, logger=None, **kw):
             f = config['experiments'].joinpath(folder)
             if not f.exists():
                 raise ValueError("Does not exist")

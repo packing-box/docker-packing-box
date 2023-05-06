@@ -47,11 +47,7 @@ def make_pipeline(pipeline, preprocessors, logger=null_logger):
             m = "%s with %s" % (p.__name__, ", ".join("{}={}".format(*i) for i in params.items()))
         else:
             m = p.__name__
-        n = p.__name__
-        v = "transform" if n.endswith("Transformer") else "encode" if n.endswith("Encoder") else \
-            "standardize" if n.endswith("Scaler") else "normalize" if n.endswith("Normalizer") or n == "PCA" \
-             else "discretize" if n.endswith("Discretizer") else "preprocess"
-        pipeline.append(("%s (%s)" % (v, m), p(**params)))
+        pipeline.append((m, p(**params)))
 
 
 def __init_pl():
