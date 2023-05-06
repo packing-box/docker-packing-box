@@ -10,7 +10,6 @@
 # ✗ export
 # ✗ fix
 # ✗ ingest
-# ✗ revert
 # ✗ update
 
 
@@ -34,18 +33,18 @@ setup() {
 teardown_file(){
   # clean up the dedicated workspace
   run experiment close
-  rm -f ~/.packing-box/experiments.env
-  rm -rf "$TESTS_DIR"
+  #rm -f ~/.packing-box/experiments.env
+  #rm -rf "$TESTS_DIR"
 }
 
 
 @test "run tool's help" {
   run dataset --help
   assert_output --partial 'Dataset'
-  assert_output --partial 'positional arguments'
+  assert_output --partial 'positional argument'
   assert_output --partial 'Usage examples'
-  for CMD in "alter browse convert edit export fix ingest list make merge plot preprocess purge remove rename revert select show update view"; do
-    run dataset $CMD --help
+  for CMD in alter browse convert edit export fix ingest list make merge plot preprocess purge remove rename revert select show update view; do
+    dataset $CMD --help
   done
 }
 
@@ -112,14 +111,19 @@ teardown_file(){
 
 # ✓ select
 # ✓ remove
-@test "select to $TEST_DS1 and remove UPX-samples from $TEST_DS2" {
+# ✓ revert
+@test "select to $TEST_DS1, remove UPX-samples from $TEST_DS2 then revert it" {
   run dataset select "$TEST_DS2" "$TEST_DS1" --query "label == 'upx'"
   run dataset show "$TEST_DS1"
   refute_output --partial '#Executables: 10'
   run dataset show "$TEST_DS2"
   assert_output --partial '#Executables: 10'
   run dataset remove "$TEST_DS2" --query "label == 'upx'"
+  run dataset show "$TEST_DS2"
   refute_output --partial '#Executables: 10'
+  run dataset revert "$TEST_DS2"
+  run dataset show "$TEST_DS2"
+  assert_output --partial '#Executables: 10'
 }
 
 # ✓ plot

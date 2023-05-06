@@ -32,20 +32,22 @@ teardown_file(){
 
 # ✓ open
 # ✓ close
+# ✓ purge
 @test "run tool's help" {
   run experiment --help
   assert_output --partial 'Experiment'
-  assert_output --partial 'positional arguments'
+  assert_output --partial 'positional argument'
   assert_output --partial 'Usage examples:'
-  for CMD in "compress list open purge"; do
-    run dataset $CMD --help
+  for CMD in compress list open purge; do
+    experiment $CMD --help
   done
-  run experiment open _temp
-  for CMD in "close commit compress edit list show"; do
-    run dataset $CMD --help
+  experiment open temp
+  for CMD in close commit compress edit list show; do
+    experiment $CMD --help
   done
-  run experiment close
-  run experiment purge _temp
+  experiment close
+  run experiment purge temp
+  refute_output --partial 'temp'
 }
 
 # ✓ list
@@ -56,7 +58,8 @@ teardown_file(){
 
 # ✓ show
 @test "create $TEST_XP and show its content" {
-  run experiment open "$TEST_XP"
+  run experiment close
+  experiment open "$TEST_XP"
   assert_file_exist "$TESTS_DIR/$TEST_XP/conf"
   assert_file_exist "$TESTS_DIR/$TEST_XP/datasets"
   assert_file_exist "$TESTS_DIR/$TEST_XP/models"
