@@ -18,7 +18,7 @@ __all__ = ["Modifiers"]
 
 
 class Modifier(dict2):
-    _fields = {'apply': True}
+    _fields = {'apply': True}  # default values that will be set in dict2.__init__
 
 
 class Modifiers(list):

@@ -14,7 +14,7 @@ __all__ = ["Features"]
 
 
 class Feature(dict2):
-    _fields = {'keep': True, 'values': []}
+    _fields = {'keep': True, 'values': []}  # default values that will be set in dict2.__init__
 
     def __init__(self, idict, **kwargs):
         super(Feature, self).__init__(idict, **kwargs)
@@ -69,6 +69,8 @@ class Features(dict, metaclass=MetaFeatures):
             Features.registry = {}
             # collect properties that are applicable for all the other features
             data_all = features.pop('ALL', {})
+            # important note: the 'keep' parameter is not considered here as some features may be required for computing
+            #                  others but not kept in the final data, hence required in the registry yet
             for name, params in features.items():
                 for i in data_all.items():
                     params.setdefault(*i)

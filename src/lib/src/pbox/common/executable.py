@@ -42,7 +42,8 @@ class Executable(Path):
             # if reinstantiating an Executable instance, simply immediately return it
             if isinstance(e, Executable) and not kwargs.get('force', False):
                 return e
-            # case (1) arises when a series is passed from Pandas' .itertuples() ; this produces an orphan executable
+            # case (1) occurs when using pandas.DataFrame.itertuples() ; this produces an instance of
+            #  pandas.core.frame.Pandas (having the '_fields' attribute), hence causing an orphan executable
             if all(hasattr(e, f) for f in fields) and hasattr(e, "_fields"):
                 try:
                     dest = ds1.files.joinpath(e.hash)
