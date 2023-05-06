@@ -1,4 +1,5 @@
 # -*- coding: UTF-8 -*-
+from tinyscript import random
 from tinyscript.helpers import human_readable_size, Path
 from tinyscript.report import *
 
@@ -14,17 +15,13 @@ from ..common.utils import *
 __all__ = ["open_dataset", "Dataset", "FilelessDataset"]
 
 
-def open_dataset(folder):
+def open_dataset(folder, **kw):
     """ Open the target dataset with the right class. """
-    if Dataset.check(folder):
-        return Dataset(folder)
-    if FilelessDataset.check(folder):
-        return FilelessDataset(folder)
-    p = config['datasets'].joinpath(folder)
-    if Dataset.check(p):
-        return Dataset(p)
-    if FilelessDataset.check(p):
-        return FilelessDataset(p)
+    for cls in [Dataset, FilelessDataset]:
+        try:
+            return cls(cls.validate(folder, **kw), **kw)
+        except ValueError:
+            pass
     raise ValueError("%s is not a valid dataset" % folder)
 
 
@@ -75,20 +72,21 @@ class FilelessDataset(Dataset):
     Dataset.browse = browse
     
     @backup
-    def convert(self, new_name=None, **kw):
+    def convert(self, new_name=None, silent=False, **kw):
         """ Convert a dataset with files to a dataset without files. """
         l = self.logger
+        l_info = getattr(l, ["info", "debug"][silent])
         if not self._files:
             l.warning("Already a fileless dataset")
             return
         if new_name is not None:
-            ds = Dataset(new_name)
-            ds.merge(self.path.basename, silent=True, **kw)
-            ds.convert(**kw)
+            ds = Dataset(new_name, **kw)
+            ds.merge(self.path.basename, silent=silent, **kw)
+            ds.convert(silent=silent, **kw)
             return
-        l.info("Converting to fileless dataset...")
+        l_info("Converting to fileless dataset...")
         s1 = self.path.size
-        l.info("Size of dataset:     %s" % human_readable_size(s1))
+        l_info("Size of dataset:     %s" % human_readable_size(s1))
         self.path.joinpath("features.json").write_text("{}")
         self._compute_all_features()
         l.debug("removing files...")
@@ -101,7 +99,7 @@ class FilelessDataset(Dataset):
             pass
         self._save()
         s2 = self.path.size
-        l.info("Size of new dataset: %s (compression factor: %d)" % (human_readable_size(s2), int(s1/s2)))
+        l_info("Size of new dataset: %s (compression factor: %d)" % (human_readable_size(s2), int(s1/s2)))
     Dataset.convert = convert
     
     def export(self, format=None, output=None, **kw):
@@ -161,20 +159,32 @@ class FilelessDataset(Dataset):
     @backup
     def merge(self, name2=None, new_name=None, silent=False, **kw):
         """ Merge another dataset with the current one. """
-        if new_name is not None:
-            ds = type(self)(new_name)
-            ds.merge(self.path.basename)
-            ds.merge(name2)
-            ds.path.joinpath("files").remove(False)
-            return
         l = self.logger
-        ds2 = Dataset(name2) if Dataset.check(name2) else FilelessDataset(name2)
-        cls1, cls2 = self.__class__.__name__, ds2.__class__.__name__
-        if cls1 != cls2:
-            l.error("Cannot merge %s and %s" % (cls1, cls2))
+        l_info = getattr(l, ["info", "debug"][silent])
+        ds2 = open_dataset(name2, name_check=False)
+        if new_name is not None:
+            dstype = FilelessDataset if not self._files or not ds2._files else Dataset
+            ds = dstype(new_name)
+            if dstype is FilelessDataset and self._files:
+                temp_name = random.randstr(16)
+                self.convert(temp_name, check=False)
+                ds.merge(temp_name)
+                FilelessDataset(temp_name, check=False).purge()
+            else:
+                ds.merge(self.path.basename)
+            if dstype is FilelessDataset and ds2._files:
+                temp_name = random.randstr(16)
+                ds2.convert(temp_name, check=False)
+                ds.merge(temp_name)
+                FilelessDataset(temp_name, check=False).purge()
+            else:
+                ds.merge(name2)
+            return
+        if self.__class__ is Dataset and ds2.__class__ is FilelessDataset:
+            l.error("Cannot merge a fileless dataset into a dataset (because files are missing)")
             return
         # add rows from the input dataset
-        getattr(l, ["info", "debug"][silent])("Merging rows from %s into %s..." % (ds2.basename, self.basename))
+        l_info("Merging rows from %s into %s..." % (ds2.basename, self.basename))
         with progress_bar(silent=silent) as p:
             for r in p.track(ds2):
                 self[Executable(hash=r.hash, dataset=ds2, dataset2=self)] = r._row._asdict()
@@ -232,19 +242,19 @@ class FilelessDataset(Dataset):
     
     @staticmethod
     def iteritems(instantiate=False):
-        for dataset in Path(config['datasets']).listdir(Dataset.check):
+        for dataset in Path(config['datasets']).listdir(lambda f: Dataset.check(f) or FilelessDataset.check(f)):
             yield open_dataset(dataset) if instantiate else dataset
     Dataset.iteritems = iteritems
     
     @staticmethod
-    def open(name):
-        return open_dataset(name)
+    def open(folder, **kw):
+        return open_dataset(folder, **kw)
     Dataset.open = open
     
     @staticmethod
-    def summarize(path=None, show=False, hide_files=False):
-        _, table = Dataset.summarize(path, show, hide_files)
-        _, table2 = Dataset.summarize(path, show, hide_files, FilelessDataset.check)
+    def summarize(show=False, hide_files=False):
+        _, table = Dataset.summarize(show, hide_files)
+        _, table2 = Dataset.summarize(show, hide_files, FilelessDataset.check)
         t, t2 = [] if table is None else table.data, [] if table2 is None else table2.data
         datasets = sorted(t + t2, key=lambda x: x[0])
         if len(datasets) > 0:

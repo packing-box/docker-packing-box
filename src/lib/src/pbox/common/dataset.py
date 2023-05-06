@@ -17,9 +17,6 @@ __all__ = ["Dataset"]
 
 BACKUP_COPIES = 3
 
-ds_check = lambda s: lambda p: Dataset.check(p, ncheck=False) or \
-                               (s.__class__.check(p, ncheck=False) if s.__class__ is not Dataset else False)
-
 
 class Dataset:
     """ Folder structure:
@@ -33,9 +30,9 @@ class Dataset:
                               #  alterations applied
     """
     @logging.bindLogger
-    def __init__(self, name="dataset", source_dir=None, load=True, check=True, **kw):
+    def __init__(self, name="dataset", source_dir=None, load=True, name_check=False, **kw):
         self._files = getattr(self.__class__, "_files", True)
-        if check:
+        if name_check:
             check_name(Path(name).basename)
         self.path = Path(config['datasets'].joinpath(name), create=load).absolute()
         self.sources = source_dir or PACKING_BOX_SOURCES
@@ -389,7 +386,7 @@ class Dataset:
         """ List all the datasets from the given path. """
         l = self.logger
         l.debug("summarizing datasets from %s..." % config['datasets'])
-        section, table = self.__class__.summarize(str(config['datasets']), show_all, hide_files)
+        section, table = self.__class__.summarize(show_all, hide_files)
         if section is not None and table is not None:
             render(section, table)
         else:
@@ -684,7 +681,7 @@ class Dataset:
         l.debug("backup %s" % ["disabled", "enabled"][config['keep_backups']])
         tmp = TempPath(".dataset-backup", hex(hash(self))[2:])
         l.debug("backup root: %s" % tmp)
-        backups = sorted(tmp.listdir(ds_check(self)), key=lambda p: -int(p.basename))
+        backups = sorted(tmp.listdir(self.__class__.check), key=lambda p: -int(p.basename))
         if len(backups) > 0:
             l.debug("> found: %s" % ", ".join(map(lambda p: p.basename, backups)))
         for backup in backups:
@@ -699,7 +696,7 @@ class Dataset:
         tmp = TempPath(".dataset-backup", hex(hash(self))[2:])
         l.debug("backup root: %s" % tmp)
         backups, i = [], 0
-        for i, backup in enumerate(sorted(tmp.listdir(ds_check(self)), key=lambda p: -int(p.basename))):
+        for i, backup in enumerate(sorted(tmp.listdir(self.__class__.check), key=lambda p: -int(p.basename))):
             backup, n = self.__class__(backup, check=False), 0
             # if there is a change since the last backup, create a new one
             if i == 0 and dataset != backup:
@@ -851,28 +848,28 @@ class Dataset:
         return r
     
     @classmethod
-    def check(cls, name, ncheck=True):
+    def check(cls, name, **kw):
         try:
-            cls.validate(name, False, ncheck)
+            cls.validate(name)
             return True
         except ValueError as e:
             return False
     
     @classmethod
-    def validate(cls, name, load=True, ncheck=True):
-        f = getattr(cls, "_files", True)
-        ds = cls(name, load=False, check=ncheck)
-        p = ds.path
-        if not p.is_dir():
-            raise ValueError
-        if f and not p.joinpath("files").is_dir() or not f and p.joinpath("files").is_dir():
-            raise ValueError
-        for fn in ["data.csv", "metadata.json"] + [["features.json"], []][f]:
-            if not p.joinpath(fn).exists():
-                raise ValueError
-        if load:
-            ds._load()
-        return ds
+    def validate(cls, folder, **kw):
+        f, fl = Path(folder, expand=True), getattr(cls, "_files", True)
+        if not f.is_dir():
+            f = config['datasets'].joinpath(folder)
+            if not f.exists():
+                raise ValueError("Folder does not exist")
+            if not f.is_dir():
+                raise ValueError("Input is not a folder")
+        if fl and not f.joinpath("files").is_dir() or not fl and f.joinpath("files").is_dir():
+            raise ValueError("Has 'files' folder while filesless" if fl else "Has not 'files' folder")
+        for fn in ["data.csv", "metadata.json"] + [["features.json"], []][fl]:
+            if not f.joinpath(fn).exists():
+                raise ValueError("'%s' does not exist" % fn)
+        return f
     
     @staticmethod
     def labels_from_file(labels):
@@ -887,7 +884,7 @@ class Dataset:
         return {h: l or NOT_PACKED for h, l in labels.items()}
     
     @staticmethod
-    def summarize(path=None, show=False, hide_files=False, check_func=None):
+    def summarize(show=False, hide_files=False, check_func=None):
         datasets, headers = [], ["Name", "#Executables", "Size"] + [["Files"], []][hide_files] + ["Formats", "Packers"]
         for dset in Path(config['datasets']).listdir(check_func or Dataset.check):
             with dset.joinpath("metadata.json").open() as meta:
