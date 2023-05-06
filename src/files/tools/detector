@@ -12,12 +12,12 @@ __version__     = "1.3.0"
 __doc__         = """
 This tool aims to detect the packer used on an input executable, folder of executables or Dataset.
 """
+__description__ = "Detect the packer used on an input executable/folder/dataset"
 __examples__    = [
     "my-sample.exe -d die",
     "/path/to/samples",
     "my-dataset -b -d die bintropy pypackerdetect",
 ]
-__description__ = "Detect the packer used on an input executable/folder/dataset"
 
 
 def _metrics(tn=0, fp=0, fn=0, tp=0):

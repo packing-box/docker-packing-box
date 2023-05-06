@@ -6,11 +6,12 @@ from pbox.common.utils import purge_items
 from tinyscript import *
 
 
-__version__     = "2.6.3"
+__version__     = "2.6.4"
 __doc__         = """
 This tool aims to manipulate a dataset in many ways including its creation, enlargement, update, alteration, selection,
  merging, export or purge.
 """
+__description__ = "Make datasets of packed and not packed executables for use with Machine Learning"
 __examples__    = [
     "alter my-dataset --percentage 30",
     "alter my-dataset --query \"label == '-'\"",
@@ -39,7 +40,6 @@ __examples__    = [
     "view my-dataset --query \"ctime > 2020\"",
     "view my-dataset -q \"'PE32' in format\"",
 ]
-__description__ = "Make datasets of packed and not packed executables for use with Machine Learning"
 
 
 __add_format = lambda p: p.add_argument("-f", "--format", default="png", choices=("jpg", "png", "tif", "svg"),
@@ -51,14 +51,9 @@ __add_query = lambda p: p.add_argument("-q", "--query", default="all", help="que
 
 def __add_name(parser, force=False, name="name", help="name of the dataset", note=None):
     def dataset_exists(string):
-        if string == "all" or "*" in string:
+        if string == "all" or "*" in string or Dataset.check(string) or FilelessDataset.check(string) or force:
             return string
-        try:
-            return open_dataset(string)
-        except:
-            if not force:
-                raise
-        return string
+        raise ValueError("Invalid dataset")
     parser.add_argument(name, type=dataset_exists, help=help, **({} if note is None else {'note': note}))
     return parser
 
@@ -79,27 +74,31 @@ if __name__ == '__main__':
               if not isinstance(v, tuple) else "%s with %s" % \
               (v[0].__name__, ", ".join("{}={}".format(*i) for i in v[1].items()))) \
               for k, v in sorted(PREPROCESSORS.items(), key=lambda x: x[0] or "none") if k is not None)
-    cmds = parser.add_subparsers(dest="command", help="command to be executed")
-    alter = __add_name(cmds.add_parser("alter", help="alter the target dataset with a set of transformations"))
+    cmds = parser.add_subparsers(dest="command", metavar="CMD", title="positional argument",
+                                 help="command to be executed")
+    alter = __add_name(cmds.add_parser("alter", category="create/modify/delete",
+                                       help="alter the target dataset with a set of transformations"))
     alter.add_argument("-a", "--modifiers-set", type=ts.file_exists, default=str(config['modifiers']),
                        help="modifiers set's YAML definition")
     agroup = alter.add_mutually_exclusive_group()
     agroup.add_argument("-p", "--percentage", type=_percentage, default=20, help="percentage of samples to be altered")
     __add_query(agroup)
-    browse = __add_name(cmds.add_parser("browse", help="compute features and browse the resulting data"))
+    browse = __add_name(cmds.add_parser("browse", category="read",
+                                        help="compute features and browse the resulting data"))
     bgroup = browse.add_mutually_exclusive_group()
     bgroup.add_argument("-f", "--features-set", type=ts.file_exists, default=str(config['features']),
                         help="features set's YAML definition")
     bgroup.add_argument("-n", "--no-feature", action="store_true", help="do not compute features")
     __add_query(browse)
-    convert = __add_name(cmds.add_parser("convert", help="convert the target dataset to a fileless one"))
+    convert = __add_name(cmds.add_parser("convert", category="create/modify/delete",
+                                         help="convert the target dataset to a fileless one"))
     convert.add_argument("-f", "--features-set", type=ts.file_exists, default=str(config['features']),
                          help="features set's YAML definition")
     convert.add_argument("-n", "--new-name", help="name for the new converted dataset",
                          note="if None, the original dataset is overwritten")
-    __add_name(cmds.add_parser("edit", help="edit the data file"))
-    export = __add_name(cmds.add_parser("export", help="export packed samples from a dataset or export the dataset"
-                                                       " to a given format"))
+    __add_name(cmds.add_parser("edit", category="create/modify/delete", help="edit the data file"))
+    export = __add_name(cmds.add_parser("export", category="create/modify/delete",
+                                   help="export packed samples from a dataset or export the dataset to a given format"))
     export.add_argument("-f", "--format", default="dsff", choices=("arff", "csv", "dsff", "packed-samples"),
                         help="output format")
     export.add_argument("-o", "--output", default="export", metavar="F", type=ts.folder_does_not_exist,
@@ -107,11 +106,12 @@ if __name__ == '__main__':
     export_ = export.add_argument_group("option when exporting packed samples", before="extra arguments")
     export_.add_argument("-n", "--number-samples", dest="n", type=ts.pos_int, default=0,
                          help="number of packed samples to be exported")
-    fix = __add_name(cmds.add_parser("fix", help="fix a corrupted dataset"))
+    fix = __add_name(cmds.add_parser("fix", category="create/modify/delete", help="fix a corrupted dataset"))
     fgroup = fix.add_mutually_exclusive_group()
     fgroup.add_argument("-d", "--detect", action="store_true", help="detect used packer with installed detectors")
     fgroup.add_argument("-l", "--labels", type=ts.json_config, help="set labels from a JSON file")
-    ingest = cmds.add_parser("ingest", help="ingest samples from a folder into new dataset(s)")
+    ingest = cmds.add_parser("ingest", category="create/modify/delete",
+                             help="ingest samples from a folder into new dataset(s)")
     ingest.add_argument("folder", type=ts.folder_exists, help="target folder with subfolders containing samples")
     igroup = ingest.add_mutually_exclusive_group()
     igroup.add_argument("-d", "--detect", action="store_true", help="detect used packer with installed detectors")
@@ -125,12 +125,12 @@ if __name__ == '__main__':
     ingest.add_argument("-r", "--rename", default="slugify", choices=tuple(RENAME_FUNCTIONS.keys()),
                         help="apply a function for naming the new dataset(s)")
     ingest.add_argument("-x", "--exclude", nargs="*", help="folder to be excluded")
-    listds = cmds.add_parser("list", help="list all the datasets from the workspace")
+    listds = cmds.add_parser("list", category="read", help="list all the datasets from the workspace")
     listds.add_argument("-a", "--show-all", action="store_true", help="show all datasets even those that are corrupted")
     listds.add_argument("-f", "--hide-files", action="store_true", help="hide the 'files' column")
     listds.add_argument("-r", "--raw", action="store_true", help="display unformatted text", note="useful with grep")
-    make = __add_name(cmds.add_parser("make", help="add n randomly chosen executables from input sources to the "
-                                                   "dataset"), True)
+    make = __add_name(cmds.add_parser("make", category="create/modify/delete",
+                                      help="add n randomly chosen executables from input sources to the dataset"), True)
     make_ = make.add_mutually_exclusive_group()
     make_.add_argument("-a", "--pack-all", action="store_true", help="pack all executables",
                        note="this cannot be set with -b/--balance")
@@ -143,11 +143,11 @@ if __name__ == '__main__':
                       help="packer to be used")
     make.add_argument("-s", "--source-dir", action="extend", nargs="*", type=lambda p: ts.Path(p, expand=True),
                       help="executables source directory to be included")
-    merge = __add_name(cmds.add_parser("merge", help="merge two datasets"))
+    merge = __add_name(cmds.add_parser("merge", category="create/modify/delete", help="merge two datasets"))
     __add_name(merge, name="name2", help="name of the dataset to merge")
     merge.add_argument("-n", "--new-name", help="name for the new merged dataset",
                        note="if None, the original dataset is overwritten")
-    plot = cmds.add_parser("plot", help="plot something about the dataset")
+    plot = cmds.add_parser("plot", category="read", help="plot something about the dataset")
     pcmds = plot.add_subparsers(dest="subcommand", help="command to be executed")
     plot_feat = __add_name(pcmds.add_parser("features", help="distribution of a given feature or multiple features "
                                                              "combined (bar chart)"))
@@ -162,26 +162,31 @@ if __name__ == '__main__':
     plot_ig.add_argument("-z", "--filter-zero-ig", action="store_true", help="filter features with IG=0")
     plot_lab = __add_name(pcmds.add_parser("labels", help="distribution of labels in the dataset (pie chart)"))
     __add_format(plot_lab)
-    preproc = __add_name(cmds.add_parser("preprocess", help="preprocess the input dataset given preprocessors"))
+    preproc = __add_name(cmds.add_parser("preprocess", category="read",
+                                         help="preprocess the input dataset given preprocessors"))
     preproc.add_argument("-p", "--preprocessor", action="extend", nargs="*", choices=PREPROCESSORS.keys(), help=pp_help)
     __add_query(preproc)
-    purge = __add_name(cmds.add_parser("purge", help="purge a dataset"), True,
+    purge = __add_name(cmds.add_parser("purge", category="create/modify/delete", help="purge a dataset"), True,
                        note="use 'all' to purge every dataset or the wildcard '*' to select a part of them")
     purge.add_argument("-b", "--backup", action="store_true", help="only purge backups")
-    remove = __add_name(cmds.add_parser("remove", help="remove executables from a dataset"))
+    remove = __add_name(cmds.add_parser("remove", category="create/modify/delete",
+                                        help="remove executables from a dataset"))
     __add_query(remove)
-    rename = __add_name(cmds.add_parser("rename", help="rename a dataset"))
+    rename = __add_name(cmds.add_parser("rename", category="create/modify/delete", help="rename a dataset"))
     rename.add_argument("name2", type=ts.folder_does_not_exist, help="new name of the dataset")
-    __add_name(cmds.add_parser("revert", help="revert a dataset to its previous state"))
-    select = __add_name(cmds.add_parser("select", help="select a subset of the dataset"))
+    __add_name(cmds.add_parser("revert", category="create/modify/delete",
+                               help="revert a dataset to its previous state"))
+    select = __add_name(cmds.add_parser("select", category="create/modify/delete",
+                                        help="select a subset of the dataset"))
     select.add_argument("name2", type=ts.folder_does_not_exist, help="name of the new dataset")
     select.add_argument("-n", "--number", dest="limit", type=ts.pos_int, default=0,
                         help="limit number of executables for the output dataset", note="0 means all")
     __add_query(select)
-    show = __add_name(cmds.add_parser("show", help="get an overview of the dataset"))
+    show = __add_name(cmds.add_parser("show", category="read", help="get an overview of the dataset"))
     show.add_argument("-l", "--limit", default=10, type=int, help="number of executables to be displayed per format")
     show.add_argument("--per-format", action="store_true", help="display statistics per format")
-    update = __add_name(cmds.add_parser("update", help="update a dataset with new executables"), True)
+    update = __add_name(cmds.add_parser("update", category="create/modify/delete",
+                                        help="update a dataset with new executables"), True)
     ugroup = update.add_mutually_exclusive_group()
     ugroup.add_argument("-d", "--detect", action="store_true", help="detect used packer with installed detectors")
     ugroup.add_argument("-l", "--labels", type=ts.json_config, help="set labels from a JSON file")
@@ -190,7 +195,7 @@ if __name__ == '__main__':
     update.add_argument("-r", "--refresh", action="store_true", help="refresh labels of already existing executables")
     update.add_argument("-s", "--source-dir", action="extend", nargs="*", type=lambda p: ts.Path(p, expand=True),
                         help="executables source directory to be included")
-    __add_query(__add_name(cmds.add_parser("view", help="view executables filtered from a dataset")))
+    __add_query(__add_name(cmds.add_parser("view", category="read", help="view executables filtered from a dataset")))
     initialize(noargs_action="help")
     logger.name = "dataset"
     logging.configLogger(logger, ["INFO", "DEBUG"][args.verbose], fmt=LOG_FORMATS[args.verbose], relative=True)
@@ -202,15 +207,20 @@ if __name__ == '__main__':
     if hasattr(args, "features_set"):
         Features.source = args.features_set  # configure the features set's YAML definition source
     # now execute
-    if args.command == "purge" and isinstance(name, str):
+    if args.command == "purge":
         if not purge_items(Dataset, name):
-            logger.warning("No dataset to purge in workspace (%s)" % str(config['datasets']))
+            logger.warning("No dataset to purge in workspace (%s)" % str(config['datasets']) if name == "all" else \
+                           "No dataset matched the given name")
     elif args.command == "list":
         FilelessDataset(**vars(args)).list()
-    elif isinstance(name, str) and name == "all":
+    elif name == "all":
         logger.warning("Dataset cannot be named 'all' (reserved word)")
     elif name is not None:
-        ds = name if isinstance(name, Dataset) else Dataset(**vars(args))
+        try:
+            ds = open_dataset(name)
+        except ValueError:
+            args.name_check = True
+            ds = Dataset(**vars(args))
         getattr(ds, args.command)(**vars(args))
         # it may occur that packing fails with a silenced error and that the related executable file remains in the
         #  files subfolder of the dataset while not handled in data.csv, hence creating an inconsistency ;

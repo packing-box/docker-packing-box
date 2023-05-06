@@ -6,7 +6,7 @@ from pbox.common.utils import *
 from tinyscript import *
 
 
-__version__     = "1.3.3"
+__version__     = "1.3.4"
 __doc__         = """
 This utility aims to train Machine Learning models based on an input dataset. It currently supports various algorithms
  and allows to select a data scaler. Moreover, it supports Grid Search cross-validation for some algorithms.
@@ -27,47 +27,46 @@ def at_interrupt():
 
 def __add_name(parser, optional=False, force=False, help="name of the model"):
     def model_exists(string):
-        if string == "all" or "*" in string:
+        if string == "all" or "*" in string or Model.check(string) or DumpedModel.check(string) or force:
             return string
-        try:
-            return open_model(string)
-        except:
-            if not force:
-                raise
-        # do not return string ; it is useless as a model cannot be named at creation (automatically assigned name)
+        raise ValueError("Invalid model")
     a, kw = ("-n", "--name", ) if optional else ("name", ), {'type': model_exists, 'help': help}
     parser.add_argument(*a, **kw)
     return parser
 
 
 if __name__ == '__main__':
-    sparsers = parser.add_subparsers(dest="command", help="command to be executed")
-    browse = __add_name(sparsers.add_parser("browse", help="browse input data (including predictions) based on the "
-                                                           "selected criteria"))
+    sparsers = parser.add_subparsers(dest="command", metavar="CMD", title="positional argument",
+                                     help="command to be executed")
+    browse = __add_name(sparsers.add_parser("browse", category="read",
+                                       help="browse input data (including predictions) based on the selected criteria"))
     browse.add_argument("executable", nargs="?",
                         help="executable or folder containing executables or dataset or data CSV file")
     browse.add_argument("-q", "--query", help="query for filtering records to be selected",
                         note="see <https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.query.html>")
-    compare = __add_name(sparsers.add_parser("compare", help="compare the selected model with others"))
+    compare = __add_name(sparsers.add_parser("compare", category="read", help="compare the selected model with others"))
     compare.add_argument("-d", "--dataset", type=open_dataset, action="extend", nargs="*",
                          help="dataset to be selected for the comparison")
     compare.add_argument("-i", "--include", action="store_true", help="include unformatted models")
     compare.add_argument("-m", "--model", type=open_model, action="extend", nargs="*",
                          help="model to be added in the comparison")
-    __add_name(sparsers.add_parser("edit", help="edit the performance log file"), True)
-    listm = sparsers.add_parser("list", help="list all the models from the workspace")
+    __add_name(sparsers.add_parser("edit", category="create/modify/delete", help="edit the performance log file"), True)
+    listm = sparsers.add_parser("list", category="read", help="list all the models from the workspace")
     listm.add_argument("--algorithms", action="store_true", help="show available algorithms instead of models")
-    preproc = __add_name(sparsers.add_parser("preprocess", help="preprocess features and visualize the result"))
+    preproc = __add_name(sparsers.add_parser("preprocess", category="read",
+                                             help="preprocess features and visualize the result"))
     preproc.add_argument("executable", nargs="?",
                          help="executable or folder containing executables or dataset or data CSV file")
     preproc.add_argument("-f", "--features-set", type=ts.file_exists, default=config['features'],
                          help="features set's YAML definition", note="similar to 'dataset browse', except that it "
                          "requires a model to apply its preprocessors in addition")
-    __add_name(sparsers.add_parser("purge", help="purge the selected model"), force=True)
-    rename = __add_name(sparsers.add_parser("rename", help="rename the selected model"))
+    __add_name(sparsers.add_parser("purge", category="create/modify/delete",
+                                   help="purge the selected model"), force=True)
+    rename = __add_name(sparsers.add_parser("rename", category="create/modify/delete",
+                                            help="rename the selected model"))
     rename.add_argument("name2", type=ts.folder_does_not_exist, help="new name of the model")
-    __add_name(sparsers.add_parser("show", help="get an overview of the model"))
-    test = __add_name(sparsers.add_parser("test", help="test the model on a given input"))
+    __add_name(sparsers.add_parser("show", category="read", help="get an overview of the model"))
+    test = __add_name(sparsers.add_parser("test", category="read", help="test the model on a given input"))
     test.add_argument("executable", help="executable or folder containing executables or dataset or data CSV file")
     test.add_argument("-f", "--features-set", type=ts.file_exists, default=config['features'],
                       help="features set's YAML definition")
@@ -75,7 +74,7 @@ if __name__ == '__main__':
                       help="while computing metrics, only consider those not requiring labels")
     test.add_argument("--sep", default=",", choices=",;|\t", help="set the CSV separator",
                       note="required when using input CSV data instead of a Dataset (no effect otherwise)")
-    train = sparsers.add_parser("train", help="train a model on the given dataset")
+    train = sparsers.add_parser("train", category="create/modify/delete", help="train a model on the given dataset")
     train.add_argument("dataset", type=open_dataset, help="dataset for training the model")
     __add_name(train, True)
     train.add_argument("-a", "--algorithm", choices=[a.name for a in Algorithm.registry], default="dt",
@@ -95,7 +94,7 @@ if __name__ == '__main__':
     train.add_argument("--n-jobs", help="number of jobs to be run in parallel")
     train.add_argument("-p", "--param", nargs="*", help="comma-separated list of parameters for the algorithm",
                        note="fixing a parameter with this option disables it from the cross-validation")
-    visualize = __add_name(sparsers.add_parser("visualize", help="visualize the model"))
+    visualize = __add_name(sparsers.add_parser("visualize", category="read", help="visualize the model"))
     visualize.add_argument("-e", "--export", action="store_true", help="export to PNG")
     visualize.add_argument("-o", "--output-dir", metavar="DIR", default=".", help="output directory")
     viz_dependent = visualize.add_argument_group("options depending on the chosen algorithm", before="extra arguments")
@@ -125,12 +124,13 @@ if __name__ == '__main__':
     if hasattr(args, "features_set"):
         Features.source = args.features_set  # configure the features set's YAML definition source
     # now execute
-    if args.command == "purge" and isinstance(name, str):
+    if args.command == "purge":
         if not purge_items(Model, name):
-            logger.warning("No model to purge in workspace (%s)" % str(config['models']))
+            logger.warning("No model to purge in workspace (%s)" % str(config['models']) if name == "all" else \
+                           "No model matched the given name")
     elif args.command == "list":
         Model(**vars(args)).list()
-    elif isinstance(name, str) and name == "all":
+    elif name == "all":
         logger.warning("Model cannot be named 'all' (reserved word)")
     else:
         if args.command == "train":
@@ -141,5 +141,5 @@ if __name__ == '__main__':
                       "features", "multiclass", "plot_extensions", "plot_formats"]:
                 args.viz_params[a] = getattr(args, a)
                 delattr(args, a)
-        getattr(name if isinstance(name, Model) else Model(**vars(args)), args.command)(**vars(args))
+        getattr(Model(**vars(args)), args.command)(**vars(args))
 

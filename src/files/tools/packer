@@ -11,7 +11,6 @@ __version__     = "1.0.2"
 __doc__         = """
 This tool simply packs (using Packer.pack) with the selected packer an input executable or folder of executables.
 """
-__examples__    = []
 __description__ = "Pack an input executable/folder with the selected packer"
 
 

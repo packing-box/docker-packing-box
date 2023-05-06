@@ -1,6 +1,5 @@
 #!/usr/bin/python3
 # -*- coding: UTF-8 -*-
-from ast import literal_eval
 from pbox import *
 from pbox.__info__ import *
 from tinyscript import *
@@ -51,7 +50,8 @@ def __item_exists(string):
 
 if __name__ == '__main__':
     items = ["analyzer", "detector", "packer", "unpacker"]
-    sparsers = parser.add_subparsers(dest="command", help="command to be executed")
+    sparsers = parser.add_subparsers(dest="command", metavar="CMD", title="positional argument",
+                                     help="command to be executed")
     # level 1 subparsers for cleaning up leftovers and configuring options of pbox
     p = sparsers.add_parser("clean", help="cleanup temporary folders")
     p = sparsers.add_parser("config", help="set a config option")

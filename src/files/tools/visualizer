@@ -1,9 +1,9 @@
 #!/usr/bin/python3
 # -*- coding: UTF-8 -*-
 import bintropy
-import pandas as pd
 from pbox import *
-from pbox.common.utils import edit_file, data_to_temp_file
+from pbox.__info__ import *
+from pbox.common.utils import edit_file, data_to_temp_file, pd
 from pbox.learning.executable import Executable
 from tinyscript import *
 
@@ -13,12 +13,12 @@ __doc__         = """
 This tool aims to generate representations of binaries, emphasizing their sections and plotting their entropy,
  for the sake of comparing them, e.g. an original PE file and its packed versions.
 """
+__description__ = "Generate a figure with representations of input binaries' sections and entropy"
 __examples__    = [
     "features \".$\" dataset-packed-pe --label Exe32Pack",
     "find \".$\" dataset-packed-pe --max-not-matching 2",
     "plot \"PsExec.exe$\" PackingData -l not-packed -l MEW -l NSPack -l RLPack -l UPX",
 ]
-__description__ = "Generate a figure with representations of input binaries' sections and entropy"
 
 
 LABELS = {
@@ -171,7 +171,8 @@ def find_files(folder, pattern, selected=None, nbr_not_selected=None, display=Fa
 
 
 if __name__ == "__main__":
-    sparsers = parser.add_subparsers(dest="command", help="command to be executed")
+    sparsers = parser.add_subparsers(dest="command", metavar="CMD", title="positional argument",
+                                     help="command to be executed")
     feat = __add_folder(sparsers.add_parser("features", help="compute features for files matching the regex with the "
                                                              "input labels"))
     feat.add_argument("-r", "--raw", action="store_true", help="display raw features only (not transformed ones)")

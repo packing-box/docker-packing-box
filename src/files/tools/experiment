@@ -12,6 +12,7 @@ __version__     = "1.0.3"
 __doc__         = """
 This tool aims to manage an experiment (a structure that can hold custom YAML configurations, datasets and models).
 """
+__description__ = "Manipulate experiments (dedicated workspaces for datasets, models and custom configs)"
 __examples__ = [[
     "list",
     "edit",
@@ -27,25 +28,20 @@ __examples__ = [[
     "list",
     "purge test-*",
 ]][NAME == ""]
-__description__ = "Manipulate experiments (dedicated workspaces for datasets, models and custom configs)"
 
 
 def __add_name(parser, force=False, help="name of the experiment", note=None):
     def experiment_exists(string):
-        if string == "all":
+        if string == "all" or "*" in string or Experiment.check(string) or force:
             return string
-        try:
-            return open_experiment(string)
-        except:
-            if force:
-                return Experiment(string)
-            raise
+        raise ValueError("Invalid experiment")
     parser.add_argument("name", type=experiment_exists, help=help, **({} if note is None else {'note': note}))
     return parser
 
 
 if __name__ == '__main__':
-    sparsers = parser.add_subparsers(dest="command", help="command to be executed")
+    sparsers = parser.add_subparsers(dest="command", metavar="CMD", title="positional argument",
+                                     help="command to be executed")
     if NAME != "":
         sparsers.add_parser("close", help="close the current experiment")
         sparsers.add_parser("commit", help="commit the last OS command to the resource file (commands.rc)") \
@@ -67,14 +63,20 @@ if __name__ == '__main__':
     initialize(noargs_action="help")
     logger.name = "experiment"
     logging.configLogger(logger, ["INFO", "DEBUG"][args.verbose], fmt=LOG_FORMATS[args.verbose], relative=True)
-    if args.command == "purge" and isinstance(name, str):
+    # prepare parsed arguments
+    name = getattr(args, "name", NAME)
+    args.load = name and args.command not in ["close", "list", "purge"]
+    # now execute
+    if args.command == "purge":
         if not purge_items(Experiment, name):
-            logger.warning("No experiment to purge in workspace (%s)" % str(config['experiments']))
-    elif getattr(args, "name", None) == "all":
+            logger.warning("No experiment to purge in workspace (%s)" % str(config['experiments']) if name == "all" \
+                           else "No experiment matched the given name")
+    elif args.command == "list":
+        Experiment(load=False).list()
+    elif name == "all":
         logger.warning("Model cannot be named 'all' (reserved word)")
+    elif args.command == "open":
+        Experiment(args.name)
     else:
-        if args.command == "list":
-            Experiment(load=False).list()
-        elif not hasattr(args, "name"):
-            getattr(Experiment(NAME), args.command)(**vars(args))
+        getattr(Experiment(name), args.command)(**vars(args))
 
