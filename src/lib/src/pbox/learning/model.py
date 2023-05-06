@@ -26,58 +26,18 @@ __all__ = ["open_model", "DumpedModel", "Model"]
 FLOAT_FORMAT = "%.6f"
 
 
-def open_model(item):
+def open_model(folder, **kw):
     """ Open the target model with the right class. """
-    p = config['models'].joinpath(item)
-    if Model.check(item):
-        return Model(item)
-    try:
-        return DumpedModel(item)
-    except FileNotFoundError:
-        raise ValueError("%s does not exist" % item)
-    except UnpicklingError:
-        raise ValueError("%s is not a valid model" % item)
+    for cls in [Model, DumpedModel]:
+        try:
+            return cls(cls.validate(folder), **kw)
+        except (ValueError, UnpicklingError):
+            pass
+    raise ValueError("%s is not a valid model" % folder)
 
 
-class Model:
-    """ Folder structure:
-    
-    [name]
-      +-- dump.joblib                           # dump of the model in joblib format
-      +-- features.json                         # dictionary of feature name/description pairs
-      +-- metadata.json                         # useful information about the model
-      +-- performance.csv                       # performance testing data
-    """
-    @logging.bindLogger
-    def __init__(self, name=None, load=True, **kw):
-        self.__read_only = False
-        self._features, self._metadata = {}, {}
-        self._performance = pd.DataFrame()
-        self.name = name.stem if isinstance(name, Path) else name
-        self.pipeline = DebugPipeline()
-        if load:
-            self._load()
-    
-    def _load(self):
-        """ Load model's associated files if relevant or create instance's attributes. """
-        if not Model.check(self.path):  # NB: self.path is a property computed based on self.name
-            return
-        self.logger.debug("loading model %s..." % self.path)
-        for n in ["dump", "features", "metadata", "performance"]:
-            p = self.path.joinpath(n + (".joblib" if n == "dump" else ".csv" if n == "performance" else ".json"))
-            self.logger.debug("> loading %s..." % p.basename)
-            if n == "dump":
-                self.pipeline.pipeline = joblib.load(str(p))
-                self.__read_only = True
-            elif n == "performance":
-                try:
-                    self._performance = pd.read_csv(str(p), sep=";")
-                except pd.errors.EmptyDataError:
-                    pass  # self._performance was already created in __init__
-            else:
-                with p.open() as f:
-                    setattr(self, "_" + n, json.load(f))
-    
+class BaseModel:
+    """ Base class for a model. """
     def _metrics(self, data, prediction, target=None, proba=None, metrics="classification", proctime=None,
                  ignore_labels=False):
         """ Metrics computation method. """
@@ -205,13 +165,12 @@ class Model:
             for col in missing_cols:
                 self._features[col] = np.nan
             self._data = self._data.reindex(columns=sorted(self._features.keys()))
-        self._target = self._target.replace(LABELS_BACK_CONV)
         if unlabelled:
             self._target['label'] = NOT_LABELLED
         self._data, self._target = self._data.fillna(-1), self._target.fillna(NOT_LABELLED)
         if not multiclass:  # convert to binary class
-            self._target.loc[self._target.label == "", "label"] = 0
-            self._target.loc[self._target.label != 0, "label"] = 1
+            self._target = self._target.replace(LABELS_BACK_CONV)
+            self._target.loc[~self._target.label.isin([-1, 0]), "label"] = 1
             self._target = self._target.astype('int')
         # create the pipeline if it does not exist (i.e. while training)
         if not data_only:
@@ -237,12 +196,127 @@ class Model:
         ds.logger.debug("> split data and target vectors to train and test subsets")
         if self.algorithm.labelling == "none":
             self._train.data, self._train.target = self._data, self._target
-            self._test.data, self._test.target = np.array([]), np.array([])
+            self._test.data, self._test.target = pd.DataFrame(), pd.DataFrame()
         else:  # use a default split of 80% training and 20% testing
             tsize = kw.get('split_size', .2)
             self._train.data, self._test.data, self._train.target, self._test.target = \
                 skms.train_test_split(self._data, self._target, test_size=tsize, random_state=42, stratify=self._target)
+        #FIXME: from there, self._train.data has columns of types float64 and bool ;
+        #        for MBKMeans, it gives "TypeError: No matching signature found"
+        #pd.to_numeric(s)
         return True
+    
+    def test(self, executable, ignore_labels=False, **kw):
+        """ Test a single executable or a set of executables and evaluate metrics. """
+        l, ds = self.logger, executable
+        if len(self.pipeline.steps) == 0:
+            l.warning("Model shall be trained before testing")
+            return
+        kw['data_only'], kw['dataset'] = True, ds
+        if not self._prepare(**kw):
+            return
+        cls = self._algorithm = Algorithm.get(self._metadata['algorithm']['name'])
+        l.debug("Testing %s on %s..." % (self.name, ds))
+        prediction, dt = benchmark(self.pipeline.predict)(self._data)
+        try:
+            proba, dt2 = benchmark(self.pipeline.predict_proba)(self._data)
+            dt += dt2
+            proba = proba[:, 0]
+        except AttributeError:
+            proba = None
+        metrics = cls.metrics if isinstance(cls.metrics, (list, tuple)) else [cls.metrics]
+        render(Section("Test results for: " + ds))
+        for metric in metrics:
+            try:
+                m, h = self._metrics(self._data, prediction, self._target, proba, metric, dt, ignore_labels)
+            except TypeError:  # when None is returned because of a bad metrics category OR ignore_labels is
+                continue       #  True and labels were required for the metrics category
+            for header in [[], ["Model"]][self.__class__ is DumpedModel] + ["Dataset"] + h:
+                if header not in self._performance.columns:
+                    self._performance[header] = np.nan
+            render(Table([m], column_headers=h, title="%s metrics" % metric.capitalize() if len(metrics) > 0 else None))
+            if len(self._data) > 0:
+                row = {'Model': self.name} if self.__class__ is DumpedModel else {}
+                row['Dataset'] = str(ds) + ["", "(unlabelled)"][ignore_labels]
+                for k, v in zip(h, m):
+                    row[k] = v
+                self._performance = pd.concat([self._performance, pd.DataFrame.from_records([row])], ignore_index=True)
+        if len(self._data) > 0:
+            self._save()
+    
+    @property
+    def classifier(self):
+        if self.pipeline is not None:
+            return self.pipeline.steps[-1][1]
+    
+    @property
+    def name(self):
+        return self._name
+    
+    @name.setter
+    def name(self, value):
+        self._name = check_name(value)
+    
+    @property
+    def path(self):
+        if self.name:
+            if not hasattr(self, "_path"):
+                self._path = Path(config['models'].joinpath(self.name)).absolute()
+            return self._path
+    
+    @path.setter
+    def path(self, value):
+        if not isinstance(value, Path):
+            value = Path(value).absolute()
+        self._path = value
+    
+    @classmethod
+    def check(cls, folder, **kw):
+        try:
+            cls.validate(folder)
+            return True
+        except (TypeError, ValueError):
+            return False
+
+
+class Model(BaseModel):
+    """ Folder structure:
+    
+    [name]
+      +-- dump.joblib                           # dump of the model in joblib format
+      +-- features.json                         # dictionary of feature name/description pairs
+      +-- metadata.json                         # useful information about the model
+      +-- performance.csv                       # performance testing data
+    """
+    @logging.bindLogger
+    def __init__(self, name=None, load=True, **kw):
+        self.__read_only = False
+        self._features, self._metadata = {}, {}
+        self._performance = pd.DataFrame()
+        self.name = name.stem if isinstance(name, Path) else name
+        self.pipeline = DebugPipeline()
+        if load:
+            self._load()
+    
+    def _load(self):
+        """ Load model's associated files if relevant or create instance's attributes. """
+        if not Model.check(self.path):  # NB: self.path is a property computed based on self.name
+            return
+        self.logger.debug("loading model %s..." % self.path)
+        for n in ["dump", "features", "metadata", "performance"]:
+            p = self.path.joinpath(n + (".joblib" if n == "dump" else ".csv" if n == "performance" else ".json"))
+            self.logger.debug("> loading %s..." % p.basename)
+            if n == "dump":
+                self.pipeline.pipeline = joblib.load(str(p))
+                self.__read_only = True
+            elif n == "performance":
+                try:
+                    self._performance = pd.read_csv(str(p), sep=";")
+                except pd.errors.EmptyDataError:
+                    pass  # self._performance was already created in __init__
+            else:
+                with p.open() as f:
+                    setattr(self, "_" + n, json.load(f))
     
     def _save(self):
         """ Save model's state to the related files. """
@@ -438,44 +512,6 @@ class Model:
                   "**Packers**:      %s" % ", ".join(get_counts(ds).keys())])
         render(Section("Reference dataset"), c)
     
-    def test(self, executable, ignore_labels=False, **kw):
-        """ Test a single executable or a set of executables and evaluate metrics. """
-        l, ds = self.logger, executable
-        if len(self.pipeline.steps) == 0:
-            l.warning("Model shall be trained before testing")
-            return
-        kw['data_only'], kw['dataset'] = True, ds
-        if not self._prepare(**kw):
-            return
-        cls = self._algorithm = Algorithm.get(self._metadata['algorithm']['name'])
-        l.debug("Testing %s on %s..." % (self.name, ds))
-        prediction, dt = benchmark(self.pipeline.predict)(self._data)
-        try:
-            proba, dt2 = benchmark(self.pipeline.predict_proba)(self._data)
-            dt += dt2
-            proba = proba[:, 0]
-        except AttributeError:
-            proba = None
-        metrics = cls.metrics if isinstance(cls.metrics, (list, tuple)) else [cls.metrics]
-        render(Section("Test results for: " + ds))
-        for metric in metrics:
-            try:
-                m, h = self._metrics(self._data, prediction, self._target, proba, metric, dt, ignore_labels)
-            except TypeError:  # when None is returned because of a bad metrics category OR ignore_labels is
-                continue       #  True and labels were required for the metrics category
-            for header in [[], ["Model"]][self.__class__ is DumpedModel] + ["Dataset"] + h:
-                if header not in self._performance.columns:
-                    self._performance[header] = np.nan
-            render(Table([m], column_headers=h, title="%s metrics" % metric.capitalize() if len(metrics) > 0 else None))
-            if len(self._data) > 0:
-                row = {'Model': self.name} if self.__class__ is DumpedModel else {}
-                row['Dataset'] = str(ds) + ["", "(unlabelled)"][ignore_labels]
-                for k, v in zip(h, m):
-                    row[k] = v
-                self._performance = pd.concat([self._performance, pd.DataFrame.from_records([row])], ignore_index=True)
-        if len(self._data) > 0:
-            self._save()
-    
     def train(self, algorithm=None, cv=5, n_jobs=None, param=None, reset=False, ignore_labels=False, **kw):
         """ Training method handling cross-validation. """
         import multiprocessing as mp
@@ -527,7 +563,8 @@ class Model:
         # get classifer and parameters
         params = cls.parameters.get('static', cls.parameters if cls.labelling == "none" else None)
         if cls.is_weka():
-            params['model'] = self
+            #params['model'] = self
+            params['feature_names'] = sorted(self._features.keys())
         param_grid = {k: list(v) if isinstance(v, range) else v for k, v in cls.parameters.get('cv', {}).items()}
         if cls.labelling == "none" and len(param_grid) > 0:
             l.error("'%s' does not support grid search (while CV parameters are specified)" % algo)
@@ -546,7 +583,7 @@ class Model:
                                    len(set(l for l in self._metadata['dataset']['counts'].keys() if l != NOT_LABELLED))
             l.debug("> parameter n_clusters=\"auto\" set to %d%s" % (n, [" based on labels", ""][ignore_labels]))
         l.info("Training model...")
-        self.pipeline.append((cls.name, cls.base(**params)))
+        self.pipeline.append((cls.description, cls.base(**params)))
         # if a param_grid is input, perform cross-validation and select the best classifier
         _convert = lambda d: {k.split("__", 1)[1]: v for k, v in d.items()}
         if len(param_grid) > 0:
@@ -566,10 +603,10 @@ class Model:
             l.debug("> grid scores:\n{}".format(results))
             l.debug("> best parameters found:\n  {}".format(best_params))
             params.update(best_params)
-            if cls.is_weka():
-                params['model'] = self
+            #if cls.is_weka():
+            #    params['model'] = self
             self.pipeline.pop()
-            self.pipeline.append((cls.name, cls.base(**params)))
+            self.pipeline.append((cls.description, cls.base(**params)))
             Pipeline.silent = False
         # now fit the (best) classifier and predict labels
         l.debug("> fitting the classifier...")
@@ -648,42 +685,8 @@ class Model:
         return getattr(self, "_algorithm", None) or Algorithm.get(self._metadata['algorithm']['name'])
     
     @property
-    def classifier(self):
-        if self.pipeline is not None:
-            return self.pipeline.steps[-1][1]
-    
-    @property
     def dataset(self):
         return getattr(self, "_dataset", None) or open_dataset(self._metadata['dataset']['path'])
-    
-    @property
-    def name(self):
-        return self._name
-    
-    @name.setter
-    def name(self, value):
-        self._name = check_name(value)
-    
-    @property
-    def path(self):
-        if self.name:
-            if not hasattr(self, "_path"):
-                self._path = Path(config['models'].joinpath(self.name)).absolute()
-            return self._path
-    
-    @path.setter
-    def path(self, value):
-        if not isinstance(value, Path):
-            value = Path(value).absolute()
-        self._path = value
-    
-    @staticmethod
-    def check(folder):
-        try:
-            Model.validate(folder)
-            return True
-        except (TypeError, ValueError):
-            return False
     
     @staticmethod
     def count():
@@ -695,43 +698,46 @@ class Model:
             yield Model(model) if instantiate else model
     
     @staticmethod
-    def open(name):
-        return open_model(name)
+    def open(folder, **kw):
+        return open_model(folder, **kw)
     
     @staticmethod
-    def validate(folder):
-        f = config['models'].joinpath(folder)
-        if not f.exists():
-            raise ValueError("Folder does not exist")
+    def validate(folder, **kw):
+        f = Path(folder, expand=True)
         if not f.is_dir():
-            raise ValueError("Input is not a folder")
+            f = config['models'].joinpath(folder)
+            if not f.exists():
+                raise ValueError("Folder does not exist")
+            if not f.is_dir():
+                raise ValueError("Input is not a folder")
         for fn in ["dump.joblib", "features.json", "metadata.json", "performance.csv"]:
             if not f.joinpath(fn).exists():
                 raise ValueError("Folder does not have %s" % fn)
         return f
 
 
-class DumpedModel:
+class DumpedModel(BaseModel):
     @logging.bindLogger
-    def __init__(self, name=None, is_pipeline=False, default_scaler=None, **kw):
+    def __init__(self, name=None, default_scaler=None, **kw):
         from sklearn.preprocessing import MinMaxScaler
         global logger
         logger = self.logger
         obj, self.pipeline = joblib.load(str(name)), DebugPipeline()
-        if not is_pipeline:
-            self.pipeline.append((default_scaler or MinMaxScaler)())
-            self.pipeline.append(obj)
+        cls = obj.__class__.__name__
+        if "Pipeline" not in cls:
+            self.pipeline.append(("MinMaxScaler", default_scaler or MinMaxScaler)())
+            self.pipeline.append((cls, obj))
         else:
             for s in obj.steps:
                 self.pipeline.append(s)
-        self.name      = Path(name).stem
-        self._features = {}
-        self._metadata = {}
+        self._name = Path(name).stem  # this bypasses check_name(...)
+        self._features, self._metadata = {}, {}
         self.__p = config['models'].joinpath(".performances.csv")
         try:
             self._performance = pd.read_csv(str(self.__p), sep=";")
         except FileNotFoundError:
             self._performance = pd.DataFrame()
+        self.path = name
     
     def _save(self):
         self.logger.debug("> saving metrics to %s..." % str(self.__p))
@@ -740,8 +746,14 @@ class DumpedModel:
         p = p.loc[p.round(3).drop_duplicates(subset=k[:-1]).index]
         p.to_csv(str(self.__p), sep=";", columns=k, index=False, header=True, float_format=FLOAT_FORMAT)
     
-    _metrics    = Model._metrics
-    _prepare    = Model._prepare
-    classifier  = Model.classifier
-    test        = Model.test
+    @staticmethod
+    def validate(folder):
+        f = Path(folder, expand=True)
+        if not f.exists():
+            f = config['models'].joinpath(folder)
+            if not f.exists():
+                raise ValueError("Folder does not exist")
+        if not f.is_file() and not f.extension == ".joblib":
+            raise ValueError("Input is not a .joblib")
+        return f
 
