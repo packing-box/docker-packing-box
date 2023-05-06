@@ -1,5 +1,5 @@
 # -*- coding: UTF-8 -*-
-from tinyscript.helpers import lazy_load_module, lazy_load_object, Path, TempPath
+from tinyscript.helpers import lazy_load_module, lazy_load_object, Path
 
 lazy_load_module("yaml")
 
@@ -8,9 +8,6 @@ __all__ = ["Algorithm"]
 
 __cls = None
 __initialized = False
-
-
-_sanitize_feature_name = lambda n: n.replace("<", "[lt]").replace(">", "[gt]")
 
 
 def __init_metaalgo():
