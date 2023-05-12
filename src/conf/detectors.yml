@@ -196,7 +196,7 @@ PyPeid:
     - cd:   $TMP/pypeid
     - exec:
       - poetry build -q
-      - find dist -iname *.whl -exec pip3 -qq install --user --no-warn-script-location --ignore-installed {} \;
+      - find dist -iname *.whl -exec pip3 -qq install --user --no-warn-script-location --ignore-installed --break-system-packages {} \;
   license: apache-2.0
   maintained: false
   source:  https://github.com/FFRI/pypeid

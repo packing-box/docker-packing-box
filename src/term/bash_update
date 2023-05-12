@@ -13,7 +13,7 @@ pip-upgrade() {
   sudo pip3 freeze - local \
     | grep -v "^\-e" \
     | cut -d = -f 1 \
-    | xargs -n1 pip3 install -U
+    | xargs -n1 pip3 install --user --break-system-packages
 }
 
 # packing-box update command (development)
@@ -36,12 +36,12 @@ pbox-update() {
     local ret=$?
     if [ ! "$*" = "-n" ] && [ ! "$*" = "--no-internet" ] && [ $ret -eq 0 ]; then
       printf "${CYA}Upgrading Pip...${RST}\n"
-      pip3 -qq install --user --no-warn-script-location --upgrade pip
+      pip3 -qq install --user --no-warn-script-location --break-system-packages --upgrade pip
       printf "${CYA}Upgrading pbox library...${RST}\n"
-      pip3 -qq install --user --no-warn-script-location --upgrade /mnt/share/src/lib/
+      pip3 -qq install --user --no-warn-script-location --break-system-packages --upgrade /mnt/share/src/lib/
     else
       printf "${CYA}Upgrading pbox library (ignore package index)...${RST}\n"
-      pip3 -qq install --user --no-warn-script-location --no-index --no-build-isolation --upgrade /mnt/share/src/lib/
+      pip3 -qq install --user --no-warn-script-location --break-system-packages --no-index --no-build-isolation --upgrade /mnt/share/src/lib/
     fi
   fi
 }

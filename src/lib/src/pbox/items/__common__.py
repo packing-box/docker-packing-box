@@ -1,6 +1,6 @@
 # -*- coding: UTF-8 -*-
 from os.path import expanduser
-from tinyscript import b, colored as _c, ensure_str, json, logging, os, random, re, shlex, subprocess, ts
+from tinyscript import b, colored as _c, ensure_str, json, logging, os, random, re, shlex, subprocess, sys, ts
 from tinyscript.helpers import execute_and_log as run, execute as run2, lazy_object, Path
 from tinyscript.report import *
 
@@ -487,7 +487,8 @@ def _init_base():
                     os.chdir(str(result))
                 # simple install through PIP
                 elif cmd == "pip":
-                    run("pip3 -qq install --user --no-warn-script-location --ignore-installed %s" % arg, **kw)
+                    run("pip3 -qq install --user --no-warn-script-location --ignore-installed --break-system-packages "
+                        "%s" % arg, **kw)
                 # remove a given directory (then bypassing the default removal at the end of all commands)
                 elif cmd == "rm":
                     star = arg.endswith("*")
