@@ -1,4 +1,5 @@
 #!/usr/bin/python3
+# PYTHON_ARGCOMPLETE_OK
 # -*- coding: UTF-8 -*-
 from pbox import *
 from pbox.__info__ import *
@@ -78,7 +79,7 @@ if __name__ == '__main__':
                                  help="command to be executed")
     alter = __add_name(cmds.add_parser("alter", category="create/modify/delete",
                                        help="alter the target dataset with a set of transformations"))
-    alter.add_argument("-a", "--modifiers-set", type=ts.file_exists, default=str(config['modifiers']),
+    alter.add_argument("-m", "--modifiers-set", metavar="YAML", type=ts.file_exists, default=str(config['modifiers']),
                        help="modifiers set's YAML definition")
     agroup = alter.add_mutually_exclusive_group()
     agroup.add_argument("-p", "--percentage", type=_percentage, default=20, help="percentage of samples to be altered")
@@ -86,13 +87,13 @@ if __name__ == '__main__':
     browse = __add_name(cmds.add_parser("browse", category="read",
                                         help="compute features and browse the resulting data"))
     bgroup = browse.add_mutually_exclusive_group()
-    bgroup.add_argument("-f", "--features-set", type=ts.file_exists, default=str(config['features']),
+    bgroup.add_argument("-f", "--features-set", metavar="YAML", type=ts.file_exists, default=str(config['features']),
                         help="features set's YAML definition")
     bgroup.add_argument("-n", "--no-feature", action="store_true", help="do not compute features")
     __add_query(browse)
     convert = __add_name(cmds.add_parser("convert", category="create/modify/delete",
                                          help="convert the target dataset to a fileless one"))
-    convert.add_argument("-f", "--features-set", type=ts.file_exists, default=str(config['features']),
+    convert.add_argument("-f", "--features-set", metavar="YAML", type=ts.file_exists, default=str(config['features']),
                          help="features set's YAML definition")
     convert.add_argument("-n", "--new-name", help="name for the new converted dataset",
                          note="if None, the original dataset is overwritten")
@@ -196,7 +197,7 @@ if __name__ == '__main__':
     update.add_argument("-s", "--source-dir", action="extend", nargs="*", type=lambda p: ts.Path(p, expand=True),
                         help="executables source directory to be included")
     __add_query(__add_name(cmds.add_parser("view", category="read", help="view executables filtered from a dataset")))
-    initialize(noargs_action="help")
+    initialize(noargs_action="usage", autocomplete=True)
     logger.name = "dataset"
     logging.configLogger(logger, ["INFO", "DEBUG"][args.verbose], fmt=LOG_FORMATS[args.verbose], relative=True)
     # prepare parsed arguments

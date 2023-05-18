@@ -1,4 +1,5 @@
 #!/usr/bin/python3
+# PYTHON_ARGCOMPLETE_OK
 # -*- coding: UTF-8 -*-
 import bintropy
 from pbox import *
@@ -185,7 +186,7 @@ if __name__ == "__main__":
     plot.add_argument("-n", "--no-title", action="store_true", help="do not generate a title")
     plot.add_argument("-s", "--scale", action="store_true", help="scale plots according to the first binary")
     rm = __add_folder(sparsers.add_parser("remove", help="remove files matching the regex with the input labels"))
-    initialize()
+    initialize(noargs_action="usage", autocomplete=True)
     ff_args = args.folder, args.filename, args.label, args.max_not_matching
     logger.name = "visualizer"
     logging.configLogger(logger, ["INFO", "DEBUG"][args.verbose], fmt=LOG_FORMATS[args.verbose], relative=True)

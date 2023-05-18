@@ -1,4 +1,5 @@
 #!/usr/bin/python3
+# PYTHON_ARGCOMPLETE_OK
 # -*- coding: UTF-8 -*-
 from pbox import *
 from pbox.__info__ import *
@@ -57,7 +58,7 @@ if __name__ == '__main__':
                                              help="preprocess features and visualize the result"))
     preproc.add_argument("executable", nargs="?",
                          help="executable or folder containing executables or dataset or data CSV file")
-    preproc.add_argument("-f", "--features-set", type=ts.file_exists, default=config['features'],
+    preproc.add_argument("-f", "--features-set", metavar="YAML", type=ts.file_exists, default=config['features'],
                          help="features set's YAML definition", note="similar to 'dataset browse', except that it "
                          "requires a model to apply its preprocessors in addition")
     __add_name(sparsers.add_parser("purge", category="create/modify/delete",
@@ -68,7 +69,7 @@ if __name__ == '__main__':
     __add_name(sparsers.add_parser("show", category="read", help="get an overview of the model"))
     test = __add_name(sparsers.add_parser("test", category="read", help="test the model on a given input"))
     test.add_argument("executable", help="executable or folder containing executables or dataset or data CSV file")
-    test.add_argument("-f", "--features-set", type=ts.file_exists, default=config['features'],
+    test.add_argument("-f", "--features-set", metavar="YAML", type=ts.file_exists, default=config['features'],
                       help="features set's YAML definition")
     test.add_argument("--ignore-labels", action="store_true",
                       help="while computing metrics, only consider those not requiring labels")
@@ -81,9 +82,9 @@ if __name__ == '__main__':
                        help="machine learning algorithm to be used\n- %s\n * supports Grid Search cross-validation\n" %\
                             "\n- ".join("%s: %s%s" % (a.name.ljust(8), a.description, ["", "*"][a.parameters.get('cv') \
                             is not None]) for a in Algorithm.registry))
-    train.add_argument("--algorithms-set", type=ts.file_exists, default=config['algorithms'],
+    train.add_argument("--algorithms-set", metavar="YAML", type=ts.file_exists, default=config['algorithms'],
                        help="algorithms set's YAML definition")
-    train.add_argument("-f", "--features-set", type=ts.file_exists, default=config['features'],
+    train.add_argument("-f", "--features-set", metavar="YAML", type=ts.file_exists, default=config['features'],
                        help="features set's YAML definition")
     train.add_argument("-m", "--multiclass", action="store_true", help="train the model using multiple label classes")
     train.add_argument("-r", "--reset", action="store_true", help="reset the model before (re)training")
@@ -113,7 +114,7 @@ if __name__ == '__main__':
     viz_dependent.add_argument("--multiclass", action="store_true", help="plot multiclass true labels of packers")
     viz_dependent.add_argument("--plot-extensions", action="store_true", help="plot the file extensions")
     viz_dependent.add_argument("--plot-formats", action="store_true", help="plot the file formats")
-    initialize(noargs_action="help")
+    initialize(noargs_action="usage", autocomplete=True)
     logger.name = "model"
     logging.configLogger(logger, ["INFO", "DEBUG"][args.verbose], fmt=LOG_FORMATS[args.verbose], relative=True)
     # prepare parsed arguments

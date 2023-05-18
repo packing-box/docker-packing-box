@@ -1,24 +1,34 @@
 #!/usr/bin/python3
+# PYTHON_ARGCOMPLETE_OK
 # -*- coding: UTF-8 -*-
 from pbox import *
 from pbox.__info__ import *
+from pbox.common.modifiers import Modifiers
 from pbox.common.rendering import progress_bar
 from pbox.common.utils import is_exe
 from tinyscript import *
 
 
-__version__     = "1.0.2"
+__version__     = "1.1.0"
 __doc__         = """
 This tool simply packs (using Packer.pack) with the selected packer an input executable or folder of executables.
 """
 __description__ = "Pack an input executable/folder with the selected packer"
 
 
+def pack(packer, exe, modifiers=None, **kw):
+    packer.pack(exe, *kw)
+    if modifiers:
+        Modifiers(exe, select=modifiers)
+
+
 if __name__ == '__main__':
     parser.add_argument("packer", type=Packer.get, help="selected packer")
     parser.add_argument("executable", help="executable or folder containing executables")
+    parser.add_argument("-m", "--modifier", choices=Modifiers.names(), action="extend", nargs="*",
+                        metavar="MODIFIER", help="model to be added in the comparison")
     parser.add_argument("-p", "--prefix", help="string to be prepended to the filename")
-    initialize(noargs_action="usage", multi_level_debug=True)
+    initialize(noargs_action="usage", multi_level_debug=True, autocomplete=True)
     logging.configLogger(logger, ["INFO", "DEBUG"][args.verbose], fmt=LOG_FORMATS[args.verbose], relative=True)
     p, rn = ts.Path(args.executable), lambda x: x.rename(x.dirname.joinpath(args.prefix + x.filename))
     delattr(args, "executable")

@@ -1,4 +1,5 @@
 #!/usr/bin/python3
+# PYTHON_ARGCOMPLETE_OK
 # -*- coding: UTF-8 -*-
 from pbox import *
 from pbox.__info__ import *
@@ -74,7 +75,7 @@ if __name__ == '__main__':
     megs[2].add_argument("-k", "--keep", choices=["detectors", "packers", "unpackers"],
                          help="only keep detectors, packers or unpackers")
     megs[3].add_argument("-s", "--show-all", action="store_true", help="show all packers, even those that are broken")
-    initialize()
+    initialize(autocomplete=True)
     logger.name = "help"
     logging.configLogger(logger, ["INFO", "DEBUG"][args.verbose], fmt=LOG_FORMATS[args.verbose], relative=True)
     if args.item is None:
