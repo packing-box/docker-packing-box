@@ -1053,12 +1053,11 @@ UPX:
     - untar: $TMP
     - ln: upx
   references:
+    - https://upx.github.io
     - https://linux.die.net/man/1/upx
     - https://github.com/fireeye/capa-rules/blob/master/anti-analysis/packer/upx/packed-with-upx.yml
-    - https://storage.ey.md/Technology%%20Related/Programming%%20%%26%%20Reversing/Tuts4You%%20Collection/UnPackMe%%20Collection/PE32/UPX%%201.25.rar
-    - https://storage.ey.md/Technology%%20Related/Programming%%20%%26%%20Reversing/Tuts4You%%20Collection/UnPackMe%%20Collection/PE32/UPX%%203.04.rar
-    - https://storage.ey.md/Technology%%20Related/Programming%%20%%26%%20Reversing/Tuts4You%%20Collection/Unpacking%%20Tutorials/UPX%%20%%28Unpacking%%29.rar
     - https://www.aldeid.com/wiki/Category:Digital-Forensics/Computer-Forensics/Anti-Reverse-Engineering/Packers/UPX
+    - https://storage.ey.md/Technology%%20Related/Programming%%20%%26%%20Reversing/Tuts4You%%20Collection/Unpacking%%20Tutorials/UPX%%20%%28Unpacking%%29.rar
   silent:
     - AlreadyPackedException
     - CantPackException
@@ -1068,9 +1067,18 @@ UPX:
   status: ok
   variants:
     UPX-1.25:
+      references:
+        - <from-parent>
+        - https://storage.ey.md/Technology%%20Related/Programming%%20%%26%%20Reversing/Tuts4You%%20Collection/UnPackMe%%20Collection/PE32/UPX%%201.25.rar
       source: https://www.sac.sk/download/pack/upx125l.tgz
       status: info
     UPX-2.03:
+      source: https://www.sac.sk/download/pack/upx203l.tgz
+      status: info
+    UPX-3.04:
+      references:
+        - <from-parent>
+        - https://storage.ey.md/Technology%%20Related/Programming%%20%%26%%20Reversing/Tuts4You%%20Collection/UnPackMe%%20Collection/PE32/UPX%%203.04.rar
       source: https://www.sac.sk/download/pack/upx203l.tgz
       status: info
     UPX-3.91:
