@@ -35,6 +35,10 @@ def _init_metaitem():
             return super(MetaItem, self).__getattribute__(name)
         
         @property
+        def names(self):
+            return sorted(x.name for x in self.registry)
+        
+        @property
         def source(self):
             return self._source
         
@@ -54,7 +58,19 @@ def _init_metaitem():
             # now make the registry from the given source path
             def _setattr(i, d):
                 for k, v in d.items():
-                    setattr(i, "_" + k if k in ["source", "status"] else k, v)
+                    if k in ["source", "status"]:
+                        setattr(i, "_" + k, v)
+                    elif hasattr(i, "parent") and k in ["install", "references", "steps"]:
+                        nv = []
+                        for l in v:
+                            if l == "<from-parent>":
+                                for l2 in getattr(glob[i.parent], k, []):
+                                    nv.append(l2)
+                            else:
+                                nv.append(l)
+                        setattr(i, k, nv)
+                    else:
+                        setattr(i, k, v)
             # open the .conf file associated to the main class (i.e. Detector, Packer, ...)
             glob = inspect.getparentframe().f_back.f_globals
             # remove the child classes of the former registry from the global scope

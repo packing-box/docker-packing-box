@@ -86,6 +86,12 @@ def __init():
                 return label
             # if packing succeeded, we can return packer's label
             self.logger.debug("packed successfully")
+            # if relevant, apply modifiers based on defined Modifiers
+            modifiers = getattr(self, "modifiers", [])
+            if len(modifiers) > 0:
+                from ..common.modifiers import Modifiers
+                Modifiers(exe, modifiers)
+                self.logger.debug("modifiers applied:\n%s- " % "\n- ".join(modifiers))
             return label
         
         def run(self, executable, **kwargs):

@@ -45,7 +45,7 @@ def render(*elements, **kw):
     """ Helper function for rendering Tinyscript report objects to the terminal based on a selected backend. """
     backend = kw.get('backend', DEFAULT_BACKEND)
     if backend == "rich":
-        from rich import box
+        from rich.box import SIMPLE_HEAD
         from rich.console import Console
         from rich.markdown import Heading, Markdown
         from rich.style import Style
@@ -63,7 +63,7 @@ def render(*elements, **kw):
                         opt['title_justify'] = "left"
                         opt['title_style'] = Style(bold=True, color="bright_yellow", italic=False)
                     if getattr(e, "borderless", True):
-                        opt['box'] = box.SIMPLE_HEAD
+                        opt['box'] = SIMPLE_HEAD
                     table = RichTable(**opt)
                     for i, col in enumerate(e.column_headers):
                         table.add_column(col, justify="center")

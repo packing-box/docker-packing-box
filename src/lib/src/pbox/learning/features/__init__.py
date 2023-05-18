@@ -170,4 +170,12 @@ class Features(dict, metaclass=MetaFeatures):
             except ValueError:
                 pass
         return value
+    
+    @staticmethod
+    def names(format="All"):
+        Features(None)  # force registry initialization
+        l = []
+        for c in expand_formats(format):
+            l.extend(list(Features.registry[c].keys()))
+        return sorted(list(set(l)))
 

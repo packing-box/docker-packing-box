@@ -28,7 +28,7 @@ class Modifiers(list):
     source   = config['modifiers']
     
     @logging.bindLogger
-    def __init__(self, exe):
+    def __init__(self, exe, select=None, warn=False):
         # parse YAML modifiers definition once
         if Modifiers.registry is None:
             # open the target YAML-formatted modifiers set only once
@@ -51,10 +51,19 @@ class Modifiers(list):
                             for c2 in expand_formats(c):
                                 Modifiers.registry.setdefault(c2, {})
                                 Modifiers.registry[c2][m.name] = m
+        # check the list of selected modifiers if relevant, and filter out bad names (if warn=True)
+        for name in (select or [])[:]:
+            if name not in Modifiers.registry[exe.format]:
+                msg = "Modifier '%s' does not exist" % name
+                if warn:
+                    self.logger.warning(msg)
+                    select.remove(name)
+                else:
+                    raise ValueError(msg)
         if exe is not None:
             parsed, parser = None, None
             for name, modifier in Modifiers.registry[exe.format].items():
-                if not modifier.apply:
+                if select is None and not modifier.apply or select is not None and name not in select:
                     continue
                 if parser is None or modifier.parser != parser:
                     parser = modifier.parser
@@ -75,4 +84,12 @@ class Modifiers(list):
                     self.append(name)
                 except Exception as e:
                     self.logger.warning("%s: %s" % (name, str(e)))
+    
+    @staticmethod
+    def names(format="All"):
+        Modifiers(None)  # force registry initialization
+        l = []
+        for c in expand_formats(format):
+            l.extend(list(Modifiers.registry[c].keys()))
+        return sorted(list(set(l)))
 

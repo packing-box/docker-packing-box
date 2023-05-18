@@ -208,14 +208,16 @@ def _init_base():
         
         def help(self, extras=None):
             """ Returns a help message in Markdown format. """
-            md = Report()
+            md, bn = Report(), self.__class__.__base__.__name__
             if getattr(self, "description", None):
                 md.append(Text(self.description))
             if getattr(self, "comment", None):
                 md.append(Blockquote("**Note**: " + self.comment))
             md.append(Text("**Source**    : " + self.source))
             md.append(Text("**Applies to**: " + ", ".join(sorted(expand_formats(*self.formats, **{'once': True})))))
-            if getattr(self, "packers", None):
+            if bn == "Packer" and getattr(self, "modifiers", None):
+                md.append(Text("**Modifiers** : " + ", ".join(self.modifiers)))
+            if bn == "Unpacker" and getattr(self, "packers", None):
                 md.append(Text("**Can unpack**: " + ", ".join(self.packers)))
             for k, v in (extras or {}).items():
                 md.append(Text("**%-10s**: " % k.capitalize() + v))
