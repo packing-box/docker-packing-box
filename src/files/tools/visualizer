@@ -189,7 +189,9 @@ if __name__ == "__main__":
     compare.add_argument("-t", "--text", action="store_true", help="textual comparison")
     compare.add_argument("-o", "--out-file", default=None, help="file to store the output to. For images, the format is determined basde on the extension")
     #compare.add_argument("-n", "--no-title", action="store_true", help="do not generate a title")
-    #compare.add_argument("-l2", "--label2", nargs="*", action="extend", help="select a particular label for the second binary (keeps order)")
+    compare.add_argument("-l1", "--label1", default="", help="select a particular label for the first binary")
+    compare.add_argument("-l2", "--label2", default="", help="select a particular label for the second binary")
+    compare.add_argument("-T", "--title", default=None, help="set plot title")
     
     initialize(noargs_action="usage", autocomplete=True)
     ff_args = args.folder, args.filename, args.label, args.max_not_matching
@@ -236,7 +238,7 @@ if __name__ == "__main__":
             data2 = f2[1]
             
             if args.text:
-                print(binary_diff_readable(*data1['files'], *data2['files'], label1="Executable 1", label2="Executable 2"))    
+                print(binary_diff_readable(*data1['files'], *data2['files'], label1=args.label1, label2=args.label2))    
             else:
                 
                 if args.out_file is None:
@@ -244,7 +246,7 @@ if __name__ == "__main__":
                 else:
                     imgn = args.out_file
                 logger.info("Making plot to %s..." % (imgn))
-                binary_diff_plot(data1['files'][0], data2['files'][0], img_name=imgn, label1="Executable 1", label2="Executable 2")
+                binary_diff_plot(data1['files'][0], data2['files'][0], img_name=imgn, label1=args.label1, label2=args.label2, title=args.title)
         
         
     elif args.command == "remove":
