@@ -1,12 +1,12 @@
 import lief
-from .parsers import parser_handler
+from .parsers import parser_handler, parse_exe_info_default, SectionAbstract
 from math import ceil
 
 __all__ = ["section_name", "add_section", "append_to_section", "move_entrypoint_to_new_section",
            "move_entrypoint_to_slack_space", "add_API_to_IAT", "add_lib_to_IAT", "get_section_name",
-           "sections_with_slack_space", "sections_with_slack_space_entry_jump",
+           "sections_with_slack_space", "sections_with_slack_space_entry_jump", "nop",
            "virtual_size", "raw_data_size", "append_to_section_force", "get_section",
-           "section_name_all", "set_checksum", "loop", "grid", "content_size","has_characteristic",
+           "section_name_all", "set_checksum", "loop", "grid", "content_size", "has_characteristic",
            "SECTION_TYPES", "SECTION_CHARACTERISTICS"]
 
 ##############################################################################
@@ -20,7 +20,7 @@ SECTION_TYPES = lief.PE.SECTION_TYPES.__entries
 SECTION_TYPES.update((k, SECTION_TYPES[k][0]) for k in SECTION_TYPES)
 
 
-def parse_section_name(section_input):
+def parse_section_input(section_input, parsed):
     """Helper to to allow the user to use sections or section names as input
 
     Args:
@@ -32,18 +32,20 @@ def parse_section_name(section_input):
     Returns:
         str: Section name
     """
-    if isinstance(section_input, lief.PE.Section):
-        return section_input.name
+    if isinstance(section_input, SectionAbstract) or isinstance(section_input, lief.PE.Section):
+        return next(s for s in parsed.sections if s.name == section_input.name and s.virtual_address == section_input.virtual_address)
     elif isinstance(section_input, str):
-        return section_input
+        return parsed.get_section(section_input)
     else:
         raise TypeError(
-            f"Section must be lief.PE.Section or str, not {section_input.__class__}")
+            f"Section must be lief.PE.Section, SectionAbstract or str, not {section_input.__class__}")
+
 
 def get_section(section_name, sections):
     for s in sections:
         if s.name == section_name:
             return s
+
 
 def sections_with_slack_space(sections, l=1):
     return [s for s in sections if s.size - len(s.content) >= l]
@@ -52,17 +54,22 @@ def sections_with_slack_space(sections, l=1):
 def sections_with_slack_space_entry_jump(sections, data_len=0):
     return sections_with_slack_space(sections, 6 + data_len)
 
+
 def get_section_name(section):
     return section.name
+
 
 def virtual_size(section):
     return section.virtual_size
 
+
 def raw_data_size(section):
     return section.size
 
+
 def content_size(section):
     return len(section.content)
+
 
 def has_characteristic(section, charact):
     return section.has_characteristic(charact)
@@ -71,7 +78,14 @@ def has_characteristic(section, charact):
 #############################    Modifiers   #################################
 ##############################################################################
 
-def section_name(old_section, new_name, raise_error=True):
+
+def nop():
+    def _nop(**kw):
+        pass
+    return _nop
+
+
+def section_name(old_section, new_name, raise_error=False):
     """Modifier that renames one of the sections of a binary parsed by lief
 
     Raises:
@@ -82,11 +96,12 @@ def section_name(old_section, new_name, raise_error=True):
     """
     if len(new_name) > 8:
         raise ValueError("Section name can't be longer than 8 characters")
-    old_name = parse_section_name(old_section)
+
     @parser_handler("lief_parser")
     def _section_name(parsed=None, **kw):
 
-        sec = parsed.get_section(old_name)
+        sec = parse_section_input(old_section, parsed)
+        old_name = sec.name
         if sec is None:
             if raise_error:
                 raise LookupError(f"Section {old_name} not found")
@@ -95,9 +110,11 @@ def section_name(old_section, new_name, raise_error=True):
         sec.name = new_name
     return _section_name
 
+
 def section_name_all(old_sections_list, new_sections_list):
-    modifiers = [section_name(old, new) for old, new in zip(old_sections_list, new_sections_list)]
-    
+    modifiers = [section_name(old, new) for old, new in zip(
+        old_sections_list, new_sections_list)]
+
     def _section_name_all(parsed, **kw):
         for m in modifiers:
             try:
@@ -105,8 +122,9 @@ def section_name_all(old_sections_list, new_sections_list):
             except LookupError:
                 parser = None
         return parser
-    
+
     return _section_name_all
+
 
 """
 def pipeline(modifiers):
@@ -114,25 +132,29 @@ def pipeline(modifiers):
         for modifier in modifiers:
             parser = modifier(params, **kw)
             kw.update(parser=parser)
-"""         
+"""
+
 
 def grid(modifier, params_grid, **eval_data):
-    def _grid(parser=None, **kw):
+    def _grid(parser=None, executable=None, **kw):
         for params in params_grid:
             d = globals()
+            d = parse_exe_info_default(parser, executable, d)
             d.update(params)
             d.update(eval_data)
-            parser = modifier(d, parser=parser, **kw)
+            parser = modifier(d, parser=parser, executable=executable, **kw)
         return parser
     return _grid
+
 
 def loop(modifier, n, **eval_data):
     def _loop(**kw):
         return grid(modifier, [{} for _ in range(n)], **eval_data)(**kw)
     return _loop
 
+
 def add_section(name,
-                section_type=SECTION_TYPES["TEXT"],
+                section_type=SECTION_TYPES["UNKNOWN"],
                 characteristics=SECTION_CHARACTERISTICS["MEM_READ"] |
                 SECTION_CHARACTERISTICS["MEM_EXECUTE"],
                 data=b""):
@@ -150,6 +172,7 @@ def add_section(name,
     """
     if len(name) > 8:
         raise ValueError("Section name can't be longer than 8 characters")
+
     @parser_handler("lief_parser")
     def _add_section(parsed=None, **kw):
         # if parsed is None:
@@ -181,26 +204,47 @@ def append_to_section_force(section_input, data):
     Returns:
         function: modifier function
     """
-    section_name = parse_section_name(section_input)
+
     @parser_handler("lief_parser")
     def _append_to_section_force(parsed=None, **kw):
-        
-        section = parsed.get_section(section_name)
-        
-        if section.offset == 0:
-            # When the SizeOfRawData of the section is 0
-            # It is not verified by lief !
-            off = parsed.optional_header.sizeof_headers
-            for s in parsed.sections:
-                if s.offset != 0:
-                    off = s.offset + s.size
+        if len(data) == 0:
+            # print(f"Section {section_input.name} : no data")
+            return
+        # print(f"Filling section {section_input.name} at {section_input.virtual_address}")
+        section = parse_section_input(section_input, parsed)
+        sec_name = section.name
 
-            section.offset = off
-        
-        section.content = list(section.content) + list(data)
-        # change the header size SizeOfRawDatavalue
-        section.size = len(section.content)
-        
+        # print(f"Adding {len(data)} bytes to section {sec_name}")
+        sections_dict = []
+        sections = sorted(list(parsed.sections),
+                          key=lambda x: x.virtual_address)  # x.offset
+        for s in sections:
+            if s == section:
+                sections_dict.append({'name': s.name,
+                                      'virtual_address': s.virtual_address,
+                                      'char': s.characteristics,
+                                      'content': list(s.content) + list(data),
+                                      'virtual_size': s.virtual_size})
+            else:
+                sections_dict.append({'name': s.name,
+                                      'virtual_address': s.virtual_address,
+                                      'char': s.characteristics,
+                                      'content': list(s.content),
+                                      'virtual_size': s.virtual_size})
+        # print([(s.name, s.offset, s.size, len(s.content), s.virtual_address, s.virtual_size) for s in parsed.sections])
+
+        for s in sections:
+            parsed.remove(s)
+        for st in sections_dict:
+            in_sec = lief.PE.Section(content=st['content'] + [0] * (-len(st['content']) % parsed.optional_header.file_alignment),
+                                     name=st['name'],
+                                     characteristics=st['char'])
+            new_sec = parsed.add_section(in_sec)
+            # new_sec.size = new_sec.size + (-new_sec.size % parsed.optional_header.file_alignment)
+            new_sec.content = st['content']
+            new_sec.virtual_size = st['virtual_size']
+            new_sec.virtual_address = st['virtual_address']
+
     return _append_to_section_force
 
 
@@ -218,8 +262,7 @@ def append_to_section(section_input, data_source):
     Returns:
         function: modifier function
     """
-    section_name = parse_section_name(section_input)
-    print(section_name)
+
     @parser_handler("lief_parser")
     def _append_to_section(parsed=None, **kw):
         # if parsed is None:
@@ -227,7 +270,7 @@ def append_to_section(section_input, data_source):
         # if not isinstance(parsed, lief.PE.Binary):
         #    print("Only the lief parser can be used for this function")
 
-        section = parsed.get_section(section_name)
+        section = parse_section_input(section_input, parsed)
         available_size = section.size - len(section.content)
 
         if callable(data_source):
@@ -307,7 +350,6 @@ def move_entrypoint_to_slack_space(section_input,
             callable object, it is expected to take as single argument the size
             the available space and to return the data to append, as bytes.
     """
-    section_name = parse_section_name(section_input)
 
     @parser_handler("lief_parser")
     def _move_entrypoint_to_slack_space(parsed=None, executable=None, **kw):
@@ -334,11 +376,11 @@ def move_entrypoint_to_slack_space(section_input,
         else:
             full_data = d + list(post_data_source)
 
-        section = parsed.get_section(section_name)
+        section = parse_section_input(section_input, parsed)
         new_entry = section.virtual_address + \
             len(section.content) + len(pre_data)
 
-        append_to_section(section_name,
+        append_to_section(section,
                           data_source=full_data)(parsed=parsed)
 
         parsed.optional_header.addressof_entrypoint = new_entry
@@ -363,15 +405,24 @@ def add_API_to_IAT(*args):
         raise ValueError("A lib name and an API name must be provided")
 
     @parser_handler("lief_parser")
-    def _add_API_to_IAT(parsed, **kw):
+    def _add_API_to_IAT(parsed=None, executable=None, **kw):
+        iat = parsed.data_directory(lief.PE.DATA_DIRECTORY.IMPORT_TABLE)
+        patch_imports = True
+        # some packers create the IAT at run time. It is sometimes in a empty section, which
+        # has offset 0. In this case, the header is overwritten by the patching operation
+        if iat.has_section:
+            #print(f"Offset: {iat.section.offset} - size: {iat.section.size}")
+            if iat.section.offset == 0:
+                patch_imports = False
+
         for library in parsed.imports:
             if library.name.lower() == lib_name.lower():
                 library.add_entry(API)
-                return {"imports": True}
-        
+                return {"imports": True, "patch_imports": patch_imports}
+
         add_lib_to_IAT(lib_name)(parsed=parsed)
         parsed.get_import(lib_name).add_entry(API)
-        return {"imports": True}
+        return {"imports": True, "patch_imports": patch_imports}
 
     return _add_API_to_IAT
 
@@ -384,7 +435,7 @@ def add_lib_to_IAT(lib_name):
     """
 
     @parser_handler("lief_parser")
-    def _add_lib_to_IAT(parsed, **kw):   
+    def _add_lib_to_IAT(parsed, **kw):
         parsed.add_library(lib_name)
         return {"imports": True}
 
@@ -392,9 +443,9 @@ def add_lib_to_IAT(lib_name):
 
 
 def set_checksum(value):
-    
+
     @parser_handler("lief_parser")
     def _set_checksum(parsed, **kw):
         parsed.optional_header.checksum = value
-    
+
     return _set_checksum
