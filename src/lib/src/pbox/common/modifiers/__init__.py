@@ -12,20 +12,26 @@ from .pe import *
 from .pe import __all__ as __pe__
 from ...common.config import config
 from ...common.utils import dict2, expand_formats, FORMATS
+from .parsers import *
 
 __all__ = ["Modifiers"]
 
 
 class Modifier(dict2):
-    _fields = {'apply': True, 'loop': None, 'grid': None, 'parameters':{}}
-    def __call__(self, d, parser=None, **kw):
+    _fields = {'apply': True, 'loop': None, 'force_build':False, 'parameters':{}}
+    def __call__(self, d, parser=None,executable=None, **kw):
         d.update(self.parameters)
         if self.loop is not None:
             for _ in range(self.loop):
-                parser = super().__call__(d, parser=parser, **kw)
-            return parser
+                d = parse_exe_info_default(parser, executable, d)
+                parser = super().__call__(d, parser=parser, executable=executable, **kw)
         else:
-            return super().__call__(d, parser=parser, **kw)
+            parser = super().__call__(d, parser=parser, executable=executable, **kw)
+        if self.force_build and parser is not None:
+            parser.build()
+            return None
+        else:
+            return parser
 
 
 class Modifiers(list):
@@ -74,14 +80,8 @@ class Modifiers(list):
                     continue
                 
                 d = {}
-                if parser is None:
-                    tmp_parser = lief.parse(str(exe.destination))
-                    d.update(sections=list(tmp_parser.sections),
-                             compute_checksum=lambda _:tmp_parser.optional_header.computed_checksum)
-                else:
-                    d.update(sections=list(parser.get_sections()),
-                             compute_checksum=parser.compute_checksum)
-                
+                d = parse_exe_info_default(parser, exe, d)
+
                 d.update({k: globals()[k] for k in __common__})
                 md = __elf__ if exe.format in expand_formats("ELF") else \
                      __macho__ if exe.format in expand_formats("Mach-O") else\
