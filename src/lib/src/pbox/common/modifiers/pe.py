@@ -288,7 +288,7 @@ def append_to_section(section_input, data_source):
 
 
 def move_entrypoint_to_new_section(name,
-                                   section_type=SECTION_TYPES["TEXT"],
+                                   section_type=SECTION_TYPES["UNKNOWN"],
                                    characteristics=SECTION_CHARACTERISTICS["MEM_READ"] |
                                    SECTION_CHARACTERISTICS["MEM_EXECUTE"],
                                    pre_data=b"",
@@ -407,9 +407,10 @@ def add_API_to_IAT(*args):
     @parser_handler("lief_parser")
     def _add_API_to_IAT(parsed=None, executable=None, **kw):
         iat = parsed.data_directory(lief.PE.DATA_DIRECTORY.IMPORT_TABLE)
-        patch_imports = True
-        # some packers create the IAT at run time. It is sometimes in a empty section, which
+        patch_imports = False
+        # Some packers create the IAT at run time. It is sometimes in a empty section, which
         # has offset 0. In this case, the header is overwritten by the patching operation
+        # So, in this case, we don't patch at all
         if iat.has_section:
             #print(f"Offset: {iat.section.offset} - size: {iat.section.size}")
             if iat.section.offset == 0:
