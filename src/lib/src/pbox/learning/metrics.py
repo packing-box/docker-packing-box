@@ -218,16 +218,8 @@ def clustering_metrics(X, y_pred, y_true=None, ignore_labels=False, **kw):
     """ Compute clustering-related metrics based on the input data and the true and predicted values. """
     l = kw.get('logger', null_logger)
     X = MinMaxScaler().fit_transform(X)
-    if '?' in y_true:
-        not_labelled_mask = y_true != '?'
-    else: 
-        not_labelled_mask = y_true != '-1'
-    y_true = y_true[not_labelled_mask][0]
-    y_pred = y_pred[not_labelled_mask][0]
-    X = X[not_labelled_mask][0]
-    print(y_true)
     # labels not known: no mapping to integers and filtering of not-labelled values as we only consider predicted ones
-    if ignore_labels or y_true is None:
+    if ignore_labels or y_true is None or all(y == NOT_LABELLED for y in y_true):
         if ignore_labels:
             l.debug("> labels ignored, skipping label-dependent clustering metrics...")
         return [skm.silhouette_score(X, y_pred, metric="euclidean"), skm.calinski_harabasz_score(X, y_pred), \
