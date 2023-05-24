@@ -59,14 +59,18 @@ def __add_name(parser, force=False, name="name", help="name of the dataset", not
     return parser
 
 
+def _feature_identifier(name):
+    Features(None)
+    if name not in Features.names():
+        raise ValueError
+    return name
+
+
 def _percentage(p):
-    try:
-        p = float(p)
-        if 0. <= p <= 100.:
-            return p / 100.
-    except ValueError:
-        pass
-    return ValueError("Not a percentage")
+    p = float(p)
+    if 0. <= p <= 100.:
+        return p / 100.
+    raise ValueError
 
 
 if __name__ == '__main__':
@@ -152,7 +156,7 @@ if __name__ == '__main__':
     pcmds = plot.add_subparsers(dest="subcommand", help="command to be executed")
     plot_feat = __add_name(pcmds.add_parser("features", help="distribution of a given feature or multiple features "
                                                              "combined (bar chart)"))
-    plot_feat.add_argument("feature", action="extend", nargs="*", help="feature identifiers")
+    plot_feat.add_argument("feature", action="extend", nargs="*", type=_feature_identifier, help="feature identifiers")
     __add_format(plot_feat)
     plot_feat.add_argument("-m", "--multiclass", action="store_true",
                            help="process features using multiple label classes")
@@ -200,6 +204,9 @@ if __name__ == '__main__':
     initialize(noargs_action="usage", autocomplete=True)
     logger.name = "dataset"
     logging.configLogger(logger, ["INFO", "DEBUG"][args.verbose], fmt=LOG_FORMATS[args.verbose], relative=True)
+    if args.command == "plot" and args.subcommand == "features" and len(args.feature) == 0:
+        logger.warning("No feature selected")
+        sys.exit(0)
     # prepare parsed arguments
     name = getattr(args, "name", None)
     args.load = name is not None and args.command not in ["ingest", "list", "purge"]
@@ -213,7 +220,7 @@ if __name__ == '__main__':
             logger.warning("No dataset to purge in workspace (%s)" % str(config['datasets']) if name == "all" else \
                            "No dataset matched the given name")
     elif args.command == "list":
-        FilelessDataset(**vars(args)).list()
+        FilelessDataset(**vars(args)).list(**vars(args))
     elif name == "all":
         logger.warning("Dataset cannot be named 'all' (reserved word)")
     elif name is not None:

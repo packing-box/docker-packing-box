@@ -384,13 +384,23 @@ class Dataset:
     
     def list(self, show_all=False, hide_files=False, raw=False, **kw):
         """ List all the datasets from the given path. """
-        l = self.logger
-        l.debug("summarizing datasets from %s..." % config['datasets'])
-        section, table = self.__class__.summarize(show_all, hide_files)
-        if section is not None and table is not None:
-            render(section, table)
+        if raw:
+            names = []
+            for dset in Path(config['datasets']).listdir(Dataset.check):
+                names.append(dset.basename)
+            if not isinstance(self, Dataset):
+                for dset in Path(config['datasets']).listdir(self.__class__.check):
+                    names.append(dset.basename)
+            for name in sorted(names):
+                print(name)
         else:
-            l.warning("No dataset found in the workspace (%s)" % config['datasets'])
+            l = self.logger
+            l.debug("summarizing datasets from %s..." % config['datasets'])
+            section, table = self.__class__.summarize(show_all, hide_files)
+            if section is not None and table is not None:
+                render(section, table)
+            else:
+                l.warning("No dataset found in the workspace (%s)" % config['datasets'])
     
     @backup
     def make(self, n=0, formats=["All"], balance=False, packer=None, pack_all=False, **kw):
@@ -537,7 +547,9 @@ class Dataset:
             tmp = TempPath(".dataset-backup", hex(hash(self))[2:])
             self.path.rename(path2)
             self.path = path2
-            tmp.rename(TempPath(".dataset-backup", hex(hash(self))[2:]))
+            tmp2 = TempPath(".dataset-backup", hex(hash(self))[2:])
+            tmp2.remove()
+            tmp.rename(tmp2)
         else:
             l.warning("%s already exists" % name2)
     
