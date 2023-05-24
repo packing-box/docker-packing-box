@@ -24,7 +24,8 @@ def _preprocess(f):
         X = SimpleImputer(missing_values=np.nan, strategy=kwargs.get('imputer_strategy', "mean")).fit_transform(X)
         X = MinMaxScaler().fit_transform(X)
         # Update the keyword-arguments with the scaled data, since it may be used in the visualization
-        kwargs['data'] = X 
+        # Do not update the 'data' keyword-argument, since it is used for features visualization
+        kwargs['scaled_data'] = X 
         # preprocess data with a PCA with n components to reduce the high dimensionality (better performance)
         if n < n_cols:
             from sklearn.decomposition import FastICA, PCA
@@ -58,6 +59,14 @@ def _title(algo_name=None, dataset_name=None, n_components=None, perplexity=None
         dimensionality_reduction_info = f"Dimensionality Reduction ({n_components} Components)"
     return f"{algo_name} Visualization of dataset {dataset_name} \n with {dimensionality_reduction_info}"
 
+def _add_colorbar(ax, norm, colors):
+    fig = ax.get_figure()
+    bbox = ax.get_position() #bbox contains the [x0 (left), y0 (bottom), x1 (right), y1 (top)] of the axis.
+    width = 0.01
+    eps = 0.01 #margin between plot and colorbar
+    # [left most position, bottom position, width, height] of color bar.
+    cax = fig.add_axes([bbox.x1 + eps, bbox.y0, width, bbox.height])
+    cbar = fig.colorbar(mpl.cm.ScalarMappable(norm=norm, cmap=colors), cax=cax)
 
 def image_dt(classifier, width=5, fontsize=10, **params):
     params['filled'] = True
@@ -102,91 +111,141 @@ def image_rf(classifier, width=5, fontsize=10, **params):
 
 @_preprocess
 def image_clustering(classifier, **params):
+    from scipy.cluster.hierarchy import linkage, fcluster, dendrogram
+    from sklearn.cluster import AgglomerativeClustering
     X, y = params['data'], params['target']
-    X_reduced = params['reduced_data']        
+    X_reduced = params['reduced_data']  
+    X_scaled = params['scaled_data']      
     # retrain either with the preprocessing data or with the original data
     cls = Algorithm.get(params['algo_name']).base(**params['algo_params'])
     if params.get('reduce_train_data', False):
         label = cls.fit_predict(X_reduced)
     else : 
-        label = cls.fit_predict(X) 
+        label = cls.fit_predict(X_scaled)
+    # Get labels for hierarchical clustering
+    is_hierarchical = isinstance(cls, AgglomerativeClustering)
+    if is_hierarchical: 
+        if params.get('reduce_train_data', False):
+            Z = linkage(X_reduced, method='ward')
+        else : 
+            Z = linkage(X_scaled, method='average')
+        color_threshold = params['distance_threshold']
     # now set color map
     colors = mpl.cm.get_cmap("jet")
     # Adjust number of plots and size of figure
     features = params['features'][0]
     n_features = len(features)
-    n_plots = 2 + int(params['plot_extensions']) + int(params['plot_formats']) + n_features
-    fig, axes = plt.subplots(n_plots ,figsize=(10 , 6 + 2 * n_plots))
+    n_plots = 1 + int(params['plot_labels']) + int(is_hierarchical) + int(params['plot_extensions']) + int(params['plot_formats']) + n_features
+    font_size = 16
+    plt.rcParams['axes.labelsize'] = 16
+    plt.rcParams['xtick.labelsize'], plt.rcParams['ytick.labelsize'] = 14, 14
+    fig, axes = plt.subplots(n_plots ,figsize=(10 , 6 + 3 * n_plots))
+    # Wrap the AxesSubplot object in a list to make it subscriptable when there is only one plot
+    if not isinstance(axes, (list, np.ndarray)):
+        axes = [axes]
+    current_ax = 0 
+    # Select zone of data to plot
+    if params['range'] is not None:
+        if is_hierarchical:
+            raise ValueError("Error: Zone selection is not compatible with hierarchical clustering")
+        x_min, x_max, y_min, y_max = params['range']
+        range_mask = (X_reduced[:, 0] >= x_min) & (X_reduced[:, 0] <= x_max) & (X_reduced[:, 1] >= y_min) & (X_reduced[:, 1] <= y_max)
+        X_reduced = X_reduced[range_mask]
+        X = X[range_mask]
+        y = y[range_mask]
+        label = label[range_mask]
+        params['labels'] = params['labels'][range_mask]
+        params['extension'] = params['extension'][range_mask]
+        params['format'] =  params['format'][range_mask]
+        if X_reduced.size == 0 :
+            raise ValueError("Error: The selected zone is empty")
+    # Plot dendrogram for hierarchical clustering
+    if is_hierarchical: 
+        # Dendogram used to get the leaves and colors for the scatter plot since it is not truncated. 
+        d = dendrogram(Z, ax=axes[0], no_plot= True, color_threshold=color_threshold, above_threshold_color='k')
+        # Dendogram that is effectively plotted (truncated)
+        dendrogram(Z, ax=axes[0], truncate_mode='level', p=params['hierarchy_levels'], leaf_rotation=90., leaf_font_size=8., show_contracted=params['hierarchy_levels'] <= 5, color_threshold=color_threshold, above_threshold_color='k')        
+        axes[current_ax].set_title("Dendrogram", fontsize=font_size)
+        current_ax += 1
     # Plot predicted cluster labels
-    predicted_labels = np.unique(label)
-    for i in predicted_labels:
-        axes[0].scatter(X_reduced[label == i, 0], X_reduced[label == i, 1] , label=i, cmap=colors)
-    axes[0].set_title("Clusters")
-    # Plot true labels
-    if params['multiclass']:
-        y_labels = np.unique(params['labels'])
-        colors_labels = mpl.cm.get_cmap("jet", len(y_labels))
-        label_map = {label: 'Not packed' if label == '-' else f'Packed : {label}' for label in y_labels}
+    if is_hierarchical:
+        axes[current_ax].scatter(X_reduced[d['leaves'],0],X_reduced[d['leaves'],1], color=d['leaves_color_list'])
     else : 
-        colors_labels = mpl.cm.get_cmap("jet", 2)
-        y_labels = np.unique(y.label.ravel())
-        label_map = {0: 'Not packed', 1: 'Packed'}
-    for i, y_label in enumerate(y_labels):
-        labels_mask = params['labels'] == y_label if params['multiclass'] else y.label.ravel() == y_label
-        axes[1].scatter(X_reduced[labels_mask, 0], X_reduced[labels_mask, 1],
-                        label=label_map[y_label], color=colors_labels(i), alpha=1.0)
-    axes[1].legend(loc='upper left', bbox_to_anchor=(1, 1))  
-    axes[1].set_title("Target")
+        predicted_labels = np.unique(label)
+        offset = 0
+        if -1 in predicted_labels:  # -1 is for outliers in DBSCAN but messes with colors
+            offset = 1
+        cluster_colors = {i: colors((i + offset) / len(predicted_labels)) for i in predicted_labels} if not is_hierarchical else cluster_colors
+        for i in predicted_labels:
+            axes[current_ax].scatter(X_reduced[label == i, 0], X_reduced[label == i, 1] , label=i, color=cluster_colors[i])
+    axes[current_ax].set_title("Clusters", fontsize=font_size)
+    current_ax += 1 
+    # Plot true labels
+    if params['plot_labels']:
+        if params['multiclass']:
+            y_labels = np.unique(params['labels'])
+            colors_labels = mpl.cm.get_cmap("jet", len(y_labels))
+            label_map = {label: 'Not packed' if label == '-' else f'Packed : {label}' for label in y_labels}
+        else : 
+            colors_labels = mpl.cm.get_cmap("jet", 2)
+            y_labels = np.unique(y.label.ravel())
+            label_map = {0: 'Not packed', 1: 'Packed'}
+        for i, y_label in enumerate(y_labels):
+            labels_mask = params['labels'] == y_label if params['multiclass'] else y.label.ravel() == y_label
+            axes[current_ax].scatter(X_reduced[labels_mask, 0], X_reduced[labels_mask, 1],
+                            label=label_map[y_label], color=colors_labels(i), alpha=1.0)
+        axes[current_ax].legend(loc='upper left', bbox_to_anchor=(1, 1),fontsize=font_size-2)  
+        axes[current_ax].set_title("Target", fontsize=font_size)
+        current_ax += 1
     # Plot file formats
     if params['plot_formats']:
         unique_formats = np.unique(params['format'])
         for file_format in unique_formats:
             format_mask = params['format'] == file_format
-            axes[2].scatter(X_reduced[format_mask, 0], X_reduced[format_mask, 1],
+            axes[current_ax].scatter(X_reduced[format_mask, 0], X_reduced[format_mask, 1],
                             label=file_format, cmap=colors, alpha=1.0)
-        axes[2].legend(loc='upper left', bbox_to_anchor=(1, 1))
-        axes[2].set_title("File Formats")
+        axes[current_ax].legend(loc='upper left', bbox_to_anchor=(1, 1),fontsize=font_size-2)
+        axes[current_ax].set_title("File Formats", fontsize=font_size)
+        current_ax += 1 
     # Plot file extensions
     if params['plot_extensions']:
         unique_extensions = np.unique(params['extension'])
         for file_extension in unique_extensions:
             extension_mask = params['extension'] == file_extension
-            axes[2 + int(params['plot_formats'])].scatter(X_reduced[extension_mask, 0], X_reduced[extension_mask, 1],
+            axes[current_ax].scatter(X_reduced[extension_mask, 0], X_reduced[extension_mask, 1],
                             label=file_extension, cmap=colors, alpha=1.0)
-        axes[2 + int(params['plot_formats'])].legend(loc='upper left', bbox_to_anchor=(1, 1))
-        axes[2 + int(params['plot_formats'])].set_title("File Extensions")
+        axes[current_ax].legend(loc='upper left', bbox_to_anchor=(1, 1),fontsize=font_size-2)
+        axes[current_ax].set_title("File Extensions", fontsize=font_size)
+        current_ax += 1 
     # Plot selected features
+    color_bars = {}
     if features :
         for i, feature in enumerate(features) : 
             unique_feature_values = np.unique(X[feature])
-            # Plot a continous colorbar if the feature is not boolean and a legend otherwise 
-            if len(unique_feature_values) > 2:
-                axes[n_plots - n_features + i].scatter(X_reduced[:, 0], X_reduced[:, 1], c=X[feature].to_numpy(),
-                                                       cmap=colors, alpha=1.0)
+            # Plot a continuous colorbar if the feature is continuous and a legend otherwise 
+            if len(unique_feature_values) > 6:
+                sc = axes[current_ax].scatter(X_reduced[:, 0], X_reduced[:, 1], c=X[feature].to_numpy(), cmap=colors, alpha=1.0)
                 norm = mpl.colors.Normalize(vmin=X[feature].min(), vmax=X[feature].max())
-                # fig.colorbar(mpl.cm.ScalarMappable(norm=norm, cmap=colors), ax=axes[n_plots - n_features +i],
-                # orientation='vertical')
-                colorbar_ax = fig.add_axes([axes[n_plots - n_features + i].get_position().x1 + 0.02,
-                            axes[n_plots - n_features + i].get_position().y0 - 0.08,
-                            0.02,
-                            axes[n_plots - n_features + i].get_position().height])
-                fig.colorbar(mpl.cm.ScalarMappable(norm=norm, cmap=colors), cax=colorbar_ax, orientation='vertical')
+                color_bars[current_ax] = norm
             else : 
-                label_map = {0: 'False', 1: 'True'}
                 for feature_value in unique_feature_values:
-                    axes[n_plots - n_features + i].scatter(X_reduced[X[feature] == feature_value, 0],
-                                                           X_reduced[X[feature] == feature_value, 1],
-                                                           label=label_map[feature_value], cmap=colors, alpha=1.0)
-                    axes[n_plots - n_features + i].legend(loc='upper left', bbox_to_anchor=(1, 1))  
-            axes[n_plots - n_features + i].set_title(feature)
+                    axes[current_ax].scatter(X_reduced[X[feature] == feature_value, 0], X_reduced[X[feature] == feature_value, 1],
+                                        label=feature_value, cmap=colors, alpha=1.0)
+                    axes[current_ax].legend(loc='upper left', bbox_to_anchor=(1, 1),fontsize=font_size-2)  
+            axes[current_ax].set_title(feature, fontsize=font_size)
+            current_ax += 1 
     title = _title(**params)
     plt.suptitle(title, fontweight="bold", fontsize=14, y=1.01)
     plt.subplots_adjust(hspace=0.5)
-    plt.tight_layout()
+    plt.tight_layout() 
+    # Colorbars have to be added after plt.tight_layout() to avoid overlapping with the plot
+    for i in color_bars.keys():
+        _add_colorbar(axes[i], color_bars[i], colors=colors)
     return fig
 
 
 def text_dt(classifier, **params):
+    
     return sktree.export_text(classifier, **params)
 
 

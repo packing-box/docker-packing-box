@@ -191,7 +191,6 @@ Supervised:
 Unsupervised:
   defaults:
     metrics:
-      - classification
       - clustering
     preprocessors:
       - MM

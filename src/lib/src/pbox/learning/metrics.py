@@ -3,6 +3,8 @@ from tinyscript import code, functools, re
 
 from ..common.config import *
 from ..common.utils import *
+from sklearn.preprocessing import MinMaxScaler
+from sklearn.preprocessing import LabelEncoder
 
 def __init_skm(*a):
     # add -1 to zero_division possible values
@@ -33,7 +35,7 @@ METRIC_DISPLAY = {
     },
     'clustering': {
         # labels known
-        'Randomness\nScore': "nbr",
+        'Rand\nScore': "nbr",
         'Adjusted\nMutual\nInformation': "nbr",
         'Homogeneity': "nbr",
         'Completeness': "nbr",
@@ -215,6 +217,7 @@ def classification_metrics(X, y_pred, y_true=None, y_proba=None, labels=None, sa
 def clustering_metrics(X, y_pred, y_true=None, ignore_labels=False, **kw):
     """ Compute clustering-related metrics based on the input data and the true and predicted values. """
     l = kw.get('logger', null_logger)
+    X = MinMaxScaler().fit_transform(X)
     # labels not known: no mapping to integers and filtering of not-labelled values as we only consider predicted ones
     if ignore_labels or y_true is None or all(y == NOT_LABELLED for y in y_true):
         if ignore_labels:
@@ -222,8 +225,12 @@ def clustering_metrics(X, y_pred, y_true=None, ignore_labels=False, **kw):
         return [skm.silhouette_score(X, y_pred, metric="euclidean"), skm.calinski_harabasz_score(X, y_pred), \
                 skm.davies_bouldin_score(X, y_pred)], metric_headers("clustering",
                                                                      include=["Silhouette", "Calinski", "Davies"], **kw)
-    # labels known: get the true and predicted values without the not-labelled ones and as integers
-    yt, yp, _ = _map_values_to_integers(y_true, y_pred, **kw)
+    is_binary = np.array_equal(np.unique(y_true), [0, 1])
+    if is_binary:
+        yt, yp = y_true, y_pred
+    else: 
+        label_encoder = LabelEncoder()
+        yt, yp = label_encoder.fit_transform(y_true), y_pred
     homogeneity, completeness, v_measure = skm.homogeneity_completeness_v_measure(yt, yp)
     return [skm.rand_score(yt, yp), skm.adjusted_mutual_info_score(yt, yp), homogeneity, completeness, v_measure, \
             skm.silhouette_score(X, y_pred, metric="euclidean"), skm.calinski_harabasz_score(X, y_pred), \
