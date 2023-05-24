@@ -119,7 +119,8 @@ if __name__ == '__main__':
     viz_dependent.add_argument("--multiclass", action="store_true", help="plot multiclass true labels of packers")
     viz_dependent.add_argument("--plot-extensions", action="store_true", help="plot the file extensions")
     viz_dependent.add_argument("--plot-formats", action="store_true", help="plot the file formats")
-    viz_dependent.add_argument('--range', type=float, nargs=4, default=None, help='select range values to plot in format: x_min x_max y_min y_max')
+    viz_dependent.add_argument('--range', type=float, nargs=4,
+                               help='select range values to plot in format: x_min x_max y_min y_max')
     initialize(noargs_action="usage", autocomplete=True)
     logger.name = "model"
     logging.configLogger(logger, ["INFO", "DEBUG"][args.verbose], fmt=LOG_FORMATS[args.verbose], relative=True)
@@ -144,8 +145,9 @@ if __name__ == '__main__':
             args.param = expand_parameters(*(args.param or []))
         if args.command == "visualize":
             args.viz_params = {}
-            for a in ["reduction_algorithm", "imputer_strategy", "n_components", "perplexity", "reduce_train_data",
-                      "features", "multiclass", "plot_extensions", "plot_formats", "range", "hierarchy_levels", "plot_labels", "distance_threshold"]:
+            for a in ["distance_threshold", "features", "hierarchy_levels", "imputer_strategy", "multiclass",
+                      "n_components", "perplexity", "plot_extensions", "plot_formats", "plot_labels", "range",
+                      "reduce_train_data", "reduction_algorithm"]:
                 args.viz_params[a] = getattr(args, a)
                 delattr(args, a)
         getattr(Model(**vars(args)), args.command)(**vars(args))

@@ -1,5 +1,4 @@
 # -*- coding: UTF-8 -*-
-from tinyscript import code, colored
 from tinyscript.helpers import ints2hex, lazy_load_module, Path
 
 from ..common.config import *
@@ -156,14 +155,13 @@ def _dataset_features_bar_chart(dataset, feature=None, multiclass=False, format=
     labels = list(counts[next(iter(counts))].keys())
     # display plot
     plur = ["", "s"][len(feature) > 1]
-    x_label, y_label = "Percentages of samples for the selected feature%s" % plur, "Feature value%s" % plur
-    font = {'color': "lightgray", 'size': 10}
+    x_label, y_label = "Samples [%%] for the selected feature%s" % plur, "Feature%s values" % plur
     yticks = [str(k[0]) if isinstance(k, (tuple, list)) and len(k) == 1 else str(k) \
               for k in counts.keys()]
     plt.figure(figsize=(8, (len(title.splitlines()) * 24 + 11 * len(counts) + 120) / 80))
     plt.title(title, pad=20, fontweight="bold")
-    plt.xlabel(x_label, fontdict=font)
-    plt.ylabel(y_label, fontdict=font)
+    plt.xlabel(x_label, fontdict={'size': 10})
+    plt.ylabel(y_label, fontdict={'size': 10})
     starts = [0 for i in range(len(values[0]))]
     for p, lb ,c, v in zip(percentages, labels, cmap, values):
         b = plt.barh(yticks, p, label=lb, color=c, left=starts)

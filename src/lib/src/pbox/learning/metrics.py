@@ -3,8 +3,7 @@ from tinyscript import code, functools, re
 
 from ..common.config import *
 from ..common.utils import *
-from sklearn.preprocessing import MinMaxScaler
-from sklearn.preprocessing import LabelEncoder
+
 
 def __init_skm(*a):
     # add -1 to zero_division possible values
@@ -216,6 +215,8 @@ def classification_metrics(X, y_pred, y_true=None, y_proba=None, labels=None, sa
 @_convert_output
 def clustering_metrics(X, y_pred, y_true=None, ignore_labels=False, **kw):
     """ Compute clustering-related metrics based on the input data and the true and predicted values. """
+    from sklearn.preprocessing import MinMaxScaler
+    from sklearn.preprocessing import LabelEncoder
     l = kw.get('logger', null_logger)
     X = MinMaxScaler().fit_transform(X)
     # labels not known: no mapping to integers and filtering of not-labelled values as we only consider predicted ones
@@ -225,8 +226,7 @@ def clustering_metrics(X, y_pred, y_true=None, ignore_labels=False, **kw):
         return [skm.silhouette_score(X, y_pred, metric="euclidean"), skm.calinski_harabasz_score(X, y_pred), \
                 skm.davies_bouldin_score(X, y_pred)], metric_headers("clustering",
                                                                      include=["Silhouette", "Calinski", "Davies"], **kw)
-    is_binary = np.array_equal(np.unique(y_true), [0, 1])
-    if is_binary:
+    if np.array_equal(np.unique(y_true), [0, 1]):
         yt, yp = y_true, y_pred
     else: 
         label_encoder = LabelEncoder()
