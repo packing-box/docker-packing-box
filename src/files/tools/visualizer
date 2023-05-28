@@ -187,11 +187,11 @@ if __name__ == "__main__":
     compare.add_argument("filename2", help="second binary to be represented ; format is regex")
     compare.add_argument("folder2", type=ts.folder_exists, help="second target folder")
     compare.add_argument("-t", "--text", action="store_true", help="textual comparison")
-    compare.add_argument("-o", "--out-file", default=None, help="file to store the output to. For images, the format is determined basde on the extension")
+    compare.add_argument("-o", "--out-file", help="file to store the output to. For images, the format is determined basde on the extension")
     #compare.add_argument("-n", "--no-title", action="store_true", help="do not generate a title")
-    compare.add_argument("-l1", "--label1", default="", help="select a particular label for the first binary")
-    compare.add_argument("-l2", "--label2", default="", help="select a particular label for the second binary")
-    compare.add_argument("-T", "--title", default=None, help="set plot title")
+    compare.add_argument("-l1", "--label1", help="select a particular label for the first binary")
+    compare.add_argument("-l2", "--label2", help="select a particular label for the second binary")
+    compare.add_argument("-T", "--title", help="set plot title")
     
     initialize(noargs_action="usage", autocomplete=True)
     ff_args = args.folder, args.filename, args.label, args.max_not_matching

@@ -13,10 +13,22 @@ from bintropy import COLORS
 __all__ = ["binary_diff_readable", "binary_diff_plot"]
 
 
-def binary_diff_readable(file1, file2, label1="", label2="", n=0):
-    if label1 == '':
+def binary_diff_readable(file1, file2, label1=None, label2=None, n=0):
+    """Generates a text-based difference between two PE files. 
+
+    Args:
+        file1 (str): first file
+        file2 (str): second file
+        label1 (str, optional): Name to use for file1. If None, uses the filename. Defaults to None.
+        label2 (str, optional): Name to use for file2. If None, uses the filename. Defaults to None.
+        n (int, optional): Amount of carriage returns between the sequences. Defaults to 0.
+
+    Returns:
+        str: Difference between the files, in text format
+    """
+    if label1 == None:
         label1 = file1
-    if label2 == '':
+    if label2 == None:
         label2 = file2
 
     dump1 = pefile.PE(file1).dump_info()
@@ -24,6 +36,7 @@ def binary_diff_readable(file1, file2, label1="", label2="", n=0):
 
     return '\n'.join(difflib.unified_diff(dump1.split('\n'), dump2.split('\n'), label1, label2, n=n))
 
+# Helper functions from Bintropy
 
 def __btype(b): return str(type(b)).split(".")[2]
 def __secname(s): return s.strip("\x00") or s or "<empty>"
@@ -52,6 +65,17 @@ def _get_ep_and_section(binary):
 
 
 def characteristics_no_entropy(executable):
+    """Helper function to compute characteristcs of the file, like Bintropy, but avoid entropy computations.
+
+    Args:
+        executable (str or Path): The executable
+
+    Raises:
+        TypeError: Not an executable that can be parsed with LIEF
+
+    Returns:
+        dict: Characteristics of the binary
+    """
     data = {'name': os.path.basename(executable), 'sections': []}
     binary = lief.parse(str(executable))
     data['type'] = __btype(binary)
@@ -109,7 +133,18 @@ def characteristics_no_entropy(executable):
 
 
 def binary_diff_plot(file1, file2, img_name=None, img_format="png", label1="", label2="", dpi=200, title=None, **kwargs):
+    """Plots the byte-wise difference between two exectables
 
+    Args:
+        file1 (str): The first file
+        file2 (str): The second file
+        img_name (str, optional): Filename to save the image, without extension. If None, uses the name of file1. Defaults to None.
+        img_format (str, optional): Image extension. Defaults to "png".
+        label1 (str, optional): Name for file1. Defaults to None.
+        label2 (str, optional): Name for file2. Defaults to None.
+        dpi (int, optional): Dots per inch for the image. Defaults to 200.
+        title (str, optional): Preferred plot title. Defaults to None.
+    """
     import matplotlib.pyplot as plt
     plt.rcParams['font.family'] = "serif"
 
@@ -121,8 +156,6 @@ def binary_diff_plot(file1, file2, img_name=None, img_format="png", label1="", l
     fig.set_size_inches(15, nf+[0, 1][title_bool])
     fig.tight_layout(pad=2.5)
     objs[-1].axis("off")
-
-    ref_n = None
 
     values = {'delete': 0, 'replace': 1, 'equal': 2, 'insert': 3}
     colors = ['red', 'gold', 'lightgrey', 'green']
@@ -143,45 +176,25 @@ def binary_diff_plot(file1, file2, img_name=None, img_format="png", label1="", l
                      y=1,
                      ha="center", va="bottom",
                      fontsize="xx-large", fontweight="bold")
-
+        
+    label1 = os.path.basename(file1) if label1 == None else label1
+    label2 = os.path.basename(file2) if label2 == None else label2
+    
+    text_x = -0.012*max(len(p1)*(len(label1)+3), len(p2)*(len(label2)+3))
+    
     for i, d in enumerate([(p1, file1, opcodes_1, label1), (p2, file2, opcodes_2, label2)]):
         p, file, opcodes, label = d
-        label = os.path.basename(file) if label == "" else label
 
         data = characteristics_no_entropy(file)
         n = len(p)
-        if i == 0:
-            ref_n = n
         obj = objs[i]
 
         obj.axis("off")
 
-        # set the label and sublabel and display them
-        # try:
-        #     label = labels[i]
-        #     if isinstance(label, type(lambda: 0)):
-        #         label = label(data)
-        # except:
-        #     pass
         ref_point = .65
-        # if sublabel and not (isinstance(sublabel, str) and "ep" in sublabel and data['entrypoint'] is None):
-        #     if isinstance(sublabel, str):
-        #         sublabel = SUBLABELS.get(sublabel)
-        #     sl = sublabel(data) if isinstance(sublabel, type(lambda: 0)) else None
-        #     if sl:
-        #         nl, y_pos, f_color = len(sl.split("\n")), ref_point, "black"
-        #         if label:
-        #             f_size, f_color = "x-small" if nl <= 2 else "xx-small", "gray"
-        #             y_pos = max(0., ref_point - nl * [.16, .12, .09, .08][min(4, nl)-1])
-        #         else:
-        #             f_size = ["medium", "small", "x-small"][min(3, nl)-1]
-        #         obj.text(s=sl, x=-420., y=y_pos, fontsize=f_size, color=f_color, ha="left", va="center")
 
         y_pos = ref_point
-        # if sublabel:
-        #     nl = len(sl.split("\n"))
-        #     y_pos = min(1., ref_point + nl * [.16, .12, .09, .08][min(4, nl)-1])
-        obj.text(s=label, x=-0.2*ref_n, y=y_pos,
+        obj.text(s=label, x=text_x, y=y_pos,
                  fontsize="large", ha="left", va="center")
         # display the entry point
         if data['entrypoint']:
@@ -203,15 +216,7 @@ def binary_diff_plot(file1, file2, img_name=None, img_format="png", label1="", l
             # draw the section
             obj.fill_between(x, 0, 1, facecolor=c, alpha=.2)
             if name not in ["Headers", "Overlay"]:
-                # if last is None or (start + end) // 2 - (last[0] + last[1]) // 2 > n // 10:
                 pos_y = [N_TOP2, N_TOP][j % 2]
-                # else:
-                # pos_y = N_BOT if pos_y in [N_TOP, N_TOP2] else N_TOP
-                # if last and last[2] and (start + end) // 2 - (last[2] + last[3]) // 2 < n // 15:
-                #     if pos_y == N_TOP:
-                #         pos_y = N_TOP2
-                #     elif pos_y == N_BOT:
-                #         pos_y = N_BOT2
                 obj.text(s=name, x=start + (end - start) // 2, y=pos_y,
                          zorder=12, color=c, ha="center", va="center")
                 last = (
