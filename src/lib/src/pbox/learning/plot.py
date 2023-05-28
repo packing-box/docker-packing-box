@@ -18,28 +18,33 @@ def _dataset_information_gain_bar_chart(dataset, feature=None, format="png", max
     """ Plot a bar chart of the information gain of features in descending order. """
     l = dataset.logger
     feature = select_features(dataset, feature)
-    # plot
-    l.debug("plotting figure...")
-    if multiclass:
-        labels = dataset.labels
-    else:
-        labels = dataset.labels == NOT_PACKED
     
     if dataset._files:
+        l.info("Computing features...")
         dataset._compute_all_features()
-        
+    
     feats = dataset._data.copy()
     feats = feats.set_index("hash")
+    feats = feats[feats['label'] != NOT_LABELLED] # skip not-labelled samples
+    
+    if multiclass:
+        labels = feats['label']
+    else:
+        labels = feats['label'] == NOT_PACKED
+    
     feats = feats[feature]
+    
     info = mutual_info_classif(feats, labels)
     if max_features is None or max_features > len(feature):
         max_features = len(feature)
- 
+    
+    l.debug("plotting figure...")
+    # feature ranking
     indices = range(len(info))
     order = sorted(
         sorted(indices, key=lambda x: abs(info[x]))[-max_features:],
         key=lambda x: info[x])
-    
+    # plot
     plt.figure(figsize=(10, round(0.25*max_features + 2.2)), dpi=200)
     plt.barh(*zip(*[(feature[x], info[x]) for x in order]), height=.5)
     plt.title("Mutual information for dataset %s" % dataset.name)
