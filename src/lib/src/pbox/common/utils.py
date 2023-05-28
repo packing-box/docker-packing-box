@@ -498,7 +498,7 @@ def select_features(dataset, feature=None):
     """ Handle features selection based on a simple wildcard. """
     if not hasattr(dataset, "_features"):
         dataset._compute_all_features()
-    if feature is None:
+    if feature is None or feature == []:
         feature = list(dataset._features.keys())
     # data preparation
     if not isinstance(feature, (tuple, list)):
