@@ -164,7 +164,9 @@ if __name__ == '__main__':
                                                            "features (bar chart)"))
     plot_ig.add_argument("feature", action="extend", nargs="*", help="feature identifiers")
     __add_format(plot_ig)
-    plot_ig.add_argument("-z", "--filter-zero-ig", action="store_true", help="filter features with IG=0")
+    plot_ig.add_argument("-n", "--max-features", type=ts.pos_int, help="plot the n features with highest information gain")
+    plot_ig.add_argument("-m", "--multiclass", action="store_true",
+                         help="use multiple label classes")
     plot_lab = __add_name(pcmds.add_parser("labels", help="distribution of labels in the dataset (pie chart)"))
     __add_format(plot_lab)
     preproc = __add_name(cmds.add_parser("preprocess", category="read",
