@@ -1,6 +1,9 @@
 # -*- coding: UTF-8 -*-
 from tinyscript.helpers import ints2hex, lazy_load_module, Path
 from sklearn.feature_selection import mutual_info_classif
+from sklearn.preprocessing import StandardScaler
+import numpy as np
+import seaborn
 
 from ..common.config import *
 from ..common.utils import *
@@ -14,6 +17,88 @@ __all__ = ["plot", "PLOTS"]
 
 
 @figure_path
+def _dataset_features_plot(dataset, **kw):
+    ds = kw.get("datasets",None)
+    if ds == None or ds == []:
+        return _dataset_features_bar_chart(dataset, **kw)
+    else:
+        return _dataset_features_heatmap(dataset, **kw)
+    
+def _dataset_features_heatmap(dataset, datasets=[], feature=None, format="png", max_features=None, aggregate="byte_[0-9]+_after_ep", **kw):
+    from .dataset import open_dataset
+    l = dataset.logger
+    if dataset._files:
+        l.info("Computing features...")
+        dataset._compute_all_features()
+    datasets_feats = {dataset.basename: dataset._data.copy()}
+    
+    for name in datasets:
+        d = open_dataset(name)
+        if d._files:
+            d._compute_all_features()
+        datasets_feats[name] = d._data.copy()
+    if feature == []:
+        feature = "*"
+    feature = select_features(dataset, feature)
+    data_df = pd.concat(datasets_feats.values(), keys=datasets_feats.keys(), names=['experiment', 'hash'])[feature].astype('float')
+    scaler_v = StandardScaler().fit(data_df.loc[dataset.basename][feature])
+    data_df_rank = pd.DataFrame(scaler_v.transform(data_df[feature]),
+                        columns=data_df.columns, index=data_df.index)
+    
+    pivoted_rank = data_df_rank.dropna().pivot_table(index='experiment', values=feature, aggfunc=np.mean)[feature]
+    pivoted = data_df.dropna().pivot_table(index='experiment', values=feature, aggfunc=np.mean)[feature]
+    
+    index = list(pivoted.index)
+    index.remove(dataset.basename)
+    index = [dataset.basename] + index
+    pivoted = pivoted.reindex(index)
+    pivoted_rank = pivoted_rank.reindex(index)
+    
+    if max_features is None or max_features > len(feature):
+        max_features = len(feature)
+    
+    if aggregate is not None:
+        to_group = list(pivoted.columns.str.extract("(" + aggregate + ")",expand=False).dropna())
+        pivoted[aggregate + "_mean"] = pivoted[to_group].mean(axis=1)
+        pivoted_rank[aggregate + "_mean"] = pivoted_rank[to_group].mean(axis=1)
+        
+        pivoted_rank = pivoted_rank.drop(to_group, axis=1)
+        pivoted = pivoted.drop(to_group, axis=1)
+        if max_features > pivoted.shape[1]:
+            max_features = pivoted.shape[1]
+    
+    order = sorted(
+        sorted(pivoted_rank.columns, key=lambda x: abs(pivoted_rank[x]).mean())[-max_features:],
+        key=lambda x: pivoted_rank[x].mean())[::-1]
+    
+    ticks = [-3, 0 , 3]
+    label = "Feature value"
+    title = "Feature value comparison"
+    
+    plt.figure(figsize=(1.2*len(pivoted_rank.index) + 3 , round(0.25*max_features + 2.2)), dpi=200)
+
+    annotations = pivoted[order].applymap(lambda x: "%.2f"%x if abs(x) < 1000 else "%.1e"%x).values.T
+    ax = seaborn.heatmap(data=pivoted_rank[order].values.T,
+                    annot=annotations,
+                    fmt='s',
+                    #square=True,
+                    xticklabels=pivoted_rank.index,
+                    yticklabels=order,
+                    cmap='vlag',
+                    cbar_kws = {'location':'right', 'ticks': ticks, 'label':label},
+                    vmin=ticks[0],vmax = ticks[2],
+                    linewidth=.5,
+                    linecolor='black')
+
+    ax.xaxis.tick_top()
+    plt.xticks(rotation=90)
+    plt.title(title)
+
+    ax.collections[0].colorbar.set_ticklabels(["Negative", "Negligible", "Positive"])
+    plt.tight_layout()
+    return "%s_features.%s" % ("-".join(datasets_feats), format)
+
+
 def _dataset_information_gain_bar_chart(dataset, feature=None, format="png", max_features=None, multiclass=False, **kw):
     """ Plot a bar chart of the information gain of features in descending order. """
     l = dataset.logger
@@ -34,7 +119,7 @@ def _dataset_information_gain_bar_chart(dataset, feature=None, format="png", max
     
     feats = feats[feature]
     
-    info = mutual_info_classif(feats, labels)
+    info = mutual_info_classif(feats, labels, n_neighbors=5)
     if max_features is None or max_features > len(feature):
         max_features = len(feature)
     
@@ -230,6 +315,6 @@ def plot(obj, ptype, dpi=200, **kw):
 PLOTS = {
     'ds-infogain': _dataset_information_gain_bar_chart,
     'ds-labels':   _dataset_labels_pie_chart,
-    'ds-features': _dataset_features_bar_chart,
+    'ds-features': _dataset_features_plot,
 }
 
