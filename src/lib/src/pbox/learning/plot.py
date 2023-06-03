@@ -1,7 +1,9 @@
 # -*- coding: UTF-8 -*-
 from tinyscript.helpers import ints2hex, lazy_load_module, Path
 from sklearn.feature_selection import mutual_info_classif
+from sklearn.metrics import mutual_info_score
 from sklearn.preprocessing import StandardScaler
+from sklearn.neighbors import KNeighborsClassifier
 import numpy as np
 import seaborn
 
@@ -17,14 +19,83 @@ __all__ = ["plot", "PLOTS"]
 
 
 @figure_path
-def _dataset_features_plot(dataset, **kw):
-    ds = kw.get("datasets",None)
-    if ds == None or ds == []:
-        return _dataset_features_bar_chart(dataset, **kw)
-    else:
-        return _dataset_features_heatmap(dataset, **kw)
+def _dataset_infogain_compare(dataset, datasets=[], feature=None, format="png", max_features=None, aggregate="byte_[0-9]+_after_ep", multiclass=False, **kw):
+    from .dataset import open_dataset
+    l = dataset.logger
+    if dataset._files:
+        l.info("Computing features...")
+        dataset._compute_all_features()
+    datasets_feats = {dataset.basename: dataset._data.copy()}
     
-def _dataset_features_heatmap(dataset, datasets=[], feature=None, format="png", max_features=None, aggregate="byte_[0-9]+_after_ep", **kw):
+    for name in datasets:
+        d = open_dataset(name)
+        if d._files:
+            d._compute_all_features()
+        datasets_feats[name] = d._data.copy()
+    if feature == []:
+        feature = "*"
+    feature = select_features(dataset, feature)
+    data_df = pd.concat(datasets_feats.values(), keys=datasets_feats.keys(), names=['experiment', 'hash'])
+    data_df = data_df[data_df['label'] != NOT_LABELLED]
+    
+    if multiclass:
+        fct = lambda x: pd.Series(mutual_info_classif(x[feature].astype('float'),
+                                                      x['label']),
+                                  index=feature)
+    else:
+        fct = lambda x: pd.Series(mutual_info_classif(x[feature].astype('float'),
+                                                      x['label'] == NOT_PACKED),
+                                  index=feature)
+    
+    
+    data_df = data_df.groupby('experiment').apply(fct)
+    data_df = data_df - data_df.loc[dataset.basename]
+    data_df = data_df.drop(index=dataset.basename)
+    
+    if max_features is None or max_features > len(feature):
+        max_features = len(feature)
+    
+    if aggregate is not None:
+        to_group = list(data_df.columns.str.extract("(" + aggregate + ")",expand=False).dropna())
+        data_df[aggregate + "_mean"] = data_df[to_group].mean(axis=1)
+        
+        data_df = data_df.drop(to_group, axis=1)
+        if max_features > data_df.shape[1]:
+            max_features = data_df.shape[1]
+    
+    order = sorted(
+        sorted(data_df.columns, key=lambda x: abs(data_df[x]).mean())[-max_features:],
+        key=lambda x: data_df[x].mean())[::-1]
+    
+    ticks = [-1, 0 , 1]
+    label = "Information gain difference from %s" % dataset.basename
+    title = "Information gain comparison with %s" % dataset.basename
+    
+    plt.figure(figsize=(1.2*len(data_df.index) + 3 , round(0.25*max_features + 2.2)), dpi=200)
+
+    annotations = data_df[order].applymap(lambda x: "%.2f"%x if abs(x) < 1000 else "%.1e"%x).values.T
+    ax = seaborn.heatmap(data=data_df[order].values.T,
+                    annot=annotations,
+                    fmt='s',
+                    #square=True,
+                    xticklabels=data_df.index,
+                    yticklabels=order,
+                    cmap='vlag',
+                    cbar_kws = {'location':'right', 'ticks': ticks, 'label':label},
+                    vmin=ticks[0],vmax = ticks[2],
+                    linewidth=.5,
+                    linecolor='black')
+
+    ax.xaxis.tick_top()
+    plt.xticks(rotation=90)
+    plt.title(title)
+
+    plt.tight_layout()
+    return "%s_infogain-compare.%s" % ("-".join(datasets_feats), format)
+
+
+@figure_path
+def _dataset_features_compare(dataset, datasets=[], feature=None, format="png", max_features=None, aggregate="byte_[0-9]+_after_ep", **kw):
     from .dataset import open_dataset
     l = dataset.logger
     if dataset._files:
@@ -44,15 +115,14 @@ def _dataset_features_heatmap(dataset, datasets=[], feature=None, format="png", 
     scaler_v = StandardScaler().fit(data_df.loc[dataset.basename][feature])
     data_df_rank = pd.DataFrame(scaler_v.transform(data_df[feature]),
                         columns=data_df.columns, index=data_df.index)
+    data_df = data_df - data_df.loc[dataset.basename]
+    data_df_rank = data_df_rank - data_df_rank.loc[dataset.basename]
     
     pivoted_rank = data_df_rank.dropna().pivot_table(index='experiment', values=feature, aggfunc=np.mean)[feature]
     pivoted = data_df.dropna().pivot_table(index='experiment', values=feature, aggfunc=np.mean)[feature]
     
-    index = list(pivoted.index)
-    index.remove(dataset.basename)
-    index = [dataset.basename] + index
-    pivoted = pivoted.reindex(index)
-    pivoted_rank = pivoted_rank.reindex(index)
+    pivoted_rank = pivoted_rank.drop(index=dataset.basename)
+    pivoted = pivoted.drop(index=dataset.basename)
     
     if max_features is None or max_features > len(feature):
         max_features = len(feature)
@@ -72,8 +142,8 @@ def _dataset_features_heatmap(dataset, datasets=[], feature=None, format="png", 
         key=lambda x: pivoted_rank[x].mean())[::-1]
     
     ticks = [-3, 0 , 3]
-    label = "Feature value"
-    title = "Feature value comparison"
+    label = "Feature value difference from %s" % dataset.basename
+    title = "Feature value comparison with %s" % dataset.basename
     
     plt.figure(figsize=(1.2*len(pivoted_rank.index) + 3 , round(0.25*max_features + 2.2)), dpi=200)
 
@@ -96,7 +166,7 @@ def _dataset_features_heatmap(dataset, datasets=[], feature=None, format="png", 
 
     ax.collections[0].colorbar.set_ticklabels(["Negative", "Negligible", "Positive"])
     plt.tight_layout()
-    return "%s_features.%s" % ("-".join(datasets_feats), format)
+    return "%s_features-compare.%s" % ("-".join(datasets_feats), format)
 
 
 def _dataset_information_gain_bar_chart(dataset, feature=None, format="png", max_features=None, multiclass=False, **kw):
@@ -303,7 +373,7 @@ def plot(obj, ptype, dpi=200, **kw):
     try:
         img = root.joinpath(PLOTS[ptype](obj, **kw))
     except KeyError:
-        obj.logger.error("Plot type does not exist (should be one of [%s])" % "|".join(PLOTS.keys()))
+        obj.logger.error("Plot type %s does not exist (should be one of [%s])" % (ptype, "|".join(PLOTS.keys())))
         return
     except TypeError:
         return
@@ -314,7 +384,9 @@ def plot(obj, ptype, dpi=200, **kw):
 
 PLOTS = {
     'ds-infogain': _dataset_information_gain_bar_chart,
+    'ds-infogain-compare': _dataset_infogain_compare,
     'ds-labels':   _dataset_labels_pie_chart,
-    'ds-features': _dataset_features_plot,
+    'ds-features': _dataset_features_bar_chart,
+    'ds-features-compare': _dataset_features_compare,
 }
 

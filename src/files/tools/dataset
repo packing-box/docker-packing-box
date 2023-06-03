@@ -160,9 +160,12 @@ if __name__ == '__main__':
     __add_format(plot_feat)
     plot_feat.add_argument("-m", "--multiclass", action="store_true",
                            help="process features using multiple label classes")
-    plot_feat.add_argument("-d", "--datasets", action="extend", help="datasets to compare features to")
-    plot_feat.add_argument("-n", "--max-features", type=ts.pos_int, help="plot the n features with highest information gain")
-    plot_feat.add_argument("-a", "--aggregate", help="Pattern to aggregate some of the features together",
+    plot_featcomp = __add_name(pcmds.add_parser("features-compare", help="compare feature difference between this dataset and others"))
+    plot_featcomp.add_argument("feature", action="extend", nargs="*", type=_feature_identifier, help="feature identifiers")
+    plot_featcomp.add_argument("-d", "--datasets", action="extend", nargs="*", help="datasets to compare features to", required=True)
+    __add_format(plot_featcomp)
+    plot_featcomp.add_argument("-n", "--max-features", type=ts.pos_int, help="plot the n features with largest difference")
+    plot_featcomp.add_argument("-a", "--aggregate", help="Pattern to aggregate some of the features together",
                            default="byte_[0-9]+_after_ep")
     plot_ig = __add_name(pcmds.add_parser("infogain", help="sorted distribution of information gains for the selected "
                                                            "features (bar chart)"))
@@ -171,6 +174,14 @@ if __name__ == '__main__':
     plot_ig.add_argument("-n", "--max-features", type=ts.pos_int, help="plot the n features with highest information gain")
     plot_ig.add_argument("-m", "--multiclass", action="store_true",
                          help="use multiple label classes")
+    plot_igcomp = __add_name(pcmds.add_parser("infogain-compare", help="compare information gain difference between this dataset and others"))
+    plot_igcomp.add_argument("feature", action="extend", nargs="*", type=_feature_identifier, help="feature identifiers")
+    plot_igcomp.add_argument("-d", "--datasets", action="extend", nargs="*", help="datasets to compare features to", required=True)
+    __add_format(plot_igcomp)
+    plot_igcomp.add_argument("-n", "--max-features", type=ts.pos_int, help="plot the n features with highest information gain")
+    plot_igcomp.add_argument("-a", "--aggregate", help="Pattern to aggregate some of the features together",
+                           default="byte_[0-9]+_after_ep")
+    
     plot_lab = __add_name(pcmds.add_parser("labels", help="distribution of labels in the dataset (pie chart)"))
     __add_format(plot_lab)
     preproc = __add_name(cmds.add_parser("preprocess", category="read",
@@ -211,9 +222,8 @@ if __name__ == '__main__':
     logger.name = "dataset"
     logging.configLogger(logger, ["INFO", "DEBUG"][args.verbose], fmt=LOG_FORMATS[args.verbose], relative=True)
     if args.command == "plot" and args.subcommand == "features" and len(args.feature) == 0:
-        if not hasattr(args, "datasets"):
-            logger.warning("No feature selected")
-            sys.exit(0)
+        logger.warning("No feature selected")
+        sys.exit(0)
     # prepare parsed arguments
     name = getattr(args, "name", None)
     args.load = name is not None and args.command not in ["ingest", "list", "purge"]
@@ -246,4 +256,3 @@ if __name__ == '__main__':
         if args.command == "ingest":
             args.rename_func = RENAME_FUNCTIONS[args.rename]
         getattr(Dataset(**vars(args)), args.command)(**vars(args))
-
