@@ -355,6 +355,9 @@ def move_entrypoint_to_slack_space(section_input,
 
     @parser_handler("lief_parser")
     def _move_entrypoint_to_slack_space(parsed=None, executable=None, **kw):
+        if parsed.optional_header.section_alignment % parsed.optional_header.file_alignment != 0:
+            raise ValueError("SectionAlignment is not a mulitple of FileAlignment. The file integrity can't be assured.")
+        
         if "32" in executable.format:
             address_bitsize = 32
         else:
@@ -375,15 +378,19 @@ def move_entrypoint_to_slack_space(section_input,
 
         if callable(post_data_source):
             def full_data(l): return d + list(post_data_source(l - len(d)))
+            add_size = section.size - len(section.content)
         else:
             full_data = d + list(post_data_source)
-
+            add_size = len(full_data)
+        
         section = parse_section_input(section_input, parsed)
         new_entry = section.virtual_address + \
             len(section.content) + len(pre_data)
 
         append_to_section(section,
                           data_source=full_data)(parsed=parsed)
+        
+        section.virtual_size = section.virtual_size + add_size
 
         parsed.optional_header.addressof_entrypoint = new_entry
 
