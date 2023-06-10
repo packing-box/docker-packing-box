@@ -171,28 +171,21 @@ def _dataset_features_compare(dataset, datasets=[], feature=None, format="png", 
 
 def _dataset_information_gain_bar_chart(dataset, feature=None, format="png", max_features=None, multiclass=False, **kw):
     """ Plot a bar chart of the information gain of features in descending order. """
+    from sklearn.feature_selection import mutual_info_classif
     l = dataset.logger
     feature = select_features(dataset, feature)
-    
     if dataset._files:
         l.info("Computing features...")
         dataset._compute_all_features()
-    
     feats = dataset._data.copy()
     feats = feats.set_index("hash")
     feats = feats[feats['label'] != NOT_LABELLED] # skip not-labelled samples
-    
-    if multiclass:
-        labels = feats['label']
-    else:
-        labels = feats['label'] == NOT_PACKED
-    
+    labels = feats['label'] if multiclass else feats['label'] == NOT_PACKED
     feats = feats[feature]
     
     info = mutual_info_classif(feats, labels, n_neighbors=5)
     if max_features is None or max_features > len(feature):
         max_features = len(feature)
-    
     l.debug("plotting figure...")
     # feature ranking
     indices = range(len(info))
@@ -205,11 +198,9 @@ def _dataset_information_gain_bar_chart(dataset, feature=None, format="png", max
     plt.title("Mutual information for dataset %s" % dataset.name)
     plt.ylabel('Features')
     plt.xlabel('Mutual information')
-    
     plt.yticks(rotation='horizontal')
     plt.margins(y=1/max_features)
     plt.axvline(x=0, color='k')
-    
     return "%s_infogain.%s" % (dataset.basename, format)
 
 

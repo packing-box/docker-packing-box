@@ -1,7 +1,6 @@
 #!/usr/bin/python3
 # PYTHON_ARGCOMPLETE_OK
 # -*- coding: UTF-8 -*-
-import bintropy
 from pbox import *
 from pbox.__info__ import *
 from pbox.common.utils import edit_file, data_to_temp_file, pd
@@ -9,13 +8,14 @@ from pbox.learning.executable import Executable
 from tinyscript import *
 
 
-__version__     = "2.0.2"
+__version__     = "2.0.3"
 __doc__         = """
 This tool aims to generate representations of binaries, emphasizing their sections and plotting their entropy,
  for the sake of comparing them, e.g. an original PE file and its packed versions.
 """
 __description__ = "Generate a figure with representations of input binaries' sections and entropy"
 __examples__    = [
+    "compare \"PsExec.exe$\" samples-folder \"PsExec.exe$\" altered-samples-folder",
     "features \".$\" dataset-packed-pe --label Exe32Pack",
     "find \".$\" dataset-packed-pe --max-not-matching 2",
     "plot \"PsExec.exe$\" PackingData -l not-packed -l MEW -l NSPack -l RLPack -l UPX",
@@ -39,15 +39,16 @@ def legend_location(string):
 legend_location.__name__ = "legend location"
 
 
-def __add_folder(parser, alias=False, fmt=False):
+def __add_folder(parser, alias=False, fmt=False, extended=True):
     parser.add_argument("filename", help="binary to be represented ; format is regex")
     parser.add_argument("folder", type=ts.folder_exists, help="target folder")
     if alias:
         parser.add_argument("-a", "--alias", type=ts.json_config, help="input label alias in JSON format")
     if fmt:
         parser.add_argument("-f", "--format", default="png", choices=["jpg", "png", "tif", "svg"], help="image format")
-    parser.add_argument("-l", "--label", nargs="*", action="extend", help="select a particular label (keeps order)")
-    parser.add_argument("-m", "--max-not-matching", type=ts.pos_int, help="maximum number of labels not matching")
+    if extended:
+        parser.add_argument("-l", "--label", nargs="*", action="extend", help="select a particular label (keeps order)")
+        parser.add_argument("-m", "--max-not-matching", type=ts.pos_int, help="maximum number of labels not matching")
     return parser
 
 
@@ -183,8 +184,19 @@ if __name__ == "__main__":
     plot.add_argument("-n", "--no-title", action="store_true", help="do not generate a title")
     plot.add_argument("-s", "--scale", action="store_true", help="scale plots according to the first binary")
     rm = __add_folder(sparsers.add_parser("remove", help="remove files matching the regex with the input labels"))
+    compare = __add_folder(sparsers.add_parser("compare", help="compare files from two sources"), fmt=True,
+                           extended=False)
+    compare.add_argument("filename2", help="second binary to be represented ; format is regex")
+    compare.add_argument("folder2", type=ts.folder_exists, help="second target folder")
+    compare.add_argument("-l1", "--label", metavar="LABEL", help="select a particular label for the first binary")
+    compare.add_argument("-l2", "--label2", metavar="LABEL", help="select a particular label for the second binary")
+    compare.add_argument("-o", "--out-file", metavar="FILE",
+                         help="output file (for images, format is determined based on the extension)")
+    compare.add_argument("-t", "--title", help="set plot title")
+    compare.add_argument("--no-title", action="store_true", help="do not generate a main title")
+    compare.add_argument("--text", action="store_true", help="textual comparison")
     initialize(noargs_action="usage", autocomplete=True)
-    ff_args = args.folder, args.filename, args.label, args.max_not_matching
+    ff_args = args.folder, args.filename, args.label, getattr(args, "max_not_matching", None)
     logger.name = "visualizer"
     logging.configLogger(logger, ["INFO", "DEBUG"][args.verbose], fmt=LOG_FORMATS[args.verbose], relative=True)
     LABELS.update(getattr(args, "alias", None) or {})
@@ -207,6 +219,7 @@ if __name__ == "__main__":
         for _ in find_files(*ff_args, display=args.no_display, force_display=True, filter_selected=False).keys():
             pass
     elif args.command == "plot":
+        from bintropy import plot
         logger.info("Collecting" + msg)
         for file, data in find_files(*ff_args).items():
             files, labels = data['files'], data['labels']
@@ -215,7 +228,21 @@ if __name__ == "__main__":
             logger.info("Making plot to %s.%s..." % (imgn, args.format))
             for f in files:
                 logger.debug(f)
-            bintropy.plot(*files, img_name=imgn, labels=labels, sublabel="size-ep-ent", logger=logger, **vars(args))
+            plot(*files, img_name=imgn, labels=labels, sublabel="size-ep-ent", logger=logger, **vars(args))
+    elif args.command == "compare":
+        msg2 = " files from %s matching '%s'%s..." % (args.folder2, args.filename2,
+                                                 [" with the selected labels", ""][args.label2 is None])
+        logger.info("Comparing" + msg + " to" + msg2)
+        ff2_args = (args.folder2, args.filename2, args.label)
+        for f1, f2  in zip(find_files(*ff_args).items(), find_files(*ff2_args).items()):
+            data1, data2 = f1[1], f2[1]
+            if args.text:
+                print(binary_diff_readable(*data1['files'], *data2['files'], logger=logger, **vars(args)))    
+            else:
+                imgn = ts.Path(*data1['files']).stem + '_' + ts.Path(*data2['files']).stem if args.out_file is None \
+                       else args.out_file
+                logger.info("Making plot to %s..." % (imgn))
+                binary_diff_plot(data1['files'][0], data2['files'][0], img_name=imgn, logger=logger, **vars(args))
     elif args.command == "remove":
         logger.info("Removing" + msg)
         for file, data in find_files(*ff_args, remove=True).items():
