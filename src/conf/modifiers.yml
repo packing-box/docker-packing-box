@@ -1,4 +1,3 @@
-default:
 
 replace_one_section_name_with_random_bytes:
   apply:  false
