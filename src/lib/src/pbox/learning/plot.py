@@ -1,9 +1,7 @@
 # -*- coding: UTF-8 -*-
 from tinyscript.helpers import ints2hex, lazy_load_module, Path
 from sklearn.feature_selection import mutual_info_classif
-from sklearn.metrics import mutual_info_score
 from sklearn.preprocessing import StandardScaler
-from sklearn.neighbors import KNeighborsClassifier
 import numpy as np
 import seaborn
 

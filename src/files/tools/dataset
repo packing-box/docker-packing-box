@@ -181,6 +181,8 @@ if __name__ == '__main__':
     plot_igcomp.add_argument("-n", "--max-features", type=ts.pos_int, help="plot the n features with highest information gain")
     plot_igcomp.add_argument("-a", "--aggregate", help="Pattern to aggregate some of the features together",
                            default="byte_[0-9]+_after_ep")
+    plot_igcomp.add_argument("-m", "--multiclass", action="store_true",
+                         help="use multiple label classes")
     
     plot_lab = __add_name(pcmds.add_parser("labels", help="distribution of labels in the dataset (pie chart)"))
     __add_format(plot_lab)
