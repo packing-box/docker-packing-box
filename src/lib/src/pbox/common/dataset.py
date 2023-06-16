@@ -290,7 +290,7 @@ class Dataset:
             exe.chmod(0o600)
             for m in modifiers.Modifiers(exe):
                 self._alterations.setdefault(m, [])
-                self._alterations[m].append(h)
+                self._alterations[m].append(e.hash)
             exe.chmod(0o400)
         self._metadata['altered'] = sum(1 for hl in self._alterations.values() for h in hl) / len(self)
         self.__change = True
