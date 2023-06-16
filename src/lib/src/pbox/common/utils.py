@@ -81,7 +81,7 @@ class dict2(dict):
             raise ValueError("%s: 'result' shall be defined" % self.name)
     
     def __call__(self, data, silent=False, **kwargs):
-        d = {k: getattr(random, k) for k in ["choice", "randint", "randrange", "randstr"]}
+        d = {k: getattr(random, k) for k in ["choice", "randint", "randrange", "randstr", "randbytes"]}
         d.update(_EVAL_NAMESPACE)
         d.update(data)
         kwargs.update(self.parameters)

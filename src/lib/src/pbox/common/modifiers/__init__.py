@@ -104,6 +104,3 @@ class Modifiers(list):
         for c in expand_formats(format):
             l.extend(list(Modifiers.registry[c].keys()))
         return sorted(list(set(l)))
-
-            
-

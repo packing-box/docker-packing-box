@@ -1,6 +1,6 @@
 replace_one_section_name_with_random_bytes:
-  apply:  false
-  result: section_name(choice(sections).name, randstr())
+  result: 
+    PE: section_name(choice(sections), randstr())
 
 replace_text_with_null_bytes:
   result:
