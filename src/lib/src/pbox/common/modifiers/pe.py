@@ -6,7 +6,7 @@ __all__ = ["section_name", "add_section", "append_to_section", "move_entrypoint_
            "move_entrypoint_to_slack_space", "add_API_to_IAT", "add_lib_to_IAT", "get_section_name",
            "sections_with_slack_space", "sections_with_slack_space_entry_jump", "nop",
            "virtual_size", "raw_data_size", "append_to_section_force", "get_section",
-           "section_name_all", "set_checksum", "loop", "grid", "content_size", "has_characteristic",
+           "section_name_all", "set_checksum", "grid", "content_size", "has_characteristic",
            "SECTION_TYPES", "SECTION_CHARACTERISTICS"]
 
 ##############################################################################
@@ -27,10 +27,10 @@ def parse_section_input(section_input, parsed):
         section_input (lief.PE.Section or str): The section as set by the user
 
     Raises:
-        TypeError: Section must be lief.PE.Section or str
+        TypeError: Section must be lief.PE.Section, pbox.SectionAbstract or str
 
     Returns:
-        str: Section name
+        lief.PE.Section: Selected section
     """
     if isinstance(section_input, SectionAbstract) or isinstance(section_input, lief.PE.Section):
         return next(s for s in parsed.sections if s.name == section_input.name and s.virtual_address == section_input.virtual_address)
@@ -42,9 +42,22 @@ def parse_section_input(section_input, parsed):
 
 
 def get_section(section_name, sections):
+    """Wrapper to get a section from name from a list of sections
+
+    Args:
+        section_name (str): Section name
+        sections (list): List of lief.PE.Section or pbox.SectionAbstract 
+
+    Raises:
+        ValueError: Section not defined
+
+    Returns:
+        lief.PE.Section or pbox.SectionAbstract : the selectd section
+    """
     for s in sections:
         if s.name == section_name:
             return s
+    raise ValueError("Section %s is not defsined" % section_name)
 
 
 def sections_with_slack_space(sections, l=1):
@@ -80,6 +93,8 @@ def has_characteristic(section, charact):
 
 
 def nop():
+    """Dummy modifier that doesn't do anything
+    """
     def _nop(**kw):
         pass
     return _nop
@@ -125,17 +140,16 @@ def section_name_all(old_sections_list, new_sections_list):
 
     return _section_name_all
 
-
-"""
-def pipeline(modifiers):
-    def _pipeline(**kw):
-        for modifier in modifiers:
-            parser = modifier(params, **kw)
-            kw.update(parser=parser)
-"""
-
-
 def grid(modifier, params_grid, **eval_data):
+    """Modifier to run another modifiers multiple times with different parameters.
+
+    Args:
+        modifier (function): Modifier to run
+        params_grid (list): List of dictionnaries containing the parameter values
+    
+    Returns:
+        function: modifier function
+    """
     def _grid(parser=None, executable=None, **kw):
         for params in params_grid:
             d = globals()
@@ -145,12 +159,6 @@ def grid(modifier, params_grid, **eval_data):
             parser = modifier(d, parser=parser, executable=executable, **kw)
         return parser
     return _grid
-
-
-def loop(modifier, n, **eval_data):
-    def _loop(**kw):
-        return grid(modifier, [{} for _ in range(n)], **eval_data)(**kw)
-    return _loop
 
 
 def add_section(name,
@@ -163,9 +171,9 @@ def add_section(name,
 
     Args:
         name (str): Name of the new section
-        section_type (lief.PE.SECTION_TYPE, optional): Type of the new section. Defaults to SECTION_TYPES["TEXT"].
-        characteristics (lief.PE.SECTION_CHARACTERISTICS, optional): Characteristics of the new section. Defaults to SECTION_CHARACTERISTICS["MEM_READ"]+SECTION_CHARACTERISTICS["MEM_EXECUTE"].
-        data (bytes, optional): Content of the new section. Defaults to b"".
+        section_type (lief.PE.SECTION_TYPE, optional): Type of the new section (see lief source code for more information). Defaults to SECTION_TYPES["UNKOWN"].
+        characteristics (lief.PE.SECTION_CHARACTERISTICS, optional): Characteristics of the new section. Defaults to SECTION_CHARACTERISTICS["MEM_READ"] | SECTION_CHARACTERISTICS["MEM_EXECUTE"].
+        data (bytes, optional): Content of the new section. By default, the section is empty.
 
     Returns:
         function: modifier function
@@ -195,7 +203,7 @@ def add_section(name,
 
 def append_to_section_force(section_input, data):
     """Modifier that appends bytes at the end of a section even it is larger than
-        the slack space before the next section
+        the slack space before the next section. Often increases the size of the section on disk.
 
     Args:
         section_input (lief.PE.Section or str): The section to append bytes to.
@@ -210,7 +218,7 @@ def append_to_section_force(section_input, data):
         if len(data) == 0:
             # print(f"Section {section_input.name} : no data")
             return
-        # print(f"Filling section {section_input.name} at {section_input.virtual_address}")
+        # print(f"Appending to section {section_input.name} at {section_input.virtual_address}")
         section = parse_section_input(section_input, parsed)
         sec_name = section.name
 
@@ -231,7 +239,6 @@ def append_to_section_force(section_input, data):
                                       'char': s.characteristics,
                                       'content': list(s.content),
                                       'virtual_size': s.virtual_size})
-        # print([(s.name, s.offset, s.size, len(s.content), s.virtual_address, s.virtual_size) for s in parsed.sections])
 
         for s in sections:
             parsed.remove(s)
@@ -240,7 +247,7 @@ def append_to_section_force(section_input, data):
                                      name=st['name'],
                                      characteristics=st['char'])
             new_sec = parsed.add_section(in_sec)
-            # new_sec.size = new_sec.size + (-new_sec.size % parsed.optional_header.file_alignment)
+            # new_sec.size = new_sec.size + (-new_sec.size % parsed.optional_header.file_alignment) # should be done by lief automaticallyne 
             new_sec.content = st['content']
             new_sec.virtual_size = st['virtual_size']
             new_sec.virtual_address = st['virtual_address']
@@ -265,11 +272,6 @@ def append_to_section(section_input, data_source):
 
     @parser_handler("lief_parser")
     def _append_to_section(parsed=None, **kw):
-        # if parsed is None:
-        #    print("A parsed executable must be provided !")
-        # if not isinstance(parsed, lief.PE.Binary):
-        #    print("Only the lief parser can be used for this function")
-
         section = parse_section_input(section_input, parsed)
         available_size = section.size - len(section.content)
 

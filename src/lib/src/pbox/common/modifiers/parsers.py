@@ -5,10 +5,14 @@ __parsers__ = ["lief_parser"]
 
 
 def parser_handler(parser_name):
+    """Wrapper to apply a parser
+
+    Args:
+        parser_name (str): parser to apply
+    """
     def decorator(modifier_func):
         def wrapper(parser=None, executable=None, parsed=None, **kw):
-            #print(f'Wrapping: {parser_name} -> {parser}')
-            # parsed is not None only for testing
+            # parsed is not None only for testing, otherwise, it should be contained in a lief_parser object
             if parsed is not None:
                 modifier_func(parsed=parsed ,**kw)
                 return None
@@ -82,6 +86,11 @@ class lief_parser():
 
 
 class SectionAbstract():
+    """Object to simplify the handling of sections
+        Simple namespace to hold section information. Referencing a lief.PE.Section directly is dangerous, 
+        because it can be modified by alterations, which will break things.
+        Also, if different parsers are used in susequent alterations, a common format is required.
+    """
     def __init__(self, section):
         self.name = section.name
         self.virtual_size = section.virtual_size
@@ -92,6 +101,16 @@ class SectionAbstract():
             
 
 def parse_exe_info_default(parser, exe, d):
+    """Updates the namespace with information from the binary. If no parser is specified, lief.parse is used.
+
+    Args:
+        parser (pbox.lief_parser): parser to use
+        exe (pbox.Executable): executable to extract information from
+        d (dict): namespace for modfifier evaluation 
+
+    Returns:
+        _type_: _description_
+    """
     if parser is None:
         tmp_parser = lief.parse(str(exe.destination))
         d.update(sections=[SectionAbstract(s) for s in tmp_parser.sections],
