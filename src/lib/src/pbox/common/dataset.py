@@ -255,7 +255,7 @@ class Dataset:
                 yield exe
     
     @backup
-    def alter(self, new_name=None, percentage=10, query=None, **kw):
+    def alter(self, new_name=None, percentage=1, query=None, **kw):
         """ Alter executables with some given modifiers. """
         l = self.logger
         if not self._files:
@@ -264,12 +264,13 @@ class Dataset:
         if new_name is not None:
             ds = Dataset(new_name)
             ds.merge(self.path.basename, silent=True, **kw)
-            ds.alter(**kw)
+            ds.alter(percentage=percentage, **kw)
             return
+
         if query in [None, "all"]:
             # keep previous alteration percentage into account
             a = self._metadata.get('altered', .0)
-            p = min(1. - a, percentage)
+            p = min(1 - a, percentage)
             p_ = round(p * 100, 0)
             if p != percentage:
                 if p == .0:
@@ -286,10 +287,13 @@ class Dataset:
         df = self._data[~self._data.hash.isin(altered_h)]
         for e in filter_data_iter(df, query, limit, logger=self.logger):
             exe = Executable(dataset=self, hash=e.hash)
+            exe.chmod(0o600)
             for m in modifiers.Modifiers(exe):
                 self._alterations.setdefault(m, [])
-                self._alterations[m].append(h)
+                self._alterations[m].append(e.hash)
+            exe.chmod(0o400)
         self._metadata['altered'] = sum(1 for hl in self._alterations.values() for h in hl) / len(self)
+        self.__change = True
         self._save()
     
     def edit(self, **kw):
