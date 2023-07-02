@@ -595,6 +595,7 @@ MPRESS:
     PE:
       - ds
   formats:
+    - .NET
     - PE
     - Mach-O
   install:

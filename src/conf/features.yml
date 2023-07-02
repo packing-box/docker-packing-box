@@ -5,13 +5,13 @@ entropy:
     All: entropy
     PE:  pefeats[46]
 
-entropy_code_sections:
-  description: Entropy of Code/text sections
+entropy_code_section:
+  description: Entropy of .text section
   result:
     PE: pefeats[42]
 
 entropy_data_section:
-  description: Entropy of data section
+  description: Entropy of .data section
   result:
     PE: pefeats[43]
 
@@ -21,7 +21,7 @@ entropy_pe_header:
     PE: pefeats[45]
 
 entropy_resource_section:
-  description: Entropy of resource section
+  description: Entropy of .rsrc section
   result:
     PE: pefeats[44]
 
