@@ -72,7 +72,7 @@ class FilelessDataset(Dataset):
     Dataset.browse = browse
     
     @backup
-    def convert(self, new_name=None, silent=False, name=None, **kw):
+    def convert(self, new_name=None, silent=False, **kw):
         """ Convert a dataset with files to a dataset without files. """
         l = self.logger
         l_info = getattr(l, ["info", "debug"][silent])

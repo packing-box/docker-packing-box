@@ -1,187 +1,101 @@
 # -*- coding: UTF-8 -*-
-from tinyscript.helpers import ints2hex, lazy_load_module, Path
+from functools import wraps
 from sklearn.feature_selection import mutual_info_classif
 from sklearn.preprocessing import StandardScaler
-import numpy as np
-import seaborn
+from tinyscript.helpers import ints2hex, is_iterable, lazy_load_module, Path
 
+from .dataset import open_dataset
 from ..common.config import *
 from ..common.utils import *
 
+lazy_load_module("numpy", alias="np")
 lazy_load_module("packer", "pbox.items")
 lazy_load_module("pandas", alias="pd")
+lazy_load_module("seaborn")
 lazy_load_module("textwrap")
 
 
 __all__ = ["plot", "PLOTS"]
 
 
+def compute_features(f):
+    @wraps(f)
+    def _wrapper(*a, **kw):
+        from inspect import signature
+        p = list(signature(f).parameters.keys())
+        if p[0] == "dataset" and hasattr(a[0], "_files") and a[0]._files:
+            a[0]._compute_all_features()
+        if p[1] == "datasets" and is_iterable(a[1]) and len(a[1]) > 0:
+            a = (a[0], ) + ([open_dataset(ds) for ds in a[1]], ) + a[2:]
+            for ds in a[1]:
+                ds._compute_all_features()
+        return f(*a, **kw)
+    return _wrapper
+
+
+@compute_features
 @figure_path
-def _dataset_infogain_compare(dataset, datasets=[], feature=None, format="png", max_features=None, aggregate="byte_[0-9]+_after_ep", multiclass=False, **kw):
-    from .dataset import open_dataset
+def _dataset_features_comparison_heatmap(dataset, datasets=None, feature=None, format="png", max_features=None,
+                                         aggregate="byte_[0-9]+_after_ep", **kw):
+    """ Plot a heatmap with the diffferences of feature values between a reference dataset (Dataset instance) and the
+         given list of datasets (by name). """
     l = dataset.logger
-    if dataset._files:
-        l.info("Computing features...")
-        dataset._compute_all_features()
     datasets_feats = {dataset.basename: dataset._data.copy()}
-    
-    for name in datasets:
-        d = open_dataset(name)
-        if d._files:
-            d._compute_all_features()
-        datasets_feats[name] = d._data.copy()
-    if feature == []:
-        feature = "*"
-    feature = select_features(dataset, feature)
-    data_df = pd.concat(datasets_feats.values(), keys=datasets_feats.keys(), names=['experiment', 'hash'])
-    data_df = data_df[data_df['label'] != NOT_LABELLED]
-    
-    if multiclass:
-        fct = lambda x: pd.Series(mutual_info_classif(x[feature].astype('float'),
-                                                      x['label']),
-                                  index=feature)
-    else:
-        fct = lambda x: pd.Series(mutual_info_classif(x[feature].astype('float'),
-                                                      x['label'] == NOT_PACKED),
-                                  index=feature)
-    
-    
-    data_df = data_df.groupby('experiment').apply(fct)
-    data_df = data_df - data_df.loc[dataset.basename]
-    data_df = data_df.drop(index=dataset.basename)
-    
-    if max_features is None or max_features > len(feature):
-        max_features = len(feature)
-    
-    if aggregate is not None:
-        to_group = list(data_df.columns.str.extract("(" + aggregate + ")",expand=False).dropna())
-        data_df[aggregate + "_mean"] = data_df[to_group].mean(axis=1)
-        
-        data_df = data_df.drop(to_group, axis=1)
-        if max_features > data_df.shape[1]:
-            max_features = data_df.shape[1]
-    
-    order = sorted(
-        sorted(data_df.columns, key=lambda x: abs(data_df[x]).mean())[-max_features:],
-        key=lambda x: data_df[x].mean())[::-1]
-    
-    ticks = [-1, 0 , 1]
-    label = "Information gain difference from %s" % dataset.basename
-    title = "Information gain comparison with %s" % dataset.basename
-    
-    plt.figure(figsize=(1.2*len(data_df.index) + 3 , round(0.25*max_features + 2.2)), dpi=200)
-
-    annotations = data_df[order].applymap(lambda x: "%.2f"%x if abs(x) < 1000 else "%.1e"%x).values.T
-    ax = seaborn.heatmap(data=data_df[order].values.T,
-                    annot=annotations,
-                    fmt='s',
-                    #square=True,
-                    xticklabels=data_df.index,
-                    yticklabels=order,
-                    cmap='vlag',
-                    cbar_kws = {'location':'right', 'ticks': ticks, 'label':label},
-                    vmin=ticks[0],vmax = ticks[2],
-                    linewidth=.5,
-                    linecolor='black')
-
-    ax.xaxis.tick_top()
-    plt.xticks(rotation=90)
-    plt.title(title)
-
-    plt.tight_layout()
-    return "%s_infogain-compare.%s" % ("-".join(datasets_feats), format)
-
-
-@figure_path
-def _dataset_features_compare(dataset, datasets=[], feature=None, format="png", max_features=None, aggregate="byte_[0-9]+_after_ep", **kw):
-    from .dataset import open_dataset
-    l = dataset.logger
-    if dataset._files:
-        l.info("Computing features...")
-        dataset._compute_all_features()
-    datasets_feats = {dataset.basename: dataset._data.copy()}
-    
-    for name in datasets:
-        d = open_dataset(name)
-        if d._files:
-            d._compute_all_features()
-        datasets_feats[name] = d._data.copy()
-    if feature == []:
-        feature = "*"
-    feature = select_features(dataset, feature)
-    data_df = pd.concat(datasets_feats.values(), keys=datasets_feats.keys(), names=['experiment', 'hash'])[feature].astype('float')
-    scaler_v = StandardScaler().fit(data_df.loc[dataset.basename][feature])
-    data_df_rank = pd.DataFrame(scaler_v.transform(data_df[feature]),
-                        columns=data_df.columns, index=data_df.index)
-    data_df = data_df - data_df.loc[dataset.basename]
-    data_df_rank = data_df_rank - data_df_rank.loc[dataset.basename]
-    
-    pivoted_rank = data_df_rank.dropna().pivot_table(index='experiment', values=feature, aggfunc=np.mean)[feature]
-    pivoted = data_df.dropna().pivot_table(index='experiment', values=feature, aggfunc=np.mean)[feature]
-    
+    for ds in datasets:
+        datasets_feats[ds.name] = d._data.copy()
+    feature = select_features(dataset, feature or "*")
+    df = pd.concat(datasets_feats.values(), keys=datasets_feats.keys(), names=['experiment', 'hash'])[feature] \
+         .astype('float')
+    scaler_v = StandardScaler().fit(df.loc[dataset.basename][feature])
+    df_rank = pd.DataFrame(scaler_v.transform(df[feature]), columns=df.columns, index=df.index)
+    df = df - df.loc[dataset.basename]
+    df_rank = df_rank - df_rank.loc[dataset.basename]
+    pivoted_rank = df_rank.dropna().pivot_table(index='experiment', values=feature, aggfunc=np.mean)[feature]
+    pivoted = df.dropna().pivot_table(index='experiment', values=feature, aggfunc=np.mean)[feature]
     pivoted_rank = pivoted_rank.drop(index=dataset.basename)
     pivoted = pivoted.drop(index=dataset.basename)
-    
     if max_features is None or max_features > len(feature):
         max_features = len(feature)
-    
     if aggregate is not None:
         to_group = list(pivoted.columns.str.extract("(" + aggregate + ")",expand=False).dropna())
         pivoted[aggregate + "_mean"] = pivoted[to_group].mean(axis=1)
         pivoted_rank[aggregate + "_mean"] = pivoted_rank[to_group].mean(axis=1)
-        
         pivoted_rank = pivoted_rank.drop(to_group, axis=1)
         pivoted = pivoted.drop(to_group, axis=1)
         if max_features > pivoted.shape[1]:
             max_features = pivoted.shape[1]
-    
-    order = sorted(
-        sorted(pivoted_rank.columns, key=lambda x: abs(pivoted_rank[x]).mean())[-max_features:],
-        key=lambda x: pivoted_rank[x].mean())[::-1]
-    
+    order = sorted(sorted(pivoted_rank.columns, key=lambda x: abs(pivoted_rank[x]).mean())[-max_features:],
+                   key=lambda x: pivoted_rank[x].mean())[::-1]
     ticks = [-3, 0 , 3]
     label = "Feature value difference from %s" % dataset.basename
     title = "Feature value comparison with %s" % dataset.basename
-    
     plt.figure(figsize=(1.2*len(pivoted_rank.index) + 3 , round(0.25*max_features + 2.2)), dpi=200)
 
     annotations = pivoted[order].applymap(lambda x: "%.2f"%x if abs(x) < 1000 else "%.1e"%x).values.T
-    ax = seaborn.heatmap(data=pivoted_rank[order].values.T,
-                    annot=annotations,
-                    fmt='s',
-                    #square=True,
-                    xticklabels=pivoted_rank.index,
-                    yticklabels=order,
-                    cmap='vlag',
-                    cbar_kws = {'location':'right', 'ticks': ticks, 'label':label},
-                    vmin=ticks[0],vmax = ticks[2],
-                    linewidth=.5,
-                    linecolor='black')
-
+    ax = seaborn.heatmap(data=pivoted_rank[order].values.T, annot=annotations, fmt='s', cmap='vlag', linewidth=.5,
+                         xticklabels=pivoted_rank.index, yticklabels=order, vmin=ticks[0], vmax=ticks[2],
+                         cbar_kws = {'location':'right', 'ticks': ticks, 'label':label}, linecolor='black')
     ax.xaxis.tick_top()
     plt.xticks(rotation=90)
     plt.title(title)
-
     ax.collections[0].colorbar.set_ticklabels(["Negative", "Negligible", "Positive"])
     plt.tight_layout()
     return "%s_features-compare.%s" % ("-".join(datasets_feats), format)
 
 
+@compute_features
+@figure_path
 def _dataset_information_gain_bar_chart(dataset, feature=None, format="png", max_features=None, multiclass=False, **kw):
     """ Plot a bar chart of the information gain of features in descending order. """
-    from sklearn.feature_selection import mutual_info_classif
+    from sklearn.feature_selection import mutual_info_classif as mic
     l = dataset.logger
     feature = select_features(dataset, feature)
-    if dataset._files:
-        l.info("Computing features...")
-        dataset._compute_all_features()
     feats = dataset._data.copy()
     feats = feats.set_index("hash")
     feats = feats[feats['label'] != NOT_LABELLED] # skip not-labelled samples
     labels = feats['label'] if multiclass else feats['label'] == NOT_PACKED
     feats = feats[feature]
-    
-    info = mutual_info_classif(feats, labels, n_neighbors=5)
+    info = mic(feats, labels, n_neighbors=5)
     if max_features is None or max_features > len(feature):
         max_features = len(feature)
     l.debug("plotting figure...")
@@ -200,6 +114,53 @@ def _dataset_information_gain_bar_chart(dataset, feature=None, format="png", max
     plt.margins(y=1/max_features)
     plt.axvline(x=0, color='k')
     return "%s_infogain.%s" % (dataset.basename, format)
+
+
+@compute_features
+@figure_path
+def _dataset_information_gain_comparison_heatmap(dataset, datasets=None, feature=None, format="png", max_features=None,
+                                                 multiclass=False, aggregate="byte_[0-9]+_after_ep", **kw):
+    """ Plot a heatmap with the diffferences of information gain between a reference dataset (Dataset instance) and the
+         given list of datasets (by name). """
+    from sklearn.feature_selection import mutual_info_classif as mic
+    l = dataset.logger
+    datasets_feats = {dataset.basename: dataset._data.copy()}
+    for name in (datasets or []):
+        d = open_dataset(name)
+        if d._files:
+            d._compute_all_features()
+        datasets_feats[name] = d._data.copy()
+    feature = select_features(dataset, feature or "*")
+    df = pd.concat(datasets_feats.values(), keys=datasets_feats.keys(), names=['experiment', 'hash'])
+    df = df[df['label'] != NOT_LABELLED]
+    fct = lambda x: pd.Series(mic(x[feature].astype('float'), x['label']), index=feature) if multiclass else \
+          lambda x: pd.Series(mic(x[feature].astype('float'), x['label'] == NOT_PACKED), index=feature)
+    df = df.groupby('experiment').apply(fct)
+    df = df - df.loc[dataset.basename]
+    df = df.drop(index=dataset.basename)
+    if max_features is None or max_features > len(feature):
+        max_features = len(feature)
+    if aggregate is not None:
+        to_group = list(df.columns.str.extract("(" + aggregate + ")",expand=False).dropna())
+        df[aggregate + "_mean"] = df[to_group].mean(axis=1)
+        df = df.drop(to_group, axis=1)
+        if max_features > df.shape[1]:
+            max_features = df.shape[1]
+    order = sorted(sorted(df.columns, key=lambda x: abs(df[x]).mean())[-max_features:],
+                   key=lambda x: df[x].mean())[::-1]
+    ticks = [-1, 0 , 1]
+    label = "Information gain difference from %s" % dataset.basename
+    title = "Information gain comparison with %s" % dataset.basename
+    plt.figure(figsize=(1.2*len(df.index) + 3 , round(0.25*max_features + 2.2)), dpi=200)
+    annotations = df[order].applymap(lambda x: "%.2f"%x if abs(x) < 1000 else "%.1e"%x).values.T
+    ax = seaborn.heatmap(data=df[order].values.T, annot=annotations, fmt='s', xticklabels=df.index, yticklabels=order,
+                         cmap="vlag", cbar_kws = {'location':'right', 'ticks': ticks, 'label':label},
+                         vmin=ticks[0],vmax = ticks[2], linewidth=.5, linecolor='black')
+    ax.xaxis.tick_top()
+    plt.xticks(rotation=90)
+    plt.title(title)
+    plt.tight_layout()
+    return "%s_infogain-compare.%s" % ("-".join(datasets_feats), format)
 
 
 @figure_path
@@ -372,10 +333,10 @@ def plot(obj, ptype, dpi=200, **kw):
 
 
 PLOTS = {
-    'ds-infogain': _dataset_information_gain_bar_chart,
-    'ds-infogain-compare': _dataset_infogain_compare,
-    'ds-labels':   _dataset_labels_pie_chart,
-    'ds-features': _dataset_features_bar_chart,
-    'ds-features-compare': _dataset_features_compare,
+    'ds-features':         _dataset_features_bar_chart,
+    'ds-features-compare': _dataset_features_comparison_heatmap,
+    'ds-infogain':         _dataset_information_gain_bar_chart,
+    'ds-infogain-compare': _dataset_information_gain_comparison_heatmap,
+    'ds-labels':           _dataset_labels_pie_chart,
 }
 
