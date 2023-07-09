@@ -8,7 +8,7 @@ from .executable import *
 from .rendering import *
 from .utils import *
 
-lazy_load_module("modifiers", "pbox.common")
+lazy_load_module("alterations", "pbox.common")
 lazy_load_module("packer", "pbox.items", "item_packer")
 
 
@@ -256,10 +256,10 @@ class Dataset:
     
     @backup
     def alter(self, new_name=None, percentage=1, query=None, **kw):
-        """ Alter executables with some given modifiers. """
+        """ Alter executables with some given alterations. """
         l = self.logger
         if not self._files:
-            l.warning("Modifiers work only if the files are available")
+            l.warning("Alterations work only if the files are available")
             return
         if new_name is not None:
             ds = Dataset(new_name)
@@ -288,7 +288,7 @@ class Dataset:
         for e in filter_data_iter(df, query, limit, logger=self.logger):
             exe = Executable(dataset=self, hash=e.hash)
             exe.chmod(0o600)
-            for m in modifiers.Modifiers(exe):
+            for m in alterations.Alterations(exe):
                 self._alterations.setdefault(m, [])
                 self._alterations[m].append(e.hash)
             exe.chmod(0o400)

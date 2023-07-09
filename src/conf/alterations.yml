@@ -1,0 +1,46 @@
+abstract_rename_section:
+  apply: False
+  result:
+    PE: rename_section(old_name, new_name, raise_error=False)
+
+add_5_common_api_imports:
+  loop: 5
+  result:
+    PE: add_API_to_IAT(choice(COMMON_API_IMPORTS))
+
+add_common_api_import:
+  result:
+    PE: add_API_to_IAT(choice(COMMON_API_IMPORTS))
+
+add_data_section:
+  result:
+    PE: add_section(randstr(), section_type=SECTION_TYPES["DATA"])
+
+add_low_entropy_text_section:
+  result:
+    PE: add_section(".text", section_type=SECTION_TYPES["TEXT"], data=b"\x00"*(1<<20))
+
+add_random_text_section:
+  result:
+    PE: add_section(randstr(), data=randbytes(10))
+
+move_entrypoint_to_new_lowent_section:
+  result:
+    PE: move_entrypoint_to_new_section(name='aaa', post_data=b'\x00'*64)
+
+recompute_checksum:
+  result:
+    PE: set_checksum(compute_checksum())
+
+rename_packer_sections_2:
+  result:
+    PE: "grid(abstract_rename_section, [{'old_name': a, 'new_name': choice(COMMON_PE_SECTION_NAMES)} for a in COMMON_PACKER_SECTION_NAMES], section_name=section_name)"
+
+rename_random_section_to_random_bytes:
+  result: 
+    PE: rename_section(choice(sections), randstr())
+
+rename_text_section_to_null_bytes:
+  result:
+    PE: rename_section(".text", "\0"*8, raise_error=False)
+
