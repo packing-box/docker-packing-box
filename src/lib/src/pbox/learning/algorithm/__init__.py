@@ -14,7 +14,7 @@ def __init_metaalgo():
     global Algorithm
     from ...common.config import config
     from ...common.item import MetaItem  # this imports the lazy object Proxy (with its specific id(...))
-    MetaItem.__name__                   # this forces the initialization of the Proxy
+    MetaItem.__name__                    # this forces the initialization of the Proxy
     from ...common.item import MetaItem  # this reimports the loaded metaclass (hence, getting the right id(...))
     
     class MetaAlgorithm(MetaItem):
@@ -76,7 +76,7 @@ lazy_load_object("MetaAlgorithm", __init_metaalgo)
 def __init_algo():
     global __cls, __initialized, MetaAlgorithm
     from ...common.item import Item  # this imports the lazy object Proxy (with its specific id(...))
-    Item.__name__                   # this forces the initialization of the Proxy
+    Item.__name__                    # this forces the initialization of the Proxy
     from ...common.item import Item  # this reimports the loaded metaclass (hence, getting the right id(...))
     MetaAlgorithm.__name__
     

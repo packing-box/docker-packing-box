@@ -16,7 +16,7 @@ COMMIT_VALID_COMMANDS = [
     # OS commands
     "cd", "cp", "mkdir", "mv",
     # packing-box commands
-    "dataset", "detector", "model", "packer", "unapcker", "visualizer",
+    "dataset", "detector", "model", "packer", "unpacker", "visualizer",
 ]
 
 
@@ -34,12 +34,15 @@ def __init():
         
         [name]
           +-- conf          custom YAML configuration files
+          +-- (data)        custom executable format related data (e.g. common standard/packer section names)
           +-- datasets      datasets specific to the experiment
           +-- models        models specific to the experiment
           +-- (figures)     figures generated with visualization tools
           +-- (scripts)     additional scripts
           +-- README.md     notes for explaining the experiment
         """
+        FOLDERS = {'mandatory': ["conf", "datasets", "models"], 'optional':  ["data", "figures", "scripts"]}
+        
         @logging.bindLogger
         def __init__(self, name="experiment", load=True, **kw):
             name = check_name(Path(name).basename)
@@ -182,14 +185,15 @@ def __init():
                 raise ValueError("Does not exist")
             if not f.is_dir():
                 raise ValueError("Not a folder")
-            for fn in ["conf", "datasets", "models"]:
+            for fn in Experiment.FOLDERS['mandatory']:
                 if not f.joinpath(fn).exists():
                     raise ValueError("Does not have %s" % fn)
             for cfg in f.joinpath("conf").listdir():
                 if cfg.stem not in config.DEFAULTS['definitions'].keys() or cfg.extension != ".yml":
                     raise ValueError("Unknown configuration file '%s'" % cfg)
             for fn in f.listdir(Path.is_dir):
-                if fn not in ["conf", "datasets", "figures", "models", "scripts"] and warn and logger is not None:
+                if fn not in Experiment.FOLDERS['mandatory'] + Experiment.FOLDERS['optional'] and warn and \
+                   logger is not None:
                     logger.warning("Unknown subfolder '%s'" % fn)
             for fn in f.listdir(Path.is_file):
                 if fn not in ["commands.rc", "README.md"] and warn and logger is not None:
