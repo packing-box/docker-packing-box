@@ -5,7 +5,7 @@ from tinyscript import logging, re
 from tinyscript.helpers import lazy_load_module, Path
 
 from ...common.config import config
-from ...common.utils import dict2, expand_formats, FORMATS
+from ...common.utils import dict2, expand_formats, MetaBase, FORMATS
 
 lazy_load_module("yaml")
 
@@ -25,33 +25,7 @@ class Feature(dict2):
         return list(set([x for x in re.split(r"[\s\.\[\]\(\)]", self.result or "") if x in Features]))
 
 
-class MetaFeatures(type):
-    """ This metaclass allows to iterate feature names over the class-bound registry of features. """
-    def __iter__(self):
-        Features(None)  # trigger registry's lazy initialization
-        temp = []
-        for features in self.registry.values():
-            for name in features.keys():
-                if name not in temp:
-                    yield name
-                    temp.append(name)
-
-    @property
-    def source(self):
-        if not hasattr(self, "_source"):
-            self.source = None  # use the default source from 'config'
-        return self._source
-
-    @source.setter
-    def source(self, path):
-        p = Path(str(path or config['features']), expand=True)
-        if hasattr(self, "_source") and self._source == p:
-            return
-        self._source = p
-        self.registry = None  # reset the registry
-
-
-class Features(dict, metaclass=MetaFeatures):
+class Features(dict, metaclass=MetaBase):
     """ This class parses the YAML definitions of features to be derived from the extracted ones.
     
     NB: On the contrary of abstractions (e.g. Packer, Detector), Features lazily computes its registry.
@@ -68,20 +42,20 @@ class Features(dict, metaclass=MetaFeatures):
                 features = yaml.load(f, Loader=yaml.Loader) or {}
             Features.registry = {}
             # collect properties that are applicable for all the other features
-            data_all = features.pop('ALL', {})
+            data_all = features.pop('defaults', {})
             # important note: the 'keep' parameter is not considered here as some features may be required for computing
             #                  others but not kept in the final data, hence required in the registry yet
             for name, params in features.items():
                 for i in data_all.items():
                     params.setdefault(*i)
-                r, v = params.pop('result', {}), params.pop('values', [])
+                r, nval = params.pop('result', {}), len(params.pop('values', []))
                 # consider features for most specific formats first, then intermediate format classes and finally the
                 #  collapsed format class "All"
                 for flist in [expand_formats("All"), [f for f in FORMATS.keys() if f != "All"], ["All"]]:
                     for fmt in flist:
                         expr = r.get(fmt)
                         if expr:
-                            if len(v) > 0:
+                            if nval > 0:
                                 f = []
                                 for val in v:
                                     p = {k: v for k, v in params.items()}

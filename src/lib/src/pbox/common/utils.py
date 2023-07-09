@@ -22,13 +22,14 @@ lazy_load_module("yaml")
 
 __all__ = ["aggregate_formats", "backup", "benchmark", "bin_label", "class_or_instance_method", "collapse_formats",
            "data_to_temp_file", "dict2", "edit_file", "expand_formats", "expand_parameters", "figure_path",
-           "filter_data", "file_or_folder_or_dataset", "filter_data_iter", "get_counts", "is_exe", "lazy_load_module",
-           "lazy_object", "make_registry", "mpl", "np", "pd", "plt", "purge_items", "select_features", "shorten_str",
-           "strip_version", "ExeFormatDict", "COLORMAP", "FORMATS"]
+           "filter_data", "file_or_folder_or_dataset", "filter_data_iter", "format_shortname", "get_counts",
+           "get_format_group", "is_exe", "lazy_load_module", "lazy_object", "make_registry", "mpl", "np", "pd", "plt",
+           "purge_items", "select_features", "shorten_str", "strip_version", "ExeFormatDict", "MetaBase",
+           "COLORMAP", "FORMATS"]
 
 _EVAL_NAMESPACE = {k: getattr(builtins, k) for k in ["abs", "divmod", "float", "hash", "hex", "id", "int", "len",
-                                                     "list", "max", "min", "oct", "ord", "pow", "range", "range2",
-                                                     "round", "set", "str", "sum", "tuple", "type"]}
+                                                     "list", "max", "min", "next", "oct", "ord", "pow", "range",
+                                                     "range2", "round", "set", "str", "sum", "tuple", "type"]}
 WL_EXTRA_NODES = ("arg", "arguments", "keyword", "lambda")
 
 COLORMAP = {
@@ -61,6 +62,7 @@ FORMATS = {
 bin_label = lambda l: {NOT_LABELLED.lower(): -1, 'false': 0, NOT_PACKED.lower(): 0, 'true': 1, None: None} \
                       .get(l.lower(), 1)
 bold = lambda text: "\033[1m{}\033[0m".format(text)
+format_shortname = lambda s: re.sub(s.lower(), r"[-_\.]", "")
 get_counts = lambda metadata, packed=True: {k: v for k, v in metadata['counts'].items() if k not in \
                                             ([NOT_LABELLED, NOT_PACKED] if packed else [NOT_LABELLED])}
 is_exe = lambda e: Executable(e).format is not None
@@ -75,13 +77,13 @@ class dict2(dict):
         self.setdefault("parameters", {})
         for f, v in getattr(self.__class__, "_fields", {}).items():
             self.setdefault(f, v)
-        super(dict2, self).__init__(idict, **kwargs)
+        super().__init__(idict, **kwargs)
         self.__dict__ = self
         if self.result is None:
             raise ValueError("%s: 'result' shall be defined" % self.name)
     
     def __call__(self, data, silent=False, **kwargs):
-        d = {k: getattr(random, k) for k in ["choice", "randint", "randrange", "randstr", "randbytes"]}
+        d = {k: getattr(random, k) for k in ["choice", "randbytes", "randint", "randrange", "randstr"]}
         d.update(_EVAL_NAMESPACE)
         d.update(data)
         kwargs.update(self.parameters)
@@ -115,7 +117,7 @@ class ExeFormatDict(dict):
     """
     def __init__(self, *args, **kwargs):
         self.__all = expand_formats("All")
-        self.__get = super(ExeFormatDict, self).__getitem__
+        self.__get = super().__getitem__
         d = args[0] if len(args) > 0 else {}
         d.update(kwargs)
         for i in range(3):
@@ -150,6 +152,33 @@ class ExeFormatDict(dict):
             self.__get(depth)[name].update(value)
         else:
             self.__get(depth)[name] = value
+
+
+class MetaBase:
+    """ This metaclass allows to iterate feature names over the class-bound registry of the underlying abstraction.
+         It also adds a class-level 'source' attribute that can be used to reset the registry. """
+    def __iter__(self):
+        self(None)  # trigger registry's lazy initialization
+        temp = []
+        for features in self.registry.values():
+            for name in features.keys():
+                if name not in temp:
+                    yield name
+                    temp.append(name)
+    
+    @property
+    def source(self):
+        if not hasattr(self, "_source"):
+            self.source = None  # use the default source from 'config'
+        return self._source
+    
+    @source.setter
+    def source(self, path):
+        p = Path(str(path or config[self.__name__.lower()]), expand=True)
+        if hasattr(self, "_source") and self._source == p:
+            return
+        self._source = p
+        self.registry = None  # reset the registry
 
 
 def aggregate_formats(*formats, **kw):
@@ -191,18 +220,18 @@ def collapse_formats(*formats, **kw):
         formats = formats[0]
     selected = [x for x in formats]
     groups = [k for k in FORMATS.keys() if k != "All"]
-    for c in groups:
+    for f in groups:
         # if a complete group of formats (PE, ELF, Mach-O) is included, only keep the entire group
-        if all(x in selected for x in FORMATS[c]):
-            for x in FORMATS[c]:
+        if all(x in selected for x in FORMATS[f]):
+            for x in FORMATS[f]:
                 selected.remove(x)
-            selected.append(c)
+            selected.append(f)
     # ensure children of complete groups are removed
-    for c in selected[:]:
-        if c in groups:
-            for sc in selected:
-                if sc in FORMATS[c]:
-                    selected.remove(sc)
+    for f in selected[:]:
+        if f in groups:
+            for sf in selected:
+                if sf in FORMATS[f]:
+                    selected.remove(sf)
     # if everything in the special group 'All' is included, simply select only 'All'
     if all(x in selected for x in FORMATS['All']):
         selected = ["All"]
@@ -403,6 +432,16 @@ def filter_data_iter(df, query=None, limit=0, sample=True, progress=True, transi
             i += 1
             if i >= limit > 0:
                 break
+
+
+def get_format_group(exe_format):
+    """ Get the parent formats group from the given executable format. """
+    if exe_format in list(FORMATS.keys())[1:]:
+        return exe_format
+    for fgroup, formats in list(FORMATS.items())[1:]:  # NB: exclude index 0 as it is "All"
+        if exe_format in formats:
+            return fgroup
+    raise ValueError("Cannot find the group for executable format '%s'" % exe_format)
 
 
 def make_registry(cls):

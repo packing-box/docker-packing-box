@@ -1,6 +1,7 @@
 # -*- coding: UTF-8 -*-
 from .__common__ import *
 from .elf import *
+from .macho import *
 from .pe import *
 from ....common.utils import expand_formats, FORMATS
 
@@ -27,9 +28,9 @@ EXTRACTORS = {
     'ELF': {
         'elfeats': elfeats,
     },
-    #'Mach-O': {  #TODO
-    #    'mofeats': mofeats,
-    #},
+    'Mach-O': {
+        'mofeats': mofeats,
+    },
     'MSDOS': {
         'pefeats': pefeats,
     },
@@ -48,12 +49,12 @@ class Extractors(dict):
         if Extractors.registry is None:
             Extractors.registry = {}
             # consider most specific features first, then intermediate classes and finally the collapsed class "All"
-            for clist in [expand_formats("All"), list(FORMATS.keys())[1:], ["All"]]:
-                for c in clist:
-                    for name, func in EXTRACTORS.get(c, {}).items():
-                        for c2 in expand_formats(c):
-                            Extractors.registry.setdefault(c2, {})
-                            Extractors.registry[c2].setdefault(name, func)
+            for flist in [expand_formats("All"), list(FORMATS.keys())[1:], ["All"]]:
+                for f in flist:
+                    for name, func in EXTRACTORS.get(f, {}).items():
+                        for f2 in expand_formats(f):
+                            Extractors.registry.setdefault(f2, {})
+                            Extractors.registry[f2].setdefault(name, func)
         if exe is not None:
             for name, func in Extractors.registry.get(exe.format, {}).items():
                 self[name] = func(exe)
