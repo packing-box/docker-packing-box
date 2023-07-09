@@ -1,11 +1,9 @@
 # -*- coding: UTF-8 -*-
-import os
 from bintropy import entropy
 from capstone import *
 from lief import parse, ARCHITECTURES, ELF, MachO, PE
 
-from .elf import STD_SECTIONS as STD_SEC_ELF
-from .pe import STD_SECTIONS as STD_SEC_PE
+from ....common import get_data
 
 
 __all__ = ["block_entropy", "block_entropy_per_section", "disassemble_Nbytes_after_ep", "entropy", "parse_binary",
@@ -15,8 +13,6 @@ __all__ = ["block_entropy", "block_entropy_per_section", "disassemble_Nbytes_aft
 # selection of in-scope characteristics of Section objects for an executable parsed by LIEF
 CHARACTERISTICS = ["characteristics", "entropy", "flags", "numberof_line_numbers", "numberof_relocations", "offset",
                    "original_size", "size", "sizeof_raw_data", "type", "virtual_size"]
-STD_SECTIONS = {'ELF': STD_SEC_ELF, 'PE': STD_SEC_PE}
-
 CS2CS_MODE = {
     CS_ARCH_ARM:   {32: CS_MODE_ARM,    64: CS_MODE_ARM},
     CS_ARCH_ARM64: {32: CS_MODE_ARM,    64: CS_MODE_ARM},
@@ -61,5 +57,5 @@ block_entropy             = lambda bsize: lambda exe: entropy(exe.read_bytes(), 
 block_entropy_per_section = lambda bsize: parse_binary(lambda exe: [_entr(s, bsize, True) for s in exe.sections])
 section_characteristics   = parse_binary(lambda exe: {n: d for n, d in [_chars(s) for s in exe.sections]})
 standard_sections         = parse_binary(lambda exe: [s.name for s in exe.sections if s.name in \
-                                                      STD_SECTIONS.get(exe.format.name, [])])
+                                                      get_data(exe.format.name)['COMMON_SECTION_NAMES']])
 

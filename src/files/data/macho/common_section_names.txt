@@ -1,0 +1,33 @@
+# main sources:
+# - https://github.com/aidansteele/osx-abi-macho-file-format-reference
+__bss
+__common
+__compact_unwind
+__const
+__cstring
+__dyld
+__data
+__eh_frame
+__got
+__jump_table
+__la_symbol_ptr
+__la_symbol_ptrs
+__lazy_symbol
+__linkedit
+__literal4
+__literal8
+__mod_init_func
+__mod_term_func
+__module_info
+__nl_symbol_ptr
+__nl_symbol_ptrs
+__objc_const
+__objc_classlist
+__objc_data
+__objc_selrefs
+__objc_superrefs
+__picsymbol_stub
+__plt
+__pointers
+__symbol_stub
+__text

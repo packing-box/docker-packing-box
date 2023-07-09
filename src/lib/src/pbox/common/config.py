@@ -54,16 +54,19 @@ class Config(configparser.ConfigParser):
             'cache_entries': ("1048576", "ENTRIES", "number of LIEF-parsed samples in LRU cache", int),
         },
         'definitions': {
-            'algorithms': ("~/.opt/algorithms.yml", "PATH", "path to the algorithms' YAML definition", _rp),
-            'analyzers':  ("~/.opt/analyzers.yml",  "PATH", "path to the analyzers' YAML definition", _rp),
-            'detectors':  ("~/.opt/detectors.yml",  "PATH", "path to the detectors' YAML definition", _rp),
-            'features':   ("~/.opt/features.yml",   "PATH", "path to the features' YAML definition", _rp),
-            'modifiers':  ("~/.opt/modifiers.yml",  "PATH", "path to the modifiers' YAML definition", _rp),
-            'packers':    ("~/.opt/packers.yml",    "PATH", "path to the packers' YAML definition", _rp),
-            'unpackers':  ("~/.opt/unpackers.yml",  "PATH", "path to the unpackers' YAML definition", _rp),
+            'algorithms':   ("~/.opt/algorithms.yml", "PATH", "path to the algorithms' YAML definition", _rp),
+            'alterations':  ("~/.opt/alterations.yml", "PATH", "path to the modifiers' YAML definition", _rp),
+            'analyzers':    ("~/.opt/analyzers.yml", "PATH", "path to the analyzers' YAML definition", _rp),
+            'detectors':    ("~/.opt/detectors.yml", "PATH", "path to the detectors' YAML definition", _rp),
+            'features':     ("~/.opt/features.yml", "PATH", "path to the features' YAML definition", _rp),
+            'packers':      ("~/.opt/packers.yml", "PATH", "path to the packers' YAML definition", _rp),
+            'unpackers':    ("~/.opt/unpackers.yml", "PATH", "path to the unpackers' YAML definition", _rp),
         },
         'logging': {
             'wine_errors': ("false", "BOOL", "display Wine errors", _bl),
+        },
+        'others': {
+            'data': ("~/.opt/data", "PATH", "path to the executable formats' related data", _rp),
         },
     }
     ENVVARS = ["experiment", "experiments"]

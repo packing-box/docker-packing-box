@@ -1,4 +1,5 @@
-# found on http://www.hexacorn.com/blog/2016/12/15/pe-section-names-re-visited/
+# main source:
+# - http://www.hexacorn.com/blog/2016/12/15/pe-section-names-re-visited/
 .aspack
 .adata
 ASPack
@@ -92,5 +93,6 @@ WinLicen
 _winzip_
 .WWPACK
 .WWP32
+.yC
 .yP
 .y0da

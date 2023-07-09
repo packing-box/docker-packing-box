@@ -152,6 +152,8 @@ RUN sudo mkdir -p /mnt/share \
 COPY --chown=$USER $FILES/utils/* $UOPT/utils/
 COPY --chown=$USER $FILES/tools/* $UOPT/tools/
 RUN mv $UOPT/tools/help $UOPT/tools/?
+# copy executable format related data
+COPY --chown=$USER $FILES/data $UOPT/data
 # copy and install pbox (main library for tools) and pboxtools (lightweight library for items)
 COPY --chown=$USER src/lib /tmp/lib
 RUN pip3 install --user --no-warn-script-location --break-system-packages /tmp/lib/ \
