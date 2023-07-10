@@ -3,29 +3,13 @@ from tinyscript.helpers import lazy_load_module, Path
 lazy_load_module("lief")
 
 
-__all__ = ["binary_diff_readable", "binary_diff_plot"]
+__all__ = ["binary_diff_plot", "binary_diff_readable"]
 
 MIN_ZONE_WIDTH = 0
 
 # helper functions from Bintropy
-__btype = lambda b: str(type(b)).split(".")[2]
+__btype   = lambda b: str(type(b)).split(".")[2]
 __secname = lambda s: s.strip("\x00") or s or "<empty>"
-
-
-def binary_diff_readable(file1, file2, legend1=None, legend2=None, n=0, **kwargs):
-    """ Generates a text-based difference between two PE files. 
-    
-    :param file1:  first file's name
-    :param file2:  second file's name
-    :param legend1: first file's alias (file1 if None)
-    :param legend2: second file's alias (file2 if None)
-    :param n:      amount of carriage returns between the sequences
-    :return:       difference between the files, in text format
-    """
-    from difflib import unified_diff
-    from pefile import PE
-    dump1, dump2 = PE(file1).dump_info(), PE(file2).dump_info()
-    return '\n'.join(unified_diff(dump1.split('\n'), dump2.split('\n'), legend1 or str(file1), legend2 or str(file2), n=n))
 
 
 def _get_ep_and_section(binary):
@@ -40,10 +24,8 @@ def _get_ep_and_section(binary):
             ep = binary.virtual_address_to_offset(binary.entrypoint)
             ep_section = binary.section_from_offset(ep)
         elif btype == "PE":
-            ep = binary.rva_to_offset(
-                binary.optional_header.addressof_entrypoint)
-            ep_section = binary.section_from_rva(
-                binary.optional_header.addressof_entrypoint)
+            ep = binary.rva_to_offset(binary.optional_header.addressof_entrypoint)
+            ep_section = binary.section_from_rva(binary.optional_header.addressof_entrypoint)
         else:
             raise OSError("Unknown format")
         return ep, ep_section.name
@@ -51,72 +33,16 @@ def _get_ep_and_section(binary):
         return None, None
 
 
-def characteristics_no_entropy(executable):
-    """Helper function to compute characteristcs of the file, like Bintropy, but avoid entropy computations.
-    
-    :param executable: target executable for which the characteristics are to be computed
-    :return:           dictionary of characteristics from the target binary
-    """
-    data = {'name': Path(executable).basename, 'sections': []}
-    binary = lief.parse(str(executable))
-    data['type'] = __btype(binary)
-    if binary is None:
-        raise TypeError("Not an executable")
-    chunksize = 1
-    size = data['size'] = Path(str(executable)).size
-    n_samples = size
-    # entry point (EP)
-    ep, ep_section = _get_ep_and_section(binary)
-    # convert to 3-tuple (EP offset on plot, EP file offset, section name containing EP)
-    data['entrypoint'] = None if ep is None else (
-        int(ep // chunksize), ep, __secname(ep_section))
-    # sections
-    data['sections'] = [(0, int(max(MIN_ZONE_WIDTH, binary.sections[0].offset //
-                         chunksize)), "Headers")] if len(binary.sections) > 0 else []
-    for section in sorted(binary.sections, key=lambda x:x.offset):
-        name = __secname(section.name)
-        start = max(data['sections'][-1][1] if len(data['sections']) > 0 else 0,
-                    int(section.offset // chunksize))
-        max_end = min(max(start + MIN_ZONE_WIDTH, int((section.offset + section.size) // chunksize)),
-                      n_samples)
-        data['sections'].append(
-            (int(min(start, max_end - MIN_ZONE_WIDTH)), int(max_end), name))
-    # adjust the entry point (be sure that its position on the plot is within the EP section)
-    if ep:
-        ep_pos, _, ep_sec_name = data['entrypoint']
-        for s, e, name in data['sections']:
-            if name == ep_sec_name:
-                data['entrypoint'] = (min(max(ep_pos, s), e), ep, ep_sec_name)
-    # fill in undefined sections
-    prev_end = None
-    for i, t in enumerate(data['sections'][:]):
-        start, end, name = t
-        if prev_end and prev_end < start:
-            data['sections'].insert(i, prev_end, start, "<undef>")
-        prev_end = end
-    if len(binary.sections) > 0:
-        last = data['sections'][-1][1]
-        if data['type'] == "ELF":
-            # add section header table
-            sh_size = binary.header.section_header_size * binary.header.numberof_sections
-            data['sections'].append(
-                (int(last), int(last) + sh_size // chunksize, "Header"))
-        elif data['type'] == "PE":
-            # add overlay
-            if last + 1 < n_samples:
-                data['sections'].append((int(last), int(n_samples), "Overlay"))
-    return data
-
-
-def binary_diff_plot(file1, file2, img_name=None, img_format="png", legend1="", legend2="", dpi=400, title=None, **kwargs):
+def binary_diff_plot(file1, file2, img_name=None, img_format="png", legend1="", legend2="", dpi=400, title=None,
+                     **kwargs):
     """ Plots the byte-wise difference between two exectables.
     
     :param file1:      first file's name
     :param file2:      second file's name
     :param img_name:   filename to save the image (without extension) ; if None, use file1
     :param img_format: image extension
-    :param legend1:     first file's alias (file1 if None)
-    :param legend2:     second file's alias (file2 if None)
+    :param legend1:    first file's alias (file1 if None)
+    :param legend2:    second file's alias (file2 if None)
     :param dpi:        dots per inch for the image
     :param title:      preferred plot title
     :return:           plot module object
@@ -147,8 +73,8 @@ def binary_diff_plot(file1, file2, img_name=None, img_format="png", legend1="", 
     legend1, legend2 = legend1 or Path(file1).basename, legend2 or Path(file2).basename
     text_x = -0.012*max(len(p1)*(len(legend1)+3), len(p2)*(len(legend2)+3))
     for i, d in enumerate([(p1, file1, opcodes_1, legend1), (p2, file2, opcodes_2, legend2)]):
-        p, file, opcodes, label = d
-        data = characteristics_no_entropy(file)
+        p, f, opcodes, label = d
+        data = characteristics_no_entropy(f)
         n = len(p)
         obj = objs[i]
         obj.axis("off")
@@ -156,12 +82,10 @@ def binary_diff_plot(file1, file2, img_name=None, img_format="png", legend1="", 
         obj.text(s=label, x=text_x, y=y_pos, fontsize="large", ha="left", va="center")
         # display the entry point
         if data['entrypoint']:
-            obj.vlines(x=data['entrypoint'][0], ymin=0, ymax=1,
-                       color="r", zorder=11).set_label("Entry point")
+            obj.vlines(x=data['entrypoint'][0], ymin=0, ymax=1, color="r", zorder=11).set_label("Entry point")
             obj.text(data['entrypoint'][0], -.15, "______", color="r", ha="center", rotation=90, size=.8,
                      bbox={'boxstyle': "rarrow", 'fc': "r", 'ec': "r", 'lw': 1})
-        color_cursor, last = 0, None
-        j = 0
+        color_cursor, last, j = 0, None, 0
         for start, end, name in data['sections']:
             x = range(start, min(n, end+1))
             # select the right color first
@@ -188,8 +112,7 @@ def binary_diff_plot(file1, file2, img_name=None, img_format="png", legend1="", 
     cb.set_ticklabels(['removed', 'modified', 'untouched', 'added'])
     cb.ax.tick_params(length=0)
     cb.outline.set_visible(False)
-    plt.subplots_adjust(left=[.15, .02][legend1 == "" and legend2 == ""],
-                        bottom=.5/max(1.75, nf))
+    plt.subplots_adjust(left=[.15, .02][legend1 == "" and legend2 == ""], bottom=.5/max(1.75, nf))
     h, l = (objs[[0, 1][title_bool]] if nf+[0, 1][title_bool] > 1 else objs).get_legend_handles_labels()
     if len(h) > 0:
         plt.figlegend(h, l, loc=[.8, .135], ncol=1, prop={'size': 9})
@@ -201,4 +124,73 @@ def binary_diff_plot(file1, file2, img_name=None, img_format="png", legend1="", 
     except TypeError:  # format argument renamed in further versions of pyplot
         plt.savefig(img_name + "." + img_format, format=img_format, dpi=dpi, bbox_inches="tight")
     return plt
+
+
+def binary_diff_readable(file1, file2, legend1=None, legend2=None, n=0, **kwargs):
+    """ Generates a text-based difference between two PE files. 
+    
+    :param file1:   first file's name
+    :param file2:   second file's name
+    :param legend1: first file's alias (file1 if None)
+    :param legend2: second file's alias (file2 if None)
+    :param n:       amount of carriage returns between the sequences
+    :return:        difference between the files, in text format
+    """
+    from difflib import unified_diff as udiff
+    from pefile import PE
+    dump1, dump2 = PE(file1).dump_info(), PE(file2).dump_info()
+    return "\n".join(udiff(dump1.split('\n'), dump2.split('\n'), legend1 or str(file1), legend2 or str(file2), n=n))
+
+
+def characteristics_no_entropy(executable):
+    """Helper function to compute characteristcs of the file, like Bintropy, but avoid entropy computations.
+    
+    :param executable: target executable for which the characteristics are to be computed
+    :return:           dictionary of characteristics from the target binary
+    """
+    data = {'name': Path(executable).basename, 'sections': []}
+    binary = lief.parse(str(executable))
+    data['type'] = __btype(binary)
+    if binary is None:
+        raise TypeError("Not an executable")
+    chunksize = 1
+    size = data['size'] = Path(str(executable)).size
+    n_samples = size
+    # entry point (EP)
+    ep, ep_section = _get_ep_and_section(binary)
+    # convert to 3-tuple (EP offset on plot, EP file offset, section name containing EP)
+    data['entrypoint'] = None if ep is None else (
+        int(ep // chunksize), ep, __secname(ep_section))
+    # sections
+    data['sections'] = [(0, int(max(MIN_ZONE_WIDTH, binary.sections[0].offset // chunksize)), "Headers")] \
+                       if len(binary.sections) > 0 else []
+    for section in sorted(binary.sections, key=lambda x:x.offset):
+        name = __secname(section.name)
+        start = max(data['sections'][-1][1] if len(data['sections']) > 0 else 0, int(section.offset // chunksize))
+        max_end = min(max(start + MIN_ZONE_WIDTH, int((section.offset + section.size) // chunksize)), n_samples)
+        data['sections'].append((int(min(start, max_end - MIN_ZONE_WIDTH)), int(max_end), name))
+    # adjust the entry point (be sure that its position on the plot is within the EP section)
+    if ep:
+        ep_pos, _, ep_sec_name = data['entrypoint']
+        for s, e, name in data['sections']:
+            if name == ep_sec_name:
+                data['entrypoint'] = (min(max(ep_pos, s), e), ep, ep_sec_name)
+    # fill in undefined sections
+    prev_end = None
+    for i, t in enumerate(data['sections'][:]):
+        start, end, name = t
+        if prev_end and prev_end < start:
+            data['sections'].insert(i, prev_end, start, "<undef>")
+        prev_end = end
+    if len(binary.sections) > 0:
+        last = data['sections'][-1][1]
+        if data['type'] == "ELF":
+            # add section header table
+            sh_size = binary.header.section_header_size * binary.header.numberof_sections
+            data['sections'].append((int(last), int(last) + sh_size // chunksize, "Header"))
+        elif data['type'] == "PE":
+            # add overlay
+            if last + 1 < n_samples:
+                data['sections'].append((int(last), int(n_samples), "Overlay"))
+    return data
 
