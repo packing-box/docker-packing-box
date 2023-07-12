@@ -154,7 +154,7 @@ class ExeFormatDict(dict):
             self.__get(depth)[name] = value
 
 
-class MetaBase:
+class MetaBase(type):
     """ This metaclass allows to iterate feature names over the class-bound registry of the underlying abstraction.
          It also adds a class-level 'source' attribute that can be used to reset the registry. """
     def __iter__(self):

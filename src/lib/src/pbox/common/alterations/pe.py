@@ -1,6 +1,6 @@
 # -*- coding: UTF-8 -*-
 import lief
-from .parsers import parser_handler, parse_exe_info_default, SectionAbstract
+from .parsers import parser_handler, parse_executable, SectionAbstract
 
 
 __all__ = [
@@ -59,7 +59,7 @@ def grid(modifier, params_grid, **eval_data):
     def _grid(parser=None, executable=None, **kw):
         for params in params_grid:
             d = globals()
-            d = parse_exe_info_default(parser, executable, d)
+            d = parse_executable(parser, executable, d)
             d.update(params)
             d.update(eval_data)
             parser = modifier(d, parser=parser, executable=executable, **kw)

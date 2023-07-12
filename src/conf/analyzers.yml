@@ -43,7 +43,7 @@ F-Prot:
     - exec:
         - sudo ./install-f-prot.pl
         - sudo mv /usr/local/bin/fpscan $BIN/f-prot
-        - sudo chown user:user $BIN/f-prot
+        - sudo chown user $BIN/f-prot
   maintained: false
   references:
     - https://web.archive.org/web/20200711092511/http://www.f-prot.com/products/home_use/linux

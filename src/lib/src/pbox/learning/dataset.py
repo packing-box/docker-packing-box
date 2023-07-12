@@ -207,6 +207,12 @@ class FilelessDataset(Dataset):
     
     def plot(self, subcommand=None, **kw):
         """ Plot something about the dataset. """
+        # ensure input dataset(s) have their features computed before plotting
+        if 'dataset' in kw and kw['dataset']._files:
+            kw['dataset']._compute_all_features()
+        if 'datasets' in kw:
+            kw['datasets'] = [open_dataset(ds) for ds in (kw['datasets'] or [])]
+            [ds._compute_all_features() for ds in kw['datasets'] if ds._files]
         plot(self, "ds-%s" % subcommand, **kw)
     Dataset.plot = plot
     

@@ -66,10 +66,10 @@ class Alterations(list, metaclass=MetaBase):
                     for fmt in flist:
                         expr = r.get(fmt) if isinstance(r, dict) else str(r)
                         if expr:
-                            a = Alteration(params, name=name, parent=self, result=expr)
+                            alt = Alteration(params, name=name, parent=self, result=expr)
                             for subfmt in expand_formats(fmt):
                                 a.registry.setdefault(subfmt, {})
-                                a.registry[subfmt][a.name] = a
+                                a.registry[subfmt][alt.name] = alt
         # check the list of selected alterations if relevant, and filter out bad names (if warn=True)
         for name in (select or [])[:]:
             if name not in a.registry[exe.format]:

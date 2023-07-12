@@ -48,16 +48,16 @@ class Features(dict, metaclass=MetaBase):
             for name, params in features.items():
                 for i in data_all.items():
                     params.setdefault(*i)
-                r, nval = params.pop('result', {}), len(params.pop('values', []))
+                r, values = params.pop('result', {}), params.pop('values', [])
                 # consider features for most specific formats first, then intermediate format classes and finally the
                 #  collapsed format class "All"
                 for flist in [expand_formats("All"), [f for f in FORMATS.keys() if f != "All"], ["All"]]:
                     for fmt in flist:
                         expr = r.get(fmt)
                         if expr:
-                            if nval > 0:
+                            if len(values) > 0:
                                 f = []
-                                for val in v:
+                                for val in values:
                                     p = {k: v for k, v in params.items()}
                                     #TODO: support dynamic free variables (not only "x")
                                     e = expr.replace("x", str(val))

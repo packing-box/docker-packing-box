@@ -1,10 +1,7 @@
 # -*- coding: UTF-8 -*-
 from functools import wraps
-from sklearn.feature_selection import mutual_info_classif
-from sklearn.preprocessing import StandardScaler
 from tinyscript.helpers import ints2hex, is_iterable, lazy_load_module, Path
 
-from .dataset import open_dataset
 from ..common.config import *
 from ..common.utils import *
 
@@ -18,30 +15,15 @@ lazy_load_module("textwrap")
 __all__ = ["plot", "PLOTS"]
 
 
-def compute_features(f):
-    @wraps(f)
-    def _wrapper(*a, **kw):
-        from inspect import signature
-        p = list(signature(f).parameters.keys())
-        if p[0] == "dataset" and hasattr(a[0], "_files") and a[0]._files:
-            a[0]._compute_all_features()
-        if p[1] == "datasets" and is_iterable(a[1]) and len(a[1]) > 0:
-            a = (a[0], ) + ([open_dataset(ds) for ds in a[1]], ) + a[2:]
-            for ds in a[1]:
-                ds._compute_all_features()
-        return f(*a, **kw)
-    return _wrapper
-
-
-@compute_features
 @figure_path
 def _dataset_features_comparison_heatmap(dataset, datasets=None, feature=None, format="png", max_features=None,
                                          aggregate="byte_[0-9]+_after_ep", **kw):
     """ Plot a heatmap with the diffferences of feature values between a reference dataset (Dataset instance) and the
          given list of datasets (by name). """
+    from sklearn.preprocessing import StandardScaler
     l = dataset.logger
     datasets_feats = {dataset.basename: dataset._data.copy()}
-    for ds in datasets:
+    for ds in (datasets or []):
         datasets_feats[ds.name] = d._data.copy()
     feature = select_features(dataset, feature or "*")
     df = pd.concat(datasets_feats.values(), keys=datasets_feats.keys(), names=['experiment', 'hash'])[feature] \
@@ -83,7 +65,6 @@ def _dataset_features_comparison_heatmap(dataset, datasets=None, feature=None, f
     return "%s_features-compare.%s" % ("-".join(datasets_feats), format)
 
 
-@compute_features
 @figure_path
 def _dataset_information_gain_bar_chart(dataset, feature=None, format="png", max_features=None, multiclass=False, **kw):
     """ Plot a bar chart of the information gain of features in descending order. """
@@ -116,7 +97,6 @@ def _dataset_information_gain_bar_chart(dataset, feature=None, format="png", max
     return "%s_infogain.%s" % (dataset.basename, format)
 
 
-@compute_features
 @figure_path
 def _dataset_information_gain_comparison_heatmap(dataset, datasets=None, feature=None, format="png", max_features=None,
                                                  multiclass=False, aggregate="byte_[0-9]+_after_ep", **kw):
@@ -125,11 +105,8 @@ def _dataset_information_gain_comparison_heatmap(dataset, datasets=None, feature
     from sklearn.feature_selection import mutual_info_classif as mic
     l = dataset.logger
     datasets_feats = {dataset.basename: dataset._data.copy()}
-    for name in (datasets or []):
-        d = open_dataset(name)
-        if d._files:
-            d._compute_all_features()
-        datasets_feats[name] = d._data.copy()
+    for ds in (datasets or []):
+        datasets_feats[ds.name] = d._data.copy()
     feature = select_features(dataset, feature or "*")
     df = pd.concat(datasets_feats.values(), keys=datasets_feats.keys(), names=['experiment', 'hash'])
     df = df[df['label'] != NOT_LABELLED]
