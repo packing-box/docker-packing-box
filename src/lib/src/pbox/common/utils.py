@@ -62,7 +62,7 @@ FORMATS = {
 bin_label = lambda l: {NOT_LABELLED.lower(): -1, 'false': 0, NOT_PACKED.lower(): 0, 'true': 1, None: None} \
                       .get(l.lower(), 1)
 bold = lambda text: "\033[1m{}\033[0m".format(text)
-format_shortname = lambda s: re.sub(s.lower(), r"[-_\.]", "")
+format_shortname = lambda s: re.sub(r"([-_\.])", "", s.lower())
 get_counts = lambda metadata, packed=True: {k: v for k, v in metadata['counts'].items() if k not in \
                                             ([NOT_LABELLED, NOT_PACKED] if packed else [NOT_LABELLED])}
 is_exe = lambda e: Executable(e).format is not None
