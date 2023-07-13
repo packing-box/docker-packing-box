@@ -46,7 +46,7 @@ Supervised:
         I: 50                          # number of iterations
         W: weka.classifiers.trees.J48  # full name of base classifier
   DL85:
-    base:        !!python/name:dl85.DL85Classifier
+    base:        !!python/name:pydl85.DL85Classifier
     description: DL8.5 (optimal decision tree)
     link:        https://dl85.readthedocs.io/en/latest/
     multiclass:  false
