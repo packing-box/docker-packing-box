@@ -109,7 +109,7 @@ RUN python3 -m pip install --user --upgrade --break-system-packages pip
 RUN pip3 install --user --no-warn-script-location --ignore-installed --break-system-packages \
         angr capa capstone meson pandas poetry scikit-learn \
  && pip3 install --user --no-warn-script-location --ignore-installed --break-system-packages \
-        pefile pyelftools thefuck tinyscript tldr weka
+        pefile pyelftools thefuck tinyscript tldr weka \
  && pip3 install --user --no-warn-script-location --ignore-installed --break-system-packages \
         https://github.com/aia-uclouvain/pydl8.5/archive/refs/tags/v0.1.8.zip
 # initialize Go
