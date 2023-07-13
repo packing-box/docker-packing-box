@@ -40,6 +40,8 @@ def _init_metaitem():
         
         @property
         def source(self):
+            if not hasattr(self, "_source"):
+                self.source = None
             return self._source
         
         @source.setter

@@ -6,9 +6,6 @@ lazy_load_module("yaml")
 
 __all__ = ["Algorithm"]
 
-__cls = None
-__initialized = False
-
 
 def __init_metaalgo():
     global Algorithm
@@ -27,8 +24,10 @@ def __init_metaalgo():
         
         @property
         def source(self):
+            if not hasattr(self, "_source"):
+                self.source = None
             return self._source
-
+        
         @source.setter
         def source(self, path):
             p = Path(str(path or config['algorithms']), expand=True)
@@ -74,7 +73,7 @@ lazy_load_object("MetaAlgorithm", __init_metaalgo)
 
 
 def __init_algo():
-    global __cls, __initialized, MetaAlgorithm
+    global MetaAlgorithm
     from ...common.item import Item  # this imports the lazy object Proxy (with its specific id(...))
     Item.__name__                    # this forces the initialization of the Proxy
     from ...common.item import Item  # this reimports the loaded metaclass (hence, getting the right id(...))
@@ -92,14 +91,6 @@ def __init_algo():
             """ Simple method for checking if the algorithm is based on a Weka class. """
             from .weka import WekaClassifier
             return self.base.__base__ is WekaClassifier
-    # ensure it initializes only once (otherwise, this loops forever)
-    if not __initialized:
-        __initialized = True
-        # initialize the registry of algorithms from the default source (~/.opt/algorithms.yml)
-        Algorithm.source = None
-    if __cls:
-        return __cls
-    __cls = Algorithm
     return Algorithm
 lazy_load_object("Algorithm", __init_algo)
 
