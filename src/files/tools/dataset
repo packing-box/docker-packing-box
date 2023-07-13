@@ -83,8 +83,8 @@ if __name__ == '__main__':
                                  help="command to be executed")
     alter = __add_name(cmds.add_parser("alter", category="create/modify/delete",
                                        help="alter the target dataset with a set of transformations"))
-    alter.add_argument("-m", "--modifiers-set", metavar="YAML", type=ts.file_exists, default=str(config['modifiers']),
-                       help="modifiers set's YAML definition")
+    alter.add_argument("-a", "--alterations-set", metavar="YAML", default=str(config['alterations']),
+                       type=ts.file_exists, help="alterations set's YAML definition")
     alter.add_argument("-n", "--new-name", help="name for the new altered dataset",
                        note="if None, the original dataset is altered")
     agroup = alter.add_mutually_exclusive_group()
@@ -234,8 +234,8 @@ if __name__ == '__main__':
     # prepare parsed arguments
     name = getattr(args, "name", None)
     args.load = name is not None and args.command not in ["ingest", "list", "purge"]
-    if hasattr(args, "modifiers_set"):
-        Modifiers.source = args.modifiers_set  # configure the modifiers set's YAML definition source
+    if hasattr(args, "alterations_set"):
+        Alterations.source = args.alterations_set  # configure the alterations set's YAML definition source
     if hasattr(args, "features_set"):
         Features.source = args.features_set  # configure the features set's YAML definition source
     # now execute

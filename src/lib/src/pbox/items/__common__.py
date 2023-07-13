@@ -215,8 +215,8 @@ def _init_base():
                 md.append(Blockquote("**Note**: " + self.comment))
             md.append(Text("**Source**    : " + self.source))
             md.append(Text("**Applies to**: " + ", ".join(sorted(expand_formats(*self.formats, **{'once': True})))))
-            if bn == "Packer" and getattr(self, "modifiers", None):
-                md.append(Text("**Modifiers** : " + ", ".join(self.modifiers)))
+            if bn == "Packer" and getattr(self, "alterations", None):
+                md.append(Text("**Alterations** : " + ", ".join(self.alterations)))
             if bn == "Unpacker" and getattr(self, "packers", None):
                 md.append(Text("**Can unpack**: " + ", ".join(self.packers)))
             for k, v in (extras or {}).items():

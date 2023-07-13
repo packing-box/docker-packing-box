@@ -3,30 +3,26 @@
 # -*- coding: UTF-8 -*-
 from pbox import *
 from pbox.__info__ import *
-from pbox.common.modifiers import Modifiers
+from pbox.common.alterations import Alterations
 from pbox.common.rendering import progress_bar
 from pbox.common.utils import is_exe
 from tinyscript import *
 
 
-__version__     = "1.1.0"
+__version__     = "1.2.0"
 __doc__         = """
 This tool simply packs (using Packer.pack) with the selected packer an input executable or folder of executables.
 """
 __description__ = "Pack an input executable/folder with the selected packer"
 
 
-def pack(packer, exe, modifiers=None, **kw):
-    packer.pack(exe, *kw)
-    if modifiers:
-        Modifiers(exe, select=modifiers)
-
-
 if __name__ == '__main__':
     parser.add_argument("packer", type=Packer.get, help="selected packer")
     parser.add_argument("executable", help="executable or folder containing executables")
-    parser.add_argument("-m", "--modifier", choices=Modifiers.names(), action="extend", nargs="*",
-                        metavar="MODIFIER", help="model to be added in the comparison")
+    parser.add_argument("-a", "--alterations-set", metavar="YAML", default=str(config['alterations']),
+                        type=ts.file_exists, help="alterations set's YAML definition")
+    parser.add_argument("-A", "--alteration", choices=Alterations.names(), action="extend", nargs="*",
+                        metavar="ALTERATION", help="alteration to be applied to the target executable(s)")
     parser.add_argument("-p", "--prefix", help="string to be prepended to the filename")
     initialize(noargs_action="usage", multi_level_debug=True, autocomplete=True)
     logging.configLogger(logger, ["INFO", "DEBUG"][args.verbose], fmt=LOG_FORMATS[args.verbose], relative=True)

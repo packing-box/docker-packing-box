@@ -55,7 +55,7 @@ class Config(configparser.ConfigParser):
         },
         'definitions': {
             'algorithms':   ("~/.opt/algorithms.yml", "PATH", "path to the algorithms' YAML definition", _rp),
-            'alterations':  ("~/.opt/alterations.yml", "PATH", "path to the modifiers' YAML definition", _rp),
+            'alterations':  ("~/.opt/alterations.yml", "PATH", "path to the alterations' YAML definition", _rp),
             'analyzers':    ("~/.opt/analyzers.yml", "PATH", "path to the analyzers' YAML definition", _rp),
             'detectors':    ("~/.opt/detectors.yml", "PATH", "path to the detectors' YAML definition", _rp),
             'features':     ("~/.opt/features.yml", "PATH", "path to the features' YAML definition", _rp),

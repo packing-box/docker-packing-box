@@ -6,7 +6,7 @@ from os import listdir
 from os.path import exists, expanduser, isdir, isfile, join, splitext
 
 
-CONFIGS  = ["algorithms.yml", "analyzers.yml", "detectors.yml", "features.yml", "modifiers.yml", "packers.yml",
+CONFIGS  = ["algorithms.yml", "alterations.yml", "analyzers.yml", "detectors.yml", "features.yml", "packers.yml",
             "unpackers.yml"]
 DEFAULTS = {
     'workspace':   expanduser("~/.packing-box"),
