@@ -2,12 +2,10 @@
 from functools import wraps
 from tinyscript.helpers import ints2hex, is_iterable, lazy_load_module, Path
 
-from ..core.config import *
+from .config import *
 from ..helpers import *
 
-lazy_load_module("numpy", alias="np")
 lazy_load_module("packer", "pbox.items")
-lazy_load_module("pandas", alias="pd")
 lazy_load_module("seaborn")
 lazy_load_module("textwrap")
 

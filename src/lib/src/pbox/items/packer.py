@@ -24,9 +24,9 @@ def _parse_parameter(param):
 def __init():
     global __initialized
     from .__common__ import _init_base, PARAM_PATTERN
-    from ..common.config import NOT_LABELLED, NOT_PACKED
-    from ..common.executable import Executable
-    from ..common.item import update_logger
+    from ..core.config import NOT_LABELLED, NOT_PACKED
+    from ..core.executable import Executable
+    from ..core.item import update_logger
     Base = _init_base()
     
     class Packer(Base):
@@ -89,7 +89,7 @@ def __init():
             # if relevant, apply alterations based on defined Alterations
             alterations = getattr(self, "alterations", [])
             if len(alterations) > 0:
-                from ..common.alterations import Alterations
+                from ..core.alterations import Alterations
                 Alterations(exe, alterations)
                 self.logger.debug("alterations applied:\n%s- " % "\n- ".join(alterations))
             return label
@@ -118,7 +118,7 @@ Packer = lazy_object(__init)
 
 # ------------------------------------------------ NON-STANDARD PACKERS ------------------------------------------------
 def __init_ezuri():
-    from ..common.item import update_logger
+    from ..core.item import update_logger
     Packer = __init()
 
     class Ezuri(Packer):

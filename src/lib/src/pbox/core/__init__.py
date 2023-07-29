@@ -7,11 +7,9 @@ from .alterations import *
 from .alterations import __all__ as _alter
 from .config import *
 from .config import __all__ as _config
-from .data import *
-from .data import __all__ as _data
 from .visualization import *
 from .visualization import __all__ as _viz
 
 
-__all__ = _alter + _config + _data + _viz
+__all__ = _alter + _config + _viz
 

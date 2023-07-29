@@ -1,24 +1,33 @@
 # -*- coding: UTF-8 -*-
-from tinyscript import *
-from tinyscript.report import *
+from tinyscript.helpers.common import lazy_object
 
 
 __all__ = ["progress_bar", "render", "NOK", "NOK_GREY", "OK", "OK_GREY", "STATUS"]
 
 DEFAULT_BACKEND = "rich"
-NOK, NOK_GREY = colored("☒", "red"), colored("☒", "grey")
-OK, OK_GREY = colored("☑", "green"), colored("☑", "grey")
-STATUS = {
-    'broken':        colored("☒", "magenta"),
-    'commercial':    "💰",
-    'gui':           colored("🗗", "cyan"),
-    'info':          colored("ⓘ", "grey"),
-    'installed':     colored("☑", "orange"),
-    'not installed': colored("☒", "red"),
-    'ok':            colored("☑", "green"),
-    'todo':          colored("☐", "grey"),
-    'useless':       colored("ⓘ", "grey"),
-}
+
+def __init(*args):
+    from tinyscript import colored
+    def _wrapper():
+        if isinstance(args[0], dict):
+            return {k: colored(*v) if isinstance(v, tuple) else v for k, v in args[0].items()}
+        return colored(*args)
+    return _wrapper
+NOK      = lazy_object(__init("☒", "red"))
+NOK_GREY = lazy_object(__init("☒", "grey"))
+OK       = lazy_object(__init("☑", "green"))
+OK_GREY  = lazy_object(__init("☑", "grey"))
+STATUS   = lazy_object(__init({
+                            'broken':        ("☒", "magenta"),
+                            'commercial':    "💰",
+                            'gui':           ("🗗", "cyan"),
+                            'info':          ("ⓘ", "grey"),
+                            'installed':     ("☑", "orange"),
+                            'not installed': ("☒", "red"),
+                            'ok':            ("☑", "green"),
+                            'todo':          ("☐", "grey"),
+                            'useless':       ("ⓘ", "grey"),
+                        }))
 
 
 def progress_bar(unit="samples", silent=False, **kwargs):
@@ -43,6 +52,7 @@ def progress_bar(unit="samples", silent=False, **kwargs):
 
 def render(*elements, **kw):
     """ Helper function for rendering Tinyscript report objects to the terminal based on a selected backend. """
+    from tinyscript.report import Report, Section, Table
     backend = kw.get('backend', DEFAULT_BACKEND)
     if backend == "rich":
         from rich.box import SIMPLE_HEAD
@@ -51,6 +61,7 @@ def render(*elements, **kw):
         from rich.style import Style
         from rich.table import Table as RichTable
         from rich.text import Text as RichText
+        from tinyscript import code, colored
         code.replace(Heading.__rich_console__, "text.justify = \"center\"", "")
         _STATUS_CONV = {colored(u, c): RichText(u, style=c) for u, c in \
                         zip("☒🗗ⓘ☑☒☑☐ⓘ", ["magenta", "cyan", "grey", "orange", "red", "green", "grey", "grey"])}

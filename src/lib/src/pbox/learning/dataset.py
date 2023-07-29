@@ -6,10 +6,9 @@ from tinyscript.report import *
 from .executable import Executable
 from .pipeline import *
 from .plot import *
-from ..common.config import *
-from ..common.dataset import Dataset
-from ..common.rendering import progress_bar
-from ..common.utils import *
+from ..core.config import *
+from ..core.dataset import Dataset
+from ..helpers import *
 
 
 __all__ = ["open_dataset", "Dataset", "FilelessDataset"]

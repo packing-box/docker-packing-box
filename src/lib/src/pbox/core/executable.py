@@ -1,9 +1,8 @@
 # -*- coding: UTF-8 -*-
 from datetime import datetime
 from functools import cached_property
-from magic import from_file
-from tinyscript import classproperty, hashlib, shutil
-from tinyscript.helpers import is_filetype, Path, TempPath
+from tinyscript import hashlib, shutil
+from tinyscript.helpers import is_filetype, lazy_load_module, Path, TempPath
 
 from .config import NOT_LABELLED
 
@@ -125,6 +124,7 @@ class Executable(Path):
     
     @cached_property
     def filetype(self):
+        from magic import from_file
         try:
             return from_file(str(self))
         except OSError:

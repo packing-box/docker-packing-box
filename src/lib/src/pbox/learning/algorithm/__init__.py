@@ -6,13 +6,16 @@ lazy_load_module("yaml")
 
 __all__ = ["Algorithm"]
 
+__cls = None
+__initialized = False
+
 
 def __init_metaalgo():
     global Algorithm
-    from ...common.config import config
-    from ...common.item import MetaItem  # this imports the lazy object Proxy (with its specific id(...))
+    from ...core.config import config
+    from ...core.item import MetaItem  # this imports the lazy object Proxy (with its specific id(...))
     MetaItem.__name__                    # this forces the initialization of the Proxy
-    from ...common.item import MetaItem  # this reimports the loaded metaclass (hence, getting the right id(...))
+    from ...core.item import MetaItem  # this reimports the loaded metaclass (hence, getting the right id(...))
     
     class MetaAlgorithm(MetaItem):
         def __getattribute__(self, name):
@@ -73,10 +76,10 @@ lazy_load_object("MetaAlgorithm", __init_metaalgo)
 
 
 def __init_algo():
-    global MetaAlgorithm
-    from ...common.item import Item  # this imports the lazy object Proxy (with its specific id(...))
+    global __cls, __initialized, MetaAlgorithm
+    from ...core.item import Item  # this imports the lazy object Proxy (with its specific id(...))
     Item.__name__                    # this forces the initialization of the Proxy
-    from ...common.item import Item  # this reimports the loaded metaclass (hence, getting the right id(...))
+    from ...core.item import Item  # this reimports the loaded metaclass (hence, getting the right id(...))
     MetaAlgorithm.__name__
     
     class Algorithm(Item, metaclass=MetaAlgorithm):
@@ -91,6 +94,14 @@ def __init_algo():
             """ Simple method for checking if the algorithm is based on a Weka class. """
             from .weka import WekaClassifier
             return self.base.__base__ is WekaClassifier
+    # ensure it initializes only once (otherwise, this loops forever)
+    if not __initialized:
+        __initialized = True
+        # initialize the registry of algorithms from the default source (~/.opt/algorithms.yml)
+        Algorithm.source = None  # needs to be initialized, i.e. for the 'model' tool as the registry is used for
+    if __cls:                    #  choices, even though the relying YAML config can be tuned via --algorithms-set
+        return __cls
+    __cls = Algorithm
     return Algorithm
 lazy_load_object("Algorithm", __init_algo)
 

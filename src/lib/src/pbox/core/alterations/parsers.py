@@ -1,8 +1,10 @@
 # -*- coding: UTF-8 -*-
-import lief
+from tinyscript.helpers import lazy_load_module
+
+lazy_load_module("lief")
 
 
-__all__ = ["parse_executable", "parser_handler", "SectionAbstract"]
+__all__ = ["parse_executable", "parse_section", "parser_handler"]
 __parsers__ = ["lief_parser"]
 
 
@@ -37,7 +39,21 @@ def parse_executable(parser, exe, namespace):
     namespace['sections'] = parser.get_sections()
 
 
-def parser_handler(parser):
+def parse_section(section, parsed):
+    """ Helper for allowing to use sections or section names as input. """
+    print("[+]", section)
+    if isinstance(section, SectionAbstract) or isinstance(section, lief.PE.Section):
+        return next(s for s in parsed.sections if s.name == section.name and \
+                                                  s.virtual_address == section.virtual_address)
+    elif isinstance(section, str):
+        print("section is of type str")
+        print(parsed.get_section(section))
+        return parsed.get_section(section)
+    else:
+        raise TypeError("Section must be lief.PE.Section, SectionAbstract or str, not %s" % section.__class__)
+
+
+def parser_handler(parser_name):
     """ Decorator for applying a parser.
 
     :param parser: parser's name as a string
@@ -49,15 +65,15 @@ def parser_handler(parser):
                 alteration_wrapper(parsed=parsed, **kw)
                 return None
             # redefine parser if necessary
-            if parser not in __parsers__:
-                raise ValueError("Parser '%s' could not be found" % parser)
+            if parser_name not in __parsers__:
+                raise ValueError("Parser '%s' could not be found" % parser_name)
             # if None was used
             if parser is None:
-                parser = globals()[parser](executable)
+                parser = globals()[parser_name](executable)
             # if another was used for previous alterations, close the previous one
-            elif parser.__class__.__name__ != parser:
+            elif parser.__class__.__name__ != parser_name:
                 parser.build()
-                parser = globals()[parser](executable)
+                parser = globals()[parser_name](executable)
             # call the alteration wrapper via the parser
             parser(alteration_wrapper, executable=executable, **kw)
             return parser

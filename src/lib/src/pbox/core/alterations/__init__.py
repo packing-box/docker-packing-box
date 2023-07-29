@@ -1,18 +1,8 @@
 # -*- coding: UTF-8 -*-
 from tinyscript import logging, re
 
-from .elf import *
-from .elf import __all__ as _elf
-from .macho import *
-from .macho import __all__ as _macho
-from .pe import *
-from .pe import __all__ as _pe
-
 from .parsers import parse_executable
-from ..data import get_data
-from ...common.utils import *
-
-lazy_load_module("yaml")
+from ...helpers import *
 
 
 __all__ = ["Alterations"]
@@ -83,11 +73,13 @@ class Alterations(list, metaclass=MetaBase):
             parser = None
             # prepare the namespace if not done yet for the target executable format
             if exe.format not in a.namespaces:
+                from .modifiers import Modifiers
+                # create the namespace for the given executable format
+                a.namespaces[exe.format] = {'grid': grid}
                 # add constants specific to the target executable format
-                a.namespaces[exe.format] = get_data(exe.format)
-                # add format-related helpers and other stuffs
-                fmt_scope = "_" + format_shortname(get_format_group(exe.format))  # i.e. _elf, _macho, _pe
-                a.namespaces[exe.format].update({k: globals()[k] for k in globals()[fmt_scope]})
+                a.namespaces[exe.format].update(get_data(exe.format))
+                # add format-related data and modifiers
+                a.namespaces[exe.format].update(Modifiers()[get_format_group(exe.format)])
                 # add format-specific alterations
                 a.namespaces[exe.format].update(a.registry[exe.format])
             for name, alteration in a.registry[exe.format].items():
@@ -98,7 +90,7 @@ class Alterations(list, metaclass=MetaBase):
                     parser = alteration(a.namespaces[exe.format], parser, exe)
                     self.append(name)
                 except Exception as e:
-                    self.logger.warning("%s: %s" % (name, str(e)))
+                    self.logger.exception(e)
             # ensure the target executable is rebuilt
             if parser is not None:
                 parser.build()
@@ -111,6 +103,27 @@ class Alterations(list, metaclass=MetaBase):
         Alterations(None)  # force registry initialization
         l = []
         for c in expand_formats(format):
-            l.extend(list(Alterations.registry[c].keys()))
+            l.extend(list(Alterations.registry.get(c, {}).keys()))
         return sorted(list(set(l)))
+
+
+def grid(modifier, params_grid, **eval_data):
+    """ Run another modifier multiple times with different parameters.
+    
+    :param modifier:    modifier function
+    :param params_grid: list of dictionnaries containing the parameter values
+
+    """
+    def _wrapper(parser=None, executable=None, **kw):
+        d, e = {}, executable
+        d.update(Alterations.namespaces[e.format])
+        d.update(eval_data)
+        for params in params_grid:
+            parse_executable(parser, e, d)
+            d.update(params)
+            parser = modifier(d, parser=parser, executable=e, **kw)
+            for p in params.keys():
+                del d[p]
+        return parser
+    return _wrapper
 

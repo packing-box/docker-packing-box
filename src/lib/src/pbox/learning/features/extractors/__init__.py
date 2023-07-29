@@ -3,7 +3,7 @@ from .__common__ import *
 from .elf import *
 from .macho import *
 from .pe import *
-from ....common.utils import expand_formats, FORMATS
+from ....helpers.formats import expand_formats, FORMATS
 
 
 __all__ = ["Extractors"]

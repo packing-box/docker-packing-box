@@ -2,7 +2,7 @@
 from tinyscript import logging
 from tinyscript.helpers import lazy_load_module, lazy_object
 
-from ..common.config import null_logger
+from ..core.config import null_logger
 
 lazy_load_module("sklearn.pipeline", alias="sklpl")
 

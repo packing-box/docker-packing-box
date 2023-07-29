@@ -3,7 +3,7 @@ from bintropy import entropy
 from capstone import *
 from lief import parse, ARCHITECTURES, ELF, MachO, PE
 
-from ....common import get_data
+from ....helpers.data import get_data
 
 
 __all__ = ["block_entropy", "block_entropy_per_section", "disassemble_Nbytes_after_ep", "entropy", "parse_binary",

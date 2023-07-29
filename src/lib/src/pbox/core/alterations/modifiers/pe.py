@@ -1,13 +1,13 @@
 # -*- coding: UTF-8 -*-
 import lief
-from .parsers import parser_handler, parse_executable, SectionAbstract
+from ..parsers import *
 
 
 __all__ = [
-   "SECTION_CHARACTERISTICS", "SECTION_TYPES",
+   "get_pe_data", "SECTION_CHARACTERISTICS", "SECTION_TYPES",
     # utils
-   "content_size", "grid", "has_characteristic", "raw_data_size", "section_from_list", "section_name",
-   "sections_with_slack_space", "sections_with_slack_space_entry_jump", "virtual_size",
+   "content_size", "has_characteristic", "raw_data_size", "section_name", "sections_with_slack_space",
+   "sections_with_slack_space_entry_jump", "virtual_size",
     # modifiers
    "add_API_to_IAT", "add_lib_to_IAT", "add_section", "append_to_section", "append_to_section_force",
    "move_entrypoint_to_new_section", "move_entrypoint_to_slack_space", "nop", "rename_all_sections", "rename_section",
@@ -16,10 +16,9 @@ __all__ = [
 
 
 # --------------------------------------------------- Utils ------------------------------------------------------------
-SECTION_CHARACTERISTICS = lief.PE.SECTION_CHARACTERISTICS.__entries
-SECTION_CHARACTERISTICS.update((k, SECTION_CHARACTERISTICS[k][0]) for k in SECTION_CHARACTERISTICS)
-SECTION_TYPES = lief.PE.SECTION_TYPES.__entries
-SECTION_TYPES.update((k, SECTION_TYPES[k][0]) for k in SECTION_TYPES)
+SECTION_CHARACTERISTICS = {k: lief.PE.SECTION_CHARACTERISTICS.__entries[k][0] for k in \
+                           lief.PE.SECTION_CHARACTERISTICS.__entries}
+SECTION_TYPES = {k: lief.PE.SECTION_TYPES.__entries[k][0] for k in lief.PE.SECTION_TYPES.__entries}
 
 content_size                         = lambda s: len(s.content)
 has_characteristic                   = lambda s, c: s.has_characteristic(c)
@@ -30,41 +29,12 @@ sections_with_slack_space_entry_jump = lambda s, dl=0: sections_with_slack_space
 virtual_size                         = lambda s: s.virtual_size
 
 
-def __parse_section_input(section_input, parsed):
-    """ Helper for allowing to use sections or section names as input. """
-    if isinstance(section_input, SectionAbstract) or isinstance(section_input, lief.PE.Section):
-        return next(s for s in parsed.sections if s.name == section_input.name and \
-                                                  s.virtual_address == section_input.virtual_address)
-    elif isinstance(section_input, str):
-        return parsed.get_section(section_input)
-    else:
-        raise TypeError("Section must be lief.PE.Section, SectionAbstract or str, not %s" % section_input.__class__)
-
-
-def section_from_list(name, sections):
-    """ Helper for getting a section object given its name from a list of section objects. """
-    for s in sections:
-        if s.name == name:
-            return s
-    raise ValueError("Section %s is not defined" % name)
-
-
-def grid(modifier, params_grid, **eval_data):
-    """ Run another modifier multiple times with different parameters.
-    
-    :param modifier:    modifier function
-    :param params_grid: list of dictionnaries containing the parameter values
-
-    """
-    def _grid(parser=None, executable=None, **kw):
-        for params in params_grid:
-            d = globals()
-            d = parse_executable(parser, executable, d)
-            d.update(params)
-            d.update(eval_data)
-            parser = modifier(d, parser=parser, executable=executable, **kw)
-        return parser
-    return _grid
+def get_pe_data():
+    """ Derive other PE-specific data from this of ~/.opt/data/pe. """
+    from ...helpers.data import get_data
+    d = get_data("PE")['COMMON_DLL_IMPORTS']
+    d = {'COMMON_API_IMPORTS': [(lib, api) for lib in d for api in d[lib]]}
+    return d
 
 
 # ------------------------------------------------- Modifiers ----------------------------------------------------------
@@ -79,9 +49,9 @@ def add_API_to_IAT(*args):
     :param args: either (library, api) or ((library, api), )
     """
     if len(args) == 1:
-        library, api = args[0]
+        lib_name, api = args[0]
     elif len(args) == 2:
-        library, api = args
+        lib_name, api = args
     else:
         raise ValueError("A lib name and an API name must be provided")
     @parser_handler("lief_parser")
@@ -94,11 +64,11 @@ def add_API_to_IAT(*args):
             if iat.section.offset == 0:
                 patch_imports = False
         for library in parsed.imports:
-            if library.name.lower() == library.lower():
+            if library.name.lower() == lib_name.lower():
                 library.add_entry(api)
                 return {"imports": True, "patch_imports": patch_imports}
-        add_lib_to_IAT(library)(parsed=parsed)
-        parsed.get_import(library).add_entry(api)
+        add_lib_to_IAT(lib_name)(parsed=parsed)
+        parsed.get_import(lib_name).add_entry(api)
         return {"imports": True, "patch_imports": patch_imports}
     return _add_API_to_IAT
 
@@ -127,7 +97,7 @@ def add_section(name, section_type=SECTION_TYPES["UNKNOWN"], characteristics=SEC
     @parser_handler("lief_parser")
     def _add_section(parsed=None, **kw):
         # sec = lief.PE.Section(name=name, content=list(data), characteristics=characteristics)
-        # for some reason, the above API raises a warning in lief:
+        # for some reason, the above API raises a warning in LIEF:
         # **[section name] content size is bigger than section's header size**
         # source: https://github.com/lief-project/LIEF/blob/master/src/PE/Builder.cpp
         s = lief.PE.Section(name=name)
@@ -137,13 +107,13 @@ def add_section(name, section_type=SECTION_TYPES["UNKNOWN"], characteristics=SEC
     return _add_section
 
 
-def append_to_section(section, data):
+def append_to_section(section_input, data):
     """ Append bytes (either raw data or a function run with the target section's available size in the slack space as
          its single parameter) at the end of a section, in the slack space before the next section.
     """
     @parser_handler("lief_parser")
     def _wrapper(parsed=None, **kw):
-        section = __parse_section_input(section, parsed)
+        section = parse_section(section_input, parsed)
         available_size = section.size - len(section.content)
         d = list(data(available_size)) if callable(data) else list(data)
         if len(d) > available_size:
@@ -155,7 +125,7 @@ def append_to_section(section, data):
     return _wrapper
 
 
-def append_to_section_force(section, data):
+def append_to_section_force(section_input, data):
     """ Append bytes at the end of a section (uses lief.PE.Section) even it is larger than the slack space before the
          next section. Not that it often increases the size of the section on disk.
     """
@@ -163,7 +133,7 @@ def append_to_section_force(section, data):
     def _wrapper(parsed=None, **kw):
         if len(data) == 0:
             return
-        section = __parse_section_input(section, parsed)
+        section = parse_section(section_input, parsed)
         sec_name = section.name
         sections_dict = []
         sections = sorted(list(parsed.sections), key=lambda x: x.virtual_address)
@@ -232,7 +202,7 @@ def move_entrypoint_to_slack_space(section_input, pre_data=b"", post_data_source
         else:
             full_data = d + list(post_data_source)
             add_size = len(full_data)
-        section = __parse_section_input(section_input, parsed)
+        section = parse_section(section_input, parsed)
         new_entry = section.virtual_address + len(section.content) + len(pre_data)
         append_to_section(section, data_source=full_data)(parsed=parsed)
         section.virtual_size = section.virtual_size + add_size
@@ -266,7 +236,7 @@ def rename_section(old_section, new_name, raise_error=False):
         raise ValueError("Section name can't be longer than 8 characters")
     @parser_handler("lief_parser")
     def _wrapper(parsed=None, **kw):
-        sec = __parse_section_input(old_section, parsed)
+        sec = parse_section(old_section, parsed)
         old_name = sec.name
         if sec is None:
             if raise_error:

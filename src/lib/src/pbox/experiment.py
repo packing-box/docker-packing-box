@@ -3,9 +3,8 @@ from tinyscript import logging
 from tinyscript.helpers import ansi_seq_strip, confirm, lazy_object, Path
 from tinyscript.report import *
 
-from .common import *
-from .common.rendering import render
-from .common.utils import *
+from .core import *
+from .helpers import *
 from .learning import *
 
 
@@ -54,9 +53,6 @@ def __init():
                         folder.mkdir()
                 self['README'].touch()
                 config['experiment'] = config['workspace'] = self.path
-                # setup YAML configurations from the experiment in the config
-                for conf in self.path.joinpath("conf").listdir():
-                    config[conf.stem] = conf
         
         def __getitem__(self, name):
             """ Get something from the experiment folder, either a config file, a dataset or a model.

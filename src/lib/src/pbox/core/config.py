@@ -1,9 +1,6 @@
 # -*- coding: UTF-8 -*-
 from tinyscript import configparser, functools, logging, os, re
 from tinyscript.helpers import lazy_load_module, slugify, ConfigPath, Path
-from tinyscript.report import *
-
-from .rendering import render
 
 
 __all__ = ["check_name", "config", "lief", "null_logger",
@@ -14,7 +11,9 @@ PACKING_BOX_SOURCES = {
     'ELF': ["/usr/bin", "/usr/sbin"],
     'PE':  ["~/.wine32/drive_c/windows", "~/.wine64/drive_c/windows"],
 }
-PBOX_HOME = Path("~/.packing-box", expand=True)
+PBOX_HOME = Path("~/.packing-box", create=True, expand=True)
+for sf in ["conf", "data", "datasets", "models"]:
+    PBOX_HOME.joinpath(sf).mkdir(0o764, True, True)
 RENAME_FUNCTIONS = {
     'as-is':   lambda p: p,
     'slugify': slugify,
@@ -28,6 +27,8 @@ _bl = lambda v: str(v).lower() in ["1", "true", "y", "yes"]
 _np = lambda v: Path(str(v), create=True, expand=True).absolute()
 _rp = lambda v: Path(str(v), expand=True).absolute()
 _ws = lambda s, v: Path(s['workspace'].joinpath(v), create=True, expand=True).absolute()
+
+opt_tuple = lambda k: ("conf/%s.yml" % k, "PATH", "path to %s YAML definition" % k, _rp, ["workspace", PBOX_HOME], True)
 
 null_logger = logging.nullLogger
 
@@ -53,20 +54,13 @@ class Config(configparser.ConfigParser):
             'exec_timeout':  ("10", "SECONDS", "execution timeout of items (detectors, packers, ...)", int),
             'cache_entries': ("1048576", "ENTRIES", "number of LIEF-parsed samples in LRU cache", int),
         },
-        'definitions': {
-            'algorithms':   ("~/.opt/algorithms.yml", "PATH", "path to the algorithms' YAML definition", _rp),
-            'alterations':  ("~/.opt/alterations.yml", "PATH", "path to the alterations' YAML definition", _rp),
-            'analyzers':    ("~/.opt/analyzers.yml", "PATH", "path to the analyzers' YAML definition", _rp),
-            'detectors':    ("~/.opt/detectors.yml", "PATH", "path to the detectors' YAML definition", _rp),
-            'features':     ("~/.opt/features.yml", "PATH", "path to the features' YAML definition", _rp),
-            'packers':      ("~/.opt/packers.yml", "PATH", "path to the packers' YAML definition", _rp),
-            'unpackers':    ("~/.opt/unpackers.yml", "PATH", "path to the unpackers' YAML definition", _rp),
-        },
+        'definitions': {k: opt_tuple(k) for k in \
+                        ['algorithms', 'alterations', 'analyzers', 'detectors', 'features', 'packers', 'unpackers']},
         'logging': {
             'wine_errors': ("false", "BOOL", "display Wine errors", _bl),
         },
         'others': {
-            'data': ("~/.opt/data", "PATH", "path to the executable formats' related data", _rp),
+            'data': ("data", "PATH", "path to executable formats' related data", _rp, ["workspace", PBOX_HOME], True),
         },
     }
     ENVVARS = ["experiment", "experiments"]
@@ -117,9 +111,12 @@ class Config(configparser.ConfigParser):
             if option in sec:
                 o = self.DEFAULTS[section][option]
                 if isinstance(o, tuple) and len(o) > 4:
+                    chk = False
                     for override in o[4]:
-                        v = config[override]
-                        if v not in [None, ""]:
+                        v = config[override] if isinstance(override, str) else override
+                        if len(o) > 5 and o[5]:
+                            v, chk = v.joinpath(o[0]), o[5]
+                        if v not in [None, ""] and (not chk or Path(v).exists()):
                             return o[3](v)
                 if option in self.ENVVARS:
                     envf = PBOX_HOME.joinpath(option + ".env")
@@ -176,17 +173,14 @@ class Config(configparser.ConfigParser):
             yield o, f, v, m, h
     
     def overview(self):
+        from tinyscript.report import List, Section
+        from ..helpers.rendering import render
         r = []
         for name in self.sections():
             sec = super().__getitem__(name)
             r.append(Section(name.capitalize()))
-            mlen = 0
-            for opt in sec.keys():
-                mlen = max(mlen, len(opt))
-            l = []
-            for opt, val in sec.items():
-                l.append("%s = %s" % (opt.ljust(mlen), str(val)))
-            r.append(List(l))
+            mlen = max(map(len, sec.keys()))
+            r.append(List(list(map(lambda opt: "%s = %s" % (opt.ljust(mlen), self[opt]), sec.keys()))))
         render(*r)
     
     def save(self):

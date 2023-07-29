@@ -11,9 +11,9 @@ __initialized = False
 def __init():
     global __initialized
     from .__common__ import _init_base
-    from ..common.executable import Executable
-    from ..common.item import update_logger
-    from ..common.utils import file_or_folder_or_dataset
+    from ..core.executable import Executable
+    from ..core.item import update_logger
+    from ..helpers import file_or_folder_or_dataset
     Base = _init_base()
     
     class Analyzer(Base):

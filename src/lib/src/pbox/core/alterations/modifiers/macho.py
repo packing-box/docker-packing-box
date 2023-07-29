@@ -1,5 +1,6 @@
 # -*- coding: UTF-8 -*-
-from lief import parse, MachO
+import lief
+from ..parsers import *
 
 
 __all__ = []

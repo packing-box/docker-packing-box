@@ -12,9 +12,9 @@ __initialized = False
 def __init():
     global __initialized
     from .__common__ import _init_base
-    from ..common.config import NOT_LABELLED
-    from ..common.executable import Executable
-    from ..common.item import update_logger
+    from ..core.config import NOT_LABELLED
+    from ..core.executable import Executable
+    from ..core.item import update_logger
     Base = _init_base()
     
     class Unpacker(Base):

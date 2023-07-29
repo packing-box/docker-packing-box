@@ -4,11 +4,10 @@ from tinyscript import b, colored as _c, ensure_str, json, logging, os, random, 
 from tinyscript.helpers import execute_and_log as run, execute as run2, lazy_object, Path
 from tinyscript.report import *
 
-from ..common.config import *
-from ..common.executable import Executable
-from ..common.item import _init_item, update_logger
-from ..common.rendering import *
-from ..common.utils import *
+from ..core.config import *
+from ..core.executable import Executable
+from ..core.item import _init_item, update_logger
+from ..helpers import *
 
 
 __all__ = ["Base"]
@@ -39,7 +38,7 @@ OS_COMMANDS = subprocess.check_output("compgen -c", shell=True, executable="/bin
 ERR_PATTERN = r"^\x07?\s*(?:\-\s*)?(?:\[(?:ERR(?:OR)?|\!)\]|ERR(?:OR)?\:)\s*"
 PARAM_PATTERN = r"{{([^\{\}]*?)(?:\[([^\{\[\]\}]*?)\])?}}"
 STATUS_DISABLED = ["broken", "commercial", "info", "useless"]
-STATUS_ENABLED = [s for s in STATUS.keys() if s not in STATUS_DISABLED + ["not installed"]]
+STATUS_ENABLED = lazy_object(lambda: [s for s in STATUS.keys() if s not in STATUS_DISABLED + ["not installed"]])
 TEST_FILES = {
     'ELF32': [
         "/usr/bin/perl",

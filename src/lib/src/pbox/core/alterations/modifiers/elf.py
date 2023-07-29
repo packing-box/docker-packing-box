@@ -1,5 +1,6 @@
 # -*- coding: UTF-8 -*-
-from lief import parse, ELF
+import lief
+from ..parsers import *
 
 
 __all__ = []

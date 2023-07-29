@@ -3,7 +3,7 @@ from contextlib import suppress
 from functools import cached_property
 
 from .features import Features
-from ..common.executable import Executable as Base
+from ..core.executable import Executable as Base
 
 
 __all__ = ["Executable"]

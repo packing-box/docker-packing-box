@@ -5,10 +5,9 @@ from tinyscript.report import *
 
 from .config import *
 from .executable import *
-from .rendering import *
-from .utils import *
+from ..helpers import *
 
-lazy_load_module("alterations", "pbox.common")
+lazy_load_module("alterations", "pbox.core")
 lazy_load_module("packer", "pbox.items", "item_packer")
 
 
@@ -266,8 +265,7 @@ class Dataset:
             ds.merge(self.path.basename, silent=True, **kw)
             ds.alter(percentage=percentage, **kw)
             return
-
-        if query in [None, "all"]:
+        if query is None or query.lower() == "all":
             # keep previous alteration percentage into account
             a = self._metadata.get('altered', .0)
             p = min(1 - a, percentage)

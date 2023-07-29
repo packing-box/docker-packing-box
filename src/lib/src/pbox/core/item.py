@@ -17,7 +17,7 @@ set_exception("NotInstantiable", "TypeError")
 
 
 def update_logger(m):
-    """ Method decorator for triggering the setting of the bound logger (see pbox.common.Item.__getattribute__). """
+    """ Method decorator for triggering the setting of the bound logger (see pbox.core.item.Item.__getattribute__). """
     @functools.wraps(m)
     def _wrapper(self, *a, **kw):
         getattr(self, "logger", None)

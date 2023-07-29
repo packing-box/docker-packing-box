@@ -1,8 +1,8 @@
 # -*- coding: UTF-8 -*-
 from tinyscript import code, functools, re
 
-from ..common.config import *
-from ..common.utils import *
+from ..core.config import *
+from ..helpers import *
 
 
 def __init_skm(*a):

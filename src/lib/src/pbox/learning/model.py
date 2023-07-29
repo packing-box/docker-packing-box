@@ -11,9 +11,8 @@ from .features import Features
 from .metrics import *
 from .pipeline import *
 from .visualization import *
-from ..common.config import *
-from ..common.rendering import *
-from ..common.utils import *
+from ..core.config import *
+from ..helpers import *
 
 lazy_load_module("joblib")
 lazy_load_module("sklearn.feature_selection", alias="skfs")

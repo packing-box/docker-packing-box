@@ -12,6 +12,59 @@ __btype   = lambda b: str(type(b)).split(".")[2]
 __secname = lambda s: s.strip("\x00") or s or "<empty>"
 
 
+def _characteristics_no_entropy(executable):
+    """Helper function to compute characteristcs of the file, like Bintropy, but avoid entropy computations.
+    
+    :param executable: target executable for which the characteristics are to be computed
+    :return:           dictionary of characteristics from the target binary
+    """
+    data = {'name': Path(executable).basename, 'sections': []}
+    binary = lief.parse(str(executable))
+    data['type'] = __btype(binary)
+    if binary is None:
+        raise TypeError("Not an executable")
+    chunksize = 1
+    size = data['size'] = Path(str(executable)).size
+    n_samples = size
+    # entry point (EP)
+    ep, ep_section = _get_ep_and_section(binary)
+    # convert to 3-tuple (EP offset on plot, EP file offset, section name containing EP)
+    data['entrypoint'] = None if ep is None else (
+        int(ep // chunksize), ep, __secname(ep_section))
+    # sections
+    data['sections'] = [(0, int(max(MIN_ZONE_WIDTH, binary.sections[0].offset // chunksize)), "Headers")] \
+                       if len(binary.sections) > 0 else []
+    for section in sorted(binary.sections, key=lambda x:x.offset):
+        name = __secname(section.name)
+        start = max(data['sections'][-1][1] if len(data['sections']) > 0 else 0, int(section.offset // chunksize))
+        max_end = min(max(start + MIN_ZONE_WIDTH, int((section.offset + section.size) // chunksize)), n_samples)
+        data['sections'].append((int(min(start, max_end - MIN_ZONE_WIDTH)), int(max_end), name))
+    # adjust the entry point (be sure that its position on the plot is within the EP section)
+    if ep:
+        ep_pos, _, ep_sec_name = data['entrypoint']
+        for s, e, name in data['sections']:
+            if name == ep_sec_name:
+                data['entrypoint'] = (min(max(ep_pos, s), e), ep, ep_sec_name)
+    # fill in undefined sections
+    prev_end = None
+    for i, t in enumerate(data['sections'][:]):
+        start, end, name = t
+        if prev_end and prev_end < start:
+            data['sections'].insert(i, prev_end, start, "<undef>")
+        prev_end = end
+    if len(binary.sections) > 0:
+        last = data['sections'][-1][1]
+        if data['type'] == "ELF":
+            # add section header table
+            sh_size = binary.header.section_header_size * binary.header.numberof_sections
+            data['sections'].append((int(last), int(last) + sh_size // chunksize, "Header"))
+        elif data['type'] == "PE":
+            # add overlay
+            if last + 1 < n_samples:
+                data['sections'].append((int(last), int(n_samples), "Overlay"))
+    return data
+
+
 def _get_ep_and_section(binary):
     """ Helper for computing the EP and finding its section for each supported format.
     
@@ -74,7 +127,7 @@ def binary_diff_plot(file1, file2, img_name=None, img_format="png", legend1="", 
     text_x = -0.012*max(len(p1)*(len(legend1)+3), len(p2)*(len(legend2)+3))
     for i, d in enumerate([(p1, file1, opcodes_1, legend1), (p2, file2, opcodes_2, legend2)]):
         p, f, opcodes, label = d
-        data = characteristics_no_entropy(f)
+        data = _characteristics_no_entropy(f)
         n = len(p)
         obj = objs[i]
         obj.axis("off")
@@ -140,57 +193,4 @@ def binary_diff_readable(file1, file2, legend1=None, legend2=None, n=0, **kwargs
     from pefile import PE
     dump1, dump2 = PE(file1).dump_info(), PE(file2).dump_info()
     return "\n".join(udiff(dump1.split('\n'), dump2.split('\n'), legend1 or str(file1), legend2 or str(file2), n=n))
-
-
-def characteristics_no_entropy(executable):
-    """Helper function to compute characteristcs of the file, like Bintropy, but avoid entropy computations.
-    
-    :param executable: target executable for which the characteristics are to be computed
-    :return:           dictionary of characteristics from the target binary
-    """
-    data = {'name': Path(executable).basename, 'sections': []}
-    binary = lief.parse(str(executable))
-    data['type'] = __btype(binary)
-    if binary is None:
-        raise TypeError("Not an executable")
-    chunksize = 1
-    size = data['size'] = Path(str(executable)).size
-    n_samples = size
-    # entry point (EP)
-    ep, ep_section = _get_ep_and_section(binary)
-    # convert to 3-tuple (EP offset on plot, EP file offset, section name containing EP)
-    data['entrypoint'] = None if ep is None else (
-        int(ep // chunksize), ep, __secname(ep_section))
-    # sections
-    data['sections'] = [(0, int(max(MIN_ZONE_WIDTH, binary.sections[0].offset // chunksize)), "Headers")] \
-                       if len(binary.sections) > 0 else []
-    for section in sorted(binary.sections, key=lambda x:x.offset):
-        name = __secname(section.name)
-        start = max(data['sections'][-1][1] if len(data['sections']) > 0 else 0, int(section.offset // chunksize))
-        max_end = min(max(start + MIN_ZONE_WIDTH, int((section.offset + section.size) // chunksize)), n_samples)
-        data['sections'].append((int(min(start, max_end - MIN_ZONE_WIDTH)), int(max_end), name))
-    # adjust the entry point (be sure that its position on the plot is within the EP section)
-    if ep:
-        ep_pos, _, ep_sec_name = data['entrypoint']
-        for s, e, name in data['sections']:
-            if name == ep_sec_name:
-                data['entrypoint'] = (min(max(ep_pos, s), e), ep, ep_sec_name)
-    # fill in undefined sections
-    prev_end = None
-    for i, t in enumerate(data['sections'][:]):
-        start, end, name = t
-        if prev_end and prev_end < start:
-            data['sections'].insert(i, prev_end, start, "<undef>")
-        prev_end = end
-    if len(binary.sections) > 0:
-        last = data['sections'][-1][1]
-        if data['type'] == "ELF":
-            # add section header table
-            sh_size = binary.header.section_header_size * binary.header.numberof_sections
-            data['sections'].append((int(last), int(last) + sh_size // chunksize, "Header"))
-        elif data['type'] == "PE":
-            # add overlay
-            if last + 1 < n_samples:
-                data['sections'].append((int(last), int(n_samples), "Overlay"))
-    return data
 
