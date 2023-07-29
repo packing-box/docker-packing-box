@@ -1,11 +1,6 @@
 #!/usr/bin/python3
-# PYTHON_ARGCOMPLETE_OK
 # -*- coding: UTF-8 -*-
 from pbox import *
-from pbox.__info__ import *
-from pbox.common.alterations import Alterations
-from pbox.common.rendering import progress_bar
-from pbox.common.utils import is_exe
 from tinyscript import *
 
 
@@ -28,6 +23,7 @@ if __name__ == '__main__':
     logging.configLogger(logger, ["INFO", "DEBUG"][args.verbose], fmt=LOG_FORMATS[args.verbose], relative=True)
     p, rn = ts.Path(args.executable), lambda x: x.rename(x.dirname.joinpath(args.prefix + x.filename))
     delattr(args, "executable")
+    set_yaml(args)
     if p.is_file():
         args.packer.pack(p.absolute(), **vars(args))
         if args.prefix:

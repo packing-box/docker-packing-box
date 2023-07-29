@@ -1,10 +1,6 @@
 #!/usr/bin/python3
-# PYTHON_ARGCOMPLETE_OK
 # -*- coding: UTF-8 -*-
 from pbox import *
-from pbox.__info__ import *
-from pbox.common.rendering import progress_bar
-from pbox.common.utils import is_exe
 from tinyscript import *
 
 

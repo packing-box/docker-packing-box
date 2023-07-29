@@ -3,7 +3,7 @@ from contextlib import suppress
 from functools import wraps
 
 from .algorithm import Algorithm 
-from ..common.utils import *
+from ..helpers import *
 
 lazy_load_module("sklearn.tree", alias="sktree")
 

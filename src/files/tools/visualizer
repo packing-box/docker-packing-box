@@ -1,14 +1,13 @@
 #!/usr/bin/python3
-# PYTHON_ARGCOMPLETE_OK
 # -*- coding: UTF-8 -*-
 from pbox import *
-from pbox.__info__ import *
-from pbox.common.utils import edit_file, data_to_temp_file, pd
-from pbox.learning.executable import Executable
 from tinyscript import *
 
 
 __version__     = "2.0.3"
+__contributors__ = [
+    {'author': "Romain Jennes", 'reason': "added visualizations for observing effects of alterations"},
+]
 __doc__         = """
 This tool aims to generate representations of binaries, emphasizing their sections and plotting their entropy,
  for the sake of comparing them, e.g. an original PE file and its packed versions.
@@ -37,19 +36,6 @@ def legend_location(string):
         raise ValueError(string)
     return string.replace("-", " ")
 legend_location.__name__ = "legend location"
-
-
-def __add_folder(parser, alias=False, fmt=False, extended=True):
-    parser.add_argument("filename", help="binary to be represented ; format is regex")
-    parser.add_argument("folder", type=ts.folder_exists, help="target folder")
-    if alias:
-        parser.add_argument("-a", "--alias", type=ts.json_config, help="input label alias in JSON format")
-    if fmt:
-        parser.add_argument("-f", "--format", default="png", choices=["jpg", "png", "tif", "svg"], help="image format")
-    if extended:
-        parser.add_argument("-l", "--label", nargs="*", action="extend", help="select a particular label (keeps order)")
-        parser.add_argument("-m", "--max-not-matching", type=ts.pos_int, help="maximum number of labels not matching")
-    return parser
 
 
 def find_files(folder, pattern, selected=None, nbr_not_selected=None, display=False, force_display=False, remove=False,
@@ -172,19 +158,7 @@ def find_files(folder, pattern, selected=None, nbr_not_selected=None, display=Fa
 if __name__ == "__main__":
     sparsers = parser.add_subparsers(dest="command", metavar="CMD", title="positional argument",
                                      help="command to be executed")
-    feat = __add_folder(sparsers.add_parser("features", help="compute features for files matching the regex with the "
-                                                             "input labels"))
-    feat.add_argument("-r", "--raw", action="store_true", help="display raw features only (not transformed ones)")
-    find = __add_folder(sparsers.add_parser("find", help="find files matching the regex with the input labels"))
-    find.add_argument("-d", "--no-display", action="store_false", help="do not display packer label matches")
-    plot = __add_folder(sparsers.add_parser("plot", help="plot files matching the regex given the selected labels"),
-                        alias=True, fmt=True)
-    plot.add_argument("--legend-location", default="lower-center", type=legend_location,
-                      help="hyphen-separated pair of locators for the plot's legend")
-    plot.add_argument("-n", "--no-title", action="store_true", help="do not generate a title")
-    plot.add_argument("-s", "--scale", action="store_true", help="scale plots according to the first binary")
-    rm = __add_folder(sparsers.add_parser("remove", help="remove files matching the regex with the input labels"))
-    compare = __add_folder(sparsers.add_parser("compare", help="compare files from two sources"), fmt=True,
+    compare = add_argument(sparsers.add_parser("compare", help="compare files from two sources"), "folder", fmt=True,
                            extended=True)
     compare.add_argument("filename2", help="second binary to be represented ; format is regex")
     compare.add_argument("folder2", type=ts.folder_exists, help="second target folder")
@@ -195,6 +169,20 @@ if __name__ == "__main__":
     compare.add_argument("-t", "--title", help="set plot title")
     compare.add_argument("--no-title", action="store_true", help="do not generate a main title")
     compare.add_argument("--text", action="store_true", help="textual comparison")
+    feat = add_argument(sparsers.add_parser("features", help="compute features for files matching the regex with the "
+                                                             "input labels"), "folder")
+    feat.add_argument("-r", "--raw", action="store_true", help="display raw features only (not transformed ones)")
+    find = add_argument(sparsers.add_parser("find", help="find files matching the regex with the input labels"),
+                        "folder")
+    find.add_argument("-d", "--no-display", action="store_false", help="do not display packer label matches")
+    plot = add_argument(sparsers.add_parser("plot", help="plot files matching the regex given the selected labels"),
+                        "folder", alias=True, fmt=True)
+    plot.add_argument("--legend-location", default="lower-center", type=legend_location,
+                      help="hyphen-separated pair of locators for the plot's legend")
+    plot.add_argument("-n", "--no-title", action="store_true", help="do not generate a title")
+    plot.add_argument("-s", "--scale", action="store_true", help="scale plots according to the first binary")
+    rm = add_argument(sparsers.add_parser("remove", help="remove files matching the regex with the input labels"),
+                      "folder")
     initialize(noargs_action="usage", autocomplete=True)
     ff_args = args.folder, args.filename, args.label, getattr(args, "max_not_matching", None)
     logger.name = "visualizer"

@@ -1,14 +1,11 @@
 #!/usr/bin/python3
-# PYTHON_ARGCOMPLETE_OK
 # -*- coding: UTF-8 -*-
 from pbox import *
-from pbox.__info__ import *
-from pbox.common.rendering import *
 from tinyscript import *
 from tinyscript.report import *
 
 
-__script__      = "packing-box"
+__banner__      = "packing-box"
 __version__     = "1.2.0"
 __description__ = "Display this help message or packer's help"
 

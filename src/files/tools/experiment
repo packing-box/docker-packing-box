@@ -1,9 +1,6 @@
 #!/usr/bin/python3
-# PYTHON_ARGCOMPLETE_OK
 # -*- coding: UTF-8 -*-
 from pbox import *
-from pbox.__info__ import *
-from pbox.common.utils import purge_items
 from tinyscript import *
 
 
@@ -30,14 +27,7 @@ __examples__ = [[
     "purge test-*",
 ]][NAME == ""]
 
-
-def __add_name(parser, force=False, help="name of the experiment", note=None):
-    def experiment_exists(string):
-        if string == "all" or "*" in string or Experiment.check(string) or force:
-            return string
-        raise ValueError("Invalid experiment")
-    parser.add_argument("name", type=experiment_exists, help=help, **({} if note is None else {'note': note}))
-    return parser
+check = lambda s: Experiment.check(s)
 
 
 if __name__ == '__main__':
@@ -56,11 +46,13 @@ if __name__ == '__main__':
         sparsers.add_parser("list", help="list the existing experiments")
         sparsers.add_parser("show", help="get an overview of the experiment")
     else:
-        __add_name(sparsers.add_parser("compress", help="convert the datasets of an experiment to fileless datasets"))
+        add_argument(sparsers.add_parser("compress", help="convert the datasets of an experiment to fileless datasets"),
+                     "xpname")
         sparsers.add_parser("list", help="list the existing experiments")
-        __add_name(sparsers.add_parser("open", help="create a new or open an existing experiment"), True)
-        __add_name(sparsers.add_parser("purge", help="purge an experiment"),
-                   note="use 'all' to purge every dataset or the wildcard '*' to select a part of them")
+        add_argument(sparsers.add_parser("open", help="create a new or open an existing experiment"), "xpname",
+                     force=True)
+        add_argument(sparsers.add_parser("purge", help="purge an experiment"), "xpname",
+                     note="use 'all' to purge every dataset or the wildcard '*' to select a part of them")
     initialize(noargs_action="usage", autocomplete=True)
     logger.name = "experiment"
     logging.configLogger(logger, ["INFO", "DEBUG"][args.verbose], fmt=LOG_FORMATS[args.verbose], relative=True)
