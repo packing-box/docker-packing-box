@@ -1,0 +1,219 @@
+#!/usr/bin/python3
+# -*- coding: UTF-8 -*-
+from pbox import *
+from tinyscript import *
+from tinyscript.argreparse import ArgumentParser
+from tinyscript.helpers import CompositeKeyDict as ckdict, Path, PythonPath
+from tinyscript.parser import ProxyArgumentParser
+
+
+__script__    = "Bash Completions Generator"
+__version__   = "1.0"
+__requires__  = {'tinyscript': "1.28.4"}
+__examples__  = [
+    "~/.opt/utils/pbox-completions.json -f ~/.bash_completion",
+]
+
+
+_compreply = lambda c, i=1, sc=False, pl=True: "COMPREPLY%s=($(compgen -W \"%s\" \"${COMP_WORDS[%d]}\"))%s\n" % \
+                                      (["", "+"][pl], " ".join(sorted(set(c))), i, ["", " ;;"][sc])
+_dictdepth = lambda d: 1 + max(map(_dictdepth, d.values())) if isinstance(d, dict) and len(d) > 0 else 0
+_varname   = lambda d: ["curr", "%sprev" % ((d-1) * "s")][d > 0]
+
+
+def _gen_completions(tool, config, indent=2):
+    i = indent * " "
+    p = {'block': "", 'compreply': "%sCOMPREPLY=()\n" % i, 'init': "", 'locals': "%slocal" % i, 'tool': tool.basename}
+    commands, depths = _get_commands(tool), {}
+    loc = config.pop('_locals_', [])
+    # recursive function for building the intermediary dictionary implementing the completions.
+    def _dict2depth(dct, cmds, depth=0, parents=()):
+        if len(dct) == 0:
+            return
+        # create parents for this depth and update the reference dictionary for further processing
+        ref_dct, ref_cmds = {}, cmds
+        _expand = lambda k, cl, x=(): "|".join(tuple(c for c in cl if re.search(k, c) and c not in x))
+        depths.setdefault(depth+1, ref_dct)
+        for p in parents:
+            ref_subdct = {}
+            ref_dct.setdefault(p, ref_subdct)
+            ref_dct = ref_subdct
+            ref_cmds = ref_cmds.get(p, ref_cmds)
+        # expand wildcard
+        if '*' in dct.keys():
+            used = []
+            for k, v in dct.items():
+                if k == '*':
+                    continue
+                for cmd in ref_cmds.keys():
+                    if re.search(k, cmd):
+                        used.append(cmd)
+            dct = dict([(_expand(".*", ref_cmds, used), dct.pop('*'))] + list(dct.items()))
+        # now parse keys and values recursively to populate the reference dictionary
+        for k, v in list(dct.items()):
+            if v is None:
+                continue
+            nk, nv = _expand(k, ref_cmds) or k.strip("_"), v
+            if isinstance(v, dict):
+                # case 1: v holds one key that is reflected in lower depths ; this means that it is not about selecting
+                #          a the case from a subparser but simply the next argument
+                #         E.g. {'test': {'test': "DO_SOMETHING"}} ;
+                if len(v) == 1 and "_%s_" % k == list(v.keys())[0]:
+                    _dict2depth(v, ref_cmds, depth+1, parents)
+                # case 2: v holds one or more keys with case selections, meaning that a subparser is defined
+                #         E.g. {'test': {'choice1|choice2': "DO_SOMETHING"}}
+                else:
+                    nv = "|".join(list(sk for sd in v.keys() for sk in _expand(sd, ref_cmds.get(k, {})).split("|")))
+                    _dict2depth(v, ref_cmds.get(k, ref_cmds), depth+1, parents+(nk, ))
+            dct[nk] = dct.pop(k)
+            if nv:
+                ref_dct[nk] = nv
+    # function for building format parameters for the template of completions function
+    def _depth(dct, indent_offset=0):
+        # nested recursive function for building case blocks
+        def _cases(dct, depth, argpos, case_offset=0, nested=False):
+            offset = indent_offset+case_offset*2+1
+            p['block'] += indent * (offset+1) * " " + "case \"$%s\" in\n" % _varname(argpos)
+            for case, complv in dct.items():
+                p['block'] += indent * (offset+2) * " " + "\"%s\")\n" % case.replace("|", "\"|\"")
+                if isinstance(complv, dict) and len(complv) == 1 and case == list(complv.keys())[0]:
+                    complv = complv[list(complv.keys())[0]]
+                if isinstance(complv, dict):
+                    _cases(complv, depth, argpos-1, case_offset+1, True)
+                elif isinstance(complv, list):
+                    tmp = ""
+                    for line in complv[:-1]:
+                        tmp += indent * (offset+3) * " " + line.rstrip() + "\n"
+                    p['block'] += tmp + indent * (offset+3) * " " + _compreply([complv[-1]], depth+1, True)
+                else:
+                    p['block'] += indent * (offset+3) * " " + _compreply([complv.replace("|", " ")], depth+1, True)
+            p['block'] += indent * (offset+2) * " " + "*) ;;\n"
+            p['block'] += indent * (offset+1) * " " + "esac%s\n" % ["", " ;;"][nested]
+        # start computing parts of the completion script
+        max_depth = _dictdepth(dct)
+        if max_depth == 0:
+            p['compreply'] = indent * " " + _compreply(commands, pl=False)
+            p['locals'] = ""
+        else:
+            # loop on depth for creating the if blocks
+            for depth in range(max_depth):
+                varname = _varname(depth)
+                p['locals'] += " %s" % varname
+                p['init'] += "  %s=${COMP_WORDS[COMP_CWORD%s]}\n" % (varname, "" if depth == 0 else "-%d" % depth)
+                p['block'] += indent * (indent_offset+1) * " " + \
+                              "%sif [ $COMP_CWORD -eq %d ]; then\n" % (["", "el"][depth > 0], depth+1)
+                # for 'if [ $COMP_CWORD -eq 1 ]' (depth 0), set the complete list of commands
+                if depth == 0:
+                    p['block'] += indent * (indent_offset+2) * " " + _compreply(commands)
+                # for further depths, create the case block
+                else:
+                    _cases(depths[depth], depth, depth)
+            p['block'] += indent * (indent_offset+1) * " " + "fi\n"
+    # compute a transformation of the config dictionary to a format that can be processed by _depth and start building
+    #  the parameters for the template
+    _dict2depth(config, commands)
+    _depth(depths)
+    for var in loc:
+        p['locals'] += " %s" % var
+    if p['locals'] != "":
+        p['locals'] += "\n"
+    return "_%(tool)s_completions() {\n%(locals)s%(compreply)s%(init)s%(block)s}\n\n" % p
+
+
+def _get_commands(tool):
+    cmds, module = ckdict(_separator_="|"), "_%s.py" % tool.basename
+    # copy the target tool to modify it so that its parser tree can be retrieved
+    ntool = tool.copy(module)
+    ntool.write_text(ntool.read_text().replace("if __name__ == '__main__':", "def main():") \
+                                      .replace("if __name__ == \"__main__\":", "def main():") \
+                                      .replace("initialize(", "return parser\n    initialize(") \
+                                      .rstrip("\n") + "\n\nif __name__ == '__main__':\n    main()\n")
+    ntool.chmod(0o755)
+    # populate the real parser and add information arguments
+    __parsers = {PythonPath(module).module.main(): ArgumentParser(globals())}
+    # now import the populated list of parser calls from within the tinyscript.parser module
+    from tinyscript.parser import parser_calls, ProxyArgumentParser
+    global parser_calls
+    #  proxy parser to real parser recursive conversion function
+    def __proxy_to_real_parser(value):
+        """ Source: tinyscript.parser """
+        if isinstance(value, ProxyArgumentParser):
+            return __parsers[value]
+        elif isinstance(value, (list, tuple)):
+            return [__proxy_to_real_parser(_) for _ in value]
+        return value
+    #  now iterate over the registered calls
+    pairs = []
+    for proxy_parser, method, args, kwargs, proxy_subparser in parser_calls:
+        real_parser = __parsers[proxy_parser]
+        args = (__proxy_to_real_parser(v) for v in args)
+        kwargs = {k: __proxy_to_real_parser(v) for k, v in kwargs.items()}
+        real_subparser = getattr(real_parser, method)(*args, **kwargs)
+        if real_subparser is not None:
+            __parsers[proxy_subparser] = real_subparser
+        if not isinstance(real_subparser, str):
+            real_subparser._parent = real_parser
+    parent, child, ref_psr, ref_dct = None, None, ('main', ), cmds
+    for parser in __parsers.values():
+        if isinstance(parser, ArgumentParser):
+            try:
+                nparent, nchild = parser._parent._parent.name, parser.name
+            except AttributeError:
+                nparent, nchild = None, parser.name
+            if nparent is None:
+                continue
+            # depth increases
+            if nparent == child:
+                ref_dct[child][nchild] = ckdict(_separator_="|")
+                ref_dct[child]['_parent'] = ref_dct
+                ref_dct = ref_dct[child]
+                ref_psr += (child, )
+            # depth does not change
+            elif nparent == parent or parent is None:
+                ref_dct[nchild] = ckdict(_separator_="|")
+            # depth decreases
+            elif len(ref_psr) > 1 and nparent == ref_psr[-2]:
+                ref_dct = ref_dct.pop('_parent', cmds)
+                ref_dct[nchild] = ckdict(_separator_="|")
+                ref_psr = ref_psr[:-1]
+            # unexpected
+            else:
+                raise ValueError("Unexpected condition while handling state change (%s,%s) => (%s,%s)" % \
+                                 (parent, child, nparent, nchild))
+            parent, child = nparent, nchild
+    # cleanup between loading different tools
+    ProxyArgumentParser.reset()
+    ntool.remove()
+    return cmds
+
+
+def compgen(configs, source, indent=2):
+    completions = {'functions': "", 'completes': ""}
+    for f in Path(source, expand=True).listdir(ts.is_file):
+        n = f.basename
+        config = configs.get(n, "DOES_NOT_EXIST")
+        if config == "DOES_NOT_EXIST":
+            continue
+        elif isinstance(config, str):
+            completions['functions'] += "_%(name)s_completions() {\n%(block)s\n}\n\n" % \
+                                        {'name': n, 'block': config.strip()}
+        else:
+            completion_func = _gen_completions(f, config or {}, indent) or ""
+            completions['functions'] += completion_func + "\n"
+            logger.debug(str(f) + ":\n" + completion_func)
+        completions['completes'] += "complete -F _%(name)s_completions %(name)s\n" % {'name': n}
+    return "#/usr/bin/env bash\n%(functions)s%(completes)s" % completions
+
+
+if __name__ == '__main__':
+    parser.add_argument("config", type=ts.json_file, help="bash completions configuration in JSON format")
+    parser.add_argument("-f", "--filename", default="bash_completion",
+                        help="destination filename for the bash completion script")
+    parser.add_argument("-i", "--indent", type=int, default=2, help="block indent")
+    parser.add_argument("-s", "--source", default="~/.opt/tools/",
+                        help="folder to get the tool source from for retrieving parsers and subparsers")
+    initialize()
+    compl = Path(args.filename)
+    compl.write_text(compgen(args.config, args.source, args.indent))
+    compl.chmod(0o775)
+
