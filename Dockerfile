@@ -6,6 +6,7 @@ ARG USER=user
 ARG HOME=/home/$USER
 ARG UBIN=$HOME/.local/bin
 ARG UOPT=$HOME/.opt
+ARG PBWS=$HOME/.packing-box
 ARG PBOX=$UOPT/tools/packing-box
 ARG FILES=src/files
 # start creating the box
@@ -122,7 +123,7 @@ ENV TERM xterm-256color
 # copy customized files for root
 USER root
 COPY src/term/[^profile]* /tmp/term/
-RUN for f in `ls /tmp/term/`; do cp "/tmp/term/$f" "/root/.${f##*/}"; done \
+RUN for f in `ls /tmp/term/`; do cp -r "/tmp/term/$f" "/root/.${f##*/}"; done \
  && rm -rf /tmp/term
 # switch to the unprivileged account
 USER $USER
@@ -137,12 +138,13 @@ FROM customized AS framework
 ARG USER
 ARG HOME
 ARG UOPT
-ARG FILES
+ARG PBWS
 ARG PBOX
+ARG FILES
 USER $USER
 ENV TERM xterm-256color
 # set the base files and folders for further setup (explicitly create ~/.cache/pip to avoid it not being owned by user)
-COPY --chown=$USER src/conf/*.yml $UOPT/
+COPY --chown=$USER src/conf/*.yml $PBWS/conf/
 RUN sudo mkdir -p /mnt/share \
  && sudo chown $USER /mnt/share \
  && mkdir -p $UOPT/bin $UOPT/tools $UOPT/analyzers $UOPT/detectors $UOPT/packers $UOPT/unpackers \
