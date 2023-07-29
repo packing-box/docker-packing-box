@@ -34,7 +34,7 @@ recompute_checksum:
 
 rename_packer_sections_2:
   result:
-    PE: "grid(abstract_rename_section, [{'old_name': a, 'new_name': choice(COMMON_PE_SECTION_NAMES)} for a in COMMON_PACKER_SECTION_NAMES], section_name=section_name)"
+    PE: "grid(abstract_rename_section, [{'old_name': a, 'new_name': choice(STANDARD_SECTION_NAMES)} for a in COMMON_PACKER_SECTION_NAMES], section_name=section_name)"
 
 rename_random_section_to_random_bytes:
   result: 
