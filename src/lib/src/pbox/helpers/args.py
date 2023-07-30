@@ -43,7 +43,8 @@ def add_argument(parser, name, **kwargs):
         kw = {'type': model_exists, 'help': kwargs.get('help', "name of the model")}
         parser.add_argument(*a, **kw)
     elif name == "query":
-        parser.add_argument("-q", "--query", default="all", help="query for filtering records to be selected",
+        parser.add_argument("-q", "--query", default=kwargs.get('default', "all"),
+                            help="query for filtering records to be selected",
                             note="see <https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.query.html>")
     elif name == "xpname":
         def experiment_exists(string):

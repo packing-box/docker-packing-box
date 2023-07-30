@@ -254,7 +254,7 @@ class Dataset:
                 yield exe
     
     @backup
-    def alter(self, new_name=None, percentage=1, query=None, **kw):
+    def alter(self, new_name=None, packed_only=False, percentage=1., query=None, **kw):
         """ Alter executables with some given alterations. """
         l = self.logger
         if not self._files:
@@ -263,26 +263,33 @@ class Dataset:
         if new_name is not None:
             ds = Dataset(new_name)
             ds.merge(self.path.basename, silent=True, **kw)
-            ds.alter(percentage=percentage, **kw)
+            ds.alter(packed_only, percentage, query, **kw)
             return
-        if query is None or query.lower() == "all":
+        limit, query = 0, None
+        # filter out already altered samples first
+        altered_h = [h for hlst in self._alterations.values() for h in hlst]
+        df = self._data[~self._data.hash.isin(altered_h)]
+        if packed_only:
+            df = df[~df.label.isin([NOT_LABELLED, NOT_PACKED])]
+            if len(df) == 0:
+                l.warning("Nothing more to alter")
+                return
+            l.info("Altering packed samples of the dataset...")
+        elif percentage is not None:
             # keep previous alteration percentage into account
             a = self._metadata.get('altered', .0)
-            p = min(1 - a, percentage)
+            p = min(1. - a, percentage)
             p_ = round(p * 100, 0)
             if p != percentage:
-                if p == .0:
+                if p <= .0:
                     l.warning("Nothing more to alter")
                     return
                 else:
                     l.warning("Setting alterations percentage to %d" % p_)
             l.info("Altering %d%% of the dataset..." % p_)
             limit = int(round(len(self)*p, 0))
-        else:
+        elif query is not None:
             l.info("Altering the selected records of the dataset...")
-            limit = 0
-        altered_h = [h for hlst in self._alterations.values() for h in hlst]
-        df = self._data[~self._data.hash.isin(altered_h)]
         for e in filter_data_iter(df, query, limit, logger=self.logger):
             exe = Executable(dataset=self, hash=e.hash)
             exe.chmod(0o600)
