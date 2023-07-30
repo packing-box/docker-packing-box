@@ -42,7 +42,7 @@ dependencies = [
   "pyelftools",
   "rich",
   "scikit-learn>=1.2.2",
-  "tinyscript>=1.27.3",
+  "tinyscript>=1.28.4",
   "weka",
 ]
 dynamic = ["version"]
@@ -52,11 +52,24 @@ file = "README.md"
 content-type = "text/markdown"
 
 [project.scripts]
-dslst = "pboxtools.utils:dslst"
-dsflst = "pboxtools.utils:dsflst"
-mdlst = "pboxtools.utils:mdlst"
-xplst = "pboxtools.utils:xplst"
-xpcfglst = "pboxtools.utils:xpcfglst"
+list-all-algorithms = "pboxtools.utils:list_all_algorithms"
+list-all-alterations = "pboxtools.utils:list_all_alterations"
+list-all-analyzers = "pboxtools.utils:list_all_analyzers"
+list-all-detectors = "pboxtools.utils:list_all_detectors"
+list-all-features = "pboxtools.utils:list_all_features"
+list-all-packers = "pboxtools.utils:list_all_packers"
+list-all-unpackers = "pboxtools.utils:list_all_unpackers"
+list-datasets = "pboxtools.utils:list_datasets"
+list-datasets-with-files = "pboxtools.utils:list_datasets_with_files"
+list-enabled-alterations = "pboxtools.utils:list_enabled_alterations"
+list-enabled-features = "pboxtools.utils:list_enabled_features"
+list-experiments = "pboxtools.utils:list_experiments"
+list-experiment-configs = "pboxtools.utils:list_experiment_configs"
+list-models = "pboxtools.utils:list_models"
+list-working-analyzers = "pboxtools.utils:list_working_analyzers"
+list-working-detectors = "pboxtools.utils:list_working_detectors"
+list-working-packers = "pboxtools.utils:list_working_packers"
+list-working-unpackers = "pboxtools.utils:list_working_unpackers"
 
 [project.urls]
 documentation = "https://docker-packing-box.readthedocs.io/en/latest/?badge=latest"
