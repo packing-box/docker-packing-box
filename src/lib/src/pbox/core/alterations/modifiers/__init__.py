@@ -24,6 +24,6 @@ class Modifiers(dict):
                 # set extra format-specific data first (derived from format-specific data coming from ~/.opt/data/)
                 self[group] = globals().get(data_func, lambda: {})()
                 # then add format group modifiers
-                print(group, scope)
-                self[group].update({k: globals()[k] for k in scope if k != data_func})
+                self[group].update({k: globals()[k] for k in globals()[scope] if k != data_func})
+            self._init = True
 
