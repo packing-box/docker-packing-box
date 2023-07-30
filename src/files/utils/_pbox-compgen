@@ -91,8 +91,8 @@ def _gen_completions(tool, config, indent=2):
             p['block'] += indent * (offset+1) * " " + "esac%s\n" % ["", " ;;"][nested]
         # start computing parts of the completion script
         max_depth = _dictdepth(dct)
-        if max_depth == 0:
-            p['compreply'] = indent * " " + _compreply(commands, pl=False)
+        if max_depth == 0 or len(commands) == 0:
+            p['compreply'] = indent * " " + _compreply(commands or [dct[1]['']], pl=False)
             p['locals'] = ""
         else:
             # loop on depth for creating the if blocks
@@ -207,13 +207,17 @@ def compgen(configs, source, indent=2):
 
 if __name__ == '__main__':
     parser.add_argument("config", type=ts.json_file, help="bash completions configuration in JSON format")
-    parser.add_argument("-f", "--filename", default="bash_completion",
-                        help="destination filename for the bash completion script")
+    parser.add_argument("-f", "--filename", help="destination filename for the bash completion script",
+                        note="when not defined, output to stdout")
     parser.add_argument("-i", "--indent", type=int, default=2, help="block indent")
     parser.add_argument("-s", "--source", default="~/.opt/tools/",
                         help="folder to get the tool source from for retrieving parsers and subparsers")
     initialize()
-    compl = Path(args.filename)
-    compl.write_text(compgen(args.config, args.source, args.indent))
-    compl.chmod(0o775)
+    result = compgen(args.config, args.source, args.indent)
+    if args.filename:
+        compl = Path(args.filename)
+        compl.write_text(result)
+        compl.chmod(0o775)
+    else:
+        print(result)
 

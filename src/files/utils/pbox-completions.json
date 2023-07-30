@@ -1,22 +1,29 @@
 {
   "dataset": {
-    "*": "`dslst`",
-    "convert": "`dsflst`",
+    "*": "`list-datasets`",
+    "convert": "`list-datasets-with-files`",
+    "list": null,
     "plot": {
-      "(?:features|infogain|labels).*": "`dslst`"
+      "(?:features|infogain|labels).*": "`list-datasets`"
     }
   },
-  "experiment": "\n  local curr prev exp\n  COMPREPLY=()\n  curr=${COMP_WORDS[COMP_CWORD]}\n  prev=${COMP_WORDS[COMP_CWORD-1]}\n  if [[ -f \"$HOME/.packing-box/experiment.env\" ]]; then\n    if [ $COMP_CWORD -eq 1 ]; then\n      COMPREPLY+=($(compgen -W \"close commit compress edit list show\" \"${COMP_WORDS[1]}\"))\n    elif [ $COMP_CWORD -eq 2 ]; then\n      case \"$prev\" in\n        \"edit\")\n          exp=`cat $HOME/.packing-box/experiment.env | rev | cut -d/ -f1 | rev`\n          COMPREPLY=($(compgen -W \"`xpcfglst $exp`\" \"${COMP_WORDS[2]}\")) ;;\n        *) ;;\n      esac\n    fi\n  else\n    if [ $COMP_CWORD -eq 1 ]; then\n      COMPREPLY+=($(compgen -W \"compress list open purge\" \"${COMP_WORDS[1]}\"))\n    elif [ $COMP_CWORD -eq 2 ]; then\n      case \"$prev\" in\n        \"compress\"|\"open\")\n          COMPREPLY=($(compgen -W \"`xplst`\" \"${COMP_WORDS[2]}\")) ;;\n        *) ;;\n      esac\n    fi\n  fi\n    ",
+  "experiment": "\n  local curr prev exp\n  COMPREPLY=()\n  curr=${COMP_WORDS[COMP_CWORD]}\n  prev=${COMP_WORDS[COMP_CWORD-1]}\n  if [[ -f \"$HOME/.packing-box/experiment.env\" ]]; then\n    if [ $COMP_CWORD -eq 1 ]; then\n      COMPREPLY+=($(compgen -W \"close commit compress edit list show\" \"${COMP_WORDS[1]}\"))\n    elif [ $COMP_CWORD -eq 2 ]; then\n      case \"$prev\" in\n        \"edit\")\n          exp=`cat $HOME/.packing-box/experiment.env | rev | cut -d/ -f1 | rev`\n          COMPREPLY=($(compgen -W \"`list-experiment-configs $exp`\" \"${COMP_WORDS[2]}\")) ;;\n        *) ;;\n      esac\n    fi\n  else\n    if [ $COMP_CWORD -eq 1 ]; then\n      COMPREPLY+=($(compgen -W \"compress list open purge\" \"${COMP_WORDS[1]}\"))\n    elif [ $COMP_CWORD -eq 2 ]; then\n      case \"$prev\" in\n        \"compress\"|\"open\")\n          COMPREPLY=($(compgen -W \"`list-experiments`\" \"${COMP_WORDS[2]}\")) ;;\n        *) ;;\n      esac\n    fi\n  fi\n    ",
   "model": {
-    "*": "`mdlst`",
+    "*": "`list-models`",
     "list": null,
     "_preprocess|test_": {
-      "preprocess|test": "`dslst`"
+      "preprocess|test": "`list-datasets`"
     },
-    "train": "`dslst`"
+    "train": "`list-datasets`"
+  },
+  "packer": {
+    "*": "`list-working-packers`"
   },
   "packing-box": {
     "list|setup|test": "analyzer detector packer unpacker"
+  },
+  "unpacker": {
+    "*": "`list-working-unpackers`"
   },
   "visualizer": null
 }
