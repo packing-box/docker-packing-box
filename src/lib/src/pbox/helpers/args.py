@@ -1,5 +1,4 @@
 # -*- coding: UTF-8 -*-
-from argcomplete.completers import ChoicesCompleter
 from tinyscript.helpers.data.types import folder_exists, json_config, pos_int
 
 
@@ -7,13 +6,6 @@ __all__ = ["add_argument", "expand_parameters", "percentage", "set_yaml"]
 
 
 IMG_FORMATS = ("jpg", "png", "tif", "svg")
-
-
-class DatasetCompleter(ChoicesCompleter):
-    def __init__(self):
-        from pboxtools.utils import dslst
-        super().__init__(None)
-        self.choices = dslst(True)
 
 
 def add_argument(parser, name, **kwargs):
@@ -29,7 +21,7 @@ def add_argument(parser, name, **kwargs):
         note = kwargs.get('note', None)
         parser.add_argument(kwargs.get('argname', "name"), type=dataset_exists,
                             help=kwargs.get('help', "name of the dataset"),
-                            **({} if note is None else {'note': note})).completer = DatasetCompleter()
+                            **({} if note is None else {'note': note}))
     elif name == "folder":
         parser.add_argument("filename", help="binary to be represented ; format is regex")
         parser.add_argument("folder", type=folder_exists, help="target folder")
