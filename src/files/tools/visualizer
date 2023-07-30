@@ -158,8 +158,8 @@ def find_files(folder, pattern, selected=None, nbr_not_selected=None, display=Fa
 if __name__ == "__main__":
     sparsers = parser.add_subparsers(dest="command", metavar="CMD", title="positional argument",
                                      help="command to be executed")
-    compare = add_argument(sparsers.add_parser("compare", help="compare files from two sources"), "folder", fmt=True,
-                           extended=True)
+    compare = add_argument(sparsers.add_parser("compare", category="visualization", help="compare files from two "
+                                               "sources"), "folder", fmt=True, extended=True)
     compare.add_argument("filename2", help="second binary to be represented ; format is regex")
     compare.add_argument("folder2", type=ts.folder_exists, help="second target folder")
     compare.add_argument("-l1", "--legend1", help="specify a string to show with the first binary")
@@ -169,20 +169,20 @@ if __name__ == "__main__":
     compare.add_argument("-t", "--title", help="set plot title")
     compare.add_argument("--no-title", action="store_true", help="do not generate a main title")
     compare.add_argument("--text", action="store_true", help="textual comparison")
-    feat = add_argument(sparsers.add_parser("features", help="compute features for files matching the regex with the "
-                                                             "input labels"), "folder")
+    feat = add_argument(sparsers.add_parser("features", category="visualization", help="compute features for files "
+                                            "matching the regex with the input labels"), "folder")
     feat.add_argument("-r", "--raw", action="store_true", help="display raw features only (not transformed ones)")
-    find = add_argument(sparsers.add_parser("find", help="find files matching the regex with the input labels"),
-                        "folder")
+    find = add_argument(sparsers.add_parser("find", category="utils", help="find files matching the regex with the "
+                                            "input labels"), "folder")
     find.add_argument("-d", "--no-display", action="store_false", help="do not display packer label matches")
-    plot = add_argument(sparsers.add_parser("plot", help="plot files matching the regex given the selected labels"),
-                        "folder", alias=True, fmt=True)
+    plot = add_argument(sparsers.add_parser("plot", category="visualization", help="plot files matching the regex given"
+                                            " the selected labels"), "folder", alias=True, fmt=True)
     plot.add_argument("--legend-location", default="lower-center", type=legend_location,
                       help="hyphen-separated pair of locators for the plot's legend")
     plot.add_argument("-n", "--no-title", action="store_true", help="do not generate a title")
     plot.add_argument("-s", "--scale", action="store_true", help="scale plots according to the first binary")
-    rm = add_argument(sparsers.add_parser("remove", help="remove files matching the regex with the input labels"),
-                      "folder")
+    rm = add_argument(sparsers.add_parser("remove", category="utils", help="remove files matching the regex with the "
+                                          "input labels"), "folder")
     initialize(noargs_action="usage", autocomplete=True)
     ff_args = args.folder, args.filename, args.label, getattr(args, "max_not_matching", None)
     logger.name = "visualizer"
