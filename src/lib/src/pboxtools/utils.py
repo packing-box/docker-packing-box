@@ -111,14 +111,14 @@ def list_datasets(ds):
     """ Condition for listing datasets from the current workspace """
     return isdir(ds) and all(isfile(join(ds, fn)) for fn in DSFILES) and \
            (isdir(join(ds, "files")) or isfile(join(ds, "features.json"))) and \
-           not any(fn not in DSFILES + ["files", "features.json"] for fn in listdir(ds))
+           not any(fn not in DSFILES + ["alterations.json", "files", "features.json"] for fn in listdir(ds))
 
 
 @_workspace("datasets")
 def list_datasets_with_files(ds):
     """ Condition for listing datasets from the current workspace """
     return isdir(ds) and all(isfile(join(ds, fn)) for fn in DSFILES) and isdir(join(ds, "files")) and \
-           not any(fn not in DSFILES + ["files"] for fn in listdir(ds))
+           not any(fn not in DSFILES + ["alterations.json", "files"] for fn in listdir(ds))
 
 
 @_workspace("models")
