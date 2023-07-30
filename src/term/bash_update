@@ -19,7 +19,14 @@ pip-upgrade() {
 # packing-box update command (development)
 pbox-update() {
   wget -q --spider -T 1 http://www.google.com
-  local ret=$?
+  local ret=$? OPT=$HOME/.opt PBWS=$HOME/.packing-box
+  __completion_update() {
+    printf "${CYA}Regenerating Bash completions...${RST}\n"
+    cp -f /mnt/share/src/files/utils/_pbox-compgen $OPT/utils/_pbox-compgen
+    cp -f /mnt/share/src/files/utils/pbox-completions.json $OPT/utils/pbox-completions.json
+    _pbox-compgen $OPT/utils/pbox-completions.json -f ~/.bash_completion
+    source $HOME/.bashrc
+  }
   __package_update() {
     if [ ! "$*" = "-n" ] && [ ! "$*" = "--no-internet" ] && [ $ret -eq 0 ]; then
       printf "${CYA}Upgrading pbox library...${RST}\n"
@@ -31,11 +38,12 @@ pbox-update() {
   }
   if [ "$*" = "-h" ] || [ "$*" = "--help" ]; then
     echo "Usage: pbox-update [-n/--no-internet]"
+  elif [ "$*" = "-c" ] || [ "$*" = "--completion-only" ]; then
+    __completion_update
   elif [ "$*" = "-p" ] || [ "$*" = "--package-only" ]; then
     __package_update
   else
     printf "${CYA}Copying files from packing-box...${RST}\n"
-    local OPT=$HOME/.opt PBWS=$HOME/.packing-box
     rm -rf $OPT/data/ && cp -rf /mnt/share/src/files/data $PBWS/
     cp -f /mnt/share/src/files/tools/* $OPT/tools/
     mv -f $OPT/tools/help $OPT/tools/?
@@ -51,8 +59,6 @@ pbox-update() {
       pip3 -qq install --user --no-warn-script-location --break-system-packages --upgrade pip
     fi
     __package_update
-    printf "${CYA}Regenerating Bash completions...${RST}\n"
-    _pbox-compgen $OPT/utils/pbox-completions.json -f ~/.bash_completion
-    source $HOME/.bashrc
+    __completion_update
   fi
 }
