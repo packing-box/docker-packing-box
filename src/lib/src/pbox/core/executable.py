@@ -1,8 +1,8 @@
 # -*- coding: UTF-8 -*-
 from datetime import datetime
 from functools import cached_property
-from tinyscript import hashlib, shutil
-from tinyscript.helpers import is_filetype, lazy_load_module, Path, TempPath
+from tinyscript import hashlib, re, shutil
+from tinyscript.helpers import lazy_load_module, Path, TempPath
 
 from .config import NOT_LABELLED
 
@@ -18,7 +18,7 @@ class Executable(Path):
     (2) dataset-bound (data is used to populate attributes based on the ; this does not require the file)
     (3) dataset-bound, with a new destination dataset
     """
-    FIELDS = ["realpath", "format", "size", "ctime", "mtime"]
+    FIELDS = ["realpath", "format", "signature", "size", "ctime", "mtime"]
     HASH = "sha256"  # possible values: hashlib.algorithms_available
     # NB: the best signature matched is the longest
     SIGNATURES = {
@@ -134,7 +134,7 @@ class Executable(Path):
     def format(self):
         best_fmt, l = None, 0
         for ftype, fmt in Executable.SIGNATURES.items():
-            if len(ftype) > l and is_filetype(str(self), ftype):
+            if len(ftype) > l and re.search(ftype, self.filetype) is not None:
                 best_fmt, l = fmt, len(ftype)
         return best_fmt
     
@@ -149,6 +149,10 @@ class Executable(Path):
     @cached_property
     def realpath(self):
         return str(self)
+    
+    @cached_property
+    def signature(self):
+        return self.filetype
     
     @cached_property
     def size(self):

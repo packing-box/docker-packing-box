@@ -265,7 +265,7 @@ class Dataset:
             ds.merge(self.path.basename, silent=True, **kw)
             ds.alter(packed_only, percentage, query, **kw)
             return
-        limit, query = 0, None
+        limit = 0
         # filter out already altered samples first
         altered_h = [h for hlst in self._alterations.values() for h in hlst]
         df = self._data[~self._data.hash.isin(altered_h)]
@@ -297,7 +297,7 @@ class Dataset:
                 self._alterations.setdefault(m, [])
                 self._alterations[m].append(e.hash)
             exe.chmod(0o400)
-        self._metadata['altered'] = sum(1 for hl in self._alterations.values() for h in hl) / len(self)
+        self._metadata['altered'] = sum(1 for x in set(h for hl in self._alterations.values() for h in hl)) / len(self)
         self.__change = True
         self._save()
     

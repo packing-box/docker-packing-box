@@ -31,7 +31,7 @@ virtual_size                         = lambda s: s.virtual_size
 
 def get_pe_data():
     """ Derive other PE-specific data from this of ~/.opt/data/pe. """
-    from ...helpers.data import get_data
+    from ....helpers.data import get_data
     d = get_data("PE")['COMMON_DLL_IMPORTS']
     d = {'COMMON_API_IMPORTS': [(lib, api) for lib in d for api in d[lib]]}
     return d
