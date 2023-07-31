@@ -36,6 +36,16 @@ Bintropy:
   source: https://github.com/packing-box/bintropy
   status: ok
 
+CFF_Explorer:
+  comment: Relies on a very limited set of signatures.
+  description: Created by Erik Pistelli, a freeware suite of tools including a PE editor called CFF Explorer and a process viewer. The PE editor has full support for PE32/64. Special fields description and modification (.NET supported), utilities, rebuilder, hex editor, import adder, signature scanner, signature manager, extension support, scripting, disassembler, dependency walker etc. First PE editor with support for .NET internal structures. Resource Editor (Windows Vista icons supported) capable of handling .NET manifest resources.
+  formats:
+    - PE
+  references:
+    - https://ntcore.com/files/CFF_Explorer.zip
+  source: https://ntcore.com/?page_id=388
+  status: info
+
 DIE:
   author: Hors (horsicq)
   command: $OPT/die_lin64_portable/diec.sh {path}
