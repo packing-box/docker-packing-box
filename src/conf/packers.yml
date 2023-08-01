@@ -1,3 +1,9 @@
+# check out https://forum.tuts4you.com/files/file/1314-tuts-4-you-unpackme-collection-2016 for more packers
+defaults:
+  source: <unknown>
+  status: info
+
+
 ACProtect:
   categories:
     - cryptor
@@ -199,6 +205,12 @@ BZEXE:
     - bzexe {{executable}}
     - rm -f {{executable}}~
 
+CCG_Packer:
+  formats:
+    - PE
+  references:
+    - https://www.hexacorn.com/blog/2012/10/14/random-stats-from-1-2m-samples-pe-section-names
+
 ConfuserEx:
   categories:
     - protector
@@ -224,6 +236,18 @@ Crinkler:
     - PE
   source: https://github.com/runestubbe/Crinkler
   status: info
+
+Crunch:
+  formats:
+    - PE
+  references:
+    - https://www.hexacorn.com/blog/2012/10/14/random-stats-from-1-2m-samples-pe-section-names
+
+Dragon_Armor:
+  formats:
+    - PE
+  references:
+    - https://www.hexacorn.com/blog/2012/10/14/random-stats-from-1-2m-samples-pe-section-names
 
 DotNetZ:
   categories:
@@ -521,6 +545,12 @@ M0dern_P4cker:
   steps:
     - m0dern-p4cker {{executable}} {{stub[not|xorp]}}
 
+MaskPE:
+  formats:
+    - PE
+  references:
+    - https://www.hexacorn.com/blog/2012/10/14/random-stats-from-1-2m-samples-pe-section-names
+
 MEW:
   categories:
     - compressor
@@ -792,6 +822,12 @@ PELock:
   source: https://www.pelock.com/products/pelock
   status: broken
 
+Perplex:
+  formats:
+    - PE
+  references:
+    - https://www.hexacorn.com/blog/2012/10/14/random-stats-from-1-2m-samples-pe-section-names
+
 PEShield:
   categories:
     - cryptor
@@ -851,6 +887,12 @@ PEzor:
     - https://iwantmore.pizza/posts/PEzor4.html
   source: https://github.com/phra/PEzor
 
+ProCrypt:
+  formats:
+    - PE
+  references:
+    - https://www.hexacorn.com/blog/2012/10/14/random-stats-from-1-2m-samples-pe-section-names
+
 RLPack:
   categories:
     - compressor
@@ -878,6 +920,12 @@ RLPack:
   references:
     - https://storage.ey.md/Technology%%20Related/Programming%%20%%26%%20Reversing/Tuts4You%%20Collection/Unpacking%%20Tutorials/RLPack%%201.21%%20%%28Unpacking%%29.rar
   source: https://www.softpedia.com/get/Programming/Packers-Crypters-Protectors/RLPack-Basic-Edition.shtml
+
+RPCrypt:
+  formats:
+    - PE
+  references:
+    - https://www.hexacorn.com/blog/2012/10/14/random-stats-from-1-2m-samples-pe-section-names
 
 SEPacker:
   categories:
@@ -960,6 +1008,12 @@ SmartPacker:
   maintained: false
   source: https://www.smartpacker.nl
   status: commercial
+
+SVKP:
+  formats:
+    - PE
+  references:
+    - https://www.hexacorn.com/blog/2012/10/14/random-stats-from-1-2m-samples-pe-section-names
 
 Telock:
   categories:
@@ -1128,6 +1182,23 @@ UPX:
         - ln: $OPT/upx-3.96/upx
   xflag: true
 
+VMProtect:
+  categories:
+    - protector
+    - virtualizer
+  formats:
+    - PE
+  references:
+    - https://www.hexacorn.com/blog/2012/10/14/random-stats-from-1-2m-samples-pe-section-names
+  source: https://vmpsoft.com/products/vmprotect
+  status: commercial
+
+VProtect:
+  formats:
+    - PE
+  references:
+    - https://www.hexacorn.com/blog/2012/10/14/random-stats-from-1-2m-samples-pe-section-names
+
 Ward:
   categories:
     - compressor
@@ -1151,6 +1222,15 @@ Ward:
     - rm -f {{executable.filename}}
     - mv {{executable.filename}}.packed {{executable.filename}}
 
+Windows-PE-Packer:
+  categories:
+    - cryptor
+  description: A packer for Windows x86 executable files written in C and Intel x86 Assembly.
+  formats:
+    - PE32
+  source: https://github.com/czs108/Windows-PE-Packer
+  status: info 
+
 WinUPack:
   aliases:
     - (?i)upack
@@ -1162,6 +1242,12 @@ WinUPack:
     - PE32
   source: http://downloads.fyxm.net/Portable-WinUpack-13975.html
   status: info
+
+WWPack:
+  formats:
+    - PE
+  references:
+    - https://www.hexacorn.com/blog/2012/10/14/random-stats-from-1-2m-samples-pe-section-names
 
 Xor_Packer:
   categories:
