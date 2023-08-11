@@ -89,10 +89,11 @@ for item in ["alterations", "features"]:
 
 
 for item in ["analyzers", "detectors", "packers", "unpackers"]:
-    f1 = _configfile(item)(lambda cfg: sorted(list(_fmt_name(x) for x in cfg.keys())))
+    f1 = _configfile(item)(lambda cfg: sorted(list(_fmt_name(x) for x in cfg.keys() if x != "defaults")))
     f1.__doc__ = " List all %s available in the current workspace. " % item
     globals()['list_all_%s' % item] = f1
-    f2 = _configfile(item)(lambda cfg: sorted([_fmt_name(x) for x, data in cfg.items() if data.get('status') == "ok"]))
+    f2 = _configfile(item)(lambda cfg: sorted([_fmt_name(x) for x, data in cfg.items() if data.get('status') == "ok" \
+                                                                                          and x != "defaults"]))
     f2.__doc__ = " List working %s available in the current workspace. " % item
     globals()['list_working_%s' % item] = f2
 
@@ -103,7 +104,7 @@ def list_all_algorithms(cfg):
     l = []
     for section in ["Semi-Supervised", "Supervised", "Unsupervised"]:
         l.extend(list(cfg.get(section, {}).keys()))
-    return sorted(list(set(_fmt_name(x) for x in l)))
+    return sorted(list(set(_fmt_name(x) for x in l if x != "defaults")))
 
 
 @_workspace("datasets")
