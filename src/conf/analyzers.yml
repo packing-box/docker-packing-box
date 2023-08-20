@@ -1,6 +1,17 @@
 defaults:
   maintained: true
+  status:     info
 
+
+BE-PUM:
+  author: Dr. Nguyen Minh Hai
+  description: BE-PUM (Binary Emulation for PUshdown Model) is a project for analyzing and detecting binary files. Its main focus is on generating CFG (Control Flow Graph) of malware. This project was set out in 2013. It is under management by Dr. Nguyen Minh Hai, HoChiMinh University of Technology.
+  formats:
+    - PE
+  references:
+    - https://link.springer.com/chapter/10.1007/978-3-319-69456-6_8
+    - https://dl.acm.org/doi/10.1145/3151137.3160687
+  source: https://github.com/NMHai/BE-PUM
 
 Capa:
   author: Mandiant
@@ -30,7 +41,6 @@ Exeinfo_PE:
   formats:
     - PE
   source: https://exeinfo-pe.fr.uptodown.com/windows
-  status: info
 
 F-Prot:
   comment: CYREN, which bought F-Prot, has discontinued the product ; signatures update stopped on 31 July 2021.
@@ -73,14 +83,12 @@ NPEFileAnalyzer:
   formats:
     - PE
   source: https://www.novirusthanks.org/products/npe-file-analyzer/
-  status: info
 
 PE-Bear:
   description: PE-bear is a freeware reversing tool for PE files. Its objective is to deliver fast and flexible “first view” for malware analysts, stable and capable to handle malformed PE files.
   formats:
     - PE
   source: https://github.com/hasherezade/pe-bear-releases
-  status: info
 
 PEscan:
   description: pescan is a command line tool to scan portable executable (PE) files to identify how they were constructed.
