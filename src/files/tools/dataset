@@ -5,7 +5,8 @@ from pbox import *
 from tinyscript import *
 
 
-__version__     = "2.6.4"
+__script__       = "Dataset manipulation tool"
+__version__      = "2.6.4"
 __contributors__ = [
     {'author': "Romain Jennes", 'reason': "added dataset alterations and adversarial learning capabilities"},
 ]

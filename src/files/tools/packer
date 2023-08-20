@@ -4,11 +4,17 @@ from pbox import *
 from tinyscript import *
 
 
+__script__      = "Packing tool"
 __version__     = "1.2.0"
 __doc__         = """
 This tool simply packs (using Packer.pack) with the selected packer an input executable or folder of executables.
 """
 __description__ = "Pack an input executable/folder with the selected packer"
+__examples__    = [
+    "upx /tmp/cscript.exe",
+    "petite samples/",
+    "hxor-packer dataset-test-upx",
+]
 
 
 if __name__ == '__main__':

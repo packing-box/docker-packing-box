@@ -4,6 +4,7 @@ from pbox import *
 from tinyscript import *
 
 
+__script__      = "Visualization tool"
 __version__     = "2.0.3"
 __contributors__ = [
     {'author': "Romain Jennes", 'reason': "added visualizations for observing effects of alterations"},

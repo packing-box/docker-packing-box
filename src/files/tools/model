@@ -4,6 +4,7 @@ from pbox import *
 from tinyscript import *
 
 
+__script__      = "Model manipulation tool"
 __version__     = "1.3.4"
 __contributors__ = [
     {'author': "Sébastien Martinez", 'reason': "extended ML algorithms, metrics and visualizations to unsupervised "
@@ -68,7 +69,7 @@ if __name__ == '__main__':
     train = sparsers.add_parser("train", category="create/modify/delete", help="train a model on the given dataset")
     train.add_argument("dataset", type=open_dataset, help="dataset for training the model")
     add_argument(train, "mdname", force=True)
-    train.add_argument("-a", "--algorithm", choices=[a.name for a in Algorithm.registry], default="dt",
+    train.add_argument("-a", "--algorithm", choices=[a.name for a in Algorithm.registry], default="dt", metavar="ALGO",
                        help="machine learning algorithm to be used\n- %s\n * supports Grid Search cross-validation\n" %\
                             "\n- ".join("%s: %s%s" % (a.name.ljust(8), a.description, ["", "*"][a.parameters.get('cv') \
                             is not None]) for a in Algorithm.registry))

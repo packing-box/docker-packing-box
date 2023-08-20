@@ -4,11 +4,17 @@ from pbox import *
 from tinyscript import *
 
 
+__script__      = "Unpacking tool"
 __version__     = "1.0.2"
 __doc__         = """
 This tool simply unpacks (using Unpacker.unpack) with the selected unpacker an executable or folder of executables.
 """
 __description__ = "Unpack an input executable/folder with the selected unpacker"
+__examples__    = [
+    "upx /tmp/cscript.exe",
+    "unipacker samples/",
+    "retdec-unpacker dataset-test-upx",
+]
 
 
 if __name__ == '__main__':

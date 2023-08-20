@@ -4,9 +4,10 @@ from pbox import *
 from tinyscript import *
 
 
-NAME = config['experiment']
+NAME = config.get('experiment')
 
-__version__     = "1.0.3"
+__script__      = "Experiment management tool"
+__version__     = "1.1.0"
 __doc__         = """
 This tool aims to manage an experiment (a structure that can hold custom YAML configurations, datasets and models).
 """
@@ -33,19 +34,7 @@ check = lambda s: Experiment.check(s)
 if __name__ == '__main__':
     sparsers = parser.add_subparsers(dest="command", metavar="CMD", title="positional argument",
                                      help="command to be executed")
-    if NAME != "":
-        sparsers.add_parser("close", help="close the current experiment")
-        sparsers.add_parser("commit", help="commit the last OS command to the resource file (commands.rc)") \
-                .add_argument("-f", "--force", action="store_true", help="commit without confirmation")
-        sparsers.add_parser("compress", help="convert the datasets to fileless datasets")
-        ch = sorted(["commands", "README"] + list(config.DEFAULTS['definitions'].keys()))
-        sparsers.add_parser("edit", help="edit the README file or a YAML configuration file") \
-                .add_argument("config", nargs="?", default="README", metavar="NAME", choices=ch,
-                              help="edit the target experiment's README(.md), commands(.rc) or YAML configuration file"
-                                   "\n {%s}" % ",".join(ch))
-        sparsers.add_parser("list", help="list the existing experiments")
-        sparsers.add_parser("show", help="get an overview of the experiment")
-    else:
+    if NAME is None:
         add_argument(sparsers.add_parser("compress", help="convert the datasets of an experiment to fileless datasets"),
                      "xpname")
         sparsers.add_parser("list", help="list the existing experiments")
@@ -53,6 +42,23 @@ if __name__ == '__main__':
                      force=True)
         add_argument(sparsers.add_parser("purge", help="purge an experiment"), "xpname",
                      note="use 'all' to purge every dataset or the wildcard '*' to select a part of them")
+    else:
+        defs = list(config._defaults['definitions'].keys())
+        sparsers.add_parser("close", help="close the current experiment")
+        sparsers.add_parser("commit", help="commit the last OS command to the resource file (commands.rc)") \
+                .add_argument("-f", "--force", action="store_true", help="commit without confirmation")
+        sparsers.add_parser("compress", help="convert the datasets to fileless datasets")
+        ch = sorted(["commands", "README"] + defs)
+        sparsers.add_parser("edit", help="edit the README file or a YAML configuration file") \
+                .add_argument("config", nargs="?", default="README", metavar="NAME", choices=ch,
+                              help="edit the target experiment's README(.md), commands(.rc) or YAML configuration file"
+                                   "\n {%s}" % ",".join(ch))
+        sparsers.add_parser("import", help="import a YAML configuration file from anywhere") \
+                .add_argument("config", nargs="?", default="README", metavar="NAME", choices=ch,
+                              help="import the target YAML configuration file(s) within the experiment"
+                                   "\n {%s}" % ",".join(defs))
+        sparsers.add_parser("list", help="list the existing experiments")
+        sparsers.add_parser("show", help="get an overview of the experiment")
     initialize(noargs_action="usage", autocomplete=True)
     logger.name = "experiment"
     logging.configLogger(logger, ["INFO", "DEBUG"][args.verbose], fmt=LOG_FORMATS[args.verbose], relative=True)
@@ -68,8 +74,10 @@ if __name__ == '__main__':
         Experiment(load=False).list()
     elif name == "all":
         logger.warning("Model cannot be named 'all' (reserved word)")
+    elif args.command == "import":
+        Experiment(name)._import(**vars(args))
     elif args.command == "open":
-        Experiment(args.name)
+        Experiment(name)
     else:
         getattr(Experiment(name), args.command)(**vars(args))
 
