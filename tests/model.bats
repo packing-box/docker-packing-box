@@ -27,6 +27,7 @@ setup() {
   load '.bats/bats-support/load'
   load '.bats/bats-assert/load'
   load '.bats/bats-file/load'
+  load '.bats/pbox-helpers/load'
 }
 
 teardown_file(){
@@ -38,14 +39,7 @@ teardown_file(){
 
 
 @test "run tool's help" {
-  skip
-  run model --help
-  assert_output --partial 'Model'
-  assert_output --partial 'positional argument'
-  assert_output --partial 'Usage examples'
-  for CMD in browse compare edit list preprocess purge rename show test train visualize; do
-    model $CMD --help
-  done
+  run_tool_help
 }
 
 # ✓ list

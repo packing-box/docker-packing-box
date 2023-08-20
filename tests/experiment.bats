@@ -4,13 +4,13 @@
 # ✗ edit
 
 # TODO:
-# ✗ commit
 # ✗ compress
 
 
 setup_file() {
   export TESTS_DIR="/tmp/tests-`openssl rand -hex 16`"
   export TEST_DS="DS01"
+  export TEST_MD="MD01"
   export TEST_XP="XP01"
   # create a dedicated workspace for the tests
   echo -en "$TESTS_DIR" > ~/.packing-box/experiments.env
@@ -20,6 +20,7 @@ setup() {
   load '.bats/bats-support/load'
   load '.bats/bats-assert/load'
   load '.bats/bats-file/load'
+  load '.bats/pbox-helpers/load'
 }
 
 teardown_file(){
@@ -34,17 +35,9 @@ teardown_file(){
 # ✓ close
 # ✓ purge
 @test "run tool's help" {
-  run experiment --help
-  assert_output --partial 'Experiment'
-  assert_output --partial 'positional argument'
-  assert_output --partial 'Usage examples:'
-  for CMD in compress list open purge; do
-    experiment $CMD --help
-  done
+  run_tool_help
   experiment open temp
-  for CMD in close commit compress edit list show; do
-    experiment $CMD --help
-  done
+  run_tool_help
   experiment close
   run experiment purge temp
   refute_output --partial 'temp'
@@ -66,4 +59,14 @@ teardown_file(){
   run experiment show
   assert_output --partial 'No dataset found'
   assert_output --partial 'No model found'
+}
+
+# ✓ commit
+@test "create $TEST_DS in $TEST_XP and commit command" {
+  dataset make test-upx -n 10 -f PE -p upx
+  run experiment commit -f
+  local -r CMDRC="$TESTS_DIR/$TEST_XP/commands.rc"
+  assert_file_exist $CMDRC
+  run cat $CMDRC
+  assert_output --partial 'dataset -v make test-upx -n 10 -f PE -p upx'
 }

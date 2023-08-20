@@ -6,7 +6,6 @@
 # ✗ preprocess
 
 # TODO:
-# ✗ alter
 # ✗ export
 # ✗ fix
 # ✗ ingest
@@ -28,6 +27,7 @@ setup() {
   load '.bats/bats-support/load'
   load '.bats/bats-assert/load'
   load '.bats/bats-file/load'
+  load '.bats/pbox-helpers/load'
 }
 
 teardown_file(){
@@ -39,13 +39,7 @@ teardown_file(){
 
 
 @test "run tool's help" {
-  run dataset --help
-  assert_output --partial 'Dataset'
-  assert_output --partial 'positional argument'
-  assert_output --partial 'Usage examples'
-  for CMD in alter browse convert edit export fix ingest list make merge plot preprocess purge remove rename revert select show update view; do
-    dataset $CMD --help
-  done
+  run_tool_help
 }
 
 # ✓ list
@@ -135,4 +129,10 @@ teardown_file(){
   assert_file_not_exist "${FILE}_features_entropy.png"
   run dataset plot features "$TEST_DS2" entropy
   assert_file_exist "${FILE}_features_entropy.png"
+}
+
+# ✗ alter
+@test "alter $TEST_DS1" {
+  skip  #TODO
+  run dataset alter 
 }
