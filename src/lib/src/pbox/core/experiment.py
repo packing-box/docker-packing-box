@@ -1,11 +1,11 @@
 # -*- coding: UTF-8 -*-
 from tinyscript import logging
-from tinyscript.helpers import ansi_seq_strip, confirm, lazy_object, Path
+from tinyscript.helpers import confirm, lazy_object, user_input, Path
 from tinyscript.report import *
 
-from .core import *
-from .helpers import *
-from .learning import *
+from .dataset import *
+from .model import *
+from ..helpers import *
 
 
 __all__ = ["open_experiment", "Experiment"]
@@ -44,7 +44,7 @@ def __init():
         
         @logging.bindLogger
         def __init__(self, name="experiment", load=True, **kw):
-            name = check_name(Path(name).basename)
+            name = config.check(Path(name).basename)
             self.path = Path(config['experiments'].joinpath(name), create=True).absolute()
             if load:
                 for folder in ["conf", "datasets", "models"]:
@@ -68,7 +68,7 @@ def __init():
                 return self.path.joinpath("commands.rc")
             # case 2: 'name' matches a reserved word for a YAML configuration file ; return a Path instance
             #          get it either from the main workspace or, if existing, from the experiment
-            if name in config.DEFAULTS['definitions'].keys():
+            if name in config._defaults['definitions'].keys():
                 conf = self.path.joinpath("conf").joinpath(name + ".yml")
                 if not conf.exists():
                     conf = config[name]
@@ -82,6 +82,22 @@ def __init():
                 if name == ds.stem:
                     return open_model(ds)
             raise KeyError(name)
+        
+        def _import(self, source=None, **kw):
+            """ Import a custom YAML configuration file or set of YAML configuration files. """
+            p_src = Path(source)
+            p_exp = self.path.joinpath("conf").joinpath(p_src.basename)
+            try:
+                if not p_src.extension == ".yml":
+                    raise KeyError
+                config.get(p_src.stem, sections="definitions", error=True)
+                if not p_src.is_samepath(p_exp):
+                    l.debug("copying configuration file%s from '%s'..." % (["", "s"][p_src.is_dir()], p_src))
+                    p_src.copy(p_exp)
+            except KeyError:
+                if kw.get('error', True):
+                    l.error("'%s' is not a valid configuration name" % p_scr.basename)
+                    raise KeyError
         
         def close(self, **kw):
             """ Close the currently open experiment. """
@@ -121,11 +137,14 @@ def __init():
             p = self[conf] # can be README.md, commands.rc or YAML config files
             try:
                 p_main, p_exp = config[conf], self.path.joinpath("conf").joinpath(conf + ".yml")
-                if not p_main.is_samepath(p_exp):
-                    l.debug("copying configuration file from '%s'..." % p_main)
-                    p_main.copy(p_exp)
-                l.debug("editing experiment's %s configuration..." % conf)
-                edit_file(p_exp, text=True, logger=l)
+                self._import(p_main, error=True)
+                if p_exp.is_file():
+                    l.debug("editing experiment's %s configuration..." % conf)
+                    edit_file(p_exp, text=True, logger=l)
+                elif p_exp.is_dir():
+                    choices = [p.stem for p in p_exp.listdir(lambda x: x.extension == ".yml")]
+                    stem = user_input(choices=choices, default=choices[0], required=True)
+                    edit_file(p_exp.joinpath(stem + ".yml"), text=True, logger=l)
             except KeyError:
                 l.debug("editing experiment's %s..." % p.basename)
                 edit_file(p, text=True, logger=l)
@@ -185,7 +204,7 @@ def __init():
                 if not f.joinpath(fn).exists():
                     raise ValueError("Does not have %s" % fn)
             for cfg in f.joinpath("conf").listdir():
-                if cfg.stem not in config.DEFAULTS['definitions'].keys() or cfg.extension != ".yml":
+                if cfg.stem not in config._defaults['definitions'].keys() or cfg.extension != ".yml":
                     raise ValueError("Unknown configuration file '%s'" % cfg)
             for fn in f.listdir(Path.is_dir):
                 if fn not in Experiment.FOLDERS['mandatory'] + Experiment.FOLDERS['optional'] and warn and \

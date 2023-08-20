@@ -1,9 +1,8 @@
 # -*- coding: UTF-8 -*-
-from tinyscript import b, ensure_str, hashlib, random, re, subprocess
+from tinyscript import ensure_str, random, re, subprocess
 from tinyscript.helpers import lazy_object
 
 
-# this list is filled in with subclasses at the end of this module
 __all__ = ["Packer"]
 
 __initialized = False
@@ -24,9 +23,8 @@ def _parse_parameter(param):
 def __init():
     global __initialized
     from .__common__ import _init_base, PARAM_PATTERN
-    from ..core.config import NOT_LABELLED, NOT_PACKED
-    from ..core.executable import Executable
-    from ..core.item import update_logger
+    from ..executable import Executable
+    from ...helpers import update_logger
     Base = _init_base()
     
     class Packer(Base):
@@ -118,7 +116,7 @@ Packer = lazy_object(__init)
 
 # ------------------------------------------------ NON-STANDARD PACKERS ------------------------------------------------
 def __init_ezuri():
-    from ..core.item import update_logger
+    from ...helpers import update_logger
     Packer = __init()
 
     class Ezuri(Packer):
@@ -132,11 +130,11 @@ def __init_ezuri():
             p = subprocess.Popen(["ezuri"], stdout=P, stderr=P, stdin=P)
             executable = Executable(executable)
             self.logger.debug("inputs: src/dst=%s, procname=%s" % (executable, executable.stem))
-            out, err = p.communicate(b("%(e)s\n%(e)s\n%(n)s\n%(k)s\n%(iv)s\n" % {
+            out, err = p.communicate(("%(e)s\n%(e)s\n%(n)s\n%(k)s\n%(iv)s\n" % {
                 'e': executable, 'n': executable.stem,
                 'k': "" if Ezuri.key is None else Ezuri.key,
                 'iv': "" if Ezuri.iv is None else Ezuri.iv,
-            }))
+            }).encode())
             for l in out.splitlines():
                 l = ensure_str(l)
                 if not l.startswith("[?] "):

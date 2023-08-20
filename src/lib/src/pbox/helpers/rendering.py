@@ -4,6 +4,7 @@ from tinyscript.helpers.common import lazy_object
 
 __all__ = ["progress_bar", "render", "NOK", "NOK_GREY", "OK", "OK_GREY", "STATUS"]
 
+
 DEFAULT_BACKEND = "rich"
 
 def __init(*args):

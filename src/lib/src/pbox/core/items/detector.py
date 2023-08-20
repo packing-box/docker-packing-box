@@ -1,9 +1,7 @@
 # -*- coding: UTF-8 -*-
 from tinyscript.helpers import lazy_object
 
-from ..core.config import NOT_LABELLED, NOT_PACKED
 
-# this list is filled in with subclasses at the end of this module
 __all__ = ["Detector"]
 
 __initialized = False
@@ -51,9 +49,8 @@ def decide(results, **kwargs):
 def __init():
     global __initialized
     from .__common__ import _init_base
-    from ..core.executable import Executable
-    from ..core.item import update_logger
-    from ..helpers import bin_label, class_or_instance_method, file_or_folder_or_dataset
+    from ..executable import Executable
+    from ...helpers import bin_label, class_or_instance_method, file_or_folder_or_dataset, update_logger
     Base = _init_base()
     
     class Detector(Base):

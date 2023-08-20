@@ -1,5 +1,5 @@
 # -*- coding: UTF-8 -*-
-from tinyscript import logging, re
+from tinyscript import logging
 
 from .parsers import parse_executable
 from ...helpers import *
@@ -9,8 +9,6 @@ __all__ = ["Alterations"]
 
 
 class Alteration(dict2):
-    _fields = {'apply': True, 'loop': None, 'force_build': False, 'parameters': {}}
-    
     def __call__(self, namespace, parser=None, executable=None, **kwargs):
         # include alteration's parameters in the namespace for the computation
         namespace.update(self.parameters)
@@ -27,6 +25,18 @@ class Alteration(dict2):
         for k in self.parameters.keys():
             del namespace[k]
         return parser
+    
+    @cached_property
+    def apply(self):
+        return self.get('apply', True)
+    
+    @cached_property
+    def force_build(self):
+        return self.get('force_build', False)
+    
+    @cached_property
+    def loop(self):
+        return self.get('loop')
 
 
 class Alterations(list, metaclass=MetaBase):
@@ -40,15 +50,11 @@ class Alterations(list, metaclass=MetaBase):
         a = Alterations
         # parse YAML alterations definition once
         if a.registry is None:
-            # open the target YAML-formatted alterations set only once
-            with open(a.source) as f:
-                alterations = yaml.load(f, Loader=yaml.Loader) or {}
+            src = a.source  # WARNING! this line must appear BEFORE a.registry={} because the first time that the
+                            #           source attribute is called, it is initialized and the registry is reset to None
             a.namespaces, a.registry = {}, {}
             # collect properties that are applicable for all the alterations
-            data_all = alterations.pop('defaults', {})
-            for name, params in alterations.items():
-                for i in data_all.items():
-                    params.setdefault(*i)
+            for name, params in load_yaml_config(src):
                 r = params.pop('result', {})
                 # consider most specific alterations first, then those for intermediate format classes and finally the
                 #  collapsed class "All"
@@ -56,7 +62,7 @@ class Alterations(list, metaclass=MetaBase):
                     for fmt in flist:
                         expr = r.get(fmt) if isinstance(r, dict) else str(r)
                         if expr:
-                            alt = Alteration(params, name=name, parent=self, result=expr)
+                            alt = Alteration(params, name=name, result=expr, logger=self.logger)
                             for subfmt in expand_formats(fmt):
                                 a.registry.setdefault(subfmt, {})
                                 a.registry[subfmt][alt.name] = alt

@@ -3,8 +3,6 @@ from contextlib import contextmanager
 from tinyscript import functools, os, subprocess
 from tinyscript.helpers import Path, TempPath
 
-from ..core.config import PBOX_HOME
-
 
 __all__ = ["data_to_temp_file", "edit_file", "figure_path"]
 

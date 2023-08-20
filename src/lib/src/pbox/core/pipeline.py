@@ -1,13 +1,12 @@
 # -*- coding: UTF-8 -*-
+import builtins as bi
 from tinyscript import logging
 from tinyscript.helpers import lazy_load_module, lazy_object
-
-from ..core.config import null_logger
 
 lazy_load_module("sklearn.pipeline", alias="sklpl")
 
 
-__all__ = ["make_pipeline", "DebugPipeline", "DebugTransformer", "Pipeline", "PREPROCESSORS"]
+__all__ = ["make_pipeline", "DebugPipeline", "DebugTransformer", "Pipeline"]
 
 
 Pipeline = lazy_object(lambda: sklpl.Pipeline)
@@ -31,7 +30,7 @@ def __init_pr():
         'PCA':        (PCA, {'n_components': 2}),
         'Std':        StandardScaler,
     }
-PREPROCESSORS = lazy_object(__init_pr)
+bi.PREPROCESSORS = lazy_object(__init_pr)
 
 
 def make_pipeline(pipeline, preprocessors, logger=null_logger):

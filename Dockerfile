@@ -51,7 +51,7 @@ RUN apt-get -y install apt-transport-https apt-utils \
 RUN apt-get -y install colordiff colortail cython3 dos2unix dosbox git golang kmod less ltrace meson tree strace \
  && apt-get -y install iproute2 nftables nodejs npm python3-setuptools python3-pip swig vim weka x11-apps yarnpkg \
  && apt-get -y install bc curl ffmpeg imagemagick pev psmisc tesseract-ocr unrar unzip wget zstd \
- && apt-get -y install binwalk ent foremost jq tmate tmux visidata xdotool xterm xvfb \
+ && apt-get -y install bats binwalk ent foremost jq tmate tmux visidata xdotool xterm xvfb \
  && wget -qO /tmp/bat.deb https://github.com/sharkdp/bat/releases/download/v0.18.2/bat-musl_0.18.2_amd64.deb \
  && dpkg -i /tmp/bat.deb \
  && rm -f /tmp/bat.deb

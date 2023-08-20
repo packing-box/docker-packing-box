@@ -1,15 +1,38 @@
 # -*- coding: UTF-8 -*-
+from tinyscript import functools
 from tinyscript.helpers import lazy_load_module
 
-lazy_load_module("lief")
 
-
-__all__ = ["parse_executable", "parse_section", "parser_handler"]
+__all__ = ["lief", "parse_executable", "parse_section", "parser_handler"]
 __parsers__ = ["lief_parser"]
 
 
+def __init(lief):
+    errors = config['lief_errors']
+    @functools.lru_cache(config['cache_entries'])
+    def _lief_parse(target, *args, **kwargs):
+        target = Path(target, expand=True)
+        if not target.exists():
+            raise OSError("Target binary does not exist")
+        if not errors:
+            # capture the stderr messages from LIEF
+            tmp_fd, null_fd = os.dup(2), os.open(os.devnull, os.O_RDWR)
+            os.dup2(null_fd, 2)
+        binary = lief._parse(str(target))
+        if not errors:
+            # restore stderr
+            os.dup2(tmp_fd, 2)
+            os.close(null_fd)
+        if binary is None:
+            raise OSError("Unknown format")
+        return binary
+    lief._parse, lief.parse = lief.parse, _lief_parse
+    return lief
+lief = lazy_load_module("lief", postload=__init)
+
+
 class SectionAbstract:
-    """ Class to simplify the handling of sections.
+    """ Class to simplify sections handling.
     
     NB: Simple namespace to hold section information. Referencing a lief.PE.Section directly is dangerous, because it
          can be modified by alterations, which will break things. Also, if different parsers are used in susequent

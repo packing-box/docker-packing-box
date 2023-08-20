@@ -1,10 +1,8 @@
 # -*- coding: UTF-8 -*-
 from tinyscript import re
 
-from ..core.executable import Executable
 
-
-__all__ = ["aggregate_formats", "collapse_formats", "expand_formats", "format_shortname", "get_format_group", "is_exe",
+__all__ = ["aggregate_formats", "collapse_formats", "expand_formats", "format_shortname", "get_format_group",
            "ExeFormatDict", "FORMATS"]
 
 
@@ -17,7 +15,6 @@ FORMATS = {
 
 
 format_shortname = lambda s: re.sub(r"([-_\.])", "", s.lower())
-is_exe = lambda e: Executable(e).format is not None
 
 
 class ExeFormatDict(dict):

@@ -1,9 +1,9 @@
 from tinyscript.helpers import lazy_load_module, Path
 
-lazy_load_module("lief")
+from .parsers import lief
 
 
-__all__ = ["binary_diff_plot", "binary_diff_readable"]
+__all__ = ["binary_diff_plot", "binary_diff_text"]
 
 MIN_ZONE_WIDTH = 0
 
@@ -13,7 +13,7 @@ __secname = lambda s: s.strip("\x00") or s or "<empty>"
 
 
 def _characteristics_no_entropy(executable):
-    """Helper function to compute characteristcs of the file, like Bintropy, but avoid entropy computations.
+    """Helper function to compute characteristcs of the file (like Bintropy) but avoiding entropy computations.
     
     :param executable: target executable for which the characteristics are to be computed
     :return:           dictionary of characteristics from the target binary
@@ -29,8 +29,7 @@ def _characteristics_no_entropy(executable):
     # entry point (EP)
     ep, ep_section = _get_ep_and_section(binary)
     # convert to 3-tuple (EP offset on plot, EP file offset, section name containing EP)
-    data['entrypoint'] = None if ep is None else (
-        int(ep // chunksize), ep, __secname(ep_section))
+    data['entrypoint'] = None if ep is None else (int(ep // chunksize), ep, __secname(ep_section))
     # sections
     data['sections'] = [(0, int(max(MIN_ZONE_WIDTH, binary.sections[0].offset // chunksize)), "Headers")] \
                        if len(binary.sections) > 0 else []
@@ -106,11 +105,12 @@ def binary_diff_plot(file1, file2, img_name=None, img_format="png", legend1="", 
     from matplotlib.cm import ScalarMappable
     from matplotlib.colors import ListedColormap
     plt.rcParams['font.family'] = "serif"
-    lloc, title_bool = kwargs.get('legend_location', "lower right"), not kwargs.get('no_title', False)
+    lloc, no_title = kwargs.get('legend_location', "lower right"), not kwargs.get('no_title', False)
     lloc_side = lloc.split()[1] in ["left", "right"]
     nf, N_TOP, N_TOP2, N_BOT, N_BOT2 = 2, 1.2, 1.6, -.15, -.37
-    fig, objs = plt.subplots(nf+[0, 1][title_bool], sharex=True)
-    fig.set_size_inches(15, nf+[0, 1][title_bool])
+    tl_offset = [1, 0][no_title]
+    fig, objs = plt.subplots(nf+tl_offset, sharex=True)
+    fig.set_size_inches(15, nf+tl_offset)
     fig.tight_layout(pad=2.5)
     objs[-1].axis("off")
     values = {'delete': 0, 'replace': 1, 'equal': 2, 'insert': 3}
@@ -120,7 +120,7 @@ def binary_diff_plot(file1, file2, img_name=None, img_format="png", legend1="", 
     cruncher = SequenceMatcher(a=p1, b=p2)
     tags, alo, ahi, blo, bhi = zip(*cruncher.get_opcodes())
     opcodes_1, opcodes_2 = zip(tags, alo, ahi), zip(tags, blo, bhi)
-    if title_bool:
+    if not no_title:
         fig.suptitle("Byte-wise difference" if title is None else title, x=[.5, .55][legend1 is None], y=1,
                      ha="center", va="bottom", fontsize="xx-large", fontweight="bold")
     legend1, legend2 = legend1 or Path(file1).basename, legend2 or Path(file2).basename
@@ -166,7 +166,7 @@ def binary_diff_plot(file1, file2, img_name=None, img_format="png", legend1="", 
     cb.ax.tick_params(length=0)
     cb.outline.set_visible(False)
     plt.subplots_adjust(left=[.15, .02][legend1 == "" and legend2 == ""], bottom=.5/max(1.75, nf))
-    h, l = (objs[[0, 1][title_bool]] if nf+[0, 1][title_bool] > 1 else objs).get_legend_handles_labels()
+    h, l = (objs[tl_offset] if nf+tl_offset > 1 else objs).get_legend_handles_labels()
     if len(h) > 0:
         plt.figlegend(h, l, loc=[.8, .135], ncol=1, prop={'size': 9})
     img_name = img_name or Path(file1).stem
@@ -179,7 +179,7 @@ def binary_diff_plot(file1, file2, img_name=None, img_format="png", legend1="", 
     return plt
 
 
-def binary_diff_readable(file1, file2, legend1=None, legend2=None, n=0, **kwargs):
+def binary_diff_text(file1, file2, legend1=None, legend2=None, n=0, **kwargs):
     """ Generates a text-based difference between two PE files. 
     
     :param file1:   first file's name

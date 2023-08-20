@@ -1,11 +1,10 @@
 # -*- coding: UTF-8 -*-
 from collections import deque
 from functools import cached_property
-from tinyscript import logging, re
-from tinyscript.helpers import lazy_load_module, Path
+from tinyscript import itertools, logging, re
+from tinyscript.helpers import is_generator, lazy_load_module, Path
 
-from ...core.config import config
-from ...helpers import dict2, expand_formats, MetaBase, FORMATS
+from ...helpers import dict2, expand_formats, load_yaml_config, MetaBase, FORMATS
 
 lazy_load_module("yaml")
 
@@ -14,15 +13,17 @@ __all__ = ["Features"]
 
 
 class Feature(dict2):
-    _fields = {'keep': True, 'values': []}  # default values that will be set in dict2.__init__
-
-    def __init__(self, idict, **kwargs):
-        super(Feature, self).__init__(idict, **kwargs)
-        self['boolean'] = self.__dict__['boolean'] = any(self['name'].startswith(p) for p in ["is_", "has_"])
+    @cached_property
+    def boolean(self):
+        return any(self.name.startswith(p) for p in ["is_", "has_"])
     
     @cached_property
     def dependencies(self):
         return list(set([x for x in re.split(r"[\s\.\[\]\(\)]", self.result or "") if x in Features]))
+    
+    @cached_property
+    def keep(self):
+        return self.get('keep', True)
 
 
 class Features(dict, metaclass=MetaBase):
@@ -35,19 +36,16 @@ class Features(dict, metaclass=MetaBase):
     
     @logging.bindLogger
     def __init__(self, exe):
+        ft = Features
         # parse YAML features definition once
-        if Features.registry is None:
-            # open the target YAML-formatted features set only once
-            with Features.source.open() as f:
-                features = yaml.load(f, Loader=yaml.Loader) or {}
-            Features.registry = {}
-            # collect properties that are applicable for all the other features
-            data_all = features.pop('defaults', {})
+        if ft.registry is None:
+            src = ft.source  # WARNING! this line must appear BEFORE ft.registry={} because the first time that the
+                             #           source attribute is called, it is initialized and the registry is reset to None
+            self.logger.debug("loading features from %s..." % src)
+            ft.registry = {}
             # important note: the 'keep' parameter is not considered here as some features may be required for computing
             #                  others but not kept in the final data, hence required in the registry yet
-            for name, params in features.items():
-                for i in data_all.items():
-                    params.setdefault(*i)
+            for name, params in load_yaml_config(src):
                 r, values = params.pop('result', {}), params.pop('values', [])
                 # consider features for most specific formats first, then intermediate format classes and finally the
                 #  collapsed format class "All"
@@ -56,38 +54,44 @@ class Features(dict, metaclass=MetaBase):
                         expr = r.get(fmt)
                         if expr:
                             if len(values) > 0:
+                                if not all(isinstance(x, (list, tuple)) or is_generator(x) for x in values):
+                                    values = [values]
                                 f = []
-                                for val in values:
+                                for val in itertools.product(*values):
                                     p = {k: v for k, v in params.items()}
-                                    #TODO: support dynamic free variables (not only "x")
-                                    e = expr.replace("x", str(val))
+                                    try:
+                                        e = expr % val
+                                    except Exception as e:
+                                        self.logger.error("expression: %s" % expr)
+                                        self.logger.error("value:      %s (%s)" % (str(val), type(val)))
+                                        raise
                                     try:
                                         n = name % val
                                     except TypeError:
                                         self.logger.error("missing formatter in name '%s'" % d)
                                         raise
-                                    d = p.pop("description")
+                                    d = p['description']
                                     try:
                                         p['description'] = d % val
                                     except TypeError:
                                         self.logger.warning("name: %s" % n)
                                         self.logger.error("missing formatter in description '%s'" % d)
                                         raise
-                                    f.append(Feature(p, name=n, parent=self, result=e))
+                                    f.append(Feature(p, name=n, result=e, logger=self.logger))
                             else:
-                                f = [Feature(params, name=name, parent=self, result=expr)]
+                                f = [Feature(params, name=name, result=expr, logger=self.logger)]
                             for feat in f:
                                 for subfmt in expand_formats(fmt):
-                                    Features.registry.setdefault(subfmt, {})
-                                    Features.registry[subfmt][feat.name] = feat
-        if exe is not None and exe.format in Features.registry:
+                                    ft.registry.setdefault(subfmt, {})
+                                    ft.registry[subfmt][feat.name] = feat
+        if exe is not None and exe.format in ft.registry:
             from .extractors import Extractors
             self._rawdata = Extractors(exe)
-            todo, counts, reg = deque(), {}, Features.registry[exe.format]
+            todo, counts, reg = deque(), {}, ft.registry[exe.format]
             # compute features based on the extracted values first
             for name, feature in reg.items():
                 # compute only if it has the keep=True flag ; otherwise, it will be lazily computed on need
-                if (not Features.boolean_only or Features.boolean_only and feature.boolean) and feature.keep:
+                if (not ft.boolean_only or ft.boolean_only and feature.boolean) and feature.keep:
                     try:
                         self[name] = feature(self._rawdata, True)
                     except NameError:

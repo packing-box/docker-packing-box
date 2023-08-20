@@ -16,7 +16,6 @@ def file_or_folder_or_dataset(method):
          a folder with executables or the executable files from a Dataset. """
     @functools.wraps(method)
     def _wrapper(self, *args, **kwargs):
-        from ..core.config import config
         from ..core.executable import Executable
         kwargs['silent'] = kwargs.get('silent', False)
         # collect executables and folders from args
@@ -181,7 +180,6 @@ def get_data(exe_format):
       }
     """
     from .formats import format_shortname as _name, get_format_group
-    from ..core.config import config
     global __data
     if __data:
         return __data

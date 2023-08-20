@@ -50,8 +50,8 @@ base_of_code:
 byte_%d_after_ep:
   description: Byte %d following the EP
   result:
-    PE: pefeats[48+x]
-  values: !!python/object/new:range [0, 64]
+    PE: pefeats[%d]
+  values: !!python/object/new:range [48, 112]
 
 checksum:
   description: Checksum
@@ -308,7 +308,7 @@ is_image_base_standard:
 is_os_major_version_%d:
   description: Is the OS major version equal to %d
   result:
-    PE: os_major_version == x
+    PE: os_major_version == %d
   values: !!python/object/new:range [4, 7]
 
 is_os_major_version_standard:
@@ -319,7 +319,7 @@ is_os_major_version_standard:
 is_os_minor_version_%d:
   description: Is the OS minor version equal to %d
   result:
-    PE: os_minor_version == x
+    PE: os_minor_version == %d
   values: !!python/object/new:range [0, 4]
 
 is_os_minor_version_standard:
@@ -330,7 +330,7 @@ is_os_minor_version_standard:
 is_size_of_headers_%dB:
   description: Is the size of the headers equal to %dB
   result:
-    PE: size_of_headers == x
+    PE: size_of_headers == %d
   values: [512, 1024, 1536, 4096]
 
 is_size_of_headers_non_standard:
@@ -341,7 +341,7 @@ is_size_of_headers_non_standard:
 is_size_of_initializeddata_gte_%dMB:
   description: Is the size of initialized data greater than or equal to %dMB
   result:
-    PE: size_of_initializeddata >= x * 1024 * 1024
+    PE: size_of_initializeddata >= %d * 1024 * 1024
   values: !!python/object/new:range [1, 6]
 
 is_size_of_initializeddata_notnull:
@@ -352,7 +352,7 @@ is_size_of_initializeddata_notnull:
 is_size_of_uninitializeddata_gte_%dMB:
   description: Is the size of uninitialized data greater than or equal to %dMB
   result:
-    PE: size_of_uninitializeddata >= x * 1024 * 1024
+    PE: size_of_uninitializeddata >= %d * 1024 * 1024
   values: !!python/object/new:range [1, 6]
 
 is_size_of_uninitializeddata_notnull:

@@ -15,7 +15,7 @@ Supervised:
         n_estimators:  50
         random_state:  42
   BN:
-    base:        !!python/name:pbox.learning.algorithm.weka.BayesNet  # based on weka.classifiers.bayes.BayesNet
+    base:        !!python/name:pbox.core.model.algorithm.weka.BayesNet  # based on weka.classifiers.bayes.BayesNet
     description: Bayesian Network
     link:        https://weka.sourceforge.io/doc.stable/weka/classifiers/bayes/BayesNet.html
     parameters:
@@ -35,7 +35,7 @@ Supervised:
         fit_prior:   true
         class_prior: null
   D:
-    base:        !!python/name:pbox.learning.algorithm.weka.Decorate  # based on weka.classifiers.meta.Decorate
+    base:        !!python/name:pbox.core.model.algorithm.weka.Decorate  # based on weka.classifiers.meta.Decorate
     description: Decorate
     link:        https://weka.sourceforge.io/doc.stable/weka/classifiers/meta/Decorate.html
     parameters:
@@ -88,7 +88,7 @@ Supervised:
       static:
         priors: null
   J48:
-    base:        !!python/name:pbox.learning.algorithm.weka.J48  # based on weka.classifiers.trees.J48
+    base:        !!python/name:pbox.core.model.algorithm.weka.J48  # based on weka.classifiers.trees.J48
     description: Decision Tree (J48)
     link:        https://weka.sourceforge.io/doc.stable/weka/classifiers/trees/J48.html
     parameters:
@@ -120,7 +120,7 @@ Supervised:
         max_iter:     1000
         random_state: 42
   LR:
-    base:        !!python/name:pbox.learning.algorithm.weka.Logistic  # based on weka.classifiers.functions.Logistic
+    base:        !!python/name:pbox.core.model.algorithm.weka.Logistic  # based on weka.classifiers.functions.Logistic
     description: Logistic Regression
     link:        https://weka.sourceforge.io/doc.stable/weka/classifiers/functions/Logistic.html
     parameters:

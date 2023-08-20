@@ -1,9 +1,7 @@
 # -*- coding: UTF-8 -*-
-from tinyscript import hashlib
 from tinyscript.helpers import lazy_object
 
 
-# this list is filled in with subclasses at the end of this module
 __all__ = ["Unpacker"]
 
 __initialized = False
@@ -12,9 +10,8 @@ __initialized = False
 def __init():
     global __initialized
     from .__common__ import _init_base
-    from ..core.config import NOT_LABELLED
-    from ..core.executable import Executable
-    from ..core.item import update_logger
+    from ..executable import Executable
+    from ...helpers import update_logger
     Base = _init_base()
     
     class Unpacker(Base):
@@ -25,8 +22,8 @@ def __init():
         """
         @update_logger
         def unpack(self, executable, **kwargs):
-            """ Runs the unpacker according to its command line format and checks if the executable has been changed by this
-                 execution. """
+            """ Runs the unpacker according to its command line format and checks if the executable has been changed by
+                 this execution. """
             # check: is this unpacker able to process the input executable ?
             exe = Executable(executable)
             if not self._check(exe):

@@ -2,7 +2,6 @@
 from tinyscript.helpers import lazy_object
 
 
-# this list is filled in with subclasses at the end of this module
 __all__ = ["Analyzer"]
 
 __initialized = False
@@ -11,9 +10,8 @@ __initialized = False
 def __init():
     global __initialized
     from .__common__ import _init_base
-    from ..core.executable import Executable
-    from ..core.item import update_logger
-    from ..helpers import file_or_folder_or_dataset
+    from ..executable import Executable
+    from ...helpers import file_or_folder_or_dataset, update_logger
     Base = _init_base()
     
     class Analyzer(Base):

@@ -12,7 +12,7 @@ __all__ = ["Modifiers"]
 
 
 class Modifiers(dict):
-    """ This class represents the dictionary of modifiers to be extracted for a given list of executable formats. """
+    """ This class represents the dictionary of modifiers available per executable format. """
     def __init__(self):
         # load modifiers once
         if not getattr(self, "_init", False):

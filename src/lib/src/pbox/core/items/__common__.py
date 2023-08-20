@@ -1,13 +1,12 @@
 # -*- coding: UTF-8 -*-
 from os.path import expanduser
-from tinyscript import b, colored as _c, ensure_str, json, logging, os, random, re, shlex, subprocess, sys, ts
-from tinyscript.helpers import execute_and_log as run, execute as run2, lazy_object, Path
+from tinyscript import ensure_str, json, logging, os, random, re, shlex, subprocess
+from tinyscript.helpers import execute_and_log as run, execute as run2, lazy_object, urlparse, Path, TempPath
 from tinyscript.report import *
 
-from ..core.config import *
-from ..core.executable import Executable
-from ..core.item import _init_item, update_logger
-from ..helpers import *
+from ..executable import Executable
+from ...helpers import *
+from ...helpers.items import _init_item
 
 
 __all__ = ["Base"]
@@ -164,8 +163,8 @@ def _init_base():
             for action in self.gui:
                 c, delay, repeat = cmd.match(action).groups()
                 for i in range(int(repeat or 1)):
-                    if re.match("(behave|click|get(_|mouselocation)|key(down|up)?|mouse(down|move(_relative)?|up)|search|"
-                                "set_|type|(get|select)?window)", c):
+                    if re.match("(behave|click|get(_|mouselocation)|key(down|up)?|mouse(down|move(_relative)?|up)|"
+                                "search|set_|type|(get|select)?window)", c):
                         m = re.match("click (\d{1,5}) (\d{1,5})$", c)
                         if m is not None:
                             c = "mousemove %s %s click" % m.groups()
@@ -229,8 +228,8 @@ def _init_base():
             """ Customizable method for shaping the command line to run the item on an input executable. """
             retval = self.name
             use_output = False
-            benchm, verb = kwargs.get('benchmark', False), kwargs.get('verbose', False) and getattr(self, "verbose", False)
-            binary, weak = kwargs.get('binary', False), kwargs.get('weak', False)
+            verb = kwargs.get('verbose', False) and getattr(self, "verbose", False)
+            bmark, binary, weak = kwargs.get('benchmark', False), kwargs.get('binary', False), kwargs.get('weak', False)
             extra_opt = "" if kwargs.get('extra_opt') is None else kwargs['extra_opt'] + " "
             kw = {'logger': self.logger, 'silent': [], 'timeout': config['exec_timeout'], 'reraise': True}
             if not config['wine_errors']:
@@ -245,11 +244,11 @@ def _init_base():
                         .replace("{{executable.stem}}", strf(executable.dirname.joinpath(executable.stem)))
             kw['silent'].extend(list(map(_repl, getattr(self, "silent", []))))
             output, self.__cwd = "", os.getcwd()
-            for step in getattr(self, "steps", ["%s %s%s" % (self.name.replace("_" ,"-"), extra_opt, _str(executable))]):
-                step = self.__expand(step)
+            steps = getattr(self, "steps", ["%s %s%s" % (self.name.replace("_", "-"), extra_opt, _str(executable))])
+            for step in map(self.__expand, steps):
                 if self.name in step:
                     i, opt = step.index(self.name), ""
-                    if benchm:
+                    if bmark:
                         opt += " --benchmark"
                     if binary:
                         opt += " --binary"
@@ -294,13 +293,15 @@ def _init_base():
                         output, error, retc = None, str(e), 1
                     output = ensure_str(output or NOT_LABELLED).strip()
                     # filter out error lines from stdout
-                    out_err = "\n".join(re.sub(ERR_PATTERN, "", l) for l in output.splitlines() if re.match(ERR_PATTERN, l))
-                    output  = "\n".join(l for l in output.splitlines() if not re.match(ERR_PATTERN, l) and l.strip() != "")
+                    out_err = "\n".join(re.sub(ERR_PATTERN, "", l) for l in output.splitlines() \
+                              if re.match(ERR_PATTERN, l))
+                    output  = "\n".join(l for l in output.splitlines() \
+                              if not re.match(ERR_PATTERN, l) and l.strip() != "")
                     # update error string obtained from stderr
                     self._error = "\n".join(l for l in error.splitlines() \
                                             if all(re.search(p, l) is None for p in kw.get('silent', [])))
                     self._error = (self._error + "\n" + out_err).strip()
-                    if self.name in attempt and benchm:
+                    if self.name in attempt and bmark:
                         output, dt = shlex.split(output.splitlines()[-1])
                     if retc > 0:
                         if verb:
@@ -314,7 +315,7 @@ def _init_base():
                         break
             os.chdir(self.__cwd)
             r = output if use_output or getattr(self, "use_output", False) else retval
-            if benchm:
+            if bmark:
                 r = (r, dt)
             return r
         
@@ -351,7 +352,7 @@ def _init_base():
                 # simple install through APT
                 if cmd == "apt":
                     run("sudo apt-get -qqy install %s" % arg, **kw)
-                # change to the given dir (starting from the reference /tmp/[ITEM]s directory if no command was run before)
+                # change to the given dir (starting from reference /tmp/[ITEM]s directory if no command was run before)
                 elif cmd == "cd":
                     result = (result or tmp).joinpath(arg)
                     if not result.exists():
@@ -388,7 +389,7 @@ def _init_base():
                         run(a, **kw)
                 # git clone a project
                 elif cmd in ["git", "gitr"]:
-                    result = (result or tmp).joinpath(Path(ts.urlparse(arg).path).stem.lower() if arg1 == arg2 else arg2)
+                    result = (result or tmp).joinpath(Path(urlparse(arg).path).stem.lower() if arg1 == arg2 else arg2)
                     result.remove(False)
                     run("git clone --quiet %s%s '%s'" % (["", "--recursive "][cmd == "gitr"], arg1, result), **kw)
                 # go build the target
@@ -423,7 +424,7 @@ def _init_base():
                     except PermissionError:
                         self.logger.error("bash: %s: Permission denied" % r)
                     result = r
-                #  create a symbolink link in ~/.local/bin (if relative path) relatively to the previous considered location
+                #  create a symbolink link in ~/.local/bin
                 elif cmd == "ln":
                     r = ubin.joinpath(self.name if arg1 == arg2 else arg2)
                     r.remove(False)
@@ -431,8 +432,8 @@ def _init_base():
                     run("chmod +x '%s'" % p, **kw)
                     run("ln -fs '%s' '%s'" % (p, r), **kw)
                     result = r
-                # create a shell script to execute the given target from its source directory with its intepreter/launcher
-                #  and make it executable
+                # create a shell script to execute the given target from its source directory with its intepreter/
+                #  launcher and make it executable
                 elif cmd in ["lsh", "lwine", "lwine64"]:
                     arch = ["32", "64"][cmd == "lwine64"]
                     if cmd.startswith("lwine") and hasattr(self, "gui"):
@@ -512,13 +513,13 @@ def _init_base():
                     ext = "." + (cmd[-2:] if cmd == "un7z" else cmd[-3:])
                     # for TAR, fix the extension (may be .tar.bz2, .tar.gz, .tar.xz, ...)
                     if ext == ".tar" and isinstance(result, Path):
-                        # it requires 'result' to be a Path ; this works i.e. after having downloaded the archive with Wget
+                        # it requires 'result' to be a Path instance ; this works i.e. after having downloaded with Wget
                         ext = result.extension
                         # when the archive comes from /tmp
                     if result is None:
                         result = tmp.joinpath("%s%s" % (self.name, ext))
-                    # when the archive is obtained from /tmp, 'result' was still None and was thus just set ; we still need
-                    #  to fix the extension
+                    # when the archive is obtained from /tmp, 'result' was still None and was thus just set ; we still
+                    #  need to fix the extension
                     if ext == ".tar":
                         for e in ["br", "bz2", "bz2", "gz", "xz", "Z"]:
                             if result.dirname.joinpath("%s.tar.%s" % (self.name, e)).exists():
@@ -529,7 +530,7 @@ def _init_base():
                         # decompress to the target folder but also to a temp folder if needed (for debugging purpose)
                         paths, first = [tmp.joinpath(arg1)], True
                         if kw.get('verbose', False):
-                            paths.append(ts.TempPath(prefix="%s-setup-" % self.type, length=8))
+                            paths.append(TempPath(prefix="%s-setup-" % self.type, length=8))
                         # handle password with the second argument
                         pswd = ""
                         if arg2 != arg1:
@@ -572,13 +573,13 @@ def _init_base():
                             elif ext.startswith(".tar"):
                                 f = l.split("/")[0]
                             elif ext == ".7z":
-                                pass # no parsing for .7z ; a specific folder for the target item shall be declared anyway
+                                pass # no parsing for .7z ; specific folder for the target item shall be declared anyway
                             if f is not None and f not in assets:
                                 assets.append(f)
                         if len(assets) == 1 and dest.joinpath(assets[0]).is_dir():
                             dest = dest.joinpath(assets[0])
-                        # if the destination is a dir, cd to subfolder as long as there is only one subfolder in the current
-                        #  one, this makes 'dest' point to the most relevant folder within the unpacked archive
+                        # if the destination is a dir, cd to subfolder as long as there is only one subfolder in the
+                        #  current one, this makes 'dest' point to the most relevant folder within the unpacked archive
                         if dest and dest.is_dir():
                             ld = list(dest.listdir())
                             while len(ld) == 1 and ld[0].is_dir():
@@ -599,8 +600,8 @@ def _init_base():
                     else:
                         raise ValueError("%s is not a %s file" % (result, ext.lstrip(".").upper()))
                 # download a resource, possibly downloading 2-stage generated download links (in this case, the list is
-                #  handled by downloading the URL from the first element then matching the second element in the URL's found
-                #  in the downloaded Web page
+                #  handled by downloading the URL from the first element then matching the second element in the URL's
+                #  found in the downloaded Web page
                 elif cmd == "wget":
                     # (2-stage) dynamic download link
                     rc = 0
@@ -611,36 +612,38 @@ def _init_base():
                             m = re.search(r"href\s+=\s+(?P<q>[\"'])(.*)(?P=q)", line)
                             if m is not None:
                                 url = m.group(1)
-                                if Path(ts.urlparse(url).path).stem == (arg[1] if len(arg) > 1 else self.name):
+                                if Path(urlparse(url).path).stem == (arg[1] if len(arg) > 1 else self.name):
                                     break
                                 url = arg[0]
                         if url != arg[0]:
-                            result = tmp.joinpath(self.name + Path(ts.urlparse(url).path).extension)
+                            result = tmp.joinpath(self.name + Path(urlparse(url).path).extension)
                             run("wget -qO %s %s" % (result, url), **kw)[-1]
                     # single link
                     else:
                         single_arg = arg1 == arg2
-                        url, tag = ts.urlparse(arg1), ""
+                        url, tag = urlparse(arg1), ""
                         parts = url.path.split(":")
                         if len(parts) == 2:
                             path, tag = parts
-                            arg1, idx, regex = None, None, r"([a-zA-Z0-9]+(?:[-_\.][a-zA-Z0-9]+)*)(?:\[(\d)\]|\{(.*?)\})?$"
+                            arg1, idx = None, None
+                            regex = r"([a-zA-Z0-9]+(?:[-_\.][a-zA-Z0-9]+)*)(?:\[(\d)\]|\{(.*?)\})?$"
                             try:
                                 tag, idx, pattern = re.match(regex, tag).groups()
                             except AttributeError:
                                 pass
-                            resp = json.loads(run("curl -Ls https://api.github.com/repos%s/releases/%s" % (path, tag))[0])
+                            resp = json.loads(run("curl -Ls https://api.github.com/repos%s/releases/%s" % \
+                                                  (path, tag))[0])
                             # case 1: https://github.com/username/repo:TAG{pattern} ; get file based on pattern
                             if pattern is not None:
                                 try:
                                     for asset in resp['assets']:
                                         link = asset['browser_download_url']
-                                        if re.search(pattern, ts.urlparse(link).path.split("/")[-1]):
+                                        if re.search(pattern, urlparse(link).path.split("/")[-1]):
                                             arg1 = link
                                             break
                                 except KeyError:
-                                    self.logger.warning("GitHub API may be blocking requests at the moment ; please try "
-                                                        "again later")
+                                    self.logger.warning("GitHub API may be blocking requests at the moment ; please try"
+                                                        " again later")
                                     raise
                             # case 2: https://github.com/username/repo:TAG[X] ; get Xth file from the selected release
                             else:
@@ -652,7 +655,7 @@ def _init_base():
                             if arg1 is None:
                                 raise ValueError("Bad tag for the release URL: %s" % tag)
                         if url.netloc == "github.com" and tag != "":
-                            url = ts.urlparse(arg1)
+                            url = urlparse(arg1)
                         result = tmp.joinpath(self.name + Path(url.path).extension if single_arg else arg2)
                         run("wget -qO %s %s" % (result, arg1.replace("%%", "%")), **kw)[-1]
                     wget = True
@@ -668,7 +671,7 @@ def _init_base():
             """ Tests the item on some executable files. """
             if not self._test(kw.pop('silent', False)):
                 return
-            d = ts.TempPath(prefix="%s-tests-" % self.type, length=8)
+            d = TempPath(prefix="%s-tests-" % self.type, length=8)
             for fmt in self._formats_exp:
                 hl = []
                 if files:
@@ -686,7 +689,7 @@ def _init_base():
                     self.logger.debug(exe.filetype)
                     run("cp %s %s" % (exe, tmp))
                     run("chmod +x %s" % tmp)
-                    # use the verb corresponding to the item type by shortening it by 2 chars ; 'packer' will give 'pack'
+                    # use the verb corresponding to the item type by shortening it by 2 chars ; 'packer' => 'pack'
                     n = tmp.filename
                     label = getattr(self, self.type[:-2])(str(tmp))
                     h = Executable(str(tmp)).hash
@@ -715,7 +718,7 @@ def _init_base():
         def status(self):
             """ Get the status of item's binary. """
             st = getattr(self, "_status", None)
-            return ["not ", ""][b(self.name) in OS_COMMANDS] + "installed" if st is None else st
+            return ["not ", ""][self.name.encode() in OS_COMMANDS] + "installed" if st is None else st
         
         @classmethod
         def summary(cls, show=False, format="All", **kwargs):
@@ -744,7 +747,7 @@ def _init_base():
                     item.cname,
                     ",".join(collapse_formats(*expand_formats(*item.formats))),
                     STATUS[item.status],
-                    "<%s>" % item.source,
+                    ["", "<%s>" % item.source][item.source != ""],
                 ])
             descr = {k: "/".join(sorted(v)) for k, v in descr.items()}
             score = n if n == n_ok else "%d/%d" % (n_ok, n)

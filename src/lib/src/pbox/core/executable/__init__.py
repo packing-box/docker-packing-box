@@ -1,25 +1,34 @@
 # -*- coding: UTF-8 -*-
+from contextlib import suppress
 from datetime import datetime
 from functools import cached_property
 from tinyscript import hashlib, re, shutil
 from tinyscript.helpers import lazy_load_module, Path, TempPath
 
-from .config import NOT_LABELLED
+from .alterations import *
+from .alterations import __all__ as _alter
+from .features import *
+from .features import __all__ as _features
+from .visualization import *
+from ...helpers.formats import get_format_group
 
 
-__all__ = ["Executable"]
+__all__ = ["is_exe", "Executable"] + _alter + _features
+
+
+is_exe = lambda e: Executable(e).format is not None
 
 
 class Executable(Path):
     """ Executable abstraction.
     
-    Can be initialized in many different ways:
+    Can be initialized in different ways:
     (1) orphan executable (not coming from a dataset)
     (2) dataset-bound (data is used to populate attributes based on the ; this does not require the file)
     (3) dataset-bound, with a new destination dataset
     """
     FIELDS = ["realpath", "format", "signature", "size", "ctime", "mtime"]
-    HASH = "sha256"  # possible values: hashlib.algorithms_available
+    HASH = config['hash_algorithm']  # possible values: hashlib.algorithms_available
     # NB: the best signature matched is the longest
     SIGNATURES = {
         '^Mach-O 32-bit ':                         "Mach-O32",
@@ -69,14 +78,17 @@ class Executable(Path):
                     self.hash = h  # avoid hash recomputation
                     self._destination = ds1.files.joinpath(self.hash)
             self._dataset = ds1
-            try:
-                for a, v in ds1._data[ds1._data.hash == h].iloc[0].to_dict().items():
-                    if a in Executable.FIELDS + ["hash", "label"]:
-                        setattr(self, a, v)
-            except AttributeError:
-                pass  # this occurs when the dataset is still empty, therefore holding no 'hash' column
-            except IndexError:
-                pass  # this occurs when the executable did not exist in the dataset yet
+            # AttributeError: this occurs when the dataset is still empty, therefore holding no 'hash' column
+            # IndexError:     this occurs when the executable did not exist in the dataset yet
+            with suppress(AttributeError, IndexError):
+                d, meta_fields = ds1._data[ds1._data.hash == h].iloc[0].to_dict(), Executable.FIELDS + ["hash", "label"]
+                for a in meta_fields:
+                    setattr(self, a, d[a])
+                f = {a: v for a, v in d.items() if a not in fields if str(v) != "nan"}
+                # if features could be retrieved, set the 'data' attribute (i.e. if already computed as it is part of a
+                #  FilelessDataset)
+                if len(f) > 0:
+                    setattr(self, "data", f)
             # case (3)
             if ds2 is not None and ds2._files:
                 self._destination = ds2.files.joinpath(h)
@@ -114,6 +126,10 @@ class Executable(Path):
     def ctime(self):
         return datetime.fromtimestamp(self.stat().st_ctime)
     
+    @cached_property
+    def data(self):
+        return Features(self)
+    
     @property
     def destination(self):
         if hasattr(self, "_destination"):
@@ -121,6 +137,12 @@ class Executable(Path):
         if hasattr(self, "_dataset") and self.hash is not None:
             return (self._dataset.files if self._dataset._files else TempPath()).joinpath(self.hash)
         raise ValueError("Could not compute destination path for '%s'" % self)
+    
+    @property
+    def features(self):
+        Features(None)  # lazily populate Features.registry at first instantiation
+        if self.format is not None:
+            return {n: f.description for n, f in Features.registry[self.format].items()}
     
     @cached_property
     def filetype(self):
@@ -137,6 +159,10 @@ class Executable(Path):
             if len(ftype) > l and re.search(ftype, self.filetype) is not None:
                 best_fmt, l = fmt, len(ftype)
         return best_fmt
+    
+    @cached_property
+    def group(self):
+        return get_format_group(self.format)
     
     @cached_property
     def hash(self):
@@ -157,4 +183,12 @@ class Executable(Path):
     @cached_property
     def size(self):
         return super(Executable, self).size
+    
+    @staticmethod
+    def diff_plot(file1, file2, img_name=None, img_format="png", legend1="", legend2="", dpi=400, title=None, **kwargs):
+        return binary_diff_plot(file1, file2, img_name, img_format, legend1, legend2, dpi, title, **kwargs)
+    
+    @staticmethod
+    def diff_text(file1, file2, legend1=None, legend2=None, n=0, **kwargs):
+        return binary_diff_text(file1, file2, legend1, legend2, n, **kwargs)
 
