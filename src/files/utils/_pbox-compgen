@@ -130,7 +130,13 @@ def _get_commands(tool):
                                       .rstrip("\n") + "\n\nif __name__ == '__main__':\n    main()\n")
     ntool.chmod(0o755)
     # populate the real parser and add information arguments
-    __parsers = {PythonPath(module).module.main(): ArgumentParser(globals())}
+    try:
+        __parsers = {PythonPath(module).module.main(): ArgumentParser(globals())}
+    except Exception as e:
+        logger.critical("Completion generation failed for tool: %s" % tool.basename)
+        logger.error("Source (%s):\n%s" % (module, ntool.read_text()))
+        logger.exception(e)
+        sys.exit(1)
     # now import the populated list of parser calls from within the tinyscript.parser module
     from tinyscript.parser import parser_calls, ProxyArgumentParser
     global parser_calls

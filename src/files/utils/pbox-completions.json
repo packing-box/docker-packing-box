@@ -20,7 +20,8 @@
     "*": "`list-working-packers`"
   },
   "packing-box": {
-    "list|setup|test": "analyzer detector packer unpacker"
+    "list": "analyzer config detector packer unpacker",
+    "setup|test": "analyzer detector packer unpacker"
   },
   "unpacker": {
     "*": "`list-working-unpackers`"
