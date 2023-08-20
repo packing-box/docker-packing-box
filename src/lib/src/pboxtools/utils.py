@@ -133,8 +133,11 @@ def list_experiment_configs(return_list=False):
     parser = argparse.ArgumentParser()
     parser.add_argument("experiment")
     args = parser.parse_args()
-    root = join(__parse_config()['experiments'], args.experiment, "conf")
+    xp = join(__parse_config()['experiments'], args.experiment)
+    root = join(xp, "conf")
     l = [splitext(f)[0] for f in listdir(root)]
+    if exists(join(xp, "commands.rc")):
+        l.append("commands")
     l.sort()
     if return_list:
         return l
