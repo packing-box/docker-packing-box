@@ -71,9 +71,9 @@ target/
 tmp
 TODO
 .mypy_cache
-dataset*/
-model*/
-experiment*/
+dataset-*/
+datasets/
+experiments*/
 
 # config files
 #src/conf/*.yml
