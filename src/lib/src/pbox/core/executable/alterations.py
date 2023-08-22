@@ -1,4 +1,5 @@
 # -*- coding: UTF-8 -*-
+from functools import cached_property
 from tinyscript import logging
 
 from .parsers import parse_executable
