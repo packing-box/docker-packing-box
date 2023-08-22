@@ -7,7 +7,6 @@
 
 # TODO:
 # ✗ export
-# ✗ fix
 # ✗ ingest
 # ✗ update
 
@@ -48,6 +47,7 @@ teardown_file(){
   assert_output --partial 'No dataset found'
 }
 
+# ✓ fix
 # ✓ make
 # ✓ show
 # ✓ view
@@ -56,6 +56,7 @@ teardown_file(){
   assert_output --partial 'Source directories'
   assert_output --partial 'Used packers'
   assert_output --partial '#Executables'
+  run dataset fix "$TEST_DS1"
   run dataset list
   assert_output --partial 'Datasets'
   assert_output --partial "$TEST_DS1"
