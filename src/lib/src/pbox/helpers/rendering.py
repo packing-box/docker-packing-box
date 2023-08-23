@@ -15,12 +15,12 @@ def __init(*args):
         return colored(*args)
     return _wrapper
 NOK      = lazy_object(__init("☒", "red"))
-NOK_GREY = lazy_object(__init("☒", "grey"))
+NOK_GREY = lazy_object(__init("☒", "grey50"))
 OK       = lazy_object(__init("☑", "green"))
-OK_GREY  = lazy_object(__init("☑", "grey"))
+OK_GREY  = lazy_object(__init("☑", "grey50"))
 STATUS   = lazy_object(__init({
                             'broken':        ("☒", "magenta"),
-                            'commercial':    "💰",
+                            'commercial':    "  💰",
                             'gui':           ("🗗", "cyan"),
                             'info':          ("ⓘ", "grey"),
                             'installed':     ("☑", "orange"),
@@ -64,8 +64,8 @@ def render(*elements, **kw):
         from rich.text import Text as RichText
         from tinyscript import code, colored
         code.replace(Heading.__rich_console__, "text.justify = \"center\"", "")
-        _STATUS_CONV = {colored(u, c): RichText(u, style=c) for u, c in \
-                        zip("☒🗗ⓘ☑☒☑☐ⓘ", ["magenta", "cyan", "grey", "orange", "red", "green", "grey", "grey"])}
+        _STATUS_CONV = {colored(u, c): RichText(u, style=c) for u, c in zip("☑☑☒☒☐🗗ⓘ☑☒", \
+                        ["green", "orange", "red", "magenta", "grey", "cyan", "grey", "grey50", "grey50"])}
         for e in elements:
             if hasattr(e, "md"):
                 if isinstance(e, Table):

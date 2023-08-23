@@ -55,7 +55,7 @@ def overview(show=False, format=None, category=None, keep=None):
             report.append(_)
         descr.update(d)
     report.append(Section("Legend"))
-    report.append(Text(" ; ".join("%s  %s" % (k, v) for k, v in sorted(descr.items(), key=lambda x: x[1]))))
+    report.append(Text(" ; ".join("%s  %s" % (k.strip(" "), v) for k, v in sorted(descr.items(), key=lambda x: x[1]))))
     if keep is None:
         for s in Dataset.summarize(".", args.show_all):
             report.append(s)
