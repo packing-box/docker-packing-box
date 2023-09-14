@@ -39,7 +39,7 @@ Each processing depending on categories flattens its list from this tree structu
 
 ## `Executable` Class
 
-This [class](https://github.com/dhondta/docker-packing-box/blob/main/files/lib/pbox/items/executable.py#L28) subclasses [`ts.Path`](https://python-tinyscript.readthedocs.io/en/latest/helpers.html#extended-pathlib-like-classes) (from [Tinyscript](https://python-tinyscript.readthedocs.io/en/latest/)), itself extending [`pathlib.Path`](https://docs.python.org/3/library/pathlib.html) with additional methods.
+This [class](https://github.com/packing-box/docker-packing-box/blob/main/src/lib/src/pbox/core/executable/__init__.py#L22) subclasses [`ts.Path`](https://python-tinyscript.readthedocs.io/en/latest/helpers.html#extended-pathlib-like-classes) (from [Tinyscript](https://python-tinyscript.readthedocs.io/en/latest/)), itself extending [`pathlib.Path`](https://docs.python.org/3/library/pathlib.html) with additional methods.
 
 ```session
 >>> exe = Executable("hello-world.exe")
@@ -57,7 +57,7 @@ datetime.datetime(2021, 7, 8, 7, 41, 4, 875819)
 {'dll_characteristics_1': 0, 'dll_characteristics_2': 0, 'dll_characteristics_3': 0, [...]
 ```
 
-This abstraction facilitates the retrieval of important attributes and the integration of new [features](https://github.com/dhondta/docker-packing-box/tree/main/files/lib/pbox/learning/features).
+This abstraction facilitates the retrieval of important attributes and the integration of new [features](https://github.com/packing-box/docker-packing-box/blob/main/src/conf/features.yml).
 
 **Attributes**:
 

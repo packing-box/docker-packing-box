@@ -1,6 +1,6 @@
 # Packers
 
-*Packers* are programs that pack executable samples. They aim to detect packing traces or algorithms. They can either work on binary classes only (True/False) or binary and multi-class (each class being a packer name).
+*Packers* are programs that pack executable samples. They can be categorized in different types including compression, encryption, obfuscation, virtualization and anti-reversing techniques.
 
 ## Tool
 

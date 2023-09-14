@@ -8,7 +8,7 @@ The `Packer` class allows to abstract packers, based on the [`Base` class](items
 
 ## `Packer` Class
 
-This [class](https://github.com/dhondta/docker-packing-box/blob/main/files/lib/pbox/items/packer.py#L13) is the base for abstracted tools loaded from the [`packers.yml`](https://github.com/dhondta/docker-packing-box/tree/main/packers.yml) description file. It holds the registry of all the loaded child classes.
+This [class](https://github.com/packing-box/docker-packing-box/blob/main/src/lib/src/pbox/core/items/packer.py#L30) is the base for abstracted tools loaded from the [`packers.yml`](https://github.com/packing-box/docker-packing-box/blob/main/src/conf/packers.yml) description file. It holds the registry of all the loaded child classes.
 
 ```session
 >>> Packer.registry

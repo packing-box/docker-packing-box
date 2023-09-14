@@ -8,7 +8,7 @@ The `Detector` class allows to abstract detection tools, based on the [`Base` cl
 
 ## `Detector` Class
 
-This [class](https://github.com/dhondta/docker-packing-box/blob/main/files/lib/pbox/items/detector.py#L10) is the base for abstracted tools loaded from the [`detectors.yml`](https://github.com/dhondta/docker-packing-box/tree/main/detectors.yml) description file. It holds the registry of all the loaded child classes.
+This [class](https://github.com/packing-box/docker-packing-box/blob/main/src/lib/src/pbox/core/items/detector.py#L56) is the base for abstracted tools loaded from the [`detectors.yml`](https://github.com/packing-box/docker-packing-box/blob/main/src/conf/detectors.yml) description file. It holds the registry of all the loaded child classes.
 
 ```session
 >>> Detector.registry
