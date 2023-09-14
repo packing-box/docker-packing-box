@@ -1,10 +1,10 @@
 # Items
 
-Items are integrated with many [common features coming from a `Base` class](https://github.com/dhondta/docker-packing-box/blob/main/files/lib/pbox/items/__common__.py). This provides for instance the `setup` and `test` methods.
+Items are integrated with many [common features coming from a `Base` class](https://github.com/packing-box/docker-packing-box/blob/main/src/lib/src/pbox/core/items/__common__.py). This provides for instance the `setup` and `test` methods.
 
 ## Initialization
 
-The [`Base` class](https://github.com/dhondta/docker-packing-box/blob/main/files/lib/pbox/items/__common__.py#L127), depending on the subclass inheriting it, will take attributes from the corresponding YAML definition as defined at the [root of the Packing Box](https://github.com/dhondta/docker-packing-box).
+The [`Base` class](https://github.com/packing-box/docker-packing-box/blob/main/src/lib/src/pbox/core/items/__common__.py#L88), depending on the subclass inheriting it, will take attributes from the corresponding YAML definition as defined at the [root of the Packing Box](https://github.com/dhondta/docker-packing-box).
 
 It means that, for instance, for a detector called "*Bintropy*" that shall be installed using Pip, its definition can be written in [`detectors.yml`](https://github.com/dhondta/docker-packing-box/blob/main/detectors.yml):
 
@@ -24,11 +24,11 @@ Bintropy:
   vote:   false
 ```
 
-While being parsed at startup by the [`make_registry` function](https://github.com/dhondta/docker-packing-box/blob/main/files/lib/pbox/items/__common__.py#L101), the `Bintropy` class will be inheriting the [`Detector` class](https://github.com/dhondta/docker-packing-box/blob/main/files/lib/pbox/items/detector.py#L10), itself inheriting the [`Base` class](https://github.com/dhondta/docker-packing-box/blob/main/files/lib/pbox/items/__common__.py#L127) and get its class attributes `categories`, `command`, `description`, `install`, ... set, ready for use by its utility methods.
+The `Bintropy` class will be inheriting the [`Detector` class](https://github.com/packing-box/docker-packing-box/blob/main/src/lib/src/pbox/core/items/detector.py#L56), itself inheriting the [`Base` class](https://github.com/packing-box/docker-packing-box/blob/main/src/lib/src/pbox/core/items/__common__.py#L88) and get its class attributes `categories`, `command`, `description`, `install`, ... set, ready for use by its utility methods.
 
 ## `Base` Class
 
-This [class](https://github.com/dhondta/docker-packing-box/blob/main/files/lib/pbox/items/__common__.py#L127) is the base abstraction for items integrated in the box. This holds the common machinery for the [`Detector`](https://github.com/dhondta/docker-packing-box/blob/main/files/lib/pbox/items/detector.py#L10), [`Packer`](https://github.com/dhondta/docker-packing-box/blob/main/files/lib/pbox/items/packer.py#L13) and [`Unpacker`](https://github.com/dhondta/docker-packing-box/blob/main/files/lib/pbox/items/unpacker.py#L12) classes.
+This [class](https://github.com/packing-box/docker-packing-box/blob/main/src/lib/src/pbox/core/items/__common__.py#L88) is the base abstraction for items integrated in the box. This holds the common machinery for the [`Detector`](https://github.com/packing-box/docker-packing-box/blob/main/src/lib/src/pbox/core/items/detector.py#L56), [`Packer`](https://github.com/packing-box/docker-packing-box/blob/main/src/lib/src/pbox/core/items/packer.py#L30) and [`Unpacker`](https://github.com/packing-box/docker-packing-box/blob/main/src/lib/src/pbox/core/items/unpacker.py#L17) classes.
 
 This abstraction facilitates the integration of new items as it provides just enough description language in the YAML configuration to do so.
 
@@ -37,7 +37,7 @@ This abstraction facilitates the integration of new items as it provides just en
 - `_bad`: flag for setting the tool as bad (once flagged, it won't run anymore on further inputs during the whole execution)
 - `_categories_exp`: expanded list of categories of executable formats (e.g. from `["PE"]`, while expanded, it becomes `[".NET", "PE32", "PE64"]`)
 - `_error`: flag for putting the tool in an error state (after an error, the tool will continue running with next inputs)
-- `_params`: dictionary for holding on-the-fly generated parameters (e.g. see when [`Packer`'s `run` method](https://github.com/dhondta/docker-packing-box/blob/main/files/lib/pbox/items/packer.py#L46) is used)
+- `_params`: dictionary for holding on-the-fly generated parameters (e.g. see when [`Packer`'s `run` method](https://github.com/packing-box/docker-packing-box/blob/main/src/lib/src/pbox/core/items/packer.py#L95) is used)
 - `logger`: `logging.Logger` instance for producing debug messages
 - `name`: tool's name (e.g. `bintropy` if defined as *Bintropy* in the YAML file) ; always completely lowercase
 - `type`: tool's type, that is, its base class name (e.g. `detector` if the tool inherits from `Detector`) ; lowercase
@@ -45,7 +45,7 @@ This abstraction facilitates the integration of new items as it provides just en
 **Dynamic attributes** (set in the corresponding YAML file):
 
 - `categories` \*: categories of executable formats to be considered
-- `command`: the shell command for running the tool (currently only used in the lightweight package [`pboxtools`](https://github.com/dhondta/docker-packing-box/blob/main/files/lib/pboxtools/__init__.py#L25))
+- `command`: the shell command for running the tool (currently only used in the lightweight package [`pboxtools`](https://github.com/packing-box/docker-packing-box/tree/main/src/lib/src/pboxtools))
 - `comment`: comment string related to the current tool
 - `description`: description of the current tool
 - `install` \*: installation steps (see [*Installation*](#installation) for more details)
@@ -65,7 +65,7 @@ This abstraction facilitates the integration of new items as it provides just en
 
 !!! note "Setup of items with status *broken*"
     
-    When an item is marked with the status "*broken*", it won't be installed. Thi means that, if this tool is to be tested afterwards (e.g. if it can finally be integrated), simply changing the status is not sufficient ; it will either require to rebuild the box or, from within the box, run `packing-box setup [detector|packer|unpacker] [item_name]`.
+    When an item is marked with the status "*broken*", it won't be installed. This means that, if this tool is to be tested afterwards (e.g. if it can finally be integrated), simply changing the status is not sufficient ; it will either require to rebuild the box or, from within the box, run `packing-box setup [detector|packer|unpacker] [item_name]`.
 
 
 # Status
@@ -80,7 +80,7 @@ The *status* can be set to (*real_value* - *value_to_be_set_in_YAML*):
 - `3` - [*none*]: this status can be obtained when it was not set explicitly in the YAML, and the command with the name of the tool DOES appear in the system's in-`PATH` binaries
 - `4` - `ok`: this is for tagging the tool as tested and operational
 
-All these statuses are shown with dedicated special colored characters in the help message of the box (see [this screenshot](https://raw.githubusercontent.com/dhondta/docker-packing-box/main/docs/imgs/screenshot.png)).
+All these statuses are shown with dedicated special colored characters in the help message of the box (see [this screenshot](https://raw.githubusercontent.com/dhondta/docker-packing-box/main/docs/pages/imgs/screenshot.png)).
 
 ## Installation
 

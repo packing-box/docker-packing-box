@@ -112,7 +112,7 @@ The rest of the other commands are aimed to manipulate datasets in different way
 
 For adding/removing executables to/from the dataset, a few commands are available:
 
-- `make`: this adds a given number (`-n`/`--number-excutables`) of new executables to the dataset, eventually only from some given categories (`-c`/`--categories`), randomly packing some of them such that the dataset is balanced (using the `-b`/`--balance` option will balance between packer labels, not simply between packed and not packed) and with every applicable packer or only the given ones (`-p`/`--packer`).
+- `make`: this adds a given number (`-n`/`--number-excutables`) of new executables to the dataset, optionally only from some given categories (`-c`/`--categories`), randomly packing some of them such that the dataset is balanced (using the `-b`/`--balance` option will balance between packer labels, not simply between packed and not packed) and with every applicable packer or only the given ones (`-p`/`--packer`).
 - `merge`: this merges the second input dataset into the first one.
 - `remove`: this allows to remove executables from the dataset according to criteria relying on [Pandas' query method](https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.query.html) through the `--query` option.
 - `select`: this creates a new dataset with a selected subset of the target dataset, using criteria relying on [Pandas' query method](https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.query.html) through the `--query` option.

@@ -1,6 +1,6 @@
 # Unpackers
 
-The `Unpacker` class allows to abstract unpackers, based on the [`Base` class](items.md#base-class) and adding a special unpacking method called `unack`.
+The `Unpacker` class allows to abstract unpackers, based on the [`Base` class](items.md#base-class) and adding a special unpacking method called `unpack`.
 
 ```session
 >>> from pbox import Unpacker
@@ -8,7 +8,7 @@ The `Unpacker` class allows to abstract unpackers, based on the [`Base` class](i
 
 ## `Unpacker` Class
 
-This [class](https://github.com/dhondta/docker-packing-box/blob/main/files/lib/pbox/items/unpacker.py#L12) is the base for abstracted tools loaded from the [`unpackers.yml`](https://github.com/dhondta/docker-packing-box/tree/main/unpackers.yml) description file. It holds the registry of all the loaded child classes.
+This [class](https://github.com/packing-box/docker-packing-box/blob/main/src/lib/src/pbox/core/items/unpacker.py#L17) is the base for abstracted tools loaded from the [`unpackers.yml`](https://github.com/packing-box/docker-packing-box/blob/main/src/conf/unpackers.yml) description file. It holds the registry of all the loaded child classes.
 
 ```session
 >>> Unpacker.registry

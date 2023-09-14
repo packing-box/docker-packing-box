@@ -23,7 +23,7 @@ A dataset folder holds the following files/folders:
 
 ## `Dataset` Class
 
-This [class](https://github.com/dhondta/docker-packing-box/blob/main/files/lib/pbox/common/dataset.py#L23) mostly acts as a dictionary for executable entries but also keeps track of some related metadata and, when computed, the related features. When setting a key, it associates the given (real) file and its label and, if required, computes its features available for its executable format.
+This [class](https://github.com/packing-box/docker-packing-box/blob/main/src/lib/src/pbox/core/dataset/__init__.py#L31) mostly acts as a dictionary for executable entries but also keeps track of some related metadata and, when computed, the related features. When setting a key, it associates the given (real) file and its label and, if required, computes its features available for its executable format.
 
 ```session
 >>> ds = Dataset()  # this creates a folder named "dataset" if no name is given
@@ -63,7 +63,7 @@ Entries can also be cleaned as with a `dict` instance.
 - `formats`: list of applicable categories of executable formats
 - `logger`: `logging.Logger` instance for producing debug messages
 - `packers`: list of `Packer` instances applicable to the dataset, given the selected categories of executable formats
-- `path`: `tinyscript.Path` instance holding the path the the dataset folder
+- `path`: `tinyscript.Path` instance holding the path to the dataset folder
 - `sources`: dictionary containing applicable categories as keys and their corresponding lists of source folders for making the dataset
 
 **Properties**:
@@ -89,7 +89,7 @@ Entries can also be cleaned as with a `dict` instance.
 - `remove(query)` \*: for removing executables from the dataset based on a Pandas Dataframe filtering query
 - `rename`: for renaming the current dataset
 - `reset`: for truncating and recreating a blank dataset
-- `revert`: for reverting to the latest version of the dataset (if a backup copy exists in `/tmp`)
+- `revert`: for reverting to the latest version of the dataset (if a backup copy exists in `/tmp`), with a maximum of 3
 - `select`: for selecting a subset from the current dataset based on multiple criteria
 - `show`: for showing an overview of the dataset
 - `update` \*: for updating the dataset with a folder of binaries, detecting used packers if `detect=True` otherwise considering samples as not labelled unless labels are provided (in JSON format with hashes as keys and labels as values)
