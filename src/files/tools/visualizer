@@ -5,7 +5,7 @@ from tinyscript import *
 
 
 __script__      = "Visualization tool"
-__version__     = "2.0.3"
+__version__     = "2.0.4"
 __contributors__ = [
     {'author': "Romain Jennes", 'reason': "added visualizations for observing effects of alterations"},
 ]
@@ -39,8 +39,8 @@ def legend_location(string):
 legend_location.__name__ = "legend location"
 
 
-def find_files(folder, pattern, selected=None, nbr_not_selected=None, display=False, force_display=False, remove=False,
-               filter_selected=True):
+def find_files_with_labels(folder, pattern, selected=None, nbr_not_selected=None, display=False, force_display=False,
+                           remove=False, filter_selected=True):
     """ Find files matching the given filename pattern withing the specified folder. It uses subfolders' names as labels
          for categorizing the matching file.
     
@@ -159,17 +159,18 @@ def find_files(folder, pattern, selected=None, nbr_not_selected=None, display=Fa
 if __name__ == "__main__":
     sparsers = parser.add_subparsers(dest="command", metavar="CMD", title="positional argument",
                                      help="command to be executed")
-    compare = add_argument(sparsers.add_parser("compare", category="visualization", help="compare files from two "
-                                               "sources"), "folder", fmt=True, extended=True)
-    compare.add_argument("filename2", help="second binary to be represented ; format is regex")
-    compare.add_argument("folder2", type=ts.folder_exists, help="second target folder")
-    compare.add_argument("-l1", "--legend1", help="specify a string to show with the first binary")
-    compare.add_argument("-l2", "--legend2", help="specify a string to show with the second binary")
-    compare.add_argument("-o", "--out-file", metavar="FILE",
-                         help="output file (for images, format is determined based on the extension)")
-    compare.add_argument("-t", "--title", help="set plot title")
-    compare.add_argument("--no-title", action="store_true", help="do not generate a main title")
+    compare = sparsers.add_parser("compare", category="visualization", help="compare files from two sources")
+    #compare = add_argument(sparsers.add_parser("compare", category="visualization", help="compare files from two "
+    #                                           "sources"), "folder", fmt=True, extended=True)
+    compare.add_argument("pattern1", help="pattern for the path of the first file(s) to be compared")
+    compare.add_argument("pattern2", help="pattern for the path of the second file(s) to be compared")
+    compare.add_argument("-l1", "--legend1", help="legend for the first binary")
+    compare.add_argument("-l2", "--legend2", help="legend for the second binary")
+    compare.add_argument("-o", "--out-file", metavar="FILE", help="output file pattern to save the image(s) to")
     compare.add_argument("--text", action="store_true", help="textual comparison")
+    compgrp = compare.add_mutually_exclusive_group()
+    compgrp.add_argument("-t", "--title", help="set plot title")
+    compgrp.add_argument("--no-title", action="store_true", help="do not generate a main title")
     feat = add_argument(sparsers.add_parser("features", category="visualization", help="compute features for files "
                                             "matching the regex with the input labels"), "folder")
     feat.add_argument("-r", "--raw", action="store_true", help="display raw features only (not transformed ones)")
@@ -185,15 +186,16 @@ if __name__ == "__main__":
     rm = add_argument(sparsers.add_parser("remove", category="utils", help="remove files matching the regex with the "
                                           "input labels"), "folder")
     initialize(noargs_action="usage", autocomplete=True)
-    ff_args = args.folder, args.filename, args.label, getattr(args, "max_not_matching", None)
+    if args.command != "compare":
+        ff_args = args.folder, args.filename, args.label, getattr(args, "max_not_matching", None)
+        msg = " files from %s matching '%s'%s..." % (args.folder, args.filename,
+                                                     [" with the selected labels", ""][args.label is None])
     logger.name = "visualizer"
     logging.configLogger(logger, ["INFO", "DEBUG"][args.verbose], fmt=LOG_FORMATS[args.verbose], relative=True)
     LABELS.update(getattr(args, "alias", None) or {})
-    msg = " files from %s matching '%s'%s..." % (args.folder, args.filename,
-                                                 [" with the selected labels", ""][args.label is None])
     if args.command == "features":
         logger.info("Computing features of" + msg)
-        for file, data in find_files(*ff_args).items():
+        for file, data in find_files_with_labels(*ff_args).items():
             logger.info(file)
             files = []
             for f, l in zip(data['files'], data['labels']):
@@ -205,12 +207,13 @@ if __name__ == "__main__":
                 edit_file(tmp, logger=logger)
     elif args.command == "find":
         logger.info("Searching for" + msg)
-        for _ in find_files(*ff_args, display=args.no_display, force_display=True, filter_selected=False).keys():
+        for _ in find_files_with_labels(*ff_args, display=args.no_display, force_display=True, filter_selected=False) \
+                 .keys():
             pass
     elif args.command == "plot":
         from bintropy import plot
         logger.info("Collecting" + msg)
-        for file, data in find_files(*ff_args).items():
+        for file, data in find_files_with_labels(*ff_args).items():
             files, labels = data['files'], data['labels']
             labels = [LABELS.get(l, l) for l in labels]
             imgn = ts.Path(file).stem
@@ -219,22 +222,27 @@ if __name__ == "__main__":
                 logger.debug(f)
             plot(*files, img_name=imgn, labels=labels, sublabel="size-ep-ent", logger=logger, **vars(args))
     elif args.command == "compare":
-        msg2 = " files from %s matching '%s'%s..." % (args.folder2, args.filename2,
-                                                 [" with the selected labels", ""][args.label is None])
-        logger.info("Comparing" + msg + " to" + msg2)
-        ff2_args = (args.folder2, args.filename2, args.label)
-        for f1, f2  in zip(find_files(*ff_args).items(), find_files(*ff2_args).items()):
-            data1, data2 = f1[1], f2[1]
+        logger.info("Comparing files matching pattern '%s' to those matching pattern '%s'..." % \
+                    (args.pattern1, args.pattern2))
+        n = sum(1 for _ in find_files_in_folder(args.pattern1))
+        for i, files in enumerate(zip(find_files_in_folder(args.pattern1), find_files_in_folder(args.pattern2))):
+            f1, f2 = files[0], files[1]
             if args.text:
-                print(binary_diff_readable(*data1['files'], *data2['files'], logger=logger, **vars(args)))    
+                print(Executable.diff_text(str(f1), str(f2), logger=logger, **vars(args)))    
             else:
-                imgn = ts.Path(*data1['files']).stem + '_' + ts.Path(*data2['files']).stem if args.out_file is None \
-                       else args.out_file
-                logger.info("Making plot to %s..." % (imgn))
-                binary_diff_plot(data1['files'][0], data2['files'][0], img_name=imgn, logger=logger, **vars(args))
+                if args.out_file is None:
+                    imgn = "%s_%s.png" % (f1.stem, f2.stem)
+                elif n > 0:
+                    fp = ts.Path(args.out_file)
+                    stem, ext = fp.dirname.joinpath(fp.stem), fp.extension
+                    imgn = "%s_%d%s" % (stem, i+1, ext)
+                else:
+                    imgn = args.out_file
+                logger.info("Making plot to %s..." % imgn)
+                Executable.diff_plot(str(f1), str(f2), img_name=imgn, logger=logger, **vars(args))
     elif args.command == "remove":
         logger.info("Removing" + msg)
-        for file, data in find_files(*ff_args, remove=True).items():
+        for file, data in find_files_with_labels(*ff_args, remove=True).items():
             if ts.confirm("Remove '%s' ?" % file):
                 for f in data['files']:
                     f.remove()
