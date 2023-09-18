@@ -34,8 +34,12 @@ def open_model(folder, **kw):
     raise ValueError("%s is not a valid model" % folder)
 
 
-class BaseModel:
+class BaseModel(AbstractEntity):
     """ Base class for a model. """
+    def __len__(self):
+        """ Get the length of model's pipeline. """
+        return len(self.pipeline.steps)
+    
     def _metrics(self, data, prediction, target=None, proba=None, metrics="classification", proctime=None,
                  ignore_labels=False):
         """ Metrics computation method. """
@@ -267,14 +271,6 @@ class BaseModel:
         if not isinstance(value, Path):
             value = Path(value).absolute()
         self._path = value
-    
-    @classmethod
-    def check(cls, folder, **kw):
-        try:
-            cls.validate(folder)
-            return True
-        except (TypeError, ValueError):
-            return False
 
 
 class Model(BaseModel):
@@ -686,21 +682,8 @@ class Model(BaseModel):
     def dataset(self):
         return getattr(self, "_dataset", None) or open_dataset(self._metadata['dataset']['path'])
     
-    @staticmethod
-    def count():
-        return sum(1 for _ in Path(config['models']).listdir(Model.check))
-    
-    @staticmethod
-    def iteritems(instantiate=False):
-        for model in Path(config['models']).listdir(Model.check):
-            yield Model(model) if instantiate else model
-    
-    @staticmethod
-    def open(folder, **kw):
-        return open_model(folder, **kw)
-    
-    @staticmethod
-    def validate(folder, **kw):
+    @classmethod
+    def validate(cls, folder, **kw):
         f = Path(folder, expand=True)
         if not f.is_dir():
             f = config['models'].joinpath(folder)
@@ -744,8 +727,8 @@ class DumpedModel(BaseModel):
         p = p.loc[p.round(3).drop_duplicates(subset=k[:-1]).index]
         p.to_csv(str(self.__p), sep=";", columns=k, index=False, header=True, float_format=FLOAT_FORMAT)
     
-    @staticmethod
-    def validate(folder):
+    @classmethod
+    def validate(cls, folder, **kw):
         f = Path(folder, expand=True)
         if not f.exists():
             f = config['models'].joinpath(folder)

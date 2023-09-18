@@ -8,7 +8,7 @@ from .model import *
 from ..helpers import *
 
 
-__all__ = ["open_experiment", "Experiment"]
+__all__ = ["Experiment"]
 
 
 COMMIT_VALID_COMMANDS = [
@@ -19,16 +19,8 @@ COMMIT_VALID_COMMANDS = [
 ]
 
 
-def open_experiment(folder, **kw):
-    """ Open the target model with the right class. """
-    try:
-        return Experiment(Experiment.validate(folder, **kw), **kw)
-    except ValueError:
-        raise ValueError("%s is not a valid experiment" % folder)
-
-
 def __init():
-    class Experiment:
+    class Experiment(AbstractEntity):
         """ Folder structure:
         
         [name]
@@ -82,6 +74,10 @@ def __init():
                 if name == ds.stem:
                     return open_model(ds)
             raise KeyError(name)
+        
+        def __len__(self):
+            """ Get dataset's length. """
+            return Dataset.count() + Model.count()
         
         def _import(self, source=None, **kw):
             """ Import a custom YAML configuration file or set of YAML configuration files. """
@@ -149,11 +145,6 @@ def __init():
                 l.debug("editing experiment's %s..." % p.basename)
                 edit_file(p, text=True, logger=l)
         
-        @staticmethod
-        def iteritems(instantiate=False):
-            for exp in Path(config['experiments']).listdir(Experiment.check):
-                yield open_experiment(exp) if instantiate else exp
-        
         def list(self, raw=False, **kw):
             """ List all valid experiment folders. """
             data, headers = [], ["Name", "#Datasets", "#Models", "Custom configs"]
@@ -166,6 +157,10 @@ def __init():
             else:
                 self.logger.warning("No experiment found in the workspace (%s)" % config['experiments'])
         
+        def open(self, **kw):
+            """ Open the current experiment, validating its structure. """
+            self.load(self.path)
+        
         def purge(self, **kw):
             """ Purge the current experiment. """
             self.logger.debug("purging experiment...")
@@ -176,25 +171,8 @@ def __init():
             Dataset(load=False).list()
             Model(load=False).list()
         
-        @property
-        def name(self):
-            """ Dummy shortcut for dataset's path.basename. """
-            return self.path.basename
-        
-        @staticmethod
-        def check(folder, **kw):
-            try:
-                Experiment.validate(folder)
-                return True
-            except (TypeError, ValueError):
-                return False
-        
-        @staticmethod
-        def open(folder, **kw):
-            return open_experiment(folder, **kw)
-        
-        @staticmethod
-        def validate(folder, warn=False, logger=None, **kw):
+        @classmethod
+        def validate(cls, folder, warn=False, logger=None, **kw):
             f = config['experiments'].joinpath(folder)
             if not f.exists():
                 raise ValueError("Does not exist")

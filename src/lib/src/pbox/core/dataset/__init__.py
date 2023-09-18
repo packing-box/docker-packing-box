@@ -28,7 +28,7 @@ def open_dataset(folder, **kw):
     raise ValueError("%s is not a valid dataset" % folder)
 
 
-class Dataset:
+class Dataset(AbstractEntity):
     """ Folder structure:
     
     [name]
@@ -122,10 +122,6 @@ class Dataset:
         """ Get dataset's length. """
         return len(self._data.index)
     
-    def __repr__(self):
-        """ Custom string representation. """
-        return "<%s dataset at 0x%x>" % (self.name, id(self))
-    
     def __setattr__(self, name, value):
         # auto-expand the formats attribute into a private one
         if name == "formats":
@@ -180,10 +176,6 @@ class Dataset:
         else:
             l.debug("adding %s..." % e.hash)
             self._data = pd.concat([df, pd.DataFrame.from_records([d])], ignore_index=True)
-    
-    def __str__(self):
-        """ Custom object's string. """
-        return self.name
     
     def _compute_all_features(self):
         """ Convenience function for computing the self._data pandas.DataFrame containing the feature values. """
@@ -383,10 +375,6 @@ class Dataset:
         l.debug("editing dataset's data.csv...")
         edit_file(self.path.joinpath("data.csv").absolute(), logger=l)
     
-    def exists(self):
-        """ Dummy exists method. """
-        return self.path.exists()
-    
     def export(self, format=None, output=None, **kw):
         """ Export either packed executables from the dataset to the given output folder or the complete dataset to a
              given format. """
@@ -487,7 +475,7 @@ class Dataset:
                     keep = False
                     break
                 # count the executables in this subfolder, other files (e.g. could be README.md) are not an issue
-                if Executable.is_valid(f):
+                if Executable(f).is_valid():
                     i += 1
             # check that we have a subfolder that contains not less and not more executable samples than needed
             if not keep:
@@ -511,14 +499,6 @@ class Dataset:
                 dataset._load()
             l.info("Ingesting subfolder '%s' into %s..." % (sp.stem, name))
             dataset.update([sp, p][merge], labels=labels, detect=detect, **kw)
-    
-    def is_empty(self):
-        """ Check if this Dataset instance has a valid structure. """
-        return len(self) == 0
-    
-    def is_valid(self):
-        """ Check if this Dataset instance has a valid structure. """
-        return self.__class__.check(self.path)
     
     def list(self, show_all=False, hide_files=False, raw=False, **kw):
         """ List all the datasets from the given path. """
@@ -945,11 +925,6 @@ class Dataset:
             dataset._copy(tmp.joinpath(str(name)))
     
     @property
-    def basename(self):
-        """ Dummy shortcut for dataset's path.basename. """
-        return self.path.basename
-    
-    @property
     def files(self):
         """ Get the Path instance for the 'files' folder. """
         if self._files or self.__class__ is Dataset:
@@ -1080,14 +1055,6 @@ class Dataset:
         return r
     
     @classmethod
-    def check(cls, name, **kw):
-        try:
-            cls.validate(name)
-            return True
-        except ValueError as e:
-            return False
-    
-    @classmethod
     def validate(cls, folder, **kw):
         f, fl = Path(folder, expand=True), getattr(cls, "_files", True)
         if not f.is_dir():
@@ -1104,15 +1071,6 @@ class Dataset:
         return f
     
     @staticmethod
-    def count():
-        return sum(1 for _ in Path(config['datasets']).listdir(Dataset.check or FilelessDataset.check))
-    
-    @staticmethod
-    def iteritems(instantiate=False):
-        for dataset in Path(config['datasets']).listdir(lambda f: Dataset.check(f) or FilelessDataset.check(f)):
-            yield open_dataset(dataset) if instantiate else dataset
-    
-    @staticmethod
     def labels_from_file(labels):
         labels = labels or {}
         if isinstance(labels, str):
@@ -1123,10 +1081,6 @@ class Dataset:
         if not isinstance(labels, dict):
             raise ValueError("Bad labels ; not a dictionary or JSON file")
         return {h: l or NOT_PACKED for h, l in labels.items()}
-    
-    @staticmethod
-    def open(folder, **kw):
-        return open_dataset(folder, **kw)
     
     @staticmethod
     def summarize(show=False, hide_files=False, check_func=None):
