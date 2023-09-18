@@ -70,14 +70,10 @@ if __name__ == '__main__':
         if not purge_items(Experiment, name):
             logger.warning("No experiment to purge in workspace (%s)" % str(config['experiments']) if name == "all" \
                            else "No experiment matched the given name")
-    elif args.command == "list":
-        Experiment(load=False).list()
     elif name == "all":
         logger.warning("Model cannot be named 'all' (reserved word)")
-    elif args.command == "import":
+    elif args.command == "import":  # rationale: cannot name a method 'import' (name clash with import statement)
         Experiment(name)._import(**vars(args))
-    elif args.command == "open":
-        Experiment(name)
     else:
-        getattr(Experiment(name), args.command)(**vars(args))
+        getattr(Experiment(name, load=args.load), args.command)(**vars(args))
 
