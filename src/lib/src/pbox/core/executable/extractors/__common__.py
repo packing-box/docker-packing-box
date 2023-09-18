@@ -3,7 +3,7 @@ from bintropy import entropy
 from capstone import *
 from lief import parse, ARCHITECTURES, ELF, MachO, PE
 
-from ....helpers.data import get_data
+from ....helpers import get_data, lief_format
 
 
 __all__ = ["block_entropy", "block_entropy_per_section", "disassemble_Nbytes_after_ep", "entropy", "parse_binary",
@@ -35,7 +35,9 @@ LIEF2CS_ARCH = {
 
 def parse_binary(f):
     def _wrapper(target, *args, **kwargs):
-        return f(parse(str(target)), *args, **kwargs)
+        binary = parse(str(target))
+        lief_format(binary.format.name)
+        return f(binary, *args, **kwargs)
     return _wrapper
 
 

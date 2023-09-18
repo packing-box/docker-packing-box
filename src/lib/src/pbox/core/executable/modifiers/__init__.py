@@ -1,4 +1,15 @@
 # -*- coding: UTF-8 -*-
+"""
+Conventions:
+ - modifiers are decorators holding wrappers applied to a parsed executable given a namespace ; the parser is NOT
+    selected here, it is 'lief' by default and can be tuned through ~/.packing-box.conf (global default parser) or
+    alterations.yml using the 'parser' parameter (takes the precedence then)
+   NB: wrappers can be themselves decorated with the supported_parsers(...) function to restrict their scope to only
+        specific parsers they are compatible with
+ - modifers' wrappers have keyword-arguments only and do not return anything ; if a new build is required, build
+    instructions shall be set in the parsed._build_config dictionary
+ - modifiers are named starting with a verb and describe the action performed
+"""
 from .elf import *
 from .elf import __all__ as _elf
 from .macho import *
@@ -21,7 +32,7 @@ class Modifiers(dict):
                     continue
                 scope = "_" + format_shortname(group)  # i.e. _elf, _macho, _pe
                 data_func = "get%s_data" % scope
-                # set extra format-specific data first (derived from format-specific data coming from ~/.opt/data/)
+                # set extra format-specific data first (derived from data files coming from ~/.packing-box/data/)
                 self[group] = globals().get(data_func, lambda: {})()
                 # then add format group modifiers
                 self[group].update({k: globals()[k] for k in globals()[scope] if k != data_func})

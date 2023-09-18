@@ -1,6 +1,5 @@
+# -*- coding: UTF-8 -*-
 from tinyscript.helpers import lazy_load_module, Path
-
-from .parsers import lief
 
 
 __all__ = ["binary_diff_plot", "binary_diff_text"]
@@ -19,22 +18,21 @@ def _characteristics_no_entropy(executable):
     :return:           dictionary of characteristics from the target binary
     """
     data = {'name': Path(executable).basename, 'sections': []}
-    binary = lief.parse(str(executable))
+    binary = executable.parse("lief")
+    data['hash'] = executable.hash
     data['type'] = __btype(binary)
-    if binary is None:
-        raise TypeError("Not an executable")
     chunksize = 1
     size = data['size'] = Path(str(executable)).size
     n_samples = size
     # entry point (EP)
-    ep, ep_section = _get_ep_and_section(binary)
+    ep, ep_section = binary.entrypoint, binary.entrypoint_section.name
     # convert to 3-tuple (EP offset on plot, EP file offset, section name containing EP)
     data['entrypoint'] = None if ep is None else (int(ep // chunksize), ep, __secname(ep_section))
     # sections
     data['sections'] = [(0, int(max(MIN_ZONE_WIDTH, binary.sections[0].offset // chunksize)), "Headers")] \
                        if len(binary.sections) > 0 else []
     for section in sorted(binary.sections, key=lambda x:x.offset):
-        name = __secname(section.name)
+        name = __secname(getattr(binary, "real_section_names", {}).get(section.name, section.name))
         start = max(data['sections'][-1][1] if len(data['sections']) > 0 else 0, int(section.offset // chunksize))
         max_end = min(max(start + MIN_ZONE_WIDTH, int((section.offset + section.size) // chunksize)), n_samples)
         data['sections'].append((int(min(start, max_end - MIN_ZONE_WIDTH)), int(max_end), name))
@@ -64,29 +62,8 @@ def _characteristics_no_entropy(executable):
     return data
 
 
-def _get_ep_and_section(binary):
-    """ Helper for computing the EP and finding its section for each supported format.
-    
-    :param binary: LIEF-parsed binary object
-    :return:       (ep_file_offset, name_of_ep_section)
-    """
-    btype = __btype(binary)
-    try:
-        if btype in ["ELF", "MachO"]:
-            ep = binary.virtual_address_to_offset(binary.entrypoint)
-            ep_section = binary.section_from_offset(ep)
-        elif btype == "PE":
-            ep = binary.rva_to_offset(binary.optional_header.addressof_entrypoint)
-            ep_section = binary.section_from_rva(binary.optional_header.addressof_entrypoint)
-        else:
-            raise OSError("Unknown format")
-        return ep, ep_section.name
-    except (AttributeError, lief._lief.lief_errors.not_found, lief._lief.lief_errors.conversion_error):
-        return None, None
-
-
 def binary_diff_plot(file1, file2, img_name=None, img_format="png", legend1="", legend2="", dpi=400, title=None,
-                     **kwargs):
+                     no_title=False, logger=null_logger, **kwargs):
     """ Plots the byte-wise difference between two exectables.
     
     :param file1:      first file's name
@@ -105,7 +82,7 @@ def binary_diff_plot(file1, file2, img_name=None, img_format="png", legend1="", 
     from matplotlib.cm import ScalarMappable
     from matplotlib.colors import ListedColormap
     plt.rcParams['font.family'] = "serif"
-    lloc, no_title = kwargs.get('legend_location', "lower right"), not kwargs.get('no_title', False)
+    lloc = kwargs.get('legend_location', "lower right")
     lloc_side = lloc.split()[1] in ["left", "right"]
     nf, N_TOP, N_TOP2, N_BOT, N_BOT2 = 2, 1.2, 1.6, -.15, -.37
     tl_offset = [1, 0][no_title]
@@ -115,17 +92,19 @@ def binary_diff_plot(file1, file2, img_name=None, img_format="png", legend1="", 
     objs[-1].axis("off")
     values = {'delete': 0, 'replace': 1, 'equal': 2, 'insert': 3}
     colors = ['red', 'gold', 'lightgrey', 'green']
-    with open(file1, 'rb') as f1, open(file2, 'rb') as f2:
+    logger.debug("opening files...")
+    with file1.open('rb') as f1, file2.open('rb') as f2:
         p1, p2 = f1.read(), f2.read()
+    logger.debug("matching sequences...")
     cruncher = SequenceMatcher(a=p1, b=p2)
     tags, alo, ahi, blo, bhi = zip(*cruncher.get_opcodes())
-    opcodes_1, opcodes_2 = zip(tags, alo, ahi), zip(tags, blo, bhi)
     if not no_title:
         fig.suptitle("Byte-wise difference" if title is None else title, x=[.5, .55][legend1 is None], y=1,
                      ha="center", va="bottom", fontsize="xx-large", fontweight="bold")
     legend1, legend2 = legend1 or Path(file1).basename, legend2 or Path(file2).basename
     text_x = -0.012*max(len(p1)*(len(legend1)+3), len(p2)*(len(legend2)+3))
-    for i, d in enumerate([(p1, file1, opcodes_1, legend1), (p2, file2, opcodes_2, legend2)]):
+    logger.debug("plotting...")
+    for i, d in enumerate([(p1, file1, zip(tags, alo, ahi), legend1), (p2, file2, zip(tags, blo, bhi), legend2)]):
         p, f, opcodes, label = d
         data = _characteristics_no_entropy(f)
         n = len(p)
@@ -133,6 +112,8 @@ def binary_diff_plot(file1, file2, img_name=None, img_format="png", legend1="", 
         obj.axis("off")
         y_pos = ref_point = .65
         obj.text(s=label, x=text_x, y=y_pos, fontsize="large", ha="left", va="center")
+        fh = "\n".join(data['hash'][i:i+32] for i in range(0, len(data['hash']), 32))
+        obj.text(s=fh, x=text_x, y=y_pos-.65, fontsize="xx-small", color="lightgray", ha="left", va="center")
         # display the entry point
         if data['entrypoint']:
             obj.vlines(x=data['entrypoint'][0], ymin=0, ymax=1, color="r", zorder=11).set_label("Entry point")
@@ -170,6 +151,7 @@ def binary_diff_plot(file1, file2, img_name=None, img_format="png", legend1="", 
     if len(h) > 0:
         plt.figlegend(h, l, loc=[.8, .135], ncol=1, prop={'size': 9})
     img_name = img_name or Path(file1).stem
+    logger.debug("saving file...")
     # appending the extension to img_name is necessary for avoiding an error when the filename contains a ".[...]" ;
     #  e.g. "PortableWinCDEmu-4.0" => this fails with "ValueError: Format '0' is not suppored"
     try:
@@ -179,7 +161,7 @@ def binary_diff_plot(file1, file2, img_name=None, img_format="png", legend1="", 
     return plt
 
 
-def binary_diff_text(file1, file2, legend1=None, legend2=None, n=0, **kwargs):
+def binary_diff_text(file1, file2, legend1=None, legend2=None, n=0, logger=null_logger, **kwargs):
     """ Generates a text-based difference between two PE files. 
     
     :param file1:   first file's name
@@ -191,6 +173,7 @@ def binary_diff_text(file1, file2, legend1=None, legend2=None, n=0, **kwargs):
     """
     from difflib import unified_diff as udiff
     from pefile import PE
+    logger.debug("dumping files info...")
     dump1, dump2 = PE(file1).dump_info(), PE(file2).dump_info()
     return "\n".join(udiff(dump1.split('\n'), dump2.split('\n'), legend1 or str(file1), legend2 or str(file2), n=n))
 

@@ -32,7 +32,7 @@ def __init():
             h = exe.hash
             self._error = None
             label = self.run(exe, extra_opt="-d", **kwargs)
-            exe.update()
+            exe._reset()
             if self._error:
                 self.logger("unpacker failed")
                 return NOT_LABELLED
@@ -47,7 +47,7 @@ def __init():
     if not __initialized:
         __initialized = True
         # dynamically makes Unpacker's registry of child classes from the default dictionary of unpackers
-        #  (~/.opt/unpackers.yml)
+        #  (~/.packing-box/conf/unpackers.yml)
         Unpacker.source = None
     return Unpacker
 Unpacker = lazy_object(__init)

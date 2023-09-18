@@ -1,53 +1,48 @@
 # -*- coding: UTF-8 -*-
-from functools import cached_property
 from tinyscript import logging
 
-from .parsers import parse_executable
-from ...helpers import *
+from ...helpers import dict2, expand_formats, get_data, get_format_group, load_yaml_config, MetaBase, FORMATS
 
 
 __all__ = ["Alterations"]
 
 
 class Alteration(dict2):
-    def __call__(self, namespace, parser=None, executable=None, **kwargs):
-        # include alteration's parameters in the namespace for the computation
-        namespace.update(self.parameters)
-        # loop the specified number of times or simply once if self.loop not defined
-        for _ in range(self.loop or 1):
-            parse_executable(parser, executable, namespace)
-            parser = super().__call__(namespace, parser=parser, executable=executable, **kwargs)
-        # rebuild the target binary if needed
-        if parser is not None:
-            if self.force_build:
-                parser.build()
-                return
-        # remove alteration's parameters from the namespace before returning
-        for k in self.parameters.keys():
-            del namespace[k]
-        return parser
+    def __call__(self, executable, namespace, **kwargs):
+        self._exe = executable
+        # loop the specified number of times or simply once if not specified
+        for _ in range(self.loop):
+            parsed = executable.parse(self.parser)
+            namespace.update({executable.group: parsed})
+            self._logger.debug("applying alteration...")
+            super().__call__(namespace)(parsed, self._logger)
+            self._logger.debug("rebuilding binary...")
+            self._logger.debug(" > build config: %s" % parsed._build_config)
+            parsed.build()
     
+    # default values on purpose not set via self.setdefault(...)
     @cached_property
     def apply(self):
-        return self.get('apply', True)
-    
-    @cached_property
-    def force_build(self):
-        return self.get('force_build', False)
+        return self.get('apply', False)
     
     @cached_property
     def loop(self):
-        return self.get('loop')
+        return self.get('loop', 1)
+    
+    # 'parser' parameter in the YAML config has precedence on the overall configured parser
+    @cached_property
+    def parser(self):
+        return self.get('parser', config['%s_parser' % self._exe.shortgroup])
 
 
 class Alterations(list, metaclass=MetaBase):
     """ This class parses the YAML definitions of alterations to be applied to executables. It works as a list that
-         contains the names of alterations applied to the executable given an input. """
+         contains the names of alterations applied to the executable given an input executable. """
     namespaces = None
     registry   = None
     
     @logging.bindLogger
-    def __init__(self, exe, select=None, warn=False):
+    def __init__(self, exe=None, select=None, warn=False):
         a = Alterations
         # parse YAML alterations definition once
         if a.registry is None:
@@ -81,12 +76,12 @@ class Alterations(list, metaclass=MetaBase):
             # prepare the namespace if not done yet for the target executable format
             if exe.format not in a.namespaces:
                 from .modifiers import Modifiers
-                # create the namespace for the given executable format
-                a.namespaces[exe.format] = {'grid': grid}
+                # create the namespace for the given executable format (including the 'grid' helper defined hereafter)
+                a.namespaces[exe.format] = {'grid': grid, 'logger': self.logger}
                 # add constants specific to the target executable format
                 a.namespaces[exe.format].update(get_data(exe.format))
                 # add format-related data and modifiers
-                a.namespaces[exe.format].update(Modifiers()[get_format_group(exe.format)])
+                a.namespaces[exe.format].update(Modifiers()[exe.group])
                 # add format-specific alterations
                 a.namespaces[exe.format].update(a.registry[exe.format])
             for name, alteration in a.registry[exe.format].items():
@@ -94,16 +89,13 @@ class Alterations(list, metaclass=MetaBase):
                     continue
                 # run the alteration given the format-specific namespace
                 try:
-                    parser = alteration(a.namespaces[exe.format], parser, exe)
+                    alteration(exe, a.namespaces[exe.format])
+                    self.logger.debug("applied alteration '%s'" % alteration.name)
                     self.append(name)
+                except NotImplementedError as e:
+                    self.logger.warning("'%s' is not supported yet for parser '%s'" % (e.args[0], exe.parsed.parser))
                 except Exception as e:
                     self.logger.exception(e)
-            # ensure the target executable is rebuilt
-            if parser is not None:
-                parser.build()
-            # ensure the namespace is cleaned up from specific names
-            for k in ["compute_checksum", "sections"]:
-                del a.namespaces[exe.format][k]
     
     @staticmethod
     def names(format="All"):
@@ -119,7 +111,6 @@ def grid(modifier, params_grid, **eval_data):
     
     :param modifier:    modifier function
     :param params_grid: list of dictionnaries containing the parameter values
-
     """
     def _wrapper(parser=None, executable=None, **kw):
         d, e = {}, executable

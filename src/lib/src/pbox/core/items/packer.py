@@ -54,7 +54,7 @@ def __init():
             # now pack the input executable, taking its SHA256 in order to check for changes
             h, fmt, self._error, self._bad = exe.hash, exe.format, None, False
             label = self.run(exe, **kwargs)
-            exe.update()
+            exe._reset()
             # if "unmanaged" error, recover from it, without affecting the packer's state ;
             #  Rationale: packer's errors shall be managed beforehand by testing with 'packing-box test packer ...', its
             #             settings shall be fine-tuned BEFORE making datasets ; "unmanaged" errors should thus not occur
@@ -108,7 +108,7 @@ def __init():
     if not __initialized:
         __initialized = True
         # dynamically makes Packer's registry of child classes from the default dictionary of packers
-        #  (~/.opt/packers.yml)
+        #  (~/.packing-box/conf/packers.yml)
         Packer.source = None
     return Packer
 Packer = lazy_object(__init)

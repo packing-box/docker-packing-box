@@ -1,7 +1,6 @@
 # -*- coding: UTF-8 -*-
 from contextlib import suppress
 from datetime import datetime
-from functools import cached_property
 from tinyscript import hashlib, re, shutil
 from tinyscript.helpers import lazy_load_module, Path, TempPath
 
@@ -9,12 +8,13 @@ from .alterations import *
 from .alterations import __all__ as _alter
 from .features import *
 from .features import __all__ as _features
+from .parsers import get_parser
 from .visualization import *
+from .visualization import __all__ as _viz
 from ...helpers.formats import get_format_group
 
 
-__all__ = ["is_exe", "Executable"] + _alter + _features
-
+__all__ = ["is_exe", "Executable"] + _alter + _features + _viz
 
 is_exe = lambda e: Executable(e).format is not None
 
@@ -68,6 +68,8 @@ class Executable(Path):
                         pass
                 return self
         self = super(Executable, cls).__new__(cls, *parts, **kwargs)
+        if not self.exists():
+            raise OSError("file '%s' does not exist" % self)
         if ds1 is not None:
             # case (2)
             h = kwargs.pop('hash', self.basename)
@@ -95,6 +97,18 @@ class Executable(Path):
         self.label = kwargs.pop('label', getattr(self, "label", NOT_LABELLED))
         return self
     
+    def _reset(self):
+        # ensure filetype and format will be recomputed at their next invocation (i.e. when a packer modifies the binary
+        #  in a way that makes its format change)
+        for attr in ["filetype", "format", "group", "hash", "parsed", "shortgroup", "size"]:
+            try:
+                delattr(self, attr)
+            except AttributeError:
+                pass
+    
+    def alter(self, *alterations, **kwargs):
+        Alterations(self, alterations)
+    
     def copy(self, extension=False, overwrite=False):
         dest = Executable(str(self.destination) + ["", self.extension.lower()][extension])
         if str(self) != dest:
@@ -108,19 +122,31 @@ class Executable(Path):
                 pass
         # return None to indicate that the copy failed (i.e. when the current instance is already the destination path)
     
-    def update(self):
-        # ensure filetype and format will be recomputed at their next invocation
-        self.__dict__.pop('filetype', None)
-        self.__dict__.pop('format', None)
-        self.__dict__.pop('hash', None)
+    def is_valid(self):
+        return self.format is not None
     
-    @staticmethod
-    def is_valid(path):
-        return Executable(path).format is not None
+    def modify(self, modifier, *args, **kwargs):
+        if isinstance(modifier, str):
+            from .modifiers import Modifiers
+            found = False
+            for m, f in Modifiers()[self.format].items():
+                if m == modifier:
+                    modifier = f(*args, **kwargs)
+                    found = True
+                    break
+            if not found:
+                raise ValueError("Modifier '%s' does not exist" % modifier)
+        self.parsed.modify(modifier, **kwargs)
     
-    @property
-    def metadata(self):
-        return {n: getattr(self, n) for n in Executable.FIELDS}
+    def parse(self, parser=None):
+        self._reset()  # this forces recomputing the cached properties 'parsed', 'hash', 'size', ...
+        parser = parser or config['%s_parser' % self.shortgroup]
+        self.parsed = get_parser(parser, self.format)(str(self))
+        self.parsed.executable = self  # sets a back reference
+        self.parsed.parser = parser    # keeps the name of the parser used
+        if self.group == "PE":
+            self.parsed.real_section_names  # trigger computation of real names
+        return self.parsed
     
     @cached_property
     def ctime(self):
@@ -138,7 +164,7 @@ class Executable(Path):
             return (self._dataset.files if self._dataset._files else TempPath()).joinpath(self.hash)
         raise ValueError("Could not compute destination path for '%s'" % self)
     
-    @property
+    @cached_property
     def features(self):
         Features(None)  # lazily populate Features.registry at first instantiation
         if self.format is not None:
@@ -156,7 +182,7 @@ class Executable(Path):
     def format(self):
         best_fmt, l = None, 0
         for ftype, fmt in Executable.SIGNATURES.items():
-            if len(ftype) > l and re.search(ftype, self.filetype) is not None:
+            if len(ftype) > l and self.filetype is not None and re.search(ftype, self.filetype) is not None:
                 best_fmt, l = fmt, len(ftype)
         return best_fmt
     
@@ -168,13 +194,25 @@ class Executable(Path):
     def hash(self):
         return getattr(hashlib, Executable.HASH + "_file")(str(self))
     
+    @property
+    def metadata(self):
+        return {n: getattr(self, n) for n in Executable.FIELDS}
+    
     @cached_property
     def mtime(self):
         return datetime.fromtimestamp(self.stat().st_mtime)
     
     @cached_property
+    def parsed(self):
+        return self.parse()  # this will use the default parser (lief)
+    
+    @cached_property
     def realpath(self):
         return str(self)
+    
+    @cached_property
+    def shortgroup(self):
+        return get_format_group(self.format, True)
     
     @cached_property
     def signature(self):
@@ -186,9 +224,10 @@ class Executable(Path):
     
     @staticmethod
     def diff_plot(file1, file2, img_name=None, img_format="png", legend1="", legend2="", dpi=400, title=None, **kwargs):
-        return binary_diff_plot(file1, file2, img_name, img_format, legend1, legend2, dpi, title, **kwargs)
+        return binary_diff_plot(Executable(file1), Executable(file2), img_name, img_format, legend1, legend2, dpi,
+                                title, **kwargs)
     
     @staticmethod
     def diff_text(file1, file2, legend1=None, legend2=None, n=0, **kwargs):
-        return binary_diff_text(file1, file2, legend1, legend2, n, **kwargs)
+        return binary_diff_text(Executable(file1), Executable(file2), legend1, legend2, n, **kwargs)
 

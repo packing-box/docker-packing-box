@@ -1,6 +1,5 @@
 # -*- coding: UTF-8 -*-
 from collections import deque
-from functools import cached_property
 from tinyscript import itertools, logging, re
 from tinyscript.helpers import is_generator, lazy_load_module, Path
 
@@ -21,6 +20,7 @@ class Feature(dict2):
     def dependencies(self):
         return list(set([x for x in re.split(r"[\s\.\[\]\(\)]", self.result or "") if x in Features]))
     
+    # default value on purpose not set via self.setdefault(...)
     @cached_property
     def keep(self):
         return self.get('keep', True)
@@ -35,7 +35,7 @@ class Features(dict, metaclass=MetaBase):
     registry     = None
     
     @logging.bindLogger
-    def __init__(self, exe):
+    def __init__(self, exe=None):
         ft = Features
         # parse YAML features definition once
         if ft.registry is None:
