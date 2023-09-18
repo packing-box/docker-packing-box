@@ -3,7 +3,7 @@ from tinyscript import re
 
 
 __all__ = ["aggregate_formats", "collapse_formats", "expand_formats", "format_shortname", "get_format_group",
-           "ExeFormatDict", "FORMATS"]
+           "lief_format", "ExeFormatDict", "FORMATS"]
 
 
 FORMATS = {
@@ -12,6 +12,7 @@ FORMATS = {
     'Mach-O': ["Mach-O32", "Mach-O64", "Mach-Ou"],
     'PE':     [".NET", "PE32", "PE64"],
 }
+LIEF_FORMATS = [x.upper().replace("-", "") for x in FORMATS.keys() if x != "All"]
 
 
 format_shortname = lambda s: re.sub(r"([-_\.])", "", s.lower())
@@ -114,12 +115,19 @@ def expand_formats(*formats, **kw):
     return selected
 
 
-def get_format_group(exe_format):
+def get_format_group(exe_format, short=False):
     """ Get the parent formats group from the given executable format. """
     if exe_format in list(FORMATS.keys())[1:]:
-        return exe_format
+        return format_shortname(exe_format) if short else exe_format
     for fgroup, formats in list(FORMATS.items())[1:]:  # NB: exclude index 0 as it is "All"
         if exe_format in formats:
-            return fgroup
+            return format_shortname(fgroup) if short else fgroup
     raise ValueError("Cannot find the group for executable format '%s'" % exe_format)
+
+
+def lief_format(exe_format):
+    """ Ensure the input LIEF format object's name is supported. """
+    if exe_format not in LIEF_FORMATS:
+        raise ValueError("Unsupported format '%s'" % exe_format)
+    return exe_format
 

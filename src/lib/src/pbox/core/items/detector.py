@@ -180,7 +180,7 @@ def __init():
     if not __initialized:
         __initialized = True
         # dynamically makes Detector's registry of child classes from the default dictionary of detectors
-        #  (~/.opt/detectors.yml)
+        #  (~/.packing-box/conf/detectors.yml)
         Detector.source = None
     return Detector
 Detector = lazy_object(__init)

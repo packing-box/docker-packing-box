@@ -20,9 +20,9 @@ __all__ = ["catch_exception", "json", "literal_eval", "pformat", "re", "run", "s
 
 
 DETECTORS      = None
-DETECTORS_FILE = "~/.opt/detectors.yml"
+DETECTORS_FILE = "~/.packing-box/conf/detectors.yml"
 PACKERS        = None
-PACKERS_FILE   = "~/.opt/packers.yml"
+PACKERS_FILE   = "~/.packing-box/conf/packers.yml"
 
 NOT_LABELLED, NOT_PACKED = "?-"
 

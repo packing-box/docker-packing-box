@@ -37,7 +37,7 @@ pbox-update() {
     fi
   }
   if [ "$*" = "-h" ] || [ "$*" = "--help" ]; then
-    echo "Usage: pbox-update [-n/--no-internet]"
+    echo "Usage: pbox-update [-n/--no-internet] [[-c/--completion-only]|[-p/--package-only]]"
   elif [ "$*" = "-c" ] || [ "$*" = "--completion-only" ]; then
     __completion_update
   elif [ "$*" = "-p" ] || [ "$*" = "--package-only" ]; then

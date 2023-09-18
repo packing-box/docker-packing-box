@@ -93,7 +93,7 @@ def __init_algo():
     # ensure it initializes only once (otherwise, this loops forever)
     if not __initialized:
         __initialized = True
-        # initialize the registry of algorithms from the default source (~/.opt/algorithms.yml)
+        # initialize the registry of algorithms from the default source (~/.packing-box/conf/algorithms.yml)
         Algorithm.source = None  # needs to be initialized, i.e. for the 'model' tool as the registry is used for
     if __cls:                    #  choices, even though the relying YAML config can be tuned via --algorithms-set
         return __cls

@@ -23,14 +23,15 @@ _fmt_name = lambda x: (x or "").lower().replace("_", "-")
 class dict2(dict):
     """ Simple extension of dict for defining callable items. """
     def __init__(self, idict, **kwargs):
-        self.__logger = idict.pop('logger', kwargs.pop('logger', null_logger))
         self.setdefault("name", "undefined")
         self.setdefault("description", "")
         self.setdefault("result", None)
         for f, v in getattr(self.__class__, "_fields", {}).items():
             self.setdefault(f, v)
+        logger = idict.pop('logger', kwargs.pop('logger', null_logger))
         super().__init__(idict, **kwargs)
         self.__dict__ = self
+        dict2._logger = logger
         if self.result is None:
             raise ValueError("%s: 'result' shall be defined" % self.name)
     
@@ -46,18 +47,17 @@ class dict2(dict):
                 return r
         except Exception as e:
             if not silent:
-                self.__logger.warning("Bad expression: %s" % self.result)
-                self.__logger.error(str(e))
-                self.__logger.debug("Variables:\n- %s" % \
+                dict2._logger.warning("Bad expression: %s" % self.result)
+                dict2._logger.error(str(e))
+                dict2._logger.debug("Variables:\n- %s" % \
                                   "\n- ".join("%s(%s)=%s" % (k, type(v).__name__, v) for k, v in d.items()))
-            raise
+            return
         try:
             return r(**kwargs)
         except Exception as e:
             if not silent:
-                self.__logger.warning("Bad function: %s" % self.result)
-                self.__logger.error(str(e))
-            raise
+                dict2._logger.warning("Bad function: %s" % self.result)
+                dict2._logger.error(str(e))
 
 
 class MetaBase(type):
@@ -215,10 +215,10 @@ def _init_metaitem():
             #                  logger of the Detector class => adding " " gives a different string, yet displaying the
             #                  same word.
             n = self.__name__.lower() + " "
-            if not hasattr(self, "__logger"):
-                self.__logger = logging.getLogger(n)
+            if not hasattr(self, "_logger"):
+                self._logger = logging.getLogger(n)
                 logging.setLogger(n)
-            return self.__logger
+            return self._logger
     return MetaItem
 lazy_load_object("MetaItem", _init_metaitem)
 
@@ -286,10 +286,10 @@ def _init_item():
         
         @property
         def logger(self):
-            if not hasattr(self, "__logger"):
-                self.__logger = logging.getLogger(self.name)
+            if not hasattr(self, "_logger"):
+                self._logger = logging.getLogger(self.name)
             logging.setLogger(self.name)
-            return self.__logger
+            return self._logger
         
         @property
         def source(self):

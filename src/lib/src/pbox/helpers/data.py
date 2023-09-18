@@ -154,7 +154,7 @@ def get_data(exe_format):
       Mach-O => macho
     
     Examples:
-      Let us take the following structure (NB: ~/.opt/data is the default location defined in config):
+      Let us take the following structure (NB: ~/.packing-box/data is the default location defined in config):
         data/
          +-- pe/
          |    +-- common_api_imports.txt

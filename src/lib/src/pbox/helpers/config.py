@@ -134,26 +134,33 @@ class Config:
                 continue
             o = self._defaults[s][option]
             func = o[3] if len(o) >= 4 else lambda s, v: str(v)
-            # then, check in the modified values saved into self.__config
+            # then, check for modified values (loaded from ~/.packing-box.conf) saved into self.__config
             if self.__config.has_section(s) and option in self.__config[s]:
                 return func(self, self.__config[s][option])
-            # special 5-tuple format: (..., overrides)
-            #  list of overrides gives the precedence to values from particular config keys if they are set ;
-            #   e.g. ["experiment"] will cause checking if the 'experiment' config key is set first, then
-            #        considering the default value
             if isinstance(o, tuple) and len(o) > 4:
-                chk = False
-                for override in o[4]:
-                    try:
-                        value = self[override] if isinstance(override, str) else override
-                    except KeyError:
-                        continue
-                    # special 6-tuple format: (..., join_default_to_override)
-                    #  if True, the default value will be joined to the override value
-                    if len(o) > 5 and o[5]:
-                        value, chk = value.joinpath(o[0]), o[5]
-                    if value not in [None, ""] and (not chk or Path(value).exists()):
-                        return func(self, value)
+                # special 5-tuple format: (..., overrides)
+                #  list of overrides gives the precedence to values from particular config keys if they are set ;
+                #   e.g. ["experiment"] will cause checking if the 'experiment' config key is set first, then
+                #        considering the default value
+                if o[0] is not None:
+                    chk = False
+                    for override in o[4]:
+                        try:
+                            value = self[override] if isinstance(override, str) else override
+                        except KeyError:
+                            continue
+                        # special 6-tuple format: (..., join_default_to_override)
+                        #  if True, the default value will be joined to the override value
+                        if len(o) > 5 and o[5]:
+                            value, chk = value.joinpath(o[0]), o[5]
+                        if value not in [None, ""] and (not chk or Path(value).exists()):
+                            return func(self, value)
+                # special 5-tuple format: (..., pointer_to_default)
+                #  if default value is None, look at another option designated by pointer_to_default ;
+                #   allows to define the option while setting no default so that it can still be edited by the user in
+                #   the configuration file (~/.packing-box.conf)
+                else:
+                    return self.get(o[4])
             # finally, check for a default value
             try:
                 return self.default(option)
