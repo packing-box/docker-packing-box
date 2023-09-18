@@ -231,7 +231,8 @@ def _init_base():
             verb = kwargs.get('verbose', False) and getattr(self, "verbose", False)
             bmark, binary, weak = kwargs.get('benchmark', False), kwargs.get('binary', False), kwargs.get('weak', False)
             extra_opt = "" if kwargs.get('extra_opt') is None else kwargs['extra_opt'] + " "
-            kw = {'logger': self.logger, 'silent': [], 'timeout': config['exec_timeout'], 'reraise': True}
+            kw = {'logger': self.logger, 'silent': [], 'timeout': getattr(self, "timeout", config['exec_timeout']),
+                  'reraise': True}
             if not config['wine_errors']:
                 kw['silent'].append(r"^[0-9a-f]{4}\:(?:err|fixme)\:")
             # local function for replacing tokens within the string lists, i.e. "silent" and "steps"
@@ -416,7 +417,8 @@ def _init_base():
                         if hasattr(self, "gui"):
                             txt = self._gui(tgt, arch)
                         else:
-                            txt += "WINEPREFIX=\"$HOME/.wine%s\" WINEARCH=win%s wine \"%s\" \"$@\"" % (arch, arch, tgt)
+                            txt += "WINEPREFIX=\"$HOME/.wine%(arch)s\" WINEARCH=win%(arch)s wine%(arch)s " \
+                                   "\"%(target)s\" \"$@\"" % {'arch': arch, 'target': tgt}
                     self.logger.debug("echo -en '%s' > '%s'" % (txt, r))
                     try:
                         r.write_text(txt)
