@@ -48,11 +48,11 @@ def __init_pe():
         
         @property
         def entrypoint(self):
-            return self.rva_to_offset(self.optional_header.addressof_entrypoint)
+            return self._parsed.rva_to_offset(self._parsed.optional_header.addressof_entrypoint)
         
         @property
         def entrypoint_section(self):
-            return self.section_from_rva(self.optional_header.addressof_entrypoint)
+            return self._parsed.section_from_rva(self._parsed.optional_header.addressof_entrypoint)
         
         @property
         def iat(self):

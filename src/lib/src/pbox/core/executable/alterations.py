@@ -13,7 +13,7 @@ class Alteration(dict2):
         # loop the specified number of times or simply once if not specified
         for _ in range(self.loop):
             parsed = executable.parse(self.parser)
-            namespace.update({executable.group: parsed})
+            namespace.update({'binary': parsed, executable.group: parsed})
             self._logger.debug("applying alteration...")
             super().__call__(namespace)(parsed, self._logger)
             self._logger.debug("rebuilding binary...")

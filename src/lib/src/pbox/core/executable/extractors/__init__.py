@@ -1,5 +1,4 @@
 # -*- coding: UTF-8 -*-
-from .__common__ import *
 from .elf import *
 from .macho import *
 from .pe import *
@@ -10,21 +9,6 @@ __all__ = ["Extractors"]
 
 
 EXTRACTORS = {
-    'All': {
-        '256B_block_entropy':             block_entropy(256),
-        '256B_block_entropy_per_section': block_entropy_per_section(256),
-        '512B_block_entropy':             block_entropy(512),
-        '512B_block_entropy_per_section': block_entropy_per_section(512),
-        'disassemble_256B_after_ep':      disassemble_Nbytes_after_ep,
-        'entropy':                        lambda exe: entropy(exe.read_bytes()),
-        'entrypoint':                     parse_binary(lambda exe: exe.abstract.entrypoint),
-        'exported_functions':             parse_binary(lambda exe: exe.abstract.exported_functions),
-        'imported_functions':             parse_binary(lambda exe: exe.abstract.imported_functions),
-        'relocations':                    parse_binary(lambda exe: exe.abstract.relocations),
-        'section_characteristics':        section_characteristics,
-        'standard_sections':              standard_sections,
-        'symbols':                        parse_binary(lambda exe: exe.abstract.symbols),
-    },
     'ELF': {
         'elfeats': elfeats,
     },

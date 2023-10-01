@@ -1,4 +1,6 @@
 # -*- coding: UTF-8 -*-
+#TODO: move this part to pyelftools parser (in pbox.core.executable.parsers.pyelftools) OR
+#       create a C program to mimic the functionality of pefeats for ELF
 from elftools.elf.elffile import ELFFile
 
 

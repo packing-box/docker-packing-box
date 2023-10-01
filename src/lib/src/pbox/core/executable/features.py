@@ -24,6 +24,11 @@ class Feature(dict2):
     @cached_property
     def keep(self):
         return self.get('keep', True)
+    
+    # 'parser' parameter in the YAML config has precedence on the overall configured parser
+    @cached_property
+    def parser(self):
+        return self.get('parser', config['%s_parser' % self._exe.shortgroup])
 
 
 class Features(dict, metaclass=MetaBase):
@@ -45,45 +50,46 @@ class Features(dict, metaclass=MetaBase):
             ft.registry = {}
             # important note: the 'keep' parameter is not considered here as some features may be required for computing
             #                  others but not kept in the final data, hence required in the registry yet
+            flist = [f for l in [expand_formats("All"), [f for f in FORMATS.keys() if f != "All"], ["All"]] for f in l]
             for name, params in load_yaml_config(src):
                 r, values = params.pop('result', {}), params.pop('values', [])
                 # consider features for most specific formats first, then intermediate format classes and finally the
                 #  collapsed format class "All"
-                for flist in [expand_formats("All"), [f for f in FORMATS.keys() if f != "All"], ["All"]]:
-                    for fmt in flist:
-                        expr = r.get(fmt)
-                        if expr:
-                            if len(values) > 0:
-                                if not all(isinstance(x, (list, tuple)) or is_generator(x) for x in values):
-                                    values = [values]
-                                f = []
-                                for val in itertools.product(*values):
-                                    p = {k: v for k, v in params.items()}
-                                    try:
-                                        e = expr % val
-                                    except Exception as e:
-                                        self.logger.error("expression: %s" % expr)
-                                        self.logger.error("value:      %s (%s)" % (str(val), type(val)))
-                                        raise
-                                    try:
-                                        n = name % val
-                                    except TypeError:
-                                        self.logger.error("missing formatter in name '%s'" % d)
-                                        raise
-                                    d = p['description']
-                                    try:
-                                        p['description'] = d % val
-                                    except TypeError:
-                                        self.logger.warning("name: %s" % n)
-                                        self.logger.error("missing formatter in description '%s'" % d)
-                                        raise
-                                    f.append(Feature(p, name=n, result=e, logger=self.logger))
-                            else:
-                                f = [Feature(params, name=name, result=expr, logger=self.logger)]
-                            for feat in f:
-                                for subfmt in expand_formats(fmt):
-                                    ft.registry.setdefault(subfmt, {})
-                                    ft.registry[subfmt][feat.name] = feat
+                for fmt in flist:
+                    expr = r.get(fmt)
+                    if expr is not None:
+                        if len(values) > 0:
+                            if not all(isinstance(x, (list, tuple)) or is_generator(x) for x in values):
+                                values = [values]
+                            f = []
+                            for val in itertools.product(*values):
+                                p = {k: v for k, v in params.items()}
+                                try:
+                                    e = expr % val
+                                except Exception as e:
+                                    self.logger.error("expression: %s" % expr)
+                                    self.logger.error("value:      %s (%s)" % (str(val), type(val)))
+                                    raise
+                                try:
+                                    n = name % val
+                                except TypeError:
+                                    self.logger.error("missing formatter in name '%s'" % d)
+                                    raise
+                                d = p['description']
+                                try:
+                                    p['description'] = d % val
+                                except TypeError:
+                                    self.logger.warning("name: %s" % n)
+                                    self.logger.error("missing formatter in description '%s'" % d)
+                                    raise
+                                f.append(Feature(p, name=n, result=e, logger=self.logger))
+                        else:
+                            f = [Feature(params, name=name, result=expr, logger=self.logger)]
+                        for feat in f:
+                            for subfmt in expand_formats(fmt):
+                                ft.registry.setdefault(subfmt, {})
+                                ft.registry[subfmt][feat.name] = feat
+                        break
         if exe is not None and exe.format in ft.registry:
             from .extractors import Extractors
             self._rawdata = Extractors(exe)
@@ -93,7 +99,8 @@ class Features(dict, metaclass=MetaBase):
                 # compute only if it has the keep=True flag ; otherwise, it will be lazily computed on need
                 if (not ft.boolean_only or ft.boolean_only and feature.boolean) and feature.keep:
                     try:
-                        self[name] = feature(self._rawdata, True)
+                        v = feature(self._rawdata, True)
+                        self[name] = bool(v) if feature.boolean else v
                     except NameError:
                         todo.append(feature)
                     except ValueError:  # occurs when FobiddenNodeError is thrown
@@ -101,12 +108,15 @@ class Features(dict, metaclass=MetaBase):
             # then lazily compute features until we converge in a state where all the required features are computed
             while len(todo) > 0:
                 feature = todo.popleft()
+                feature._exe = exe
                 n = feature.name
-                d = {}
+                p = exe.parse(feature.parser, reset=False)
+                d = {'binary': p, exe.group: p}
                 d.update(self._rawdata)
                 d.update(self)
                 try:
-                    self[n] = feature(d)
+                    v = feature(d)
+                    self[n] = bool(v) if feature.boolean else v
                 except NameError:
                     bad = False
                     # every feature dependency has already been seen, but yet feature computation fails
@@ -144,7 +154,7 @@ class Features(dict, metaclass=MetaBase):
         #  ValueError: Must have equal len keys and value when setting with an iterable)
         if isinstance(value, str):
             try:
-                value = literal_eval(value)
+                return literal_eval(value)
             except ValueError:
                 pass
         return value

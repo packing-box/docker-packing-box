@@ -1,5 +1,9 @@
 # -*- coding: UTF-8 -*-
+from bintropy import entropy
 from tinyscript import functools
+
+from ....helpers.data import get_data
+
 
 __all__ = ["get_section_class", "supported_parsers", "AbstractParsedExecutable"]
 
@@ -32,16 +36,25 @@ class AbstractBase:
 
 class AbstractParsedExecutable(AbstractBase):
     def __getitem__(self, name):
-        v = super().__getitem__(name)
-        if "header" in name.lower() and not hasattr(v, "__getitem__"):
-            try:
-                setattr(v, "__getitem__", AbstractBase.__getitem__.__get__(v, v.__class__))
-            except AttributeError:
-                pass
+        try:
+            v = super().__getitem__(name)
+            if name.lower().endswith("header") and not hasattr(v, "__getitem__"):
+                # if not done yet, patch Header class with a getitem method too (e.g. for getting exe['header']['...'])
+                try:
+                    setattr(v, "__getitem__", AbstractBase.__getitem__.__get__(v, v.__class__))
+                except AttributeError:
+                    pass
+        except AttributeError:
+            if hasattr(self, "path") and hasattr(self.path, name):
+                return getattr(self.path, name)
+            raise
         return v
     
     def __iter__(self):
         raise NotImplementedError("__iter__")
+    
+    def block_entropy_per_section(self, blocksize=0, ignore_half_block_zeros=False):
+        return {s.name: s.block_entropy(blocksize, ignore_half_block_zeros) for s in self}
     
     def build(self, **kw):
         raise NotImplementedError("build")
@@ -50,15 +63,24 @@ class AbstractParsedExecutable(AbstractBase):
     def checksum(self):
         raise NotImplementedError("checksum")
     
+    @property
+    def code(self):
+        return self.path.bytes
+    
     def modify(self, modifier, **kw):
         modifier(self.parsed, **kw)
         self.build()
     
     @property
+    def non_standard_sections(self):
+        d = get_data(self.path.format)['STANDARD_SECTION_NAMES']
+        return [s for s in self if s.real_name not in d]
+    
+    @property
     def real_section_names(self):
         """ This only applies to PE as section names are limited to 8 characters for image files ; when using longer
              names, they are mapped into a string table that 'objdump' can read to recover the real section names. """
-        if self.executable.group != "PE":
+        if self.path.group != "PE":
             raise AttributeError("'%s' object has no attribute 'real_section_names'" % self.__class__.__name__)
         if not hasattr(self, "_real_section_names"):
             names = [s.name for s in self]
@@ -67,13 +89,18 @@ class AbstractParsedExecutable(AbstractBase):
                 self._real_section_names = {}
                 return self._real_section_names
             from subprocess import check_output
-            real_names, out = [], check_output(["objdump", "-h", str(self.executable)]).decode("latin-1")
+            real_names, out = [], check_output(["objdump", "-h", str(self.path)]).decode("latin-1")
             for l in out.split("\n"):
                 m = match(r"\s+\d+\s(.*?)\s+", l)
                 if m:
                     real_names.append(m.group(1))
             self._real_section_names = {n: rn for n, rn in zip(names, real_names) if match(r"/\d+$", n)}
         return self._real_section_names
+    
+    @property
+    def standard_sections(self):
+        d = get_data(self.path.format)['STANDARD_SECTION_NAMES']
+        return [s for s in self if s.real_name in d]
     
     def section(self, section, original=False):
         if isinstance(section, str):
@@ -129,6 +156,17 @@ def get_section_class(name, **mapping):
                         tmp = getattr(tmp, token)
                     value = tmp
                 setattr(self, attr, value)
+        
+        def block_entropy(self, blocksize=0, ignore_half_block_zeros=False):
+            return entropy(self.content, blocksize, ignore_half_block_zeros)
+        
+        @property
+        def block_entropy_256B(self):
+            return entropy(self.content, 256, True)[1]
+        
+        @property
+        def block_entropy_512B(self):
+            return entropy(self.content, 512, True)[1]
     
     for attr, value in mapping.items():
         if isinstance(value, cached_property):

@@ -1,4 +1,5 @@
 # -*- coding: UTF-8 -*-
+from bintropy import entropy
 from contextlib import suppress
 from datetime import datetime
 from tinyscript import hashlib, re, shutil
@@ -41,7 +42,7 @@ class Executable(Path):
         '^(set[gu]id )?ELF 32-bit ':               "ELF32",
         '^(set[gu]id )?ELF 64-bit ':               "ELF64",
     }
-
+    
     def __new__(cls, *parts, **kwargs):
         data, fields = None, ["hash", "label"] + Executable.FIELDS
         ds1, ds2 = kwargs.pop('dataset', None), kwargs.pop('dataset2', None)
@@ -100,7 +101,9 @@ class Executable(Path):
     def _reset(self):
         # ensure filetype and format will be recomputed at their next invocation (i.e. when a packer modifies the binary
         #  in a way that makes its format change)
-        for attr in ["filetype", "format", "group", "hash", "parsed", "shortgroup", "size"]:
+        for attr in list(self.__dict__.keys()):
+            if not isinstance(getattr(Executable, attr, None), cached_property):
+                continue
             try:
                 delattr(self, attr)
             except AttributeError:
@@ -108,6 +111,9 @@ class Executable(Path):
     
     def alter(self, *alterations, **kwargs):
         Alterations(self, alterations)
+    
+    def block_entropy(self, blocksize=0, ignore_half_block_zeros=False):
+        return entropy(self.read_bytes(), blocksize, ignore_half_block_zeros)
     
     def copy(self, extension=False, overwrite=False):
         dest = Executable(str(self.destination) + ["", self.extension.lower()][extension])
@@ -138,15 +144,26 @@ class Executable(Path):
                 raise ValueError("Modifier '%s' does not exist" % modifier)
         self.parsed.modify(modifier, **kwargs)
     
-    def parse(self, parser=None):
-        self._reset()  # this forces recomputing the cached properties 'parsed', 'hash', 'size', ...
+    def parse(self, parser=None, reset=True):
         parser = parser or config['%s_parser' % self.shortgroup]
-        self.parsed = get_parser(parser, self.format)(str(self))
-        self.parsed.executable = self  # sets a back reference
-        self.parsed.parser = parser    # keeps the name of the parser used
+        if reset:  # this forces recomputing the cached properties 'parsed', 'hash', 'size', ...
+            self._reset()
+        elif hasattr(self, "_parsed") and self._parsed.parser == parser:
+            return self._parsed
+        self._parsed = get_parser(parser, self.format)(str(self))
+        self._parsed.parser = parser  # keeps the name of the parser used
+        self._parsed.path = self      # sets a back reference
         if self.group == "PE":
-            self.parsed.real_section_names  # trigger computation of real names
-        return self.parsed
+            self._parsed.real_section_names  # trigger computation of real names
+        return self._parsed
+    
+    @cached_property
+    def block_entropy_256B(self):
+        return entropy(self.read_bytes(), 256, True)[1]
+    
+    @cached_property
+    def block_entropy_512B(self):
+        return entropy(self.read_bytes(), 512, True)[1]
     
     @cached_property
     def ctime(self):
@@ -163,6 +180,10 @@ class Executable(Path):
         if hasattr(self, "_dataset") and self.hash is not None:
             return (self._dataset.files if self._dataset._files else TempPath()).joinpath(self.hash)
         raise ValueError("Could not compute destination path for '%s'" % self)
+    
+    @cached_property
+    def entropy(self):
+        return entropy(self.read_bytes())
     
     @cached_property
     def features(self):

@@ -114,7 +114,7 @@ def move_entrypoint_to_new_section(name, section_type=None, characteristics=None
     """
     @supported_parsers("lief")
     def _move_entrypoint_to_new_section(parsed, logger):
-        address_bitsize = [64, 32]["32" in parsed.executable.format]
+        address_bitsize = [64, 32]["32" in parsed.path.format]
         old_entry = parsed.entrypoint + 0x10000
         #  push current_entrypoint
         #  ret
@@ -136,7 +136,7 @@ def move_entrypoint_to_slack_space(section_input, pre_data=b"", post_data_source
     def _move_entrypoint_to_slack_space(parsed, logger):
         if parsed.optional_header.section_alignment % parsed.optional_header.file_alignment != 0:
             raise ValueError("SectionAlignment is not a multiple of FileAlignment (file integrity cannot be assured)")
-        address_bitsize = [64, 32]["32" in executable.format]
+        address_bitsize = [64, 32]["32" in parsed.path.format]
         old_entry = parsed.entrypoint + 0x10000
         #  push current_entrypoint
         #  ret

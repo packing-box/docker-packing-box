@@ -26,7 +26,7 @@ entropy_resource_section:
     PE: pefeats[44]
 
 entropy_section_with_ep:
-  description: Entropy of section holding the Entry point (EP) of the PE under analysis
+  description: Entropy of section holding the Entry point (EP)
   result:
     PE: pefeats[47]
 
@@ -37,11 +37,6 @@ is_entropy_greater_than_6.801:
   source: bintropy
 
 # ---------------------------------------------------- HEADER-BASED ----------------------------------------------------
-address_to_rdata_not_conform:
-  description: Address pointing to raw data on disk is not conforming with the file alignement
-  result:
-    PE: pefeats[41]
-
 base_of_code:
   description: Base of Code
   result:
@@ -50,18 +45,13 @@ base_of_code:
 byte_%d_after_ep:
   description: Byte %d following the EP
   result:
-    PE: pefeats[%d]
-  values: !!python/object/new:range [48, 112]
+    PE: pefeats[48+%d]
+  values: !!python/object/new:range [64]
 
 checksum:
   description: Checksum
   result:
     PE: pefeats[8]
-
-code_section_x:
-  description: code section is not executable
-  result:
-    PE: pefeats[30]
 
 dll_characteristics_1:
   description: DLL characteristics 1 (dynamic base)
@@ -144,8 +134,9 @@ number_malicious_api_imported:
     PE: pefeats[114]
 
 number_non_standard_sections:
-  description: Number of non-standards sections the PE holds
+  description: Number of non-standards sections
   result:
+    All: len(binary['non_standard_sections'])
     PE: pefeats[22]
 
 number_rw_sections:
@@ -154,7 +145,7 @@ number_rw_sections:
     PE: pefeats[28]
 
 number_rwx_sections:
-  description: Number of Writable and Readable and Executable sections the PE holds
+  description: Number of Writable and Readable and Executable sections
   result:
     PE: pefeats[29]
 
@@ -174,27 +165,28 @@ number_sections_vsize>dsize:
     PE: pefeats[38]
 
 number_standard_sections:
-  description: Number of standards sections the PE holds
+  description: Number of standards sections
   result:
+    All: len(binary['standard_sections'])
     PE: pefeats[21]
 
 number_w_sections:
-  description: Number of Writable sections the PE holds
+  description: Number of Writable sections
   result:
     PE: pefeats[25]
 
 number_wx_sections:
-  description: Number of Writable and Executable sections the PE holds
+  description: Number of Writable and Executable sections
   result:
     PE: pefeats[26]
 
 number_x_sections:
-  description: Number of Executable sections the PE holds
+  description: Number of Executable sections
   result:
     PE: pefeats[24]
 
 number_resources:
-  description: Number of resources the PE holds
+  description: Number of resources
   result:
     PE: pefeats[118]
 
@@ -259,6 +251,11 @@ size_of_uninitializeddata:
     PE: pefeats[17]
 
 # -------------------------------------------------- BOOLEAN FEATURES --------------------------------------------------
+is_address_to_rdata_not_conform:
+  description: Address pointing to raw data on disk is not conforming with the file alignement
+  result:
+    PE: pefeats[41]
+
 is_base_of_code_standard:
   description: Is the BaseOfCode a multiplier of 0x1000
   result:
@@ -278,6 +275,11 @@ is_code_section_not_present:
   description: Code section is not present in the PE under analysis
   result:
     PE: pefeats[32]
+
+is_code_section_not_x:
+  description: Is the code section not executable
+  result:
+    PE: pefeats[30]
 
 is_debug_dir_present:
   description: Debug directory is present or not
