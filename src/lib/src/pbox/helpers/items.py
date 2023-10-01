@@ -40,13 +40,18 @@ class dict2(dict):
         d['apply'] = _apply
         d.update(_EVAL_NAMESPACE)
         d.update(data)
+        self._logger.debug("%s: %s" % (self.name, self.result))
         kwargs.update(getattr(self, "parameters", {}))
         try:
             r = eval2(self.result, d, {}, whitelist_nodes=WL_NODES + WL_EXTRA_NODES)
             if len(kwargs) == 0:
                 return r
+        except NameError as e:
+            if True: #not silent:
+                dict2._logger.debug("'%s' is either not computed yet or mistaken" % str(e).split("'")[1])
+            raise
         except Exception as e:
-            if not silent:
+            if True: #not silent:
                 dict2._logger.warning("Bad expression: %s" % self.result)
                 dict2._logger.error(str(e))
                 dict2._logger.debug("Variables:\n- %s" % \
@@ -55,7 +60,7 @@ class dict2(dict):
         try:
             return r(**kwargs)
         except Exception as e:
-            if not silent:
+            if True: #not silent:
                 dict2._logger.warning("Bad function: %s" % self.result)
                 dict2._logger.error(str(e))
 

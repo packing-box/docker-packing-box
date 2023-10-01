@@ -8,7 +8,6 @@ lazy_load_module("pandas", alias="pd")
 __all__ = ["file_or_folder_or_dataset", "filter_data", "filter_data_iter", "get_data", "pd"]
 
 EXTENSIONS = [".json", ".txt"]
-__data = None
 
 
 def file_or_folder_or_dataset(method):
@@ -146,6 +145,7 @@ def filter_data_iter(df, query=None, limit=0, sample=True, progress=True, transi
                 break
 
 
+@functools.lru_cache
 def get_data(exe_format):
     """ Prepare data for a particular executable format.
     
@@ -180,9 +180,6 @@ def get_data(exe_format):
       }
     """
     from .formats import format_shortname as _name, get_format_group
-    global __data
-    if __data:
-        return __data
     _add = lambda a, b: _sort(a.update(b)) if isinstance(a, dict) else list(set(a + b))
     _sort = lambda d: dict(sorted(d.items())) if isinstance(d, dict) else sorted(d or {})
     _uncmt = lambda s: s.split("#", 1)[0].strip()
@@ -195,14 +192,14 @@ def get_data(exe_format):
         else:
             return _sort([_uncmt(l) for l in fp.read_text().split("\n") if _uncmt(l) != ""])
     # first, get the group (simply use exe_format if it is precisely a group)
-    __data, group = {}, get_format_group(exe_format)
+    data, group = {}, get_format_group(exe_format)
     # consider most specific data first
     if group != exe_format:
         path = config['data'].joinpath(_name(group))
         if path.exists():
             for datafile in path.listdir(lambda p: p.extension in EXTENSIONS):
                 if datafile.stem.endswith("_" + _name(exe_format)):
-                    __data["_".join(datafile.stem.split("_")[:-1]).upper()] = _open(datafile)
+                    data["_".join(datafile.stem.split("_")[:-1]).upper()] = _open(datafile)
     # then the files without specific mention in a subfolder of config['data'] that matches a format class and
     #  finally the files without specific mention at the root of config['data']
     for path in [config['data'].joinpath(_name(group)), config['data']]:
@@ -210,6 +207,6 @@ def get_data(exe_format):
             for datafile in path.listdir(lambda p: p.extension in EXTENSIONS):
                 if not datafile.stem.endswith("_" + _name(exe_format)):
                     c = datafile.stem.upper()
-                    __data[c] = _add(_open(datafile), __data[c]) if c in __data else _open(datafile)
-    return __data
+                    data[c] = _add(_open(datafile), data[c]) if c in data else _open(datafile)
+    return data
 

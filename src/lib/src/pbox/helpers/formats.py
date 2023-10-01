@@ -1,9 +1,9 @@
 # -*- coding: UTF-8 -*-
-from tinyscript import re
+from tinyscript import functools, re
 
 
 __all__ = ["aggregate_formats", "collapse_formats", "expand_formats", "format_shortname", "get_format_group",
-           "lief_format", "ExeFormatDict", "FORMATS"]
+           "ExeFormatDict", "FORMATS"]
 
 
 FORMATS = {
@@ -65,6 +65,7 @@ class ExeFormatDict(dict):
             self.__get(depth)[name] = value
 
 
+@functools.lru_cache(maxsize=None)
 def aggregate_formats(*formats, **kw):
     """ Aggregate the given input formats. """
     l = []
@@ -76,6 +77,7 @@ def aggregate_formats(*formats, **kw):
     return collapse_formats(*set(l)) if kw.get('collapse', False) else list(set(l))
 
 
+@functools.lru_cache(maxsize=None)
 def collapse_formats(*formats, **kw):
     """ 2-depth dictionary-based collapsing function for getting a short list of executable formats. """
     # also support list input argument
@@ -101,6 +103,7 @@ def collapse_formats(*formats, **kw):
     return list(set(selected))
 
 
+@functools.lru_cache(maxsize=None)
 def expand_formats(*formats, **kw):
     """ 2-depth dictionary-based expansion function for resolving a list of executable formats. """
     selected = []
@@ -115,6 +118,7 @@ def expand_formats(*formats, **kw):
     return selected
 
 
+@functools.lru_cache(maxsize=None)
 def get_format_group(exe_format, short=False):
     """ Get the parent formats group from the given executable format. """
     if exe_format in list(FORMATS.keys())[1:]:
@@ -123,11 +127,4 @@ def get_format_group(exe_format, short=False):
         if exe_format in formats:
             return format_shortname(fgroup) if short else fgroup
     raise ValueError("Cannot find the group for executable format '%s'" % exe_format)
-
-
-def lief_format(exe_format):
-    """ Ensure the input LIEF format object's name is supported. """
-    if exe_format not in LIEF_FORMATS:
-        raise ValueError("Unsupported format '%s'" % exe_format)
-    return exe_format
 
