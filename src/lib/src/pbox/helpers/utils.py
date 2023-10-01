@@ -12,8 +12,9 @@ lazy_load_module("numpy", alias="np")
 lazy_load_module("yaml")
 
 
-__all__ = ["at_interrupt", "benchmark", "bin_label", "bold", "class_or_instance_method", "get_counts", "lazy_object",
-           "lazy_load_module", "mpl", "np", "plt", "shorten_str", "strip_version", "update_logger", "yaml", "COLORMAP"]
+__all__ = ["at_interrupt", "benchmark", "bin_label", "bold", "class_or_instance_method", "execute_and_get_values_list",
+           "get_counts", "lazy_object", "lazy_load_module", "mpl", "np", "plt", "shorten_str", "strip_version",
+           "update_logger", "yaml", "COLORMAP"]
 
 COLORMAP = {
     'red':        (255, 0,   0),
@@ -57,6 +58,25 @@ def benchmark(f):
         dt = t() - start
         return r, dt
     return _wrapper
+
+
+def execute_and_get_values_list(command, offset=1):
+    """ Execute an OS command and parse its output considering lines of comma-separated values (ignoring values before
+         the given offset).
+        
+        NB: This is especially used for running features extraction tools.
+    """
+    from ast import literal_eval
+    from tinyscript.helpers import execute_and_log as run
+    out, err, retc = run(command)
+    if retc == 0:
+        values = []
+        for x in out.decode().strip().split(",")[offset:]:
+            try:
+                values.append(literal_eval(x))
+            except ValueError:
+                values.append(x)
+        return values
 
 
 def shorten_str(string, l=80):
