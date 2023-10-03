@@ -13,7 +13,7 @@ class Alteration(dict2):
         # loop the specified number of times or simply once if not specified
         for _ in range(self.loop):
             parsed = executable.parse(self.parser)
-            namespace.update({'binary': parsed, executable.group: parsed})
+            namespace.update({'binary': parsed, executable.group.lower(): parsed})
             self._logger.debug("applying alteration...")
             super().__call__(namespace)(parsed, self._logger)
             self._logger.debug("rebuilding binary...")
@@ -29,10 +29,15 @@ class Alteration(dict2):
     def loop(self):
         return self.get('loop', 1)
     
-    # 'parser' parameter in the YAML config has precedence on the overall configured parser
+    # 'parser' parameter in the YAML config has precedence on the globally configured parser
     @cached_property
     def parser(self):
-        return self.get('parser', config['%s_parser' % self._exe.shortgroup])
+        try:
+            p = self._exe.shortgroup
+            delattr(self, "_exe")
+        except AttributeError:
+            p = "default"
+        return self.get('parser', config['%s_parser' % p])
 
 
 class Alterations(list, metaclass=MetaBase):

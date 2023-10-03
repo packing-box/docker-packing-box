@@ -59,6 +59,39 @@ class AbstractParsedExecutable(AbstractBase):
     def build(self, **kw):
         raise NotImplementedError("build")
     
+    def modify(self, modifier, **kw):
+        modifier(self.parsed, **kw)
+        self.build()
+    
+    def section(self, section, original=False):
+        if isinstance(section, str):
+            if original:
+                for s1, s2 in zip(self, self.sections):
+                    if s1.name == section:
+                        return s2                    
+            else:
+                for s in self:
+                    real_name = getattr(self, "real_section_names", {}).get(s.name, s.name)
+                    if s.name == section or real_name == section:
+                        if hasattr(s, "real_name"):
+                            s.real_name = real_name
+                        return s
+            raise ValueError("no section named '%s'" % name)
+        elif isinstance(section, AbstractBase):
+            if original:
+                for s1, s2 in zip(self, self.sections):
+                    if s1.name == section.name:
+                        return s2
+                # should not happen ; this would mean that the input section does not come from the current executable
+                raise ValueError("no section named '%s'" % section.name)
+            else:
+                if hasattr(section, "real_name"):
+                    section.real_name = self.real_section_names.get(section.name, section.name)
+                return section
+        elif hasattr(section, "name"):
+            return self.section(section.name, original)
+        raise ValueError(".section(...) only supports a section name or a parsed section object as input")
+    
     @property
     def checksum(self):
         raise NotImplementedError("checksum")
@@ -66,10 +99,6 @@ class AbstractParsedExecutable(AbstractBase):
     @property
     def code(self):
         return self.path.bytes
-    
-    def modify(self, modifier, **kw):
-        modifier(self.parsed, **kw)
-        self.build()
     
     @property
     def non_standard_sections(self):
@@ -101,33 +130,6 @@ class AbstractParsedExecutable(AbstractBase):
     def standard_sections(self):
         d = get_data(self.path.format)['STANDARD_SECTION_NAMES']
         return [s for s in self if s.real_name in d]
-    
-    def section(self, section, original=False):
-        if isinstance(section, str):
-            if original:
-                for s1, s2 in zip(self, self.sections):
-                    if s1.name == section:
-                        return s2                    
-            else:
-                for s in self:
-                    real_name = getattr(self, "real_section_names", {}).get(s.name, s.name)
-                    if s.name == section or real_name == section:
-                        if hasattr(s, "real_name"):
-                            s.real_name = real_name
-                        return s
-            raise ValueError("no section named '%s'" % name)
-        elif isinstance(section, AbstractBase):
-            if original:
-                for s1, s2 in zip(self, self.sections):
-                    if s1.name == section.name:
-                        return s2
-                # should not happen ; this would mean that the input section does not come from the current executable
-                raise ValueError("no section named '%s'" % section.name)
-            else:
-                if hasattr(section, "real_name"):
-                    section.real_name = self.real_section_names.get(section.name, section.name)
-                return section
-        raise ValueError(".section(...) only supports a section name or a parsed section object as input")
 
 
 def get_section_class(name, **mapping):
@@ -157,7 +159,7 @@ def get_section_class(name, **mapping):
                     value = tmp
                 setattr(self, attr, value)
         
-        def block_entropy(self, blocksize=0, ignore_half_block_zeros=False):
+        def block_entropy(self, blocksize=256, ignore_half_block_zeros=True):
             return entropy(self.content, blocksize, ignore_half_block_zeros)
         
         @property
@@ -167,6 +169,10 @@ def get_section_class(name, **mapping):
         @property
         def block_entropy_512B(self):
             return entropy(self.content, 512, True)[1]
+        
+        @property
+        def entropy(self):
+            return entropy(self.content)
     
     for attr, value in mapping.items():
         if isinstance(value, cached_property):

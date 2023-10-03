@@ -12,6 +12,10 @@ __all__ = ["Features"]
 
 
 class Feature(dict2):
+    def __call__(self, data, *args, **kwargs):
+        self._exe = data.get('executable')
+        return super().__call__(data, *args, **kwargs)
+    
     @cached_property
     def boolean(self):
         return any(self.name.startswith(p) for p in ["is_", "has_"])
@@ -25,10 +29,15 @@ class Feature(dict2):
     def keep(self):
         return self.get('keep', True)
     
-    # 'parser' parameter in the YAML config has precedence on the overall configured parser
+    # 'parser' parameter in the YAML config has precedence on the globally configured parser
     @cached_property
     def parser(self):
-        return self.get('parser', config['%s_parser' % self._exe.shortgroup])
+        try:
+            p = self._exe.shortgroup
+            delattr(self, "_exe")
+        except AttributeError:
+            p = "default"
+        return self.get('parser', config['%s_parser' % p])
 
 
 class Features(dict, metaclass=MetaBase):
@@ -50,7 +59,7 @@ class Features(dict, metaclass=MetaBase):
             ft.registry = {}
             # important note: the 'keep' parameter is not considered here as some features may be required for computing
             #                  others but not kept in the final data, hence required in the registry yet
-            flist = [f for l in [expand_formats("All"), [f for f in FORMATS.keys() if f != "All"], ["All"]] for f in l]
+            flist = [f for l in [["All"], [f for f in FORMATS.keys() if f != "All"], expand_formats("All")] for f in l]
             for name, params in load_yaml_config(src):
                 r, values = params.pop('result', {}), params.pop('values', [])
                 # consider features for most specific formats first, then intermediate format classes and finally the
@@ -89,7 +98,6 @@ class Features(dict, metaclass=MetaBase):
                             for subfmt in expand_formats(fmt):
                                 ft.registry.setdefault(subfmt, {})
                                 ft.registry[subfmt][feat.name] = feat
-                        break
         if exe is not None and exe.format in ft.registry:
             from .extractors import Extractors
             self._rawdata = Extractors(exe)
@@ -108,10 +116,9 @@ class Features(dict, metaclass=MetaBase):
             # then lazily compute features until we converge in a state where all the required features are computed
             while len(todo) > 0:
                 feature = todo.popleft()
-                feature._exe = exe
                 n = feature.name
                 p = exe.parse(feature.parser, reset=False)
-                d = {'binary': p, exe.group: p}
+                d = {'binary': p, exe.group.lower(): p}
                 d.update(self._rawdata)
                 d.update(self)
                 try:

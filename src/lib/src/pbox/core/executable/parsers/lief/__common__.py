@@ -131,6 +131,10 @@ class Binary(AbstractParsedExecutable):
         return self.abstract.imported_functions
     
     @property
+    def libraries(self):
+        return self.abstract.libraries
+    
+    @property
     def relocations(self):
         return self.abstract.relocations
     
