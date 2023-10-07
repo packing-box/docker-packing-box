@@ -33,8 +33,8 @@ setup() {
 teardown_file(){
   # clean up the dedicated workspace
   run experiment close
-  #rm -f ~/.packing-box/experiments.env
-  #rm -rf "$TESTS_DIR"
+  rm -f ~/.packing-box/experiments.env
+  rm -rf "$TESTS_DIR"
 }
 
 

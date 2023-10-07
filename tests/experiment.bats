@@ -64,6 +64,7 @@ teardown_file(){
 # ✓ commit
 @test "create $TEST_DS in $TEST_XP and commit command" {
   dataset make test-upx -n 10 -f PE -p upx
+  echo -e "dataset -v make test-upx -n 10 -f PE -p upx" >> ~/.bash_history
   run experiment commit -f
   local -r CMDRC="$TESTS_DIR/$TEST_XP/commands.rc"
   assert_file_exist $CMDRC
