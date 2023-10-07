@@ -52,8 +52,7 @@ def add_argument(parser, name, **kwargs):
                 return string
             raise ValueError("Invalid experiment")
         note = kwargs.get('note', None)
-        parser.add_argument("name", type=experiment_exists,
-                            help=kwargs.get('help', "name of the experiment"),
+        parser.add_argument("name", type=experiment_exists, help=kwargs.get('help', "name of the experiment"),
                             **({} if note is None else {'note': note}))
     else:
         raise ValueError("Argument '%s' not defined" % name)

@@ -69,8 +69,6 @@ class Executable(Path):
                         pass
                 return self
         self = super(Executable, cls).__new__(cls, *parts, **kwargs)
-        if not self.exists():
-            raise OSError("file '%s' does not exist" % self)
         if ds1 is not None:
             # case (2)
             h = kwargs.pop('hash', self.basename)
