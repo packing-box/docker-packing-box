@@ -39,9 +39,8 @@ if __name__ == '__main__':
                         help="do not strip the version number of the packer while applying detection")
     parser.add_argument("-t", "--threshold", type=float, help="threshold for voting when using multiple detectors")
     parser.add_argument("-w", "--weak", action="store_true", help="also consider weak assumptions")
-    initialize(noargs_action="usage", multi_level_debug=True, autocomplete=True)
-    logging.configLogger(logger, ["INFO", "DEBUG", "DETAIL"][args.verbose], fmt=LOG_FORMATS[min(args.verbose, 1)],
-                         relative=True)
+    initialize(noargs_action="usage", multi_level_debug=True)
+    configure_logging(args.verbose, ("INFO", "DEBUG", "DETAIL"))
     kw = {'debug': args.verbose > 0, 'verbose': args.verbose > 1, 'multiclass': not args.binary,
           'silent': args.verbose == 0, 'threshold': args.threshold, 'weak': args.weak}
     stats, cmatrix, pbar, errored = {}, {'fn': 0, 'fp': 0, 'tn': 0, 'tp': 0}, None, False

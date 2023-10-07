@@ -25,8 +25,8 @@ if __name__ == '__main__':
     parser.add_argument("-A", "--alteration", choices=Alterations.names(), action="extend", nargs="*",
                         metavar="ALTERATION", help="alteration to be applied to the target executable(s)")
     parser.add_argument("-p", "--prefix", help="string to be prepended to the filename")
-    initialize(noargs_action="usage", multi_level_debug=True, autocomplete=True)
-    logging.configLogger(logger, ["INFO", "DEBUG"][args.verbose], fmt=LOG_FORMATS[args.verbose], relative=True)
+    initialize(noargs_action="usage", multi_level_debug=True)
+    configure_logging(args.verbose, ("INFO", "DEBUG", "DETAIL"))
     p, rn = ts.Path(args.executable), lambda x: x.rename(x.dirname.joinpath(args.prefix + x.filename))
     delattr(args, "executable")
     set_yaml(args)

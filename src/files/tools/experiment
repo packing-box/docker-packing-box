@@ -59,21 +59,21 @@ if __name__ == '__main__':
                                    "\n {%s}" % ",".join(defs))
         sparsers.add_parser("list", help="list the existing experiments")
         sparsers.add_parser("show", help="get an overview of the experiment")
-    initialize(noargs_action="usage", autocomplete=True)
-    logger.name = "experiment"
-    logging.configLogger(logger, ["INFO", "DEBUG"][args.verbose], fmt=LOG_FORMATS[args.verbose], relative=True)
+    initialize(noargs_action="usage")
+    configure_logging(args.verbose)
     # prepare parsed arguments
     name = getattr(args, "name", NAME)
-    args.load = name and args.command not in ["close", "list", "purge"]
     # now execute
     if args.command == "purge":
-        if not purge_items(Experiment, name):
+        if not Experiment.purge(name):
             logger.warning("No experiment to purge in workspace (%s)" % str(config['experiments']) if name == "all" \
                            else "No experiment matched the given name")
+    elif args.command == "list":
+        Experiment.list()
     elif name == "all":
         logger.warning("Model cannot be named 'all' (reserved word)")
-    elif args.command == "import":  # rationale: cannot name a method 'import' (name clash with import statement)
+    elif args.command == "import":  # rationale: cannot name a method 'import' (Python-reserved word)
         Experiment(name)._import(**vars(args))
     else:
-        getattr(Experiment(name, load=args.load), args.command)(**vars(args))
+        getattr(Experiment(name), args.command)(**vars(args))
 

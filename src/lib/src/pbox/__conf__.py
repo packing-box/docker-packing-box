@@ -2,10 +2,10 @@
 import builtins as bi
 from functools import cached_property
 from tinyscript import hashlib, logging
-from tinyscript.helpers import slugify, Path
+from tinyscript.helpers import classproperty, slugify, Path
 from warnings import filterwarnings
 
-from .helpers.config import Config
+from .helpers.config import *
 
 
 filterwarnings("ignore", "Trying to unpickle estimator DecisionTreeClassifier")
@@ -13,6 +13,8 @@ filterwarnings("ignore", "Behavior when concatenating bool-dtype and numeric-dty
 
 
 bi.cached_property = cached_property
+bi.classproperty = classproperty
+bi.configure_logging = configure_logging
 bi.null_logger = logging.nullLogger
 
 bi.LOG_FORMATS = ["%(asctime)s [%(levelname)s] %(message)s", "%(asctime)s [%(levelname)-8s] %(name)-18s - %(message)s"]

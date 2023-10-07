@@ -1,19 +1,18 @@
 # -*- coding: UTF-8 -*-
-from abc import abstractmethod, ABC
-from tinyscript import inspect, itertools, re
-from tinyscript.helpers import Path
+from _pickle import UnpicklingError
+from tinyscript import functools, inspect, itertools, logging, re
+from tinyscript.helpers import classproperty, Path
 
 
 __all__ = ["AbstractEntity"]
 
 
-class AbstractEntity(ABC):
+class AbstractEntity:
     """ This class implements some base functionalities for abstractions based on folders
          (i.e Dataset, Experiment, Model). """
-    @abstractmethod
     def __len__(self):
         """ Custom entity's length. """
-        pass
+        raise NotImplementedError
     
     def __repr__(self):
         """ Custom entity's string representation. """
@@ -23,6 +22,11 @@ class AbstractEntity(ABC):
     def __str__(self):
         """ Custom entity's string. """
         return self.name
+    
+    @classmethod
+    def _purge(self, **kw):
+        """ Entity-specific purge method, to be called by AbstractEntity.purge. """
+        raise NotImplementedError
     
     @property
     def basename(self):
@@ -62,11 +66,12 @@ class AbstractEntity(ABC):
     
     @classmethod
     def load(cls, folder, **kw):
-        """ Load the target folder with the right class. """
+        """ Validate the target folder and instantiate the right entity class. """
         classes, current_cls = [], cls
         # use cases:
         #  (1) BaseModel > [Model, DumpedModel]
         #  (2) Dataset > FilessDataset
+        #  (3) Experiment
         # first, find the highest entity class in inheritance path (i.e. Dataset or BaseModel)
         while hasattr(current_cls, "__base__"):
             if current_cls.__base__.__name__ == "AbstractEntity":
@@ -76,12 +81,44 @@ class AbstractEntity(ABC):
         for c in itertools.chain([current_cls], current_cls.__base__.__subclasses__()):
             if not c.__name__.startswith("Base"):
                 classes.append(c)
+        # entities can be instantiated while not having created and validated yet ; load=True ensures that, depending on
+        #  the entity, additional checks and settings were made
+        kw['load'] = True
         for c in classes:
             try:
                 return c(c.validate(folder, **kw), **kw)
-            except ValueError:
+            except (ValueError, UnpicklingError):
                 pass
-        raise ValueError("%s is not a valid %s" % classes[0].__name__.lower())
+        raise ValueError("%s is not a valid %s" % (folder, classes[0].__name__.lower()))
+    
+    @classmethod
+    def purge(cls, name=None, **kw):
+        """ Purge all items designated by 'name' for the given class 'cls'. """
+        purged = False
+        if name == "all":
+            for obj in cls.iteritems(True):
+                obj._purge()
+                purged = True
+        elif "*" in (name or ""):
+            name = r"^%s$" % name.replace("*", "(.*)")
+            for path in cls.iteritems(False):
+                if re.search(name, path.stem):
+                    cls.load(path)._purge()
+                    purged = True
+        else:
+            obj = cls.load(name)
+            obj._purge()
+            getattr(obj, "close", lambda: 0)()
+            purged = True
+        return purged
+    
+    @classproperty
+    def logger(cls):
+        if not hasattr(cls, "_logger"):
+            name = cls.__name__.lower()
+            cls._logger = logging.getLogger(name)
+            logging.setLogger(name)
+        return cls._logger
     
     @property
     def name(self):
@@ -89,8 +126,7 @@ class AbstractEntity(ABC):
         return self.basename
     
     @classmethod
-    @abstractmethod
     def validate(cls, folder, **kw):
         """ Validation method, custom for each entity. """
-        pass
+        raise NotImplementedError
 

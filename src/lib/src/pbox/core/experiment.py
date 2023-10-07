@@ -34,11 +34,13 @@ def __init():
         """
         FOLDERS = {'mandatory': ["conf", "datasets", "models"], 'optional':  ["data", "figures", "scripts"]}
         
-        @logging.bindLogger
-        def __init__(self, name="experiment", load=True, **kw):
-            name = config.check(Path(name).basename)
-            self.path = Path(config['experiments'].joinpath(name), create=True).absolute()
+        def __init__(self, name="experiment", load=False, **kw):
+            name = config.check(Path(name))
+            self.path = Path(config['experiments'].joinpath(name)).absolute()
+            if not self.path.is_under(config['experiments'].absolute()):
+                config['experiments'] = self.path.dirname
             if load:
+                self.path.mkdir(exist_ok=True)
                 for folder in ["conf", "datasets", "models"]:
                     folder = self.path.joinpath(folder)
                     if not folder.exists():
@@ -49,9 +51,9 @@ def __init():
         def __getitem__(self, name):
             """ Get something from the experiment folder, either a config file, a dataset or a model.
             
-            NB: In the case of YAML configuration files, this method aims to return the actually used YAML, not specifically
-                 the one from the experiment (if exists) ; therefore, when a YAML has not been edited within the scope of
-                 the experiment yet, this method will return the YAML from the main workspace.
+            NB: In the case of YAML configuration files, this method aims to return the actually used YAML, not
+                 specifically the one from the experiment (if exists) ; therefore, when a YAML has not been edited
+                 within the scope of the experiment yet, this method will return the YAML from the main workspace.
             """
             # case 1: 'name' is README(.md) or commands(.rc) ; return a Path instance
             if name in ["README", "README.md"]:
@@ -68,11 +70,11 @@ def __init():
             # case 3: 'name' matches a dataset from the experiment ; return a (Fileless)Dataset instance
             for ds in self.path.joinpath("datasets").listdir():
                 if name == ds.stem:
-                    return open_dataset(ds)
+                    return Dataset.load(ds)
             # case 4: 'name' matches a model from the experiment ; return a (Dumped)Model instance
-            for ds in self.path.joinpath("models").listdir():
-                if name == ds.stem:
-                    return open_model(ds)
+            for md in self.path.joinpath("models").listdir():
+                if name == md.stem:
+                    return Model.load(md)
             raise KeyError(name)
         
         def __len__(self):
@@ -95,13 +97,18 @@ def __init():
                     l.error("'%s' is not a valid configuration name" % p_scr.basename)
                     raise KeyError
         
+        def _purge(self, **kw):
+            """ Purge the current experiment. """
+            Experiment.logger.debug("purging experiment...")
+            self.path.remove(error=False)
+        
         def close(self, **kw):
             """ Close the currently open experiment. """
             del config['experiment']
         
         def commit(self, force=False, **kw):
             """ Commit the latest executed OS command to the resource file (.rc). """
-            l = self.logger
+            l = Experiment.logger
             rc = self['commands']
             rc.touch()
             rc_last_line = ""
@@ -119,17 +126,17 @@ def __init():
         
         def compress(self, **kw):
             """ Compress the experiment by converting all datasets to fileless datasets. """
-            l, done = self.logger, False
+            l, done = Experiment.logger, False
             for dset in Path(config['datasets']).listdir(Dataset.check):
                 l.info("Dataset: %s" % dset)
-                open_dataset(dset).convert()
+                Dataset.load(dset).convert()
                 done = True
             if not done:
                 l.warning("No dataset to be converted")
         
         def edit(self, **kw):
             """ Edit the README or a YAML configuration file. """
-            l, conf = self.logger, kw.get('config')
+            l, conf = Experiment.logger, kw.get('config')
             p = self[conf] # can be README.md, commands.rc or YAML config files
             try:
                 p_main, p_exp = config[conf], self.path.joinpath("conf").joinpath(conf + ".yml")
@@ -145,7 +152,19 @@ def __init():
                 l.debug("editing experiment's %s..." % p.basename)
                 edit_file(p, text=True, logger=l)
         
-        def list(self, raw=False, **kw):
+        def open(self, **kw):
+            """ Open the current experiment, validating its structure. """
+            Experiment(self.path, True)  # ensures that, if the current experiment is not loaded yet (constructor 'load'
+                                         #  argument defaults to False), it create a blank structure if needed, hence
+                                         #  no validation required (i.e. with using Experiment.load(...))
+        
+        def show(self, **kw):
+            """ Show an overview of the experiment. """
+            Dataset.list()
+            Model.list()
+        
+        @classmethod
+        def list(cls, **kw):
             """ List all valid experiment folders. """
             data, headers = [], ["Name", "#Datasets", "#Models", "Custom configs"]
             for folder in config['experiments'].listdir(Experiment.check):
@@ -155,21 +174,7 @@ def __init():
             if len(data) > 0:
                 render(*[Section("Experiments (%d)" % len(data)), Table(data, column_headers=headers)])
             else:
-                self.logger.warning("No experiment found in the workspace (%s)" % config['experiments'])
-        
-        def open(self, **kw):
-            """ Open the current experiment, validating its structure. """
-            self.load(self.path)
-        
-        def purge(self, **kw):
-            """ Purge the current experiment. """
-            self.logger.debug("purging experiment...")
-            self.path.remove(error=False)
-        
-        def show(self, **kw):
-            """ Show an overview of the experiment. """
-            Dataset(load=False).list()
-            Model(load=False).list()
+                cls.logger.warning("No experiment found in the workspace (%s)" % config['experiments'])
         
         @classmethod
         def validate(cls, folder, warn=False, logger=None, **kw):
@@ -193,6 +198,7 @@ def __init():
                     logger.warning("Unknown file '%s'" % fn)
             return f
     
+    logging.setLogger("experiment")
     return Experiment
 Experiment = lazy_object(__init)
 

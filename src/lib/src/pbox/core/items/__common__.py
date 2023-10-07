@@ -116,7 +116,6 @@ def _init_base():
                        .replace("$BIN", expanduser("~/.opt/bin")) \
                        .replace("$CWD", self.__cwd or "")
         
-        @update_logger
         def _check(self, exe, silent=False):
             """ Check if the given executable can be processed by this item. """
             fmt = exe.format
@@ -180,7 +179,6 @@ def _init_base():
                         actions.append("sleep %s" % delay)
             return script.replace("{{actions}}", "\n".join(actions))
         
-        @update_logger
         def _test(self, silent=False):
             """ Preamble to the .test(...) method for validation and log purpose. """
             if self.status in STATUS_DISABLED + ["not installed"]:
@@ -223,7 +221,6 @@ def _init_base():
                 md.append(Section("References"), List(*self.references, **{'ordered': True}))
             return md.md()
         
-        @update_logger
         def run(self, executable, **kwargs):
             """ Customizable method for shaping the command line to run the item on an input executable. """
             retval = self.name
@@ -320,7 +317,6 @@ def _init_base():
                 r = (r, dt)
             return r
         
-        @update_logger
         def setup(self, **kw):
             """ Sets the item up according to its install instructions. """
             logging.setLogger(self.name)
@@ -668,7 +664,6 @@ def _init_base():
             if rm and target.exists():
                 run("rm -rf %s" % target, **kw)
         
-        @update_logger
         def test(self, files=None, keep=False, **kw):
             """ Tests the item on some executable files. """
             if not self._test(kw.pop('silent', False)):

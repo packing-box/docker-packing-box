@@ -50,7 +50,7 @@ def __init():
     global __initialized
     from .__common__ import _init_base
     from ..executable import Executable
-    from ...helpers import bin_label, class_or_instance_method, file_or_folder_or_dataset, update_logger
+    from ...helpers import bin_label, class_or_instance_method, file_or_folder_or_dataset
     Base = _init_base()
     
     class Detector(Base):
@@ -86,7 +86,6 @@ def __init():
         
         @class_or_instance_method
         @file_or_folder_or_dataset
-        @update_logger
         def detect(self, executable, **kwargs):
             """ Detects the packing label(s) of a target executable, folder/dataset of executables, applying the decision
                  heuristic if used as a class (superdetecor).
@@ -154,7 +153,6 @@ def __init():
                 return exe, label, actual_label
         
         @file_or_folder_or_dataset
-        @update_logger
         def test(self, executable, **kwargs):
             """ Tests the given item on some executable files. """
             label, multiclass = kwargs.get('label'), kwargs.get('multiclass', True)

@@ -1,6 +1,5 @@
 # -*- coding: UTF-8 -*-
-from _pickle import UnpicklingError
-from tinyscript import json, itertools, logging
+from tinyscript import json, itertools
 from tinyscript.helpers import human_readable_size, is_generator, Path, TempPath
 from tinyscript.report import *
 
@@ -18,20 +17,10 @@ lazy_load_module("sklearn.feature_selection", alias="skfs")
 lazy_load_module("sklearn.model_selection", alias="skms")
 
 
-__all__ = ["open_model", "DumpedModel", "Model"] + _algo
+__all__ = ["DumpedModel", "Model"] + _algo
 
 
 FLOAT_FORMAT = "%.6f"
-
-
-def open_model(folder, **kw):
-    """ Open the target model with the right class. """
-    for cls in [Model, DumpedModel]:
-        try:
-            return cls(cls.validate(folder), **kw)
-        except (ValueError, UnpicklingError):
-            pass
-    raise ValueError("%s is not a valid model" % folder)
 
 
 class BaseModel(AbstractEntity):
@@ -90,7 +79,7 @@ class BaseModel(AbstractEntity):
             ds = Path(ds)
             if not ds.is_absolute():
                 try:
-                    ds = open_dataset(ds)
+                    ds = Dataset.load(ds)
                 except ValueError:
                     pass
             if not ds.exists():
@@ -282,7 +271,6 @@ class Model(BaseModel):
       +-- metadata.json                         # useful information about the model
       +-- performance.csv                       # performance testing data
     """
-    @logging.bindLogger
     def __init__(self, name=None, load=True, **kw):
         self.__read_only = False
         self._features, self._metadata = {}, {}
@@ -311,6 +299,12 @@ class Model(BaseModel):
             else:
                 with p.open() as f:
                     setattr(self, "_" + n, json.load(f))
+    
+    def _purge(self, **kw):
+        """ Purge the current model. """
+        if self.path:
+            self.logger.debug("purging model...")
+            self.path.remove(error=False)
     
     def _save(self):
         """ Save model's state to the related files. """
@@ -347,7 +341,7 @@ class Model(BaseModel):
         l.debug("Applying predictions with %s on %s..." % (self.name, ds))
         pred = self.pipeline.predict(self._data)
         try:
-            data = open_dataset(ds)._data
+            data = Dataset.load(ds)._data
         except ValueError:
             data = self._data
         for f in self._metadata['dataset']['dropped-features']:
@@ -410,41 +404,12 @@ class Model(BaseModel):
         self.logger.debug("editing %sperformances.csv..." % ["model's ", "workspace's ."][self.path is None])
         edit_file(self.path or config['models'].joinpath(".performances.csv"), logger=self.logger)
     
-    def list(self, algorithms=False, **kw):
-        """ List all the models from the given path or all available algorithms. """
-        if algorithms:
-            d = [(a.name, a.description) for a in Algorithm.registry]
-            r = [Section("Algorithms (%d)" % len(d)), Table(d, column_headers=["Name", "Description"])]
-        else:
-            d = []
-            for model in self.iteritems():
-                with model.joinpath("metadata.json").open() as meta:
-                    metadata = json.load(meta)
-                alg, ds = metadata['algorithm'], metadata['dataset']
-                d.append([
-                    model.stem,
-                    alg['name'].upper(),
-                    alg['description'],
-                    ds['name'],
-                    str(ds['executables']),
-                    ",".join(sorted(ds['formats'])),
-                    shorten_str(",".join("%s{%d}" % i for i in sorted(get_counts(ds).items(),
-                                                                      key=lambda x: (-x[1], x[0])))),
-                ])
-            if len(d) == 0:
-                self.logger.warning("No model found in the workspace (%s)" % config['models'])
-                return
-            r = [Section("Models (%d)" % len(d)),
-                 Table(d, column_headers=["Name", "Algorithm", "Description", "Dataset", "Size", "Formats",
-                                          "Packers"])]
-        render(*r)
-    
     def preprocess(self, executable=None, query=None, **kw):
         """ Preprocess an input dataset given selected features and display it with visidata for review. """
         kw['data_only'], kw['dataset'] = True, executable or self._metadata['dataset']['name']
         if not self._prepare(**kw):
             return
-        ds = open_dataset(kw['dataset'])
+        ds = Dataset.load(kw['dataset'])
         result = pd.DataFrame()
         for col in ["hash"] + Executable.FIELDS:
             result[col] = ds._data[col]
@@ -456,12 +421,6 @@ class Model(BaseModel):
         result['label'] = ds._data['label']
         with data_to_temp_file(filter_data(result, query, logger=self.logger), prefix="model-preproc-") as tmp:
             edit_file(tmp, logger=self.logger)
-    
-    def purge(self, **kw):
-        """ Purge the current model. """
-        if self.path:
-            self.logger.debug("purging model...")
-            self.path.remove(error=False)
     
     def rename(self, name2=None, **kw):
         """ Rename the current model. """
@@ -680,7 +639,36 @@ class Model(BaseModel):
     
     @property
     def dataset(self):
-        return getattr(self, "_dataset", None) or open_dataset(self._metadata['dataset']['path'])
+        return getattr(self, "_dataset", None) or Dataset.load(self._metadata['dataset']['path'])
+    
+    @classmethod
+    def list(cls, algorithms=False, **kw):
+        """ List all the models from the given path or all available algorithms. """
+        if algorithms:
+            d = [(a.name, a.description) for a in Algorithm.registry]
+            r = [Section("Algorithms (%d)" % len(d)), Table(d, column_headers=["Name", "Description"])]
+        else:
+            d = []
+            for model in cls.iteritems():
+                with model.joinpath("metadata.json").open() as meta:
+                    metadata = json.load(meta)
+                alg, ds = metadata['algorithm'], metadata['dataset']
+                d.append([
+                    model.stem,
+                    alg['name'].upper(),
+                    alg['description'],
+                    ds['name'],
+                    str(ds['executables']),
+                    ",".join(sorted(ds['formats'])),
+                    shorten_str(",".join("%s{%d}" % i for i in sorted(get_counts(ds).items(),
+                                                                      key=lambda x: (-x[1], x[0])))),
+                ])
+            if len(d) == 0:
+                cls.logger.warning("No model found in the workspace (%s)" % config['models'])
+                return
+            r = [Section("Models (%d)" % len(d)),
+                 Table(d, column_headers=["Name", "Algorithm", "Description", "Dataset", "Size", "Formats", "Packers"])]
+        render(*r)
     
     @classmethod
     def validate(cls, folder, **kw):
@@ -698,11 +686,8 @@ class Model(BaseModel):
 
 
 class DumpedModel(BaseModel):
-    @logging.bindLogger
     def __init__(self, name=None, default_scaler=None, **kw):
         from sklearn.preprocessing import MinMaxScaler
-        global logger
-        logger = self.logger
         obj, self.pipeline = joblib.load(str(name)), DebugPipeline()
         cls = obj.__class__.__name__
         if "Pipeline" not in cls:

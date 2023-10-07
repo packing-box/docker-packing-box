@@ -24,7 +24,6 @@ def __init():
     global __initialized
     from .__common__ import _init_base, PARAM_PATTERN
     from ..executable import Executable
-    from ...helpers import update_logger
     Base = _init_base()
     
     class Packer(Base):
@@ -43,7 +42,6 @@ def __init():
             except AttributeError:
                 return super(Packer, self).help()
         
-        @update_logger
         def pack(self, executable, **kwargs):
             """ Runs the packer according to its command line format and checks if the executable has been changed by
                  this execution. """
@@ -116,14 +114,12 @@ Packer = lazy_object(__init)
 
 # ------------------------------------------------ NON-STANDARD PACKERS ------------------------------------------------
 def __init_ezuri():
-    from ...helpers import update_logger
     Packer = __init()
 
     class Ezuri(Packer):
         key = None
         iv  = None
         
-        @update_logger
         def run(self, executable, **kwargs):
             """ This packer prompts for parameters. """
             P = subprocess.PIPE

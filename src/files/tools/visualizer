@@ -186,12 +186,11 @@ if __name__ == "__main__":
     rm = add_argument(sparsers.add_parser("remove", category="utils", help="remove files matching the regex with the "
                                           "input labels"), "folder")
     initialize(noargs_action="usage", autocomplete=True)
+    configure_logging(args.verbose)
     if args.command != "compare":
         ff_args = args.folder, args.filename, args.label, getattr(args, "max_not_matching", None)
         msg = " files from %s matching '%s'%s..." % (args.folder, args.filename,
                                                      [" with the selected labels", ""][args.label is None])
-    logger.name = "visualizer"
-    logging.configLogger(logger, ["INFO", "DEBUG"][args.verbose], fmt=LOG_FORMATS[args.verbose], relative=True)
     LABELS.update(getattr(args, "alias", None) or {})
     if args.command == "features":
         logger.info("Computing features of" + msg)

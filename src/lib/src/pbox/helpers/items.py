@@ -9,7 +9,7 @@ lazy_load_module("yaml")
 set_exception("NotInstantiable", "TypeError")
 
 
-__all__ = ["backup", "dict2", "load_yaml_config", "purge_items", "select_features", "Item", "MetaBase", "MetaItem"]
+__all__ = ["backup", "dict2", "load_yaml_config", "select_features", "Item", "MetaBase", "MetaItem"]
 
 _EVAL_NAMESPACE = {k: getattr(builtins, k) for k in ["abs", "divmod", "float", "hash", "hex", "id", "int", "len",
                                                      "list", "max", "min", "next", "oct", "ord", "pow", "range",
@@ -40,7 +40,6 @@ class dict2(dict):
         d['apply'] = _apply
         d.update(_EVAL_NAMESPACE)
         d.update(data)
-        self._logger.debug("%s: %s" % (self.name, self.result))
         kwargs.update(getattr(self, "parameters", {}))
         try:
             r = eval2(self.result, d, {}, whitelist_nodes=WL_NODES + WL_EXTRA_NODES)
@@ -78,6 +77,14 @@ class MetaBase(type):
                     temp.append(name)
     
     @property
+    def logger(self):
+        if not hasattr(self, "_logger"):
+            n = self.__name__.lower()
+            self._logger = logging.getLogger(n)
+            logging.setLogger(n)
+        return self._logger
+    
+    @property
     def source(self):
         if not hasattr(self, "_source"):
             self.source = None  # use the default source from 'config'
@@ -109,6 +116,14 @@ def _init_metaitem():
             if name in ["get", "iteritems", "mro", "registry"] and self._instantiable:
                 raise AttributeError("'%s' object has no attribute '%s'" % (self.__name__, name))
             return super(MetaItem, self).__getattribute__(name)
+        
+        @property
+        def logger(self):
+            if not hasattr(self, "_logger"):
+                n = self.__name__.lower()
+                self._logger = logging.getLogger(n)
+                logging.setLogger(n)
+            return self._logger
         
         @property
         def names(self):
@@ -212,18 +227,6 @@ def _init_metaitem():
                     vi = glob[vitem]
                     _setattr(vi, vdata)
                     self.registry.append(vi())
-        
-        @property
-        def logger(self):
-            # important note: ' + " "' allows to fix a name clash with loggers ; e.g. when running the 'detector' tool
-            #                  with a single detector, its logger gets the name 'detector', taking precedence on the
-            #                  logger of the Detector class => adding " " gives a different string, yet displaying the
-            #                  same word.
-            n = self.__name__.lower() + " "
-            if not hasattr(self, "_logger"):
-                self._logger = logging.getLogger(n)
-                logging.setLogger(n)
-            return self._logger
     return MetaItem
 lazy_load_object("MetaItem", _init_metaitem)
 
@@ -291,10 +294,7 @@ def _init_item():
         
         @property
         def logger(self):
-            if not hasattr(self, "_logger"):
-                self._logger = logging.getLogger(self.name)
-            logging.setLogger(self.name)
-            return self._logger
+            return self.__class__.logger
         
         @property
         def source(self):
@@ -366,25 +366,6 @@ def load_yaml_config(cfg, no_defaults=(), parse_defaults=True):
                     #     source: <unknown>
                     params.setdefault(default, value)
         yield name, params
-
-
-def purge_items(cls, name):
-    """ Purge all items designated by 'name' for the given class 'cls'. """
-    purged = False
-    if name == "all":
-        for obj in cls.iteritems(True):
-            obj.purge()
-            purged = True
-    elif "*" in name:
-        name = r"^%s$" % name.replace("*", "(.*)")
-        for obj in cls.iteritems(False):
-            if re.search(name, obj.stem):
-                cls.open(obj).purge()
-                purged = True
-    else:
-        cls.open(name).purge()
-        purged = True
-    return purged
 
 
 def select_features(dataset, feature=None):

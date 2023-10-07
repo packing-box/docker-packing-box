@@ -11,7 +11,7 @@ def __init():
     global __initialized
     from .__common__ import _init_base
     from ..executable import Executable
-    from ...helpers import file_or_folder_or_dataset, update_logger
+    from ...helpers import file_or_folder_or_dataset
     Base = _init_base()
     
     class Analyzer(Base):
@@ -22,7 +22,6 @@ def __init():
         """
         use_output = True
         
-        @update_logger
         def analyze(self, executable, **kwargs):
             """ Runs the analyzer according to its command line format. """
             e = executable if isinstance(executable, Executable) else Executable(executable)
@@ -35,7 +34,6 @@ def __init():
             return output
         
         @file_or_folder_or_dataset
-        @update_logger
         def test(self, executable, **kwargs):
             """ Tests the given item on some executable files. """
             self._test(kwargs.get('silent', False))

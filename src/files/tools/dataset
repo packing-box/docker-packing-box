@@ -211,9 +211,8 @@ if __name__ == '__main__':
                         help="executables source directory to be included")
     add_argument(add_argument(cmds.add_parser("view", category="read", help="view executables filtered from a dataset"),
                               "dsname"), "query")
-    initialize(noargs_action="usage", autocomplete=True)
-    logger.name = "dataset"
-    logging.configLogger(logger, ["INFO", "DEBUG"][args.verbose], fmt=LOG_FORMATS[args.verbose], relative=True)
+    initialize(noargs_action="usage")
+    configure_logging(args.verbose)
     if args.command == "plot" and args.subcommand == "features" and len(args.feature) == 0:
         logger.warning("No feature selected")
         sys.exit(0)
@@ -223,7 +222,7 @@ if __name__ == '__main__':
     set_yaml(args)
     # now execute
     if args.command == "purge":
-        if not purge_items(Dataset, name):
+        if not Dataset.purge(name):
             logger.warning("No dataset to purge in workspace (%s)" % str(config['datasets']) if name == "all" else \
                            "No dataset matched the given name")
     elif args.command == "list":
@@ -232,7 +231,7 @@ if __name__ == '__main__':
         logger.warning("Dataset cannot be named 'all' (reserved word)")
     elif name is not None:
         try:
-            ds = open_dataset(name)
+            ds = Dataset.load(name)
         except ValueError:
             args.name_check = True
             ds = Dataset(**vars(args))

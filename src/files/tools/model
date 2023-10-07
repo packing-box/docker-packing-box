@@ -36,10 +36,10 @@ if __name__ == '__main__':
                         note="see <https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.query.html>")
     compare = add_argument(sparsers.add_parser("compare", category="read", help="compare the selected model with "
                                                "others"), "mdname")
-    compare.add_argument("-d", "--dataset", type=open_dataset, action="extend", nargs="*",
+    compare.add_argument("-d", "--dataset", type=Dataset.load, action="extend", nargs="*",
                          help="dataset to be selected for the comparison")
     compare.add_argument("-i", "--include", action="store_true", help="include unformatted models")
-    compare.add_argument("-m", "--model", type=open_model, action="extend", nargs="*",
+    compare.add_argument("-m", "--model", type=Model.load, action="extend", nargs="*",
                          help="model to be added in the comparison")
     add_argument(sparsers.add_parser("edit", category="create/modify/delete", help="edit the performance log file"),
                  "mdname", force=True)
@@ -67,7 +67,7 @@ if __name__ == '__main__':
     test.add_argument("--sep", default=",", choices=",;|\t", help="set the CSV separator",
                       note="required when using input CSV data instead of a Dataset (no effect otherwise)")
     train = sparsers.add_parser("train", category="create/modify/delete", help="train a model on the given dataset")
-    train.add_argument("dataset", type=open_dataset, help="dataset for training the model")
+    train.add_argument("dataset", type=Dataset.load, help="dataset for training the model")
     add_argument(train, "mdname", force=True)
     train.add_argument("-a", "--algorithm", choices=[a.name for a in Algorithm.registry], default="dt", metavar="ALGO",
                        help="machine learning algorithm to be used\n- %s\n * supports Grid Search cross-validation\n" %\
@@ -112,16 +112,15 @@ if __name__ == '__main__':
     viz_dependent.add_argument("--plot-formats", action="store_true", help="plot the file formats")
     viz_dependent.add_argument('--range', type=float, nargs=4,
                                help='select range values to plot in format: x_min x_max y_min y_max')
-    initialize(noargs_action="usage", autocomplete=True)
-    logger.name = "model"
-    logging.configLogger(logger, ["INFO", "DEBUG"][args.verbose], fmt=LOG_FORMATS[args.verbose], relative=True)
+    initialize(noargs_action="usage")
+    configure_logging(args.verbose)
     # prepare parsed arguments
     name = getattr(args, "name", None)
     args.load = name is not None and args.command not in ["list", "purge"]
     set_yaml(args)
     # now execute
     if args.command == "purge":
-        if not purge_items(Model, name):
+        if not Model.purge(name):
             logger.warning("No model to purge in workspace (%s)" % str(config['models']) if name == "all" else \
                            "No model matched the given name")
     elif args.command == "list":

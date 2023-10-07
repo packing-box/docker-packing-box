@@ -11,7 +11,6 @@ def __init():
     global __initialized
     from .__common__ import _init_base
     from ..executable import Executable
-    from ...helpers import update_logger
     Base = _init_base()
     
     class Unpacker(Base):
@@ -20,7 +19,6 @@ def __init():
         Extra methods:
           .unpack(executable, **kwargs) [str]
         """
-        @update_logger
         def unpack(self, executable, **kwargs):
             """ Runs the unpacker according to its command line format and checks if the executable has been changed by
                  this execution. """

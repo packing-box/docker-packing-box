@@ -48,14 +48,13 @@ class Features(dict, metaclass=MetaBase):
     boolean_only = False
     registry     = None
     
-    @logging.bindLogger
     def __init__(self, exe=None):
-        ft = Features
+        ft, l = Features, self.__class__.logger
         # parse YAML features definition once
         if ft.registry is None:
             src = ft.source  # WARNING! this line must appear BEFORE ft.registry={} because the first time that the
                              #           source attribute is called, it is initialized and the registry is reset to None
-            self.logger.debug("loading features from %s..." % src)
+            l.debug("loading features from %s..." % src)
             ft.registry = {}
             # important note: the 'keep' parameter is not considered here as some features may be required for computing
             #                  others but not kept in the final data, hence required in the registry yet
@@ -76,24 +75,24 @@ class Features(dict, metaclass=MetaBase):
                                 try:
                                     e = expr % val
                                 except Exception as e:
-                                    self.logger.error("expression: %s" % expr)
-                                    self.logger.error("value:      %s (%s)" % (str(val), type(val)))
+                                    l.error("expression: %s" % expr)
+                                    l.error("value:      %s (%s)" % (str(val), type(val)))
                                     raise
                                 try:
                                     n = name % val
                                 except TypeError:
-                                    self.logger.error("missing formatter in name '%s'" % d)
+                                    l.error("missing formatter in name '%s'" % d)
                                     raise
                                 d = p['description']
                                 try:
                                     p['description'] = d % val
                                 except TypeError:
-                                    self.logger.warning("name: %s" % n)
-                                    self.logger.error("missing formatter in description '%s'" % d)
+                                    l.warning("name: %s" % n)
+                                    l.error("missing formatter in description '%s'" % d)
                                     raise
-                                f.append(Feature(p, name=n, result=e, logger=self.logger))
+                                f.append(Feature(p, name=n, result=e, logger=l))
                         else:
-                            f = [Feature(params, name=name, result=expr, logger=self.logger)]
+                            f = [Feature(params, name=name, result=expr, logger=l)]
                         for feat in f:
                             for subfmt in expand_formats(fmt):
                                 ft.registry.setdefault(subfmt, {})

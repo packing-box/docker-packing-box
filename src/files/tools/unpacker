@@ -20,8 +20,8 @@ __examples__    = [
 if __name__ == '__main__':
     parser.add_argument("unpacker", type=Unpacker.get, help="selected unpacker")
     parser.add_argument("executable", help="executable or folder containing executables")
-    initialize(noargs_action="usage", multi_level_debug=True, autocomplete=True)
-    logging.configLogger(logger, ["INFO", "DEBUG"][args.verbose], fmt=LOG_FORMATS[args.verbose], relative=True)
+    initialize(noargs_action="usage", multi_level_debug=True)
+    configure_logging(args.verbose, ("INFO", "DEBUG", "DETAIL"))
     p = ts.Path(args.executable)
     delattr(args, "executable")
     if p.is_file():

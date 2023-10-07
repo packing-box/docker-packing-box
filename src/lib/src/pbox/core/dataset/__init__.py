@@ -1,5 +1,5 @@
 # -*- coding: UTF-8 -*-
-from tinyscript import colored, hashlib, json, logging, random, time
+from tinyscript import colored, hashlib, json, random, time
 from tinyscript.helpers import confirm, human_readable_size, lazy_load_module, slugify, Path, TempPath
 from tinyscript.report import *
 
@@ -12,20 +12,10 @@ lazy_load_module("alterations", "pbox.core.executable")
 lazy_load_module("packer", "pbox.core.items", "item_packer")
 
 
-__all__ = ["open_dataset", "Dataset", "FilelessDataset"]
+__all__ = ["Dataset", "FilelessDataset"]
 
 
 BACKUP_COPIES = 3
-
-
-def open_dataset(folder, **kw):
-    """ Open the target dataset with the right class. """
-    for cls in [Dataset, FilelessDataset]:
-        try:
-            return cls(cls.validate(folder, **kw), **kw)
-        except ValueError:
-            pass
-    raise ValueError("%s is not a valid dataset" % folder)
 
 
 class Dataset(AbstractEntity):
@@ -40,7 +30,6 @@ class Dataset(AbstractEntity):
       +-- (alterations.json)  # if the dataset was altered, this contains the hashes of the altered executables with the
                               #  alterations applied
     """
-    @logging.bindLogger
     def __init__(self, name="dataset", source_dir=None, load=True, name_check=False, **kw):
         self._files = getattr(self.__class__, "_files", True)
         if name_check:
@@ -225,7 +214,17 @@ class Dataset(AbstractEntity):
                     setattr(self, "_" + n, json.load(f))
             else:
                 setattr(self, "_" + n, {})
-        
+    
+    def _purge(self, backup=False, **kw):
+        """ Purge the current dataset, including its backups. """
+        self.logger.debug("purging %s%s..." % (self.path, ["", "'s backups"][backup]))
+        if not backup:
+            self._remove()
+        # also recursively purge the backups
+        try:
+            self.backup._purge()
+        except AttributeError:
+            pass
     
     def _remove(self):
         """ Remove the current dataset. """
@@ -362,7 +361,7 @@ class Dataset(AbstractEntity):
         self.files.remove(error=False)
         l.debug("removing eventual backups...")
         try:
-            self.backup.purge()
+            self.backup._purge()
         except AttributeError:
             pass
         self._save()
@@ -458,7 +457,7 @@ class Dataset(AbstractEntity):
             dataset = Dataset(name, load=False)
             if dataset.exists():
                 if confirm("Are you sure you want to overwrite '%s' ?" % dataset.basename):
-                    dataset.purge()
+                    dataset._purge()
                 else:
                     return
             dataset._load()
@@ -493,32 +492,12 @@ class Dataset(AbstractEntity):
                 dataset = Dataset(name, load=False)
                 if dataset.exists():
                     if confirm("Are you sure you want to overwrite '%s' ?" % dataset.basename):
-                        dataset.purge()
+                        dataset._purge()
                     else:
                         return
                 dataset._load()
             l.info("Ingesting subfolder '%s' into %s..." % (sp.stem, name))
             dataset.update([sp, p][merge], labels=labels, detect=detect, **kw)
-    
-    def list(self, show_all=False, hide_files=False, raw=False, **kw):
-        """ List all the datasets from the given path. """
-        if raw:
-            names = []
-            for dset in Path(config['datasets']).listdir(Dataset.check):
-                names.append(dset.basename)
-            if not isinstance(self, Dataset):
-                for dset in Path(config['datasets']).listdir(self.__class__.check):
-                    names.append(dset.basename)
-            for name in sorted(names):
-                print(name)
-        else:
-            l = self.logger
-            l.debug("summarizing datasets from %s..." % config['datasets'])
-            section, table = self.__class__.summarize(show_all, hide_files)
-            if section is not None and table is not None:
-                render(section, table)
-            else:
-                l.warning("No dataset found in the workspace (%s)" % config['datasets'])
     
     @backup
     def make(self, n=0, formats=["All"], balance=False, packer=None, pack_all=False, **kw):
@@ -532,7 +511,7 @@ class Dataset(AbstractEntity):
             l.critical("No valid packer selected")
             return
         # then restrict dataset's formats to these of the selected packers
-        pformats = aggregate_formats(*[p.formats for p in packers])
+        pformats = aggregate_formats(*[tuple(p.formats) for p in packers])
         self.formats = collapse_formats(*[f for f in expand_formats(*formats) if f in pformats])
         sources = []
         for fmt, src in self.sources.items():
@@ -643,7 +622,7 @@ class Dataset(AbstractEntity):
         """ Merge another dataset with the current one. """
         l = self.logger
         l_info = getattr(l, ["info", "debug"][silent])
-        ds2 = open_dataset(name2, name_check=False)
+        ds2 = Dataset.load(name2, name_check=False)
         if new_name is not None:
             dstype = FilelessDataset if not self._files or not ds2._files else Dataset
             ds = dstype(new_name)
@@ -651,14 +630,14 @@ class Dataset(AbstractEntity):
                 temp_name = random.randstr(16)
                 self.convert(temp_name, check=False)
                 ds.merge(temp_name)
-                FilelessDataset(temp_name, check=False).purge()
+                FilelessDataset(temp_name, check=False)._purge()
             else:
                 ds.merge(self.path.basename)
             if dstype is FilelessDataset and ds2._files:
                 temp_name = random.randstr(16)
                 ds2.convert(temp_name, check=False)
                 ds.merge(temp_name)
-                FilelessDataset(temp_name, check=False).purge()
+                FilelessDataset(temp_name, check=False)._purge()
             else:
                 ds.merge(name2)
             return
@@ -692,7 +671,7 @@ class Dataset(AbstractEntity):
         if 'dataset' in kw and kw['dataset']._files:
             kw['dataset']._compute_all_features()
         if 'datasets' in kw:
-            kw['datasets'] = [open_dataset(ds) for ds in (kw['datasets'] or [])]
+            kw['datasets'] = [Dataset.load(ds) for ds in (kw['datasets'] or [])]
             [ds._compute_all_features() for ds in kw['datasets'] if ds._files]
         plot(self, "ds-%s" % subcommand, **kw)
     
@@ -719,17 +698,6 @@ class Dataset(AbstractEntity):
         result['label'] = self._data['label']
         with data_to_temp_file(filter_data(result, query, logger=self.logger), prefix="dataset-preproc-") as tmp:
             edit_file(tmp, logger=self.logger)
-    
-    def purge(self, backup=False, **kw):
-        """ Completely remove the dataset, including its backups. """
-        self.logger.debug("purging %s%s..." % (self.path, ["", "'s backups"][backup]))
-        if not backup:
-            self._remove()
-        # also recursively purge the backups
-        try:
-            self.backup.purge()
-        except AttributeError:
-            pass
     
     @backup
     def remove(self, query=None, **kw):
@@ -1055,17 +1023,33 @@ class Dataset(AbstractEntity):
         return r
     
     @classmethod
+    def list(cls, show_all=False, hide_files=False, raw=False, **kw):
+        """ List all the datasets from the given path. """
+        if raw:
+            for name in sorted([dset.basename] for dset in Path(config['datasets']) \
+                                .listdir(lambda p: Dataset.check(p) or FilelessDataset.check(p))):
+                print(name)
+        else:
+            l = cls.logger
+            l.debug("summarizing datasets from %s..." % config['datasets'])
+            section, table = FilelessDataset.summarize(show_all, hide_files)
+            if section is not None and table is not None:
+                render(section, table)
+            else:
+                l.warning("No dataset found in the workspace (%s)" % config['datasets'])
+    
+    @classmethod
     def validate(cls, folder, **kw):
-        f, fl = Path(folder, expand=True), getattr(cls, "_files", True)
+        f = Path(folder, expand=True)
         if not f.is_dir():
             f = config['datasets'].joinpath(folder)
             if not f.exists():
                 raise ValueError("Folder does not exist")
             if not f.is_dir():
                 raise ValueError("Input is not a folder")
-        if fl and not f.joinpath("files").is_dir() or not fl and f.joinpath("files").is_dir():
-            raise ValueError("Has 'files' folder while filesless" if fl else "Has not 'files' folder")
-        for fn in ["data.csv", "metadata.json"] + [["features.json"], []][fl]:
+        if not f.joinpath("files").is_dir():
+            raise ValueError("Missing 'files' folder")
+        for fn in ["data.csv", "metadata.json"]:
             if not f.joinpath(fn).exists():
                 raise ValueError("'%s' does not exist" % fn)
         return f
@@ -1082,6 +1066,8 @@ class Dataset(AbstractEntity):
             raise ValueError("Bad labels ; not a dictionary or JSON file")
         return {h: l or NOT_PACKED for h, l in labels.items()}
     
+    #TODO: refactor (dates from pbox structure with 'common' and 'learning' subpackages, each containing respectively
+    #       Dataset and FilelessDataset)
     @staticmethod
     def summarize(show=False, hide_files=False, check_func=None):
         datasets, headers = [], ["Name", "#Executables", "Size"] + [["Files"], []][hide_files] + ["Formats", "Packers"]
@@ -1129,6 +1115,24 @@ class FilelessDataset(Dataset):
     """
     _files = False
     
+    @classmethod
+    def validate(cls, folder, **kw):
+        f = Path(folder, expand=True)
+        if not f.is_dir():
+            f = config['datasets'].joinpath(folder)
+            if not f.exists():
+                raise ValueError("Folder does not exist")
+            if not f.is_dir():
+                raise ValueError("Input is not a folder")
+        if f.joinpath("files").is_dir():
+            raise ValueError("Has 'files' folder while it should not")
+        for fn in ["data.csv", "metadata.json", "features.json"]:
+            if not f.joinpath(fn).exists():
+                raise ValueError("'%s' does not exist" % fn)
+        return f
+    
+    #TODO: refactor (dates from pbox structure with 'common' and 'learning' subpackages, each containing respectively
+    #       Dataset and FilelessDataset)
     @staticmethod
     def summarize(show=False, hide_files=False):
         _, table = Dataset.summarize(show, hide_files)

@@ -46,9 +46,8 @@ class Alterations(list, metaclass=MetaBase):
     namespaces = None
     registry   = None
     
-    @logging.bindLogger
     def __init__(self, exe=None, select=None, warn=False):
-        a = Alterations
+        a, l = Alterations, self.__class__.logger
         # parse YAML alterations definition once
         if a.registry is None:
             src = a.source  # WARNING! this line must appear BEFORE a.registry={} because the first time that the
@@ -63,7 +62,7 @@ class Alterations(list, metaclass=MetaBase):
                     for fmt in flist:
                         expr = r.get(fmt) if isinstance(r, dict) else str(r)
                         if expr:
-                            alt = Alteration(params, name=name, result=expr, logger=self.logger)
+                            alt = Alteration(params, name=name, result=expr, logger=l)
                             for subfmt in expand_formats(fmt):
                                 a.registry.setdefault(subfmt, {})
                                 a.registry[subfmt][alt.name] = alt
@@ -72,7 +71,7 @@ class Alterations(list, metaclass=MetaBase):
             if name not in a.registry[exe.format]:
                 msg = "Alteration '%s' does not exist" % name
                 if warn:
-                    self.logger.warning(msg)
+                    l.warning(msg)
                     select.remove(name)
                 else:
                     raise ValueError(msg)
@@ -82,7 +81,7 @@ class Alterations(list, metaclass=MetaBase):
             if exe.format not in a.namespaces:
                 from .modifiers import Modifiers
                 # create the namespace for the given executable format (including the 'grid' helper defined hereafter)
-                a.namespaces[exe.format] = {'grid': grid, 'logger': self.logger}
+                a.namespaces[exe.format] = {'grid': grid, 'logger': l}
                 # add constants specific to the target executable format
                 a.namespaces[exe.format].update(get_data(exe.format))
                 # add format-related data and modifiers
@@ -95,12 +94,12 @@ class Alterations(list, metaclass=MetaBase):
                 # run the alteration given the format-specific namespace
                 try:
                     alteration(exe, a.namespaces[exe.format])
-                    self.logger.debug("applied alteration '%s'" % alteration.name)
+                    l.debug("applied alteration '%s'" % alteration.name)
                     self.append(name)
                 except NotImplementedError as e:
-                    self.logger.warning("'%s' is not supported yet for parser '%s'" % (e.args[0], exe.parsed.parser))
+                    l.warning("'%s' is not supported yet for parser '%s'" % (e.args[0], exe.parsed.parser))
                 except Exception as e:
-                    self.logger.exception(e)
+                    l.exception(e)
     
     @staticmethod
     def names(format="All"):

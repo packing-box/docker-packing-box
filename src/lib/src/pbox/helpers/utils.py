@@ -13,8 +13,8 @@ lazy_load_module("yaml")
 
 
 __all__ = ["at_interrupt", "benchmark", "bin_label", "bold", "class_or_instance_method", "execute_and_get_values_list",
-           "get_counts", "lazy_object", "lazy_load_module", "mpl", "np", "plt", "shorten_str", "strip_version",
-           "update_logger", "yaml", "COLORMAP"]
+           "get_counts", "lazy_object", "lazy_load_module", "mpl", "np", "plt", "shorten_str", "strip_version", "yaml",
+           "COLORMAP"]
 
 COLORMAP = {
     'red':        (255, 0,   0),
@@ -104,15 +104,6 @@ def strip_version(name):
     if re.match(r"^(\d+\.)*(\d+)([\._]?(\d+|[a-zA-Z]\d*|alpha|beta))?$", name.split("-")[-1]):
         return "-".join(name.split("-")[:-1])
     return name
-
-
-def update_logger(m):
-    """ Method decorator for triggering the setting of the bound logger (see pbox.core.item.Item.__getattribute__). """
-    @functools.wraps(m)
-    def _wrapper(self, *a, **kw):
-        getattr(self, "logger", None)
-        return m(self, *a, **kw)
-    return _wrapper
 
 
 # based on: https://stackoverflow.com/questions/28237955/same-name-for-classmethod-and-instancemethod

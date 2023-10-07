@@ -1,9 +1,18 @@
 # -*- coding: UTF-8 -*-
-from tinyscript import configparser, re
+from tinyscript import configparser, logging, re
 from tinyscript.helpers import ConfigPath, Path
 
 
-__all__ = ["Config"]
+__all__ = ["configure_logging", "Config"]
+
+
+_BASE_LOGGERS = [l for l in logging.root.manager.loggerDict] + ["rich"]
+_NAMING_CONVENTION = r"(?i)^[a-z][a-z0-9]*(?:[-_][a-z0-9]+)*$"
+
+
+def configure_logging(verbose=False, levels=("INFO", "DEBUG")):
+    logging.configLogger(logging.getLogger("main"), levels[verbose], fmt=LOG_FORMATS[min(verbose, 1)], relative=True)
+    logging.setLoggers(*[l for l in logging.root.manager.loggerDict if l not in _BASE_LOGGERS])
 
 
 class Config:
@@ -23,7 +32,7 @@ class Config:
       - 5-tuple: (...                                              , overrides)
       - 6-tuple: (...                                                         , join_default_to_override)
     """
-    def __init__(self, name, defaults=None, envars=None, hidden=None, naming=r"(?i)^[a-z][a-z0-9]*(?:[-_][a-z0-9]+)*$"):
+    def __init__(self, name, defaults=None, envars=None, hidden=None, naming=_NAMING_CONVENTION):
         # keep a config object for holding changed options, to be saved to the destination path ;
         #  all other options are taken from defaults, environments variables or hidden options
         self.__config = configparser.ConfigParser()
