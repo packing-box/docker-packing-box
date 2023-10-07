@@ -61,10 +61,10 @@ def __init_lief(lief):
     def _lief_parse(target, *args, **kwargs):
         target = ts.Path(target, expand=True)
         if not target.exists():
-            raise OSError("Target binary does not exist")
+            raise OSError("'%s' does not exist" % target)
         binary = _handle_errors(lief._parse)(str(target))
         if binary is None:
-            raise OSError("Unknown format")
+            raise OSError("'%s' has an unknown format")
         return binary
     lief._parse, lief.parse = lief.parse, _lief_parse
     # monkey-patch header-related classes ; this allows following calls (given that a parsed object from the Executable
@@ -97,10 +97,6 @@ class Binary(AbstractParsedExecutable):
                 return getattr(self._parsed, name)
             raise
     
-    @property
-    def architecture(self):
-        return self.abstract.header.architecture
-    
     def build(self):
         builder = self._get_builder()
         builder.build()
@@ -121,26 +117,6 @@ class Binary(AbstractParsedExecutable):
         while len(r) < n:
             r.append(-1)
         return r
-    
-    @property
-    def exported_functions(self):
-        return self.abstract.exported_functions
-    
-    @property
-    def imported_functions(self):
-        return self.abstract.imported_functions
-    
-    @property
-    def libraries(self):
-        return self.abstract.libraries
-    
-    @property
-    def relocations(self):
-        return self.abstract.relocations
-    
-    @property
-    def symbols(self):
-        return self.abstract.symbols
 
 
 class BuildConfig(dict):
