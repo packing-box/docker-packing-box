@@ -72,13 +72,13 @@ class AbstractEntity:
         #  (1) BaseModel > [Model, DumpedModel]
         #  (2) Dataset > FilessDataset
         #  (3) Experiment
-        # first, find the highest entity class in inheritance path (i.e. Dataset or BaseModel)
+        # first, find the highest entity class in inheritance path (i.e. Dataset, BaseModel or Experiment)
         while hasattr(current_cls, "__base__"):
             if current_cls.__base__.__name__ == "AbstractEntity":
                 break
             current_cls = current_cls.__base__
         # then, parse the current class and its children (in this order of precedence)
-        for c in itertools.chain([current_cls], current_cls.__base__.__subclasses__()):
+        for c in itertools.chain([current_cls], current_cls.__subclasses__()):
             if not c.__name__.startswith("Base"):
                 classes.append(c)
         # entities can be instantiated while not having created and validated yet ; load=True ensures that, depending on
