@@ -180,6 +180,9 @@ class Dataset(AbstractEntity):
         exe = Executable(exe, dataset=self, force=True)
         d = self[exe.hash, True]  # retrieve executable's record as a dictionary
         d.update(exe.data)        # be sure to include the features
+        if not hasattr(self, "_features"):
+            self._features = {}
+            self._features.update(exe.features)
         return d
     
     def _copy(self, path):
@@ -339,24 +342,24 @@ class Dataset(AbstractEntity):
             edit_file(tmp, logger=self.logger)
     
     @backup
-    def convert(self, new_name=None, silent=False, **kw):
+    def convert(self, new_name=None, **kw):
         """ Convert a dataset with files to a dataset without files. """
         l = self.logger
-        l_info = getattr(l, ["info", "debug"][silent])
+        l_info = getattr(l, ["info", "debug"][kw.get('silent', False)])
         if not self._files:
             l.warning("Already a fileless dataset")
             return
-        if new_name is not None:
-            ds = Dataset(new_name, **kw)
-            ds.merge(self.path.basename, silent=silent, **kw)
-            ds.convert(silent=silent, **kw)
+        if new_name is not None and self.name != new_name:
+            kw.pop('name', None)
+            self.select(new_name, **kw)
+            Dataset(new_name, **kw).convert(**kw)
             return
         l_info("Converting to fileless dataset...")
         s1 = self.path.size
         l_info("Size of dataset:     %s" % human_readable_size(s1))
         self.path.joinpath("features.json").write_text("{}")
-        self._files = False  # NB: MUST appear before _compute_all_features to iterate over samples, creating ._features
         self._compute_all_features()
+        self._files = False
         l.debug("removing files...")
         self.files.remove(error=False)
         l.debug("removing eventual backups...")
