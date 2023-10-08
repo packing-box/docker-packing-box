@@ -178,11 +178,10 @@ function setprompt(){
     PT_EXP=""
   else
     EXP_BN="`basename $EXPERIMENT`"
-    EXPS_BN="`basename $EXP_BN`"
+    EXPS_BN="`basename $EXPERIMENTS`"
     ABS_PATH=`pwd`
     REL_PATH="`realpath --relative-base=. "$EXPERIMENT"`"
     if [[ "$EXP_BN" == "$REL_PATH" ]]; then
-      PT_PATH="${PT_BH}${PATH_COLOR}`dirname $ABS_PATH`/${BPUR}${EXPS_BN}${PT_BT}"
       PT_EXP="${PT_BH}${EXP_COLOR}${EXP_BN}${PT_BT}"
     elif [[ "$EXPS_BN" == "`dirname $REL_PATH`" ]]; then
       PT_EXP="${PT_BH}${BPUR}`dirname $REL_PATH`${EXP_COLOR}/${EXP_BN}${PT_BT}"
@@ -269,10 +268,9 @@ export DOTNET_CLI_TELEMETRY_OPTOUT=1
 export XDG_RUNTIME_DIR=/tmp/runtime-root
 
 # add relevant folders to PATH
-pathprepend $HOME/.local/bin  # this shall remain BEFORE ~/.opt/bin not to take precedence
-pathprepend $HOME/.opt/tools
-pathprepend $HOME/.opt/utils
-pathprepend $HOME/.opt/bin
+for FOLDER in .local/bin .opt/tools .opt/utils .opt/bin; do
+  pathprepend $HOME/$FOLDER
+done
 
 # thefuck alias
 if [ $EUID -ne 0 ]; then
