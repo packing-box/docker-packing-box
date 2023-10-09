@@ -7,7 +7,20 @@
       "(?:features|infogain|labels).*": "`list-datasets`"
     }
   },
-  "experiment": "\n  local curr prev exp\n  COMPREPLY=()\n  curr=${COMP_WORDS[COMP_CWORD]}\n  prev=${COMP_WORDS[COMP_CWORD-1]}\n  if [[ -f \"$HOME/.packing-box/experiment.env\" ]]; then\n    if [ $COMP_CWORD -eq 1 ]; then\n      COMPREPLY+=($(compgen -W \"close commit compress edit list show\" \"${COMP_WORDS[1]}\"))\n    elif [ $COMP_CWORD -eq 2 ]; then\n      case \"$prev\" in\n        \"edit\")\n          exp=`cat $HOME/.packing-box/experiment.env | rev | cut -d/ -f1 | rev`\n          COMPREPLY=($(compgen -W \"`list-experiment-configs $exp`\" \"${COMP_WORDS[2]}\")) ;;\n        *) ;;\n      esac\n    fi\n  else\n    if [ $COMP_CWORD -eq 1 ]; then\n      COMPREPLY+=($(compgen -W \"compress list open purge\" \"${COMP_WORDS[1]}\"))\n    elif [ $COMP_CWORD -eq 2 ]; then\n      case \"$prev\" in\n        \"compress\"|\"open\")\n          COMPREPLY=($(compgen -W \"`list-experiments`\" \"${COMP_WORDS[2]}\")) ;;\n        *) ;;\n      esac\n    fi\n  fi\n    ",
+  "experiment": [
+    "-f \"$HOME/.packing-box/experiment.env\"",
+    [{"_locals_": ["exp"],
+      "edit": [
+      "exp=`cat $HOME/.packing-box/experiment.env | rev | cut -d/ -f1 | rev`",
+      "COMPREPLY=($(compgen -W \"`list-experiment-configs $exp`\" \"${COMP_WORDS[2]}\"))"
+     ],
+     "import": [
+      "local IFS=$'\\n'",
+      "COMPREPLY=($(compgen -o plusdirs -f -X '!*.yml' -- \"$curr\"))"
+     ]}, "NAME = \"test\""],
+    [{"compress|open": "`list-experiments`",
+      "purge": "all `list-experiments`"}, "NAME = None"]
+  ],
   "model": {
     "*": "`list-models`",
     "list": null,

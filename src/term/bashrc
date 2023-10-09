@@ -177,8 +177,9 @@ function setprompt(){
   if test -z "$EXPERIMENT" ; then
     PT_EXP=""
   else
-    EXP_BN="`basename $EXPERIMENT`"
-    EXPS_BN="`basename $EXPERIMENTS`"
+    EXP_BN="`basename "$EXPERIMENT"`"
+    EXPS_BN="`basename "$EXPERIMENTS"`"
+    if [ -z "$var" ]; then EXPS_BN="`basename $EXP_BN`"; fi
     ABS_PATH=`pwd`
     REL_PATH="`realpath --relative-base=. "$EXPERIMENT"`"
     if [[ "$EXP_BN" == "$REL_PATH" ]]; then
