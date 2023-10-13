@@ -1,24 +1,32 @@
 site_author: dhondta
 site_name: Packing Box - Docker image for studying executable packing
-copyright: Copyright &copy; 2021-2022 Alexandre D'Hondt
+copyright: Copyright &copy; 2021-2023 Alexandre D'Hondt
 repo_url: https://github.com/dhondta/docker-packing-box
 docs_dir: pages
 nav:
   - Introduction: index.md
   - 'Quick Start': quickstart.md
   - Usage:
-    - Datasets: usage/datasets.md
-    - Detectors: usage/detectors.md
-    - Packers: usage/packers.md
-    - Training: usage/training.md
-    - Analysis: usage/analysis.md
+    - usage/index.md
+    - 'Executable Packing': usage/packers.md
+    - 'Static Detection': usage/detectors.md
+    - 'Dataset Manipulation': usage/datasets.md
+    - 'Data Visualization': usage/analysis.md
+    - 'Model Training': usage/training.md
   - Internals:
-    - Executables: internals/executables.md
-    - Datasets: internals/datasets.md
-    - Items: internals/items.md
-    - Detectors: internals/detectors.md
-    - Packers: internals/packers.md
-    - Unpackers: internals/unpackers.md
+    - internals/index.md
+    - Entities:
+      - internals/entities/index.md
+      - Datasets: internals/entities/datasets.md
+      - Executables: internals/entities/executables.md
+      - Experiments: internals/entities/experiments.md
+      - Models: internals/entities/models.md
+    - Items:
+      - internals/items/index.md
+      - Analyzers: internals/items/analyzers.md
+      - Detectors: internals/items/detectors.md
+      - Packers: internals/items/packers.md
+      - Unpackers: internals/items/unpackers.md
 extra:
   generator: false
   social:
@@ -40,6 +48,9 @@ extra_javascript:
   - https://unpkg.com/tablesort@5.3.0/dist/tablesort.min.js
 theme:
   name: material
+  locale: en
+  navigation_depth: 8
+  collapse_navigation: true
   palette:
     - scheme: default
       toggle:
@@ -49,6 +60,16 @@ theme:
       toggle:
         icon: material/brightness-4
         name: Switch to light mode
+  features:
+    - navigation.indexes
+    - navigation.top
+    - toc.integrate
+  highlightjs: true
+  hljs_languages:
+    - yaml
+    - python
+    - console
+    - session
   logo: imgs/logo.png
   favicon: imgs/icon.png
   icon:
@@ -60,6 +81,7 @@ markdown_extensions:
   - abbr
   - admonition
   - attr_list
+  - codehilite
   - def_list
   - footnotes
   - md_in_html

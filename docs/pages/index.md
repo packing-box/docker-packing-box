@@ -25,12 +25,12 @@ Running the [*Packing Box*](https://github.com/packing-box/docker-packing-box) i
 
 ```console
 # docker run -it -h packing-box -v `pwd`:/mnt/share packing-box
-                              .______      ___       ______  __  ___  __  .__   __.   _______ .______     ______   ___   ___
-                              |   _  \    /   \     /      ||  |/  / |  | |  \ |  |  /  _____||   _  \   /  __  \  \  \ /  /
-                              |  |_)  |  /  ^  \   |  ,----'|  '  /  |  | |   \|  | |  |  __  |  |_)  | |  |  |  |  \  V  /
-                              |   ___/  /  /_\  \  |  |     |    <   |  | |  . `  | |  | |_ | |   _  <  |  |  |  |   >   <
-                              |  |     /  _____  \ |  `----.|  .  \  |  | |  |\   | |  |__| | |  |_)  | |  `--'  |  /  .  \
-                              | _|    /__/     \__\ \______||__|\__\ |__| |__| \__|  \______| |______/   \______/  /__/ \__\
+                               .______      ___       ______  __  ___  __  .__   __.   _______        .______     ______   ___   ___
+                               |   _  \    /   \     /      ||  |/  / |  | |  \ |  |  /  _____|       |   _  \   /  __  \  \  \ /  /
+                               |  |_)  |  /  ^  \   |  ,----'|  '  /  |  | |   \|  | |  |  __   ______|  |_)  | |  |  |  |  \  V  /
+                               |   ___/  /  /_\  \  |  |     |    <   |  | |  . `  | |  | |_ | |______|   _  <  |  |  |  |   >   <
+                               |  |     /  _____  \ |  `----.|  .  \  |  | |  |\   | |  |__| |        |  |_)  | |  `--'  |  /  .  \
+                               | _|    /__/     \__\ \______||__|\__\ |__| |__| \__|  \______|        |______/   \______/  /__/ \__\
 
 
 
@@ -51,25 +51,35 @@ From inside the box, help can be obtained by using the "`?`" tool. This will dis
 
 ```console
 # ? -i peid    
-                                                                                         .______    _______  __   _______
-                                                                                         |   _  \  |   ____||  | |       \
-                                                                                         |  |_)  | |  |__   |  | |  .--.  |
-                                                                                         |   ___/  |   __|  |  | |  |  |  |
-                                                                                         |  |      |  |____ |  | |  '--'  |
-                                                                                         | _|      |_______||__| |_______/
+                                                                 .______    _______  __   _______
+                                                                 |   _  \  |   ____||  | |       \
+                                                                 |  |_)  | |  |__   |  | |  .--.  |
+                                                                 |   ___/  |   __|  |  | |  |  |  |
+                                                                 |  |      |  |____ |  | |  '--'  |
+                                                                 | _|      |_______||__| |_______/
 
 
 
- 
-  PEiD detects most common packers, cryptors and compilers for PE files.
-  Source    : https://github.com/dhondta/peid
-  Applies to: .NET, MSDOS, PE32, PE64
 
- References
-    1. https://www.aldeid.com/wiki/PEiD
-    2. www.softpedia.com/get/Programming/Packers-Crypters-Protectors/PEiD-updated.shtml
-    3. https://github.com/ynadji/peid/
-    4. https://github.com/wolfram77web/app-peid
+PEiD detects most common packers, cryptors and compilers for PE files.
+
+
+Source    : https://github.com/dhondta/peid
+
+
+Applies to: .NET, MSDOS, PE32, PE64
+
+
+
+References
+
+  1 https://www.aldeid.com/wiki/PEiD
+
+  2 www.softpedia.com/get/Programming/Packers-Crypters-Protectors/PEiD-updated.shtml
+
+  3 https://github.com/ynadji/peid/
+
+  4 https://github.com/wolfram77web/app-peid
 
 ```
 

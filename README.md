@@ -1,9 +1,10 @@
 <p align="center"><img src="https://github.com/packing-box/docker-packing-box/raw/main/docs/pages/imgs/logo.png"></p>
 <h1 align="center">Packing Box <a href="https://twitter.com/intent/tweet?text=Packing%20Box%20-%20Docker%20container%20featuring%20a%20CLI%20environment%20with%20packers%20and%20detectors%20for%20studying%20executable%20packing%2c%20including%20machine%20learning%20dataset%20generation%20and%20pipeline%20execution%2e%0ahttps%3a%2f%2fgithub%2ecom%2fpacking-box%2fdocker-packing-box&hashtags=docker,container,python,infosec,cybersecurity,malware"><img src="https://img.shields.io/badge/Tweet--lightgrey?logo=twitter&style=social" alt="Tweet" height="20"/></a></h1>
-<h3 align="center">Study executable packing easy with this dedicated platform.</h3>
+<h3 align="center">Experimental toolkit for static detection of executable packing.</h3>
 
 [![Read The Docs](https://readthedocs.org/projects/docker-packing-box/badge/?version=latest)](http://docker-packing-box.readthedocs.io/en/latest/?badge=latest)
 [![Black Hat Arsenal Europe 2022](https://raw.githubusercontent.com/toolswatch/badges/master/arsenal/europe/2022.svg?sanitize=true)](https://www.blackhat.com/eu-22/arsenal/schedule/index.html#packing-box-playing-with-executable-packing-29054)
+<!--[![Black Hat Arsenal Europe 2023](https://raw.githubusercontent.com/toolswatch/badges/master/arsenal/europe/2023.svg?sanitize=true)](https://www.blackhat.com/eu-23/arsenal/schedule/#packing-box-breaking-detectors--visualizing-packing-35678)-->
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-orange.svg)](https://www.gnu.org/licenses/gpl-3.0)
 
 This Docker container is a CLI environment featuring a toolkit that gathers executable analyzers, packing detectors, packers and unpackers but also many tools for generating and manipulating datasets of packed and not-packed executables of different formats (including PE, ELF and Mach-O) for the sake of evaluating static detection techniques and tools, visualizing executables' layout and automating machine learning pipelines with the support of many algorithms.
