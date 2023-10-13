@@ -6,6 +6,7 @@ from tinyscript.report import *
 from .algorithm import *
 from .algorithm import __all__ as _algo
 from .metrics import *
+from .metrics import __all__ as _metrics
 from .visualization import *
 from ..dataset import *
 from ..executable import *
@@ -17,7 +18,7 @@ lazy_load_module("sklearn.feature_selection", alias="skfs")
 lazy_load_module("sklearn.model_selection", alias="skms")
 
 
-__all__ = ["DumpedModel", "Model"] + _algo
+__all__ = ["DumpedModel", "Model"] + _algo + _metrics
 
 
 FLOAT_FORMAT = "%.6f"
