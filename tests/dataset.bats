@@ -75,6 +75,8 @@ teardown_file(){
   run dataset convert "$TEST_DS1"
   assert_output --partial 'Converting to fileless dataset'
   assert_output --partial 'Size of new dataset'
+  assert_file_not_exist "$TESTS_DIR/$TEST_XP/datasets/$TEST_DS1/files"
+  assert_file_exist "$TESTS_DIR/$TEST_XP/datasets/$TEST_DS1/features.json"
 }
 
 # ✓ rename

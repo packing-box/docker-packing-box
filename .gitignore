@@ -71,6 +71,7 @@ target/
 tmp
 TODO
 .mypy_cache
+research-*/
 dataset-*/
 datasets/
 experiments*/
