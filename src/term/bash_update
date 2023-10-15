@@ -44,7 +44,7 @@ pbox-update() {
     __package_update
   else
     printf "${CYA}Copying files from packing-box...${RST}\n"
-    rm -rf $OPT/data/ && cp -rf /mnt/share/src/files/data $PBWS/
+    rm -rf $OPT/data/ && cp -rf /mnt/share/src/data $PBWS/
     cp -f /mnt/share/src/files/tools/* $OPT/tools/
     mv -f $OPT/tools/help $OPT/tools/?
     cp -f /mnt/share/src/conf/*.yml $PBWS/conf/
