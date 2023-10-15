@@ -9,7 +9,7 @@ lazy_load_module("yaml")
 set_exception("NotInstantiable", "TypeError")
 
 
-__all__ = ["backup", "dict2", "load_yaml_config", "select_features", "Item", "MetaBase", "MetaItem"]
+__all__ = ["dict2", "load_yaml_config", "select_features", "Item", "MetaBase", "MetaItem"]
 
 _EVAL_NAMESPACE = {k: getattr(builtins, k) for k in ["abs", "divmod", "float", "hash", "hex", "id", "int", "len",
                                                      "list", "max", "min", "next", "oct", "ord", "pow", "range",
@@ -303,15 +303,6 @@ def _init_item():
             return self.__class__._source
     return Item
 lazy_load_object("Item", _init_item)
-
-
-def backup(f):
-    """ Simple method decorator for making a backup of the dataset. """
-    def _wrapper(s, *a, **kw):
-        if config['keep_backups']:
-            s.backup = s
-        return f(s, *a, **kw)
-    return _wrapper
 
 
 def load_yaml_config(cfg, no_defaults=(), parse_defaults=True):

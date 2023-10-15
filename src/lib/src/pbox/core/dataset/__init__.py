@@ -15,7 +15,13 @@ lazy_load_module("packer", "pbox.core.items", "item_packer")
 __all__ = ["Dataset", "FilelessDataset"]
 
 
-BACKUP_COPIES = 3
+def backup(f):
+    """ Simple method decorator for making a backup of the dataset. """
+    def _wrapper(s, *a, **kw):
+        if config['backup_copies'] > 0:
+            s.backup = s
+        return f(s, *a, **kw)
+    return _wrapper
 
 
 class Dataset(AbstractEntity):
@@ -860,8 +866,8 @@ class Dataset(AbstractEntity):
     @property
     def backup(self):
         """ Get the latest backup. """
-        l = self.logger
-        l.debug("backup %s" % ["disabled", "enabled"][config['keep_backups']])
+        l, bkp = self.logger, config['backup_copies']
+        l.debug("backup %s" % ["disabled", "enabled (maximum copies: %d)" % bkp][bkp > 0])
         tmp = TempPath(".dataset-backup", hex(hash(self))[2:])
         l.debug("backup root: %s" % tmp)
         backups = sorted(tmp.listdir(self.__class__.check), key=lambda p: -int(p.basename))
@@ -887,8 +893,8 @@ class Dataset(AbstractEntity):
                 l.debug("> creating backup %d" % name)
                 dataset._copy(tmp.joinpath(str(name)))
                 n = 1
-            elif i >= BACKUP_COPIES - n:
-                l.debug("> removing backup %s (limit: %d)" % (backup.basename, BACKUP_COPIES))
+            elif i >= config['backup_copies'] - n:
+                l.debug("> removing backup %s (limit: %d)" % (backup.basename, config['backup_copies']))
                 backup._remove()
         if i == 0:
             name = int(time.time())
