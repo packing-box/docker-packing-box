@@ -5,7 +5,7 @@ from tinyscript import *
 
 
 __script__      = "Packing-Box administration tool"
-__version__     = "1.2.5"
+__version__     = "1.2.6"
 __doc__         = """
 This utility aims to facilitate detectors|packers|unpackers' setup|test according to the related YAML data file.
 """
@@ -58,7 +58,16 @@ if __name__ == '__main__':
     for section in config.sections():
         grp = p.add_argument_group("%s options" % section.rstrip("s"))
         for opt, func, val, metavar, help in config.iteroptions(section):
-            grp.add_argument("--" + opt, type=func, default=str(val), help=help, metavar=metavar)
+            # this decorator is required to pass 'func' by reference to the inner scope of '_wrapper' ;
+            #  otherwise, 'func' points to the latest parsed type function, that is the function of the last option
+            def func2(opt, func):
+                def _wrapper(v):
+                    f = config.func(opt)
+                    return f(config, v)
+                _wrapper.__name__ = func.__name__
+                return _wrapper
+            grp.add_argument("--" + opt.replace("_", "-"), type=func2(opt, func), default=str(val), metavar=metavar,
+                             help=help)
     # level 1 subparser for listing items
     p = sparsers.add_parser("list", help="list something")
     p.add_argument("type", type=ts.str_matches(r"^(%s)s?$" % "|".join(sorted(items + ["config"]))),
@@ -88,8 +97,8 @@ if __name__ == '__main__':
     elif args.command == "config":
         change = False
         for opt, func, val, m, h in config.iteroptions():
-            v = getattr(args, opt)
-            if func(v) != func(val):
+            v = getattr(args, opt)  # func is already applied as 'type' keyword-argument of .parse_argument(...)
+            if v != func(config, val):
                 config[opt] = v
                 logger.debug("set %s to '%s'" % (opt, v))
                 change = True

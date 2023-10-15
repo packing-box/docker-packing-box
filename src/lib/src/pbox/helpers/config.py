@@ -75,6 +75,9 @@ class Config:
             return
         for s in self.sections():
             if option in self._defaults[s]:
+                o = self._defaults[s][option]
+                func = o[3] if len(o) >= 4 else lambda s, v, *a: str(v)
+                value = func(self, value)
                 # set option in the attached ConfigParser
                 if self.__config.has_section(s):
                     self.__config[s][option] = str(value)
@@ -110,8 +113,16 @@ class Config:
                 # 3-tuple format: (default, metavar, description)
                 default_value, metavar, description = o[:3]
                 # 4-tuple format: (..., transform_function)
-                func = o[3] if len(o) >= 4 else lambda s, v: str(v)
+                func = o[3] if len(o) >= 4 else lambda s, v, *a: str(v)
                 return func(self, default_value)
+        raise KeyError(option)
+    
+    def func(self, option):
+        """ Get the type function for an option. """
+        for s in self.sections():
+            if option in self._defaults[s].keys():
+                o = self._defaults[s][option]
+                return o[3] if len(o) >= 4 else lambda s, v, *a: str(v)
         raise KeyError(option)
     
     def get(self, option, default=None, sections=None, error=False):
@@ -142,7 +153,7 @@ class Config:
             if option not in self._defaults[s]:
                 continue
             o = self._defaults[s][option]
-            func = o[3] if len(o) >= 4 else lambda s, v: str(v)
+            func = o[3] if len(o) >= 4 else lambda s, v, *a: str(v)
             # then, check for modified values (loaded from ~/.packing-box.conf) saved into self.__config
             if self.__config.has_section(s) and option in self.__config[s]:
                 return func(self, self.__config[s][option])
