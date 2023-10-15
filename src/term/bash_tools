@@ -40,3 +40,19 @@ findmachou() { local folder=$1; __findexec 'machou' ": Mach-O universal binary "
 findmsdos() { local folder=$1; __findexec 'msdos' ": MS-DOS executable\s*" "$folder"; }
 findpe32() { local folder=$1; __findexec 'pe32' ": PE32 executable " "$folder"; }
 findpe64() { local folder=$1; __findexec 'pe64' ": PE32\+ executable " "$folder"; }
+
+# run BATS tests
+run-tests() {
+  if [ "$*" = "-h" ] || [ "$*" = "--help" ]; then
+    echo "Usage: run-tests [folder]"
+  else
+    if [ "$1" = "" ]; then
+      local FOLDER="tests"
+    else
+      local FOLDER="$1"
+    fi
+    for FILE in $FOLDER/*.bats; do
+      bats $FILE
+    done
+  fi
+}
