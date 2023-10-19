@@ -15,7 +15,7 @@ __examples__  = [
 ]
 
 
-_compreply = lambda c, i=1, sc=False, pl=True: "COMPREPLY%s=($(compgen -W \"%s\" \"${COMP_WORDS[%d]}\"))%s\n" % \
+_compreply = lambda c, i=1, sc=False, pl=True: "COMPREPLY%s=($(compgen -W \"%s\" -- \"${COMP_WORDS[%d]}\"))%s\n" % \
                                                (["", "+"][pl], " ".join(sorted(set(c))), i, ["", " ;;"][sc])
 _dictdepth = lambda d: 1 + max(map(_dictdepth, d.values())) if isinstance(d, dict) and len(d) > 0 else 0
 _varname   = lambda d: ["curr", "%sprev" % ((d-1) * "s")][d > 0]

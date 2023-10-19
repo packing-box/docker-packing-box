@@ -33,6 +33,7 @@
     "*": "`list-working-packers`"
   },
   "packing-box": {
+    "config": "`list-config-keys`",
     "list": "analyzer config detector packer unpacker",
     "setup|test": "analyzer detector packer unpacker"
   },

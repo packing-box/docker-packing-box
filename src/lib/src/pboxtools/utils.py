@@ -107,6 +107,14 @@ def list_all_algorithms(cfg):
     return sorted(list(set(_fmt_name(x) for x in l if x != "defaults")))
 
 
+def list_config_keys():
+    import pbox
+    l = ["--" + opt.replace("_", "-") for opt, _ in config.items()]
+    if len(l) > 0:
+        print(" ".join(l))
+    return 0
+
+
 @_workspace("datasets")
 def list_datasets(ds):
     """ Condition for listing datasets from the current workspace """
