@@ -8,6 +8,7 @@ nav:
   - 'Quick Start': quickstart.md
   - Usage:
     - usage/index.md
+    - 'Framework Management': usage/management.md
     - 'Executable Packing': usage/packers.md
     - 'Static Detection': usage/detectors.md
     - 'Dataset Manipulation': usage/datasets.md
