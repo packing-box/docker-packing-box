@@ -9,6 +9,8 @@ __all__ = ["get_section_class", "supported_parsers", "AbstractParsedExecutable"]
 
 DEFAULT_SECTION_SLOTS = ["name", "size", "offset", "content", "virtual_address"]
 
+rawbytes = lambda s: bytes(getattr(s, "tobytes", lambda: s)())
+
 
 def supported_parsers(*parsers):
     def _wrapper(f):
@@ -53,11 +55,31 @@ class AbstractParsedExecutable(AbstractBase):
     def __iter__(self):
         raise NotImplementedError("__iter__")
     
-    def block_entropy_per_section(self, blocksize=0, ignore_half_block_zeros=False):
-        return {s.name: s.block_entropy(blocksize, ignore_half_block_zeros) for s in self}
+    def average_block_entropy_per_section(self, blocksize=256, ignore_half_block_zeros=True, overlay=True, raw=True):
+        r, t = 0., 0
+        for e, w in [(entropy(rawbytes(s.content), blocksize, ignore_half_block_zeros),
+                      len(rawbytes(s.content)) if raw else s.size) for s in self]:
+            if e == .0 or e[1] in [.0, None]:
+                continue
+            r += e[1] * w
+            t += w
+        if overlay:
+            # get overlay, first from the eventually-defined attribute "_parsed", otherwise from the current instance
+            o = getattr(getattr(self, "_parsed", self), "overlay", b"")
+            c = rawbytes(o)
+            w = len(c)
+            r += (entropy(c, blocksize, ignore_half_block_zeros)[1] or 0.) * w
+            t += w
+        return r / (t or 1)
+    
+    def block_entropy_per_section(self, blocksize=256, ignore_half_block_zeros=True):
+        return {getattr(s, "real_name", s.name): s.block_entropy(blocksize, ignore_half_block_zeros) for s in self}
     
     def build(self, **kw):
         raise NotImplementedError("build")
+    
+    def disassemble(self, **kw):
+        raise NotImplementedError("disassemble")
     
     def modify(self, modifier, **kw):
         modifier(self.parsed, **kw)
@@ -103,7 +125,7 @@ class AbstractParsedExecutable(AbstractBase):
     @property
     def non_standard_sections(self):
         d = get_data(self.path.format)['STANDARD_SECTION_NAMES']
-        return [s for s in self if s.real_name not in d]
+        return [s for s in self if getattr(s, "real_name", s.name) not in d]
     
     @property
     def real_section_names(self):
@@ -129,21 +151,21 @@ class AbstractParsedExecutable(AbstractBase):
     @property
     def standard_sections(self):
         d = get_data(self.path.format)['STANDARD_SECTION_NAMES']
-        return [s for s in self if s.real_name in d]
+        return [s for s in self if getattr(s, "real_name", s.name) in d]
 
 
 def get_section_class(name, **mapping):
-    slots = DEFAULT_SECTION_SLOTS
+    slots = DEFAULT_SECTION_SLOTS[:]
     for attr in mapping.keys():
         if attr not in slots:
             slots.append(attr)
     
     class AbstractSection(AbstractBase):
-        """ Abstract representation of a binary's section, .
+        """ Abstract representation of a binary's section.
         
-        NB: Simple namespace to hold section information. Referencing a lief.PE.Section directly is dangerous, because it
-             can be modified by alterations, which will break things. Also, if different parsers are used in susequent
-             alterations, a common format is required.
+        NB: Simple namespace to hold section information. Referencing a lief.PE.Section directly is dangerous, because
+             it can be modified by alterations, which will break things. Also, if different parsers are used in
+             subsequent alterations, a common format is required.
         """
         __slots__ = slots
         
@@ -160,7 +182,7 @@ def get_section_class(name, **mapping):
                 setattr(self, attr, value)
         
         def block_entropy(self, blocksize=256, ignore_half_block_zeros=True):
-            return entropy(self.content, blocksize, ignore_half_block_zeros)
+            return entropy(rawbytes(self.content), blocksize, ignore_half_block_zeros)
         
         @property
         def block_entropy_256B(self):

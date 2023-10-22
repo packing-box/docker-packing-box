@@ -226,6 +226,12 @@ class Executable(Path):
         return self.parse()  # this will use the default parser (lief)
     
     @cached_property
+    def rawdata(self):
+        # NB: this property is for debugging, it never gets called within pbox
+        from .extractors import Extractors
+        return Extractors(self)
+    
+    @cached_property
     def realpath(self):
         return str(self)
     

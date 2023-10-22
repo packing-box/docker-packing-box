@@ -14,6 +14,7 @@ __all__ = ["dict2", "load_yaml_config", "select_features", "Item", "MetaBase", "
 _EVAL_NAMESPACE = {k: getattr(builtins, k) for k in ["abs", "divmod", "float", "hash", "hex", "id", "int", "len",
                                                      "list", "max", "min", "next", "oct", "ord", "pow", "range",
                                                      "range2", "round", "set", "str", "sum", "tuple", "type"]}
+UNDEF_RESULT = "undefined"
 WL_EXTRA_NODES = ("arg", "arguments", "keyword", "lambda")
 
 
@@ -23,16 +24,16 @@ _fmt_name = lambda x: (x or "").lower().replace("_", "-")
 class dict2(dict):
     """ Simple extension of dict for defining callable items. """
     def __init__(self, idict, **kwargs):
-        self.setdefault("name", "undefined")
+        self.setdefault("name", UNDEF_RESULT)
         self.setdefault("description", "")
-        self.setdefault("result", None)
+        self.setdefault("result", self['name'])
         for f, v in getattr(self.__class__, "_fields", {}).items():
             self.setdefault(f, v)
         logger = idict.pop('logger', kwargs.pop('logger', null_logger))
         super().__init__(idict, **kwargs)
         self.__dict__ = self
         dict2._logger = logger
-        if self.result is None:
+        if self.result == UNDEF_RESULT:
             raise ValueError("%s: 'result' shall be defined" % self.name)
     
     def __call__(self, data, silent=False, **kwargs):

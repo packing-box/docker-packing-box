@@ -22,11 +22,11 @@ def __init_macho():
         
         @property
         def entrypoint(self):
-            return self.virtual_address_to_offset(self.entrypoint)
+            return self.virtual_address_to_offset(self._parsed.entrypoint)
         
         @property
         def entrypoint_section(self):
-            return self.section_from_offset(self.entrypoint)
+            return self.section_from_offset(self._parsed.entrypoint)
     
     MachO.__name__ = "MachO"
     return MachO

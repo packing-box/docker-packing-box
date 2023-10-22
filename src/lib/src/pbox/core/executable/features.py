@@ -22,7 +22,7 @@ class Feature(dict2):
     
     @cached_property
     def dependencies(self):
-        return list(set([x for x in re.split(r"[\s\.\[\]\(\)]", self.result or "") if x in Features]))
+        return list(set([x for x in re.split(r"[\s\.\,\-\+\[\]\(\)]", self.result or "") if x in Features]))
     
     # default value on purpose not set via self.setdefault(...)
     @cached_property
@@ -117,8 +117,11 @@ class Features(dict, metaclass=MetaBase):
                 feature = todo.popleft()
                 n = feature.name
                 p = exe.parse(feature.parser, reset=False)
+                # set 'binary' as the generic reference for the parsed binary but also for specific formats ('pe', ...)
                 d = {'binary': p, exe.group.lower(): p}
+                # add raw extracted data
                 d.update(self._rawdata)
+                # add already computed features
                 d.update(self)
                 try:
                     v = feature(d)
