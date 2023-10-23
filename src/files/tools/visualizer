@@ -5,7 +5,7 @@ from tinyscript import *
 
 
 __script__      = "Visualization tool"
-__version__     = "2.0.4"
+__version__     = "2.0.5"
 __contributors__ = [
     {'author': "Romain Jennes", 'reason': "added visualizations for observing effects of alterations"},
 ]
@@ -16,8 +16,8 @@ This tool aims to generate representations of binaries, emphasizing their sectio
 __description__ = "Generate a figure with representations of input binaries' sections and entropy"
 __examples__    = [
     "compare \"PsExec.exe$\" samples-folder \"PsExec.exe$\" altered-samples-folder",
-    "features \".$\" dataset-packed-pe --label Exe32Pack",
-    "find \".$\" dataset-packed-pe --max-not-matching 2",
+    "features . dataset-packed-pe --label Exe32Pack",
+    "find . dataset-packed-pe --max-not-matching 2 --exclude outliers --do-not-display",
     "plot \"PsExec.exe$\" PackingData -l not-packed -l MEW -l NSPack -l RLPack -l UPX",
 ]
 
@@ -40,7 +40,7 @@ legend_location.__name__ = "legend location"
 
 
 def find_files_with_labels(folder, pattern, selected=None, nbr_not_selected=None, display=False, force_display=False,
-                           remove=False, filter_selected=True):
+                           remove=False, filter_selected=True, exclude=None):
     """ Find files matching the given filename pattern withing the specified folder. It uses subfolders' names as labels
          for categorizing the matching file.
     
@@ -61,13 +61,14 @@ def find_files_with_labels(folder, pattern, selected=None, nbr_not_selected=None
     :param pattern:  pattern for matching files
     :param selected: list of labels to be filtered (keeps the order)
     """
-    preffixes, available_labels, files, disp_all = {}, [], {}, selected is None
-    # collect (best matching) preffixes first
+    prefixes, available_labels, files, disp_all = {}, [], {}, selected is None
+    # collect (best matching) prefixes first
     for dp in ts.Path(folder).walk(filter_func=lambda x: x.is_dir()):
         # discard .git/* and non-leaf subfolders of the folder tree structure
-        if ".git" in dp.parts or len(list(dp.listdir(filter_func=lambda x: x.is_dir()))) > 0:
+        if ".git" in dp.parts or any(s in dp.parts for s in (exclude or [])) or \
+           len(list(dp.listdir(filter_func=lambda x: x.is_dir()))) > 0:
             continue
-        l, prev, preffix = dp.basename, None, {}
+        l, prev, prefix = dp.basename, None, {}
         for f in dp.listdir(filter_func=lambda x: x.is_file()):
             common = ""
             for c1, c2 in zip(prev or f.stem, f.stem):
@@ -75,17 +76,17 @@ def find_files_with_labels(folder, pattern, selected=None, nbr_not_selected=None
                     common += c1
                 else:
                     break
-            preffix.setdefault(common, 0)
-            preffix[common] += 1
+            prefix.setdefault(common, 0)
+            prefix[common] += 1
             prev = f.stem
-        if len(preffix) > 0:
-            preffixes[l] = max(preffix, key=preffix.get)
+        if len(prefix) > 0:
+            prefixes[l] = max(prefix, key=prefix.get)
     # check for label errors
     error = False
     if selected is not None:
         for l in selected[:]:
-            if l not in preffixes.keys():
-                for good in preffixes.keys():
+            if l not in prefixes.keys():
+                for good in prefixes.keys():
                     if good.lower() == l.lower():
                         logger.debug("Fixed label %s to %s" % (l, good))
                         selected[selected.index(l)] = good
@@ -99,13 +100,14 @@ def find_files_with_labels(folder, pattern, selected=None, nbr_not_selected=None
     # collect matching files
     for fp in ts.Path(folder).walk(filter_func=lambda x: x.is_file()):
         # discard files from .git/* and non-leaf subfolders of the folder tree structure
-        if ".git" in fp.parts or len(list(fp.dirname.listdir(filter_func=lambda d: d.is_dir()))) > 0:
+        if ".git" in fp.parts or any(s in fp.parts for s in (exclude or [])) or \
+           len(list(fp.dirname.listdir(filter_func=lambda x: x.is_dir()))) > 0:
             continue
         l = fp.dirname.basename
         if l not in available_labels:
             available_labels.append(l)
         if re.search(pattern, fp.filename):
-            fname = fp.filename[len(preffixes[l]):]
+            fname = fp.filename[len(prefixes[l]):]
             files.setdefault(fname, {'files': [], 'labels': []})
             files[fname]['labels'].append(l)
             files[fname]['files'].append(fp)
@@ -177,6 +179,7 @@ if __name__ == "__main__":
     find = add_argument(sparsers.add_parser("find", category="utils", help="find files matching the regex with the "
                                             "input labels"), "folder")
     find.add_argument("-d", "--no-display", action="store_false", help="do not display packer label matches")
+    find.add_argument("-x", "--exclude", nargs="*", help="folder to be excluded")
     plot = add_argument(sparsers.add_parser("plot", category="visualization", help="plot files matching the regex given"
                                             " the selected labels"), "folder", alias=True, fmt=True)
     plot.add_argument("--legend-location", default="lower-center", type=legend_location,
@@ -206,8 +209,8 @@ if __name__ == "__main__":
                 edit_file(tmp, logger=logger)
     elif args.command == "find":
         logger.info("Searching for" + msg)
-        for _ in find_files_with_labels(*ff_args, display=args.no_display, force_display=True, filter_selected=False) \
-                 .keys():
+        for _ in find_files_with_labels(*ff_args, display=args.no_display, exclude=args.exclude, force_display=True,
+                                        filter_selected=False).keys():
             pass
     elif args.command == "plot":
         from bintropy import plot
