@@ -6,7 +6,7 @@ from tinyscript.report import *
 
 
 __script__      = "Detection tool"
-__version__     = "1.3.0"
+__version__     = "1.3.1"
 __doc__         = """
 This tool aims to detect the packer used on an input executable, folder of executables or Dataset.
 """
@@ -81,7 +81,7 @@ if __name__ == '__main__':
                         logger.warning(msg)
                 if not args.failures_only or r != l:
                     log = [logger.warning if r == NL else logger.failure if r != l else \
-                           logger.success, logger.debug][l == NL]
+                           logger.success, logger.info][l == NL]
                     log("{}: {}".format(exe, decision))
                 stats.setdefault(decision, 0)
                 stats[decision] += 1
@@ -95,27 +95,24 @@ if __name__ == '__main__':
         sys.exit(1)
     ph, h, m = metric_headers("classification"), ["Accuracy", "Precision", "Recall", "F-Measure"], _metrics(**cmatrix)
     m = [ph[k](v) if v >= 0 else "-" for k, v in zip(h, m)]
-    n = sum(stats.values())
+    ns, nc = sum(stats.values()), sum(cmatrix.values())
     rpt = [Section("Detection results: ")]
-    if n > 0:
-        if sum(cmatrix.values()) > 0:
-            logger.debug("Confusion Matrix: %s" % cmatrix)
-        if args.metrics_only:
-            print(",".join(m))
-        elif n == 1:
-            print(r)
-        else:
-            rpt.append(Table([m], column_headers=h))
-            render(*rpt)
-    else:
+    if ns > 0:
         logger.debug("Statistics: %s" % stats)
-        if args.metrics_only:
-            print("-,-,-,-")
-        else:
-            data, tot = [], sum(stats.values())
+    if nc > 0:
+        logger.debug("Confusion Matrix: %s" % cmatrix)
+    if args.metrics_only:
+        print(",".join(m))
+    elif ns == 1:
+        print(r)
+    else:
+        if nc > 0:
+            rpt.append(Table([m], column_headers=h))
+        if ns > 0:
+            data = []
             for l, c in sorted(stats.items(), key=lambda x: x[0].lower()):
-                data.append([l, c, "%.2f%%" % (100 * c / tot)])
+                data.append([l, c, "%.2f%%" % (100 * c / ns)])
             if len(data) > 0:
                 rpt.append(Table(data, column_headers=["Label", "Count", "Percentage"]))
-                render(*rpt)
+        render(*rpt)
 
