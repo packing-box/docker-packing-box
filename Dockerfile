@@ -43,15 +43,15 @@ RUN apt-get -y install apt-transport-https apt-utils \
  && apt-get -y install libavcodec-dev libavformat-dev libavutil-dev libbsd-dev libboost-regex-dev libcapstone-dev \
                        libgirepository1.0-dev libelf-dev libffi-dev libfontconfig1-dev libgif-dev libjpeg-dev \
  && apt-get -y install libboost-program-options-dev libboost-system-dev libboost-filesystem-dev libc6-dev-i386 \
-                       libcairo2-dev libdbus-1-dev libegl1-mesa-dev libfreetype6-dev libfuse-dev libgl1-mesa-dev \
-                       libglib2.0-dev libglu1-mesa-dev libpulse-dev libssl-dev libsvm-dev libsvm-java libtiff5-dev \
-                       libudev-dev libxcursor-dev libxkbfile-dev libxml2-dev libxrandr-dev
+                       libdwarf-dev libcairo2-dev libdbus-1-dev libegl1-mesa-dev libfreetype6-dev libfuse-dev \
+                       libgl1-mesa-dev libglib2.0-dev libglu1-mesa-dev libpulse-dev libssl-dev libsvm-dev libsvm-java \
+                       libtiff5-dev libudev-dev libxcursor-dev libxkbfile-dev libxml2-dev libxrandr-dev
 # && apt-get -y install libgtk2.0-0:i386 \
 # install useful tools
 RUN apt-get -y install colordiff colortail cython3 dos2unix dosbox git golang kmod less ltrace meson tree strace \
  && apt-get -y install iproute2 nftables nodejs npm python3-setuptools python3-pip swig vim weka x11-apps yarnpkg \
  && apt-get -y install bc curl ffmpeg imagemagick pev psmisc tesseract-ocr unrar unzip wget zstd \
- && apt-get -y install bats binwalk ent foremost jq tmate tmux visidata xdotool xterm xvfb \
+ && apt-get -y install bats binutils-dev binwalk dwarfdump ent foremost jq tmate tmux visidata xdotool xterm xvfb \
  && wget -qO /tmp/bat.deb https://github.com/sharkdp/bat/releases/download/v0.18.2/bat-musl_0.18.2_amd64.deb \
  && dpkg -i /tmp/bat.deb \
  && rm -f /tmp/bat.deb
@@ -155,7 +155,7 @@ COPY --chown=$USER $FILES/utils/* $UOPT/utils/
 COPY --chown=$USER $FILES/tools/* $UOPT/tools/
 RUN mv $UOPT/tools/help $UOPT/tools/?
 # copy executable format related data
-COPY --chown=$USER $PBWS/data $UOPT/data
+COPY --chown=$USER src/data $PBWS/data
 # copy and install pbox (main library for tools) and pboxtools (lightweight library for items)
 COPY --chown=$USER src/lib /tmp/lib
 RUN pip3 install --user --no-warn-script-location --break-system-packages /tmp/lib/ \
