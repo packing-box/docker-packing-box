@@ -24,7 +24,7 @@ __all__ = ["DumpedModel", "Model"] + _algo + _metrics
 FLOAT_FORMAT = "%.6f"
 
 
-class BaseModel(AbstractEntity):
+class BaseModel(Entity):
     """ Base class for a model. """
     def __len__(self):
         """ Get the length of model's pipeline. """

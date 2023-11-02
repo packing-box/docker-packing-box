@@ -24,7 +24,7 @@ def backup(f):
     return _wrapper
 
 
-class Dataset(AbstractEntity):
+class Dataset(Entity):
     """ Folder structure:
     
     [name]

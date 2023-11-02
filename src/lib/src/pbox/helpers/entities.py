@@ -1,13 +1,12 @@
 # -*- coding: UTF-8 -*-
-from _pickle import UnpicklingError
 from tinyscript import functools, inspect, itertools, logging, re
 from tinyscript.helpers import classproperty, Path
 
 
-__all__ = ["AbstractEntity"]
+__all__ = ["Entity"]
 
 
-class AbstractEntity:
+class Entity:
     """ This class implements some base functionalities for abstractions based on folders
          (i.e Dataset, Experiment, Model). """
     def __len__(self):
@@ -23,15 +22,32 @@ class AbstractEntity:
         """ Custom entity's string. """
         return self.name
     
-    @classmethod
-    def _purge(self, **kw):
-        """ Entity-specific purge method, to be called by AbstractEntity.purge. """
-        raise NotImplementedError
+    def exists(self):
+        """ Dummy exists method. """
+        return self.path.exists()
+    
+    def is_empty(self):
+        """ Check if this instance has no data. """
+        return len(self) == 0
+    
+    def is_valid(self):
+        """ Check if this instance has a valid structure. """
+        return self.__class__.check(self.path)
     
     @property
     def basename(self):
         """ Dummy shortcut for entity's path.basename. """
         return self.path.basename
+    
+    @property
+    def name(self):
+        """ Dummy alias to entity's basename. """
+        return self.basename
+    
+    @classmethod
+    def _purge(self, **kw):
+        """ Entity-specific purge method, to be called by Entity.purge. """
+        raise NotImplementedError
     
     @classmethod
     def check(cls, folder, **kw):
@@ -46,18 +62,6 @@ class AbstractEntity:
         """ Count existing entity's occurrences. """
         return sum(1 for _ in Path(config['%ss' % cls.__name__.lower()]).listdir(cls.check))
     
-    def exists(self):
-        """ Dummy exists method. """
-        return self.path.exists()
-    
-    def is_empty(self):
-        """ Check if this instance has no data. """
-        return len(self) == 0
-    
-    def is_valid(self):
-        """ Check if this instance has a valid structure. """
-        return self.__class__.check(self.path)
-    
     @classmethod
     def iteritems(cls, instantiate=False):
         """ Iterate over entity's occurrences, instantiating them if required. """
@@ -67,6 +71,7 @@ class AbstractEntity:
     @classmethod
     def load(cls, folder, **kw):
         """ Validate the target folder and instantiate the right entity class. """
+        from _pickle import UnpicklingError
         classes, current_cls = [], cls
         # use cases:
         #  (1) BaseModel > [Model, DumpedModel]
@@ -74,7 +79,7 @@ class AbstractEntity:
         #  (3) Experiment
         # first, find the highest entity class in inheritance path (i.e. Dataset, BaseModel or Experiment)
         while hasattr(current_cls, "__base__"):
-            if current_cls.__base__.__name__ == "AbstractEntity":
+            if current_cls.__base__.__name__ == "Entity":
                 break
             current_cls = current_cls.__base__
         # then, parse the current class and its children (in this order of precedence)
@@ -112,6 +117,15 @@ class AbstractEntity:
             purged = True
         return purged
     
+    @classmethod
+    def validate(cls, folder, **kw):
+        """ Validation method, custom for each entity. """
+        raise NotImplementedError
+    
+    @classproperty
+    def instances(cls):
+        return [cls(n) for n in cls.names]
+    
     @classproperty
     def logger(cls):
         if not hasattr(cls, "_logger"):
@@ -120,13 +134,7 @@ class AbstractEntity:
             logging.setLogger(name)
         return cls._logger
     
-    @property
-    def name(self):
-        """ Dummy alias to entity's basename. """
-        return self.basename
-    
-    @classmethod
-    def validate(cls, folder, **kw):
-        """ Validation method, custom for each entity. """
-        raise NotImplementedError
+    @classproperty
+    def names(cls):
+        return [p.basename for p in Path(config['%ss' % cls.__name__.lower()]).listdir(cls.check)]
 
