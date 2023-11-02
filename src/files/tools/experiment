@@ -58,6 +58,7 @@ if __name__ == '__main__':
                               help="import the target YAML configuration file(s) within the experiment"
                                    "\n {%s}" % ",".join(defs))
         sparsers.add_parser("list", help="list the existing experiments")
+        sparsers.add_parser("replay", help="replay commands from experiment's commanrds.rc")
         sparsers.add_parser("show", help="get an overview of the experiment")
     initialize(noargs_action="usage")
     configure_logging(args.verbose)

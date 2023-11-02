@@ -1,6 +1,6 @@
 # -*- coding: UTF-8 -*-
-from tinyscript import logging
-from tinyscript.helpers import confirm, lazy_object, user_input, Path
+from tinyscript import logging, re
+from tinyscript.helpers import confirm, execute_and_log as run, lazy_object, user_input, Path
 from tinyscript.report import *
 
 from .dataset import *
@@ -15,12 +15,12 @@ COMMIT_VALID_COMMANDS = [
     # OS commands
     "cd", "cp", "mkdir", "mv",
     # packing-box commands
-    "dataset", "detector", "model", "packer", "unpacker", "visualizer",
+    "analyzer", "dataset", "detector", "model", "packer", "unpacker", "visualizer",
 ]
 
 
 def __init():
-    class Experiment(AbstractEntity):
+    class Experiment(Entity):
         """ Folder structure:
         
         [name]
@@ -68,11 +68,11 @@ def __init():
                     conf = config[name]
                 return conf
             # case 3: 'name' matches a dataset from the experiment ; return a (Fileless)Dataset instance
-            for ds in self.path.joinpath("datasets").listdir():
+            for ds in self.path.joinpath("datasets").listdir(Dataset.check):
                 if name == ds.stem:
                     return Dataset.load(ds)
             # case 4: 'name' matches a model from the experiment ; return a (Dumped)Model instance
-            for md in self.path.joinpath("models").listdir():
+            for md in self.path.joinpath("models").listdir(Model.check):
                 if name == md.stem:
                     return Model.load(md)
             raise KeyError(name)
@@ -83,6 +83,7 @@ def __init():
         
         def _import(self, source=None, **kw):
             """ Import a custom YAML configuration file or set of YAML configuration files. """
+            l = Experiment.logger
             p_src = Path(source)
             p_exp = self.path.joinpath("conf").joinpath(p_src.basename)
             try:
@@ -158,10 +159,44 @@ def __init():
                                          #  argument defaults to False), it create a blank structure if needed, hence
                                          #  no validation required (i.e. with using Experiment.load(...))
         
+        def replay(self, stop=True, **kw):
+            """ Replay registered commands (useful when a change in pbox or configuration files have been applied). """
+            # first, purge datasets, models and figures
+            Dataset.purge("all")
+            Model.purge("all")
+            if self.path.join("figures").exists():
+                for fig in self.path.join("figures").listdir():
+                    fig.remove(False)
+            # now, replay commands
+            for cmd in self.commands:
+                try:
+                    out, err, retc = run(cmd, **kw)
+                except Exception as e:
+                    if stop:
+                        raise
+                    self.logger.error(str(e))
+        
         def show(self, **kw):
             """ Show an overview of the experiment. """
             Dataset.list()
             Model.list()
+        
+        @property
+        def commands(self):
+            with self['commands'].open() as f:
+                return [l.strip() for l in f if l.strip() != "" or not l.strip().startswith("#")]
+        
+        @property
+        def configs(self):
+            return [p.stem for p in self.path.joinpath("conf").listdir(lambda p: p.extension == ".yml")]
+        
+        @property
+        def datasets(self):
+            return Dataset.names
+        
+        @property
+        def models(self):
+            return Model.names
         
         @classmethod
         def list(cls, **kw):
