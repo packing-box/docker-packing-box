@@ -1,5 +1,6 @@
 # -*- coding: UTF-8 -*-
-from tinyscript import functools, os, ts
+from tinyscript import functools, os
+from tinyscript.helpers import Path
 
 from ..__common__ import *
 
@@ -18,7 +19,7 @@ def __init_CS2CS_MODE():
         CS_ARCH_X86:   {32: CS_MODE_32,     64: CS_MODE_64},
     }
     return CS2CS_MODE
-ts.lazy_load_object("CS2CS_MODE", __init_CS2CS_MODE)
+lazy_load_object("CS2CS_MODE", __init_CS2CS_MODE)
 
 
 def __init_LIEF2CS_ARCH():
@@ -37,7 +38,7 @@ def __init_LIEF2CS_ARCH():
         ARCH.XCORE: {32: CS_ARCH_XCORE, 64: CS_ARCH_XCORE},
     }
     return LIEF2CS_ARCH
-ts.lazy_load_object("LIEF2CS_ARCH", __init_LIEF2CS_ARCH)
+lazy_load_object("LIEF2CS_ARCH", __init_LIEF2CS_ARCH)
 
 
 def __init_lief(lief):
@@ -59,7 +60,7 @@ def __init_lief(lief):
         return _wrapper
     # redefine parsing function to throw an error when the binary could not be parsed
     def _lief_parse(target, *args, **kwargs):
-        target = ts.Path(target, expand=True)
+        target = Path(target, expand=True)
         if not target.exists():
             raise OSError("'%s' does not exist" % target)
         binary = _handle_errors(lief._parse)(str(target))
@@ -79,7 +80,7 @@ def __init_lief(lief):
     lief._lief.PE.Header.__getitem__ = __getitem__
     lief._lief.PE.OptionalHeader.__getitem__ = __getitem__
     return lief
-ts.lazy_load_module("lief", postload=__init_lief)
+lazy_load_module("lief", postload=__init_lief)
 
 
 class Binary(AbstractParsedExecutable):

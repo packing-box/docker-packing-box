@@ -8,6 +8,8 @@ __all__ = ["Alterations"]
 
 
 class Alteration(dict2):
+    _multi_expr = True
+    
     def __call__(self, executable, namespace, **kwargs):
         self._exe = executable
         # loop the specified number of times or simply once if not specified

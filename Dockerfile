@@ -48,7 +48,7 @@ RUN apt-get -y install apt-transport-https apt-utils \
                        libtiff5-dev libudev-dev libxcursor-dev libxkbfile-dev libxml2-dev libxrandr-dev
 # && apt-get -y install libgtk2.0-0:i386 \
 # install useful tools
-RUN apt-get -y install colordiff colortail cython3 dos2unix dosbox git golang kmod less ltrace meson tree strace \
+RUN apt-get -y install colordiff colortail cython3 dos2unix dosbox git golang kmod less ltrace meson nasm tree strace \
  && apt-get -y install iproute2 nftables nodejs npm python3-setuptools python3-pip swig vim weka x11-apps yarnpkg \
  && apt-get -y install bc curl ffmpeg imagemagick pev psmisc tesseract-ocr unrar unzip wget zstd \
  && apt-get -y install bats binutils-dev binwalk dwarfdump ent foremost jq tmate tmux visidata xdotool xterm xvfb \

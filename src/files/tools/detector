@@ -106,13 +106,13 @@ if __name__ == '__main__':
     elif ns == 1:
         print(r)
     else:
-        if nc > 0:
-            rpt.append(Table([m], column_headers=h))
         if ns > 0:
             data = []
             for l, c in sorted(stats.items(), key=lambda x: x[0].lower()):
                 data.append([l, c, "%.2f%%" % (100 * c / ns)])
             if len(data) > 0:
                 rpt.append(Table(data, column_headers=["Label", "Count", "Percentage"]))
+        if nc > 0:
+            rpt.append(Table([m], column_headers=h))
         render(*rpt)
 
