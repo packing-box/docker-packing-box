@@ -34,8 +34,9 @@
   },
   "packing-box": {
     "config": "`list-config-keys`",
-    "list": "analyzer config detector packer unpacker",
-    "setup|test": "analyzer detector packer unpacker"
+    "list": "alterations analyzer config detector features packer unpacker",
+    "setup": "analyzer detector packer unpacker",
+    "test": "alterations analyzer detector features packer unpacker"
   },
   "unpacker": {
     "*": "`list-working-unpackers`"
