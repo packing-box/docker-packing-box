@@ -20,7 +20,6 @@ AinEXE:
   formats:
     - PE32
   source: https://defacto2.net/f/a520164?filename=packers.zip
-  status: info
 
 Alienyze:
   categories:
@@ -72,7 +71,6 @@ Andromeda:
     - https://blog.avast.com/andromeda-under-the-microscope
     - https://blog.morphisec.com/andromeda-tactics-analyzed
   source: https://www.trendmicro.com/vinfo/us/threat-encyclopedia/malware/andromeda
-  status: info
 
 APack:
   categories:
@@ -100,7 +98,6 @@ Armadillo:
     - PE32
     - PE64
   source: https://web.archive.org/web/20030324043555/https://www.exetools.com/files/protectors/win/armd252b2.zip
-  status: info
 
 ASPack:
   categories:
@@ -181,7 +178,10 @@ BurnEye:
     - ELF32
   references:
     - https://docplayer.net/86668430-Modern-linux-malware-exposed.html
-  source: https://packetstormsecurity.com/files/29691/burneye-1.0-linux-static.tar.gz.html
+    - https://github.com/packz/binary-encryption/tree/master/binary-encryption/burneye-stripped
+    - https://packetstormsecurity.com/files/29691/burneye-1.0-linux-static.tar.gz.html
+    - https://packetstormsecurity.com/files/30648/burneye-1.0.1-src.tar.bz2.html
+  source: https://dl.packetstormsecurity.net/groups/teso/burneye-1.0.1-src.tar.bz2
   status: broken
 
 BZEXE:
@@ -224,7 +224,6 @@ ConfuserEx:
     - https://github.com/yck1509/ConfuserEx
     - https://opencollective.com/confuserex
   source: https://github.com/mkaring/ConfuserEx
-  status: info
 
 Crinkler:
   categories:
@@ -234,7 +233,6 @@ Crinkler:
   formats:
     - PE
   source: https://github.com/runestubbe/Crinkler
-  status: info
 
 Crunch:
   formats:
@@ -289,6 +287,21 @@ EXE32Pack:
     - wine: exe32pack.exe
   source: https://exe32pack.apponic.com
 
+EXE_Bundle:
+  categories:
+    - bundler
+    - compressor
+    - protector
+  comment: Trial version.
+  description: EXEBundle acts as one source for a file joiner (exe binder), protector and compressor, thus making the tasks of its application users easy and highly effective.
+  formats:
+    - PE
+  references:
+    - https://www.webtoolmaster.com/index.htm#ExeBundle
+    - https://www.softpedia.com/get/Security/Security-Related/EXE-Stealth-Packer.shtml
+  source: https://www.webtoolmaster.com/download/EBundle.exe
+  status: commercial
+
 EXE_Stealth:
   categories:
     - protector
@@ -300,9 +313,9 @@ EXE_Stealth:
     - copy: exestealth.exe $OPT/exestealth/exestealth.exe
     - wine: exestealth.exe
   references:
+    - https://www.webtoolmaster.com/index.htm#ExeStealth
     - http://www.webtoolmaster.com/exestealth-tutorial.htm
-    - http://www.webtoolmaster.com/download/ExeStealth.exe
-  source: http://www.webtoolmaster.com/index.htm#ExeStealth
+  source: https://www.webtoolmaster.com/download/ExeStealth.exe
   status: commercial
 
 ElecKey:
@@ -488,12 +501,21 @@ hXOR-Packer:
       steps:
         - hxor-packer {{executable}} {{executable}} -e {{key[randint(0,16777215)]}}
 
+Huan:
+  categories:
+    - cryptor
+  description: Encrypted PE Loader Generator that I developed for learning PE file structure and PE loading processes. It encrypts the PE file to be run with different keys each time and embeds it in a new section of the loader binary.
+  formats:
+    - PE64
+  references:
+    - https://github.com/mandiant/capa-rules/blob/master/anti-analysis/packer/huan/packed-with-huan.yml
+  source: https://github.com/frkngksl/Huan
+
 JDPack:
   description: N/A
   formats:
     - PE32
   source: http://www.tlzj18.com
-  status: info
 
 Kkrunchy:
   categories:
@@ -549,6 +571,7 @@ MaskPE:
     - PE
   references:
     - https://www.hexacorn.com/blog/2012/10/14/random-stats-from-1-2m-samples-pe-section-names
+    - https://github.com/mandiant/capa-rules/blob/65eae8a7d67af66a1a9f3a3bdc95cb347cc9b5e1/nursery/packed-with-maskpe.yml
 
 MEW:
   categories:
@@ -614,7 +637,6 @@ Morphine:
     - MSDOS
     - PE32
   source: https://github.com/bowlofstew/rootkit.com/tree/master/hf/Morphine27
-  status: info
 
 MPRESS:
   categories:
@@ -656,7 +678,6 @@ Muncho:
   references:
     - https://www.pouet.net/prod.php?which=51324
   source: https://demozoo.org/productions/175774/
-  status: info
 
 NSPack:
   categories:
@@ -666,7 +687,6 @@ NSPack:
     - PE32
     - PE64
   source: https://webscene.ir/tools/show/NsPack-and-crack-3.7
-  status: info
 
 NeoLite:
   categories:
@@ -678,7 +698,6 @@ NeoLite:
     - http://www.neoworx.com
     - http://www.neoworx.com/download/NeoLte20.exe
   source: http://protools.narod.ru/packers.htm
-  status: info
 
 NetCrypt:
   categories:
@@ -710,7 +729,6 @@ Origami:
   formats:
     - .NET
   source: https://github.com/dr4k0nia/Origami
-  status: info
 
 Packman:
   categories:
@@ -719,7 +737,6 @@ Packman:
   formats:
     - PE32
   source: https://www.portablefreeware.com/?id=847
-  status: info
 
 Pakkero:
   categories:
@@ -753,7 +770,6 @@ Papaw:
   formats:
     - ELF
   source: https://github.com/dimkr/papaw
-  status: info
 
 PE-Packer:
   categories:
@@ -780,7 +796,6 @@ PE-Toy:
   formats:
     - PE32
   source: https://github.com/r0ngwe1/petoy
-  status: info
 
 PECompact:
   categories:
@@ -849,8 +864,9 @@ PESpin:
   description: PESpin is a Windows executable files protector, compressor coded in pure Win32ASM using MASM. Overall, this application will enable the compression of the entire executable - code, data and resources, thus leaving the file protected against patching or disassembling.
   formats:
     - PE32
+  references:
+    - https://github.com/mandiant/capa-rules/blob/master/anti-analysis/packer/pespin/packed-with-pespin.yml
   source: http://downloads.fyxm.net/PESpin-95477.html
-  status: info
 
 PEtite:
   categories:
@@ -867,6 +883,7 @@ PEtite:
   references:
     - https://www.aldeid.com/wiki/Category:Digital-Forensics/Computer-Forensics/Anti-Reverse-Engineering/Packers/Petite
     - https://github.com/fireeye/capa-rules/blob/master/anti-analysis/packer/petite/packed-with-petite.yml
+    - https://github.com/mandiant/capa-rules/blob/master/anti-analysis/packer/petite/packed-with-petite.yml
   source: https://www.un4seen.com/petite
   status: ok
   steps:
@@ -918,6 +935,7 @@ RLPack:
     - wine: RLPack.exe
   references:
     - https://storage.ey.md/Technology%%20Related/Programming%%20%%26%%20Reversing/Tuts4You%%20Collection/Unpacking%%20Tutorials/RLPack%%201.21%%20%%28Unpacking%%29.rar
+    - https://github.com/mandiant/capa-rules/blob/master/anti-analysis/packer/rlpack/packed-with-rlpack.yml
   source: https://www.softpedia.com/get/Programming/Packers-Crypters-Protectors/RLPack-Basic-Edition.shtml
 
 RPCrypt:
@@ -933,7 +951,6 @@ SEPacker:
   formats:
     - PE32
   source: https://sourceforge.net/projects/sepacker
-  status: info
 
 Shiva:
   categories:
@@ -948,6 +965,7 @@ Shiva:
     - ln: shiva
   references:
     - https://docplayer.net/86668430-Modern-linux-malware-exposed.html
+    - https://blackhat.com/presentations/bh-federal-03/bh-federal-03-eagle/bh-fed-03-eagle.pdf
   source: https://packetstormsecurity.com/files/31087/shiva-0.95.tar.gz.html
   status: broken
 
@@ -1092,6 +1110,8 @@ Themida:
   formats:
     - PE32
     - PE64
+  references:
+    - https://github.com/mandiant/capa-rules/blob/master/anti-analysis/packer/themida/packed-with-themida.yml
   source: https://www.oreans.com/themida.php
   status: commercial
 
@@ -1111,8 +1131,9 @@ Upack:
   description: Upack can pack executable files of Windows PE format files with almost the best compression ratio. Whereas DOS-EXEs(MZ), Win3.x-EXE/DLLs(NE), and any other platform programs are not supported by Upack. It is only for compression, not for protection mainly.
   formats:
     - PE
+  references:
+    - https://github.com/mandiant/capa-rules/blob/master/anti-analysis/packer/upack/packed-with-upack.yml
   source: https://www.sac.sk/download/pack/upack399.rar
-  status: info
 
 UPX:
   categories:
@@ -1225,6 +1246,7 @@ VProtect:
     - PE
   references:
     - https://www.hexacorn.com/blog/2012/10/14/random-stats-from-1-2m-samples-pe-section-names
+    - https://github.com/mandiant/capa-rules/blob/master/anti-analysis/packer/vmprotect/packed-with-vmprotect.yml
 
 Ward:
   categories:
@@ -1268,13 +1290,13 @@ WinUPack:
     - MSDOS
     - PE32
   source: http://downloads.fyxm.net/Portable-WinUpack-13975.html
-  status: info
 
 WWPack:
   formats:
     - PE
   references:
     - https://www.hexacorn.com/blog/2012/10/14/random-stats-from-1-2m-samples-pe-section-names
+    - https://github.com/mandiant/capa-rules/blob/65eae8a7d67af66a1a9f3a3bdc95cb347cc9b5e1/nursery/packed-with-wwpack.yml
 
 Xor_Packer:
   categories:
@@ -1337,6 +1359,8 @@ Yoda_Protector:
   install:
     - unzip: $OPT/yoda-protector
     - wine: yP.exe
+  references:
+    - https://github.com/mandiant/capa-rules/blob/master/anti-analysis/packer/y0da/packed-with-y0da-crypter.yml
   source: http://yodap.sourceforge.net
   status: gui
 
