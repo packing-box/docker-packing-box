@@ -3,7 +3,7 @@ from bintropy import entropy
 from contextlib import suppress
 from datetime import datetime
 from tinyscript import hashlib, re, shutil
-from tinyscript.helpers import lazy_load_module, Path, TempPath
+from tinyscript.helpers import Path, TempPath
 
 from .alterations import *
 from .alterations import __all__ as _alter
@@ -12,7 +12,7 @@ from .features import __all__ as _features
 from .parsers import get_parser
 from .visualization import *
 from .visualization import __all__ as _viz
-from ...helpers.formats import get_format_group
+from ...helpers.formats import *
 
 
 __all__ = ["is_exe", "Executable"] + _alter + _features + _viz
@@ -30,18 +30,6 @@ class Executable(Path):
     """
     FIELDS = ["realpath", "format", "signature", "size", "ctime", "mtime"]
     HASH = config['hash_algorithm']  # possible values: hashlib.algorithms_available
-    # NB: the best signature matched is the longest
-    SIGNATURES = {
-        '^Mach-O 32-bit ':                         "Mach-O32",
-        '^Mach-O 64-bit ':                         "Mach-O64",
-        '^Mach-O universal binary ':               "Mach-Ou",
-        '^MS-DOS executable\s*':                   "MSDOS",
-        '^PE32\+? executable (.+?)\.Net assembly': ".NET",
-        '^PE32 executable ':                       "PE32",
-        '^PE32\+ executable ':                     "PE64",
-        '^(set[gu]id )?ELF 32-bit ':               "ELF32",
-        '^(set[gu]id )?ELF 64-bit ':               "ELF64",
-    }
     
     def __new__(cls, *parts, **kwargs):
         data, fields = None, ["hash", "label"] + Executable.FIELDS
@@ -200,7 +188,8 @@ class Executable(Path):
     @cached_property
     def format(self):
         best_fmt, l = None, 0
-        for ftype, fmt in Executable.SIGNATURES.items():
+        # NB: the best signature matched is the longest
+        for ftype, fmt in SIGNATURES.items():
             if len(ftype) > l and self.filetype is not None and re.search(ftype, self.filetype) is not None:
                 best_fmt, l = fmt, len(ftype)
         return best_fmt
