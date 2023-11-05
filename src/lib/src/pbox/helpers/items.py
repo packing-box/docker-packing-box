@@ -1,7 +1,7 @@
 # -*- coding: UTF-8 -*-
 import builtins
 from tinyscript import inspect, logging, random, re
-from tinyscript.helpers import is_file, is_folder, lazy_load_module, lazy_load_object, set_exception, Path, TempPath
+from tinyscript.helpers import is_file, is_folder, set_exception, Path, TempPath
 from tinyscript.helpers.expressions import WL_NODES
 
 
@@ -9,11 +9,54 @@ lazy_load_module("yaml")
 set_exception("NotInstantiable", "TypeError")
 
 
-__all__ = ["dict2", "load_yaml_config", "select_features", "Item", "MetaBase", "MetaItem"]
+__all__ = ["dict2", "load_yaml_config", "select_features", "Item", "MetaBase", "MetaItem", "TEST_FILES"]
 
 _EVAL_NAMESPACE = {k: getattr(builtins, k) for k in ["abs", "divmod", "float", "hash", "hex", "id", "int", "len",
                                                      "list", "max", "min", "next", "oct", "ord", "pow", "range",
                                                      "range2", "round", "set", "str", "sum", "tuple", "type"]}
+TEST_FILES = {
+    'ELF32': [
+        "/usr/bin/perl",
+        "/usr/lib/wine/wine",
+        "/usr/lib/wine/wineserver32",
+        "/usr/libx32/crti.o",
+        "/usr/libx32/libpcprofile.so",
+    ],
+    'ELF64': [
+        "/bin/cat",
+        "/bin/ls",
+        "/bin/mandb",
+        "/usr/lib/openssh/ssh-keysign",
+        "/usr/lib/git-core/git",
+        "/usr/lib/x86_64-linux-gnu/crti.o",
+        "/usr/lib/x86_64-linux-gnu/libpcprofile.so",
+        "/usr/lib/ld-linux.so.2",
+    ],
+    'MSDOS': [
+        "~/.wine32/drive_c/windows/rundll.exe",
+        "~/.wine32/drive_c/windows/system32/gdi.exe",
+        "~/.wine32/drive_c/windows/system32/user.exe",
+        "~/.wine32/drive_c/windows/system32/mouse.drv",
+        "~/.wine32/drive_c/windows/system32/winaspi.dll",
+    ],
+    'PE32': [
+        "~/.wine32/drive_c/windows/winhlp32.exe",
+        "~/.wine32/drive_c/windows/system32/plugplay.exe",
+        "~/.wine32/drive_c/windows/system32/winemine.exe",
+        "~/.wine32/drive_c/windows/twain_32.dll",
+        "~/.wine32/drive_c/windows/twain_32/sane.ds",
+        "~/.wine32/drive_c/windows/system32/msscript.ocx",
+        "~/.wine32/drive_c/windows/system32/msgsm32.acm",
+    ],
+    'PE64': [
+        "~/.wine64/drive_c/windows/hh.exe",
+        "~/.wine64/drive_c/windows/system32/spoolsv.exe",
+        "~/.wine64/drive_c/windows/system32/dmscript.dll",
+        "~/.wine64/drive_c/windows/twain_64/gphoto2.ds",
+        "~/.wine64/drive_c/windows/system32/msscript.ocx",
+        "~/.wine64/drive_c/windows/system32/msadp32.acm",
+    ],
+}
 UNDEF_RESULT = "undefined"
 WL_EXTRA_NODES = ("arg", "arguments", "keyword", "lambda")
 
@@ -42,27 +85,34 @@ class dict2(dict):
         d.update(_EVAL_NAMESPACE)
         d.update(data)
         kwargs.update(getattr(self, "parameters", {}))
-        try:
-            r = eval2(self.result, d, {}, whitelist_nodes=WL_NODES + WL_EXTRA_NODES)
-            if len(kwargs) == 0:
-                return r
-        except NameError as e:
-            if not silent:
-                dict2._logger.debug("'%s' is either not computed yet or mistaken" % str(e).split("'")[1])
-            raise
-        except Exception as e:
-            if not silent:
-                dict2._logger.warning("Bad expression: %s" % self.result)
-                dict2._logger.error(str(e))
-                dict2._logger.debug("Variables:\n- %s" % \
-                                  "\n- ".join("%s(%s)=%s" % (k, type(v).__name__, v) for k, v in d.items()))
-            return
-        try:
-            return r(**kwargs)
-        except Exception as e:
-            if not silent:
-                dict2._logger.warning("Bad function: %s" % self.result)
-                dict2._logger.error(str(e))
+        # execute an expression from self.result (can be a single expression or a list of expressions to be chained)
+        def _exec(expr):
+            try:
+                r = eval2(expr, d, {}, whitelist_nodes=WL_NODES + WL_EXTRA_NODES)
+                if len(kwargs) == 0:  # means no parameter provided
+                    return r
+            except NameError as e:
+                if not silent:
+                    dict2._logger.debug("'%s' is either not computed yet or mistaken" % str(e).split("'")[1])
+                raise
+            except Exception as e:
+                if not silent:
+                    dict2._logger.warning("Bad expression: %s" % result)
+                    dict2._logger.error(str(e))
+                    dict2._logger.debug("Variables:\n- %s" % \
+                                      "\n- ".join("%s(%s)=%s" % (k, type(v).__name__, v) for k, v in d.items()))
+                return
+            try:
+                return r(**kwargs)
+            except Exception as e:
+                if not silent:
+                    dict2._logger.warning("Bad function: %s" % result)
+                    dict2._logger.error(str(e))
+        # now execute expression(s) ; support for multiple expressions must be explicitely enabled for the class
+        if getattr(self.__class__, "_multi_expr", False) and isinstance(self.result, (list, tuple)):
+            raise ValueError("List of expressions is not supported for the result of %s" % self.__class__.__name__)
+        retv = [_exec(result) for result in (self.result if isinstance(self.result, (list, tuple)) else [self.result])]
+        return retv[0] if len(retv) == 1 else tuple(retv)
 
 
 class MetaBase(type):
@@ -98,10 +148,45 @@ class MetaBase(type):
             return
         self._source = p
         self.registry = None  # reset the registry
+    
+    def test(self, files=None, keep=False, **kw):
+        """ Tests on some executable files. """
+        from tinyscript.helpers import execute_and_log as run
+        from .formats import expand_formats
+        from ..core.executable import Executable
+        d = TempPath(prefix="%s-tests-" % self.__name__.lower(), length=8)
+        self.__disp = []
+        self()  # force registry computation
+        for fmt in expand_formats("All"):
+            if fmt not in self.registry.keys():
+                self.logger.warning("no %s defined yet for '%s'" % (self.__name__.lower().rstrip("s"), fmt))
+                continue
+            l = [f for f in files if Executable(f).format in self._formats_exp] if files else TEST_FILES.get(fmt, [])
+            if len(l) == 0:
+                continue
+            self.logger.info(fmt)
+            for exe in l:
+                exe = Executable(exe, expand=True)
+                tmp = d.joinpath(exe.filename)
+                self.logger.debug(exe.filetype)
+                run("cp %s %s" % (exe, tmp))
+                n = tmp.filename
+                try:
+                    self(Executable(tmp))
+                    self.logger.success(n)
+                except Exception as e:
+                    if isinstance(e, KeyError) and exe.format is None:
+                        self.logger.error("unknown format (%s)" % exe.filetype)
+                        continue
+                    self.logger.failure(n)
+                    self.logger.exception(e)
+        if not keep:
+            self.logger.debug("rm -f %s" % str(d))
+            d.remove()
 
 
 def _apply(f):
-    """ Simple function detector or applying a function to the result of the decorated function. """
+    """ Simple decorator for applying an operation to the result of the decorated function. """
     def _wrapper(op):
         def _subwrapper(*a, **kw):
             return op(f(*a, **kw))
@@ -309,54 +394,64 @@ lazy_load_object("Item", _init_item)
 def load_yaml_config(cfg, no_defaults=(), parse_defaults=True):
     """ Load a YAML configuration, either as a single file or a folder with YAML files (in this case, loading
          defaults.yml in priority to get the defaults first). """
-    p, d = cfg if isinstance(cfg, Path) else Path(config[cfg]), {}
-    configs = list(p.listdir(lambda x: x.extension == ".yaml")) if p.is_dir() else [p]
-    # put defaults.yml in first position
-    configs = list(filter(lambda x: x.stem == "defaults", configs)) + \
-              list(filter(lambda x: x.stem != "defaults", configs))
-    # now parse YAML configurations
+    def _set(config):
+        if parse_defaults:
+            defaults = config.pop('defaults', {})
+            for params in [v for v in config.values()]:
+                for default, value in defaults.items():
+                    if default in no_defaults:
+                        raise ValueError("default value for parameter '%s' is not allowed" % default)
+                    if isinstance(value, dict):
+                        # example advanced defaults configuration:
+                        #   defaults:
+                        #     keep:
+                        #       match:
+                        #         - ^entropy*   (do not keep entropy-based features)
+                        #         - ^is_*       (do not keep boolean features)
+                        #       value: false
+                        value.pop('comment', None)
+                        if set(value.keys()) != {'match', 'value'}:
+                            raise ValueError("Bad configuration for default '%s' ; should be a dictionary with 'value'"
+                                             " and 'match' (format: list) as its keys" % default)
+                        v = value['value']
+                        for pattern in value['match']:
+                            for name2 in config.keys():
+                                # special case: boolean value ; in this case, set value for matching names and set
+                                #                                non-matching names to its opposite
+                                if isinstance(v, bool):
+                                    # in the advanced example here above, entropy-based and boolean features will not be
+                                    #  kept but all others will be
+                                    config[name2].setdefault(default, v if re.search(pattern, name2) else not v)
+                                    # this means that, if we want to keep additional features, we can still force
+                                    #  keep=true per feature declaration
+                                elif re.search(pattern, name2):
+                                    config[name2].setdefault(default, v)
+                    else:
+                        # example normal defaults configuration:
+                        #   defaults:
+                        #     keep:   false
+                        #     source: <unknown>
+                        params.setdefault(default, value)
+        return config
+    # get the list of configs ; may be:
+    #  - single YAML file
+    #  - folder with YAML files
+    p = cfg if isinstance(cfg, Path) else Path(config[cfg])
+    configs = list(p.listdir(lambda x: x.extension == ".yml")) if p.is_dir() else [p]
+    # separate defaults.yml from the list
+    defaults = list(filter(lambda x: x.stem == "defaults", configs))
+    configs = list(filter(lambda x: x.stem != "defaults", configs))
+    d = {}
+    if len(defaults) > 0:
+        with defaults[0].open() as f:
+            d = yaml.load(f, Loader=yaml.Loader)
+    # now parse YAML configurations, setting local defaults from child configs
     for c in configs:
         with c.open() as f:
-            d.update(yaml.load(f, Loader=yaml.Loader))
+            cfg = yaml.load(f, Loader=yaml.Loader)
+        d.update(_set(cfg or {}))
     # collect properties that are applicable for all the other features
-    if parse_defaults:
-        defaults = d.pop('defaults', {})
-    for name, params in d.items():
-        if parse_defaults:
-            for default, value in defaults.items():
-                if default in no_defaults:
-                    raise ValueError("default value for parameter '%s' is not allowed" % default)
-                if isinstance(value, dict):
-                    # example advanced defaults configuration:
-                    #   defaults:
-                    #     keep:
-                    #       match:
-                    #         - ^entropy*   (do not keep entropy-based features)
-                    #         - ^is_*       (do not keep boolean features)
-                    #       value: false
-                    value.pop('comment', None)
-                    if set(value.keys()) != {'match', 'value'}:
-                        raise ValueError("Bad configuration for default '%s' ; should be a dictionary with 'value' and "
-                                         "'match' (format: list) as its keys" % default)
-                    v = value['value']
-                    for pattern in value['match']:
-                        for name2 in d.keys():
-                            # special case: boolean value ; in this case, set value for matching names and set
-                            #                                non-matching names to its opposite
-                            if isinstance(v, bool):
-                                # in the advanced example here above, entropy-based and boolean features will not be
-                                #  kept but all others will be
-                                d[name2].setdefault(default, v if re.search(pattern, name2) else not v)
-                                # this means that, if we want to keep additional features, we can still force keep=true
-                                #  per feature declaration
-                            elif re.search(pattern, name2):
-                                d[name2].setdefault(default, v)
-                else:
-                    # example normal defaults configuration:
-                    #   defaults:
-                    #     keep:   false
-                    #     source: <unknown>
-                    params.setdefault(default, value)
+    for name, params in _set(d).items():
         yield name, params
 
 

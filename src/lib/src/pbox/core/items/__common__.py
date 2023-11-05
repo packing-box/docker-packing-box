@@ -1,12 +1,12 @@
 # -*- coding: UTF-8 -*-
 from os.path import expanduser
 from tinyscript import ensure_str, json, logging, os, random, re, shlex, subprocess
-from tinyscript.helpers import execute_and_log as run, execute as run2, lazy_object, urlparse, Path, TempPath
+from tinyscript.helpers import execute_and_log as run, execute as run2, urlparse, Path, TempPath
 from tinyscript.report import *
 
 from ..executable import Executable
 from ...helpers import *
-from ...helpers.items import _init_item
+from ...helpers.items import _init_item, TEST_FILES
 
 
 __all__ = ["Base"]
@@ -38,49 +38,6 @@ ERR_PATTERN = r"^\x07?\s*(?:\-\s*)?(?:\[(?:ERR(?:OR)?|\!)\]|ERR(?:OR)?\:)\s*"
 PARAM_PATTERN = r"{{([^\{\}]*?)(?:\[([^\{\[\]\}]*?)\])?}}"
 STATUS_DISABLED = ["broken", "commercial", "info", "useless"]
 STATUS_ENABLED = lazy_object(lambda: [s for s in STATUS.keys() if s not in STATUS_DISABLED + ["not installed"]])
-TEST_FILES = {
-    'ELF32': [
-        "/usr/bin/perl",
-        "/usr/lib/wine/wine",
-        "/usr/lib/wine/wineserver32",
-        "/usr/libx32/crti.o",
-        "/usr/libx32/libpcprofile.so",
-    ],
-    'ELF64': [
-        "/bin/cat",
-        "/bin/ls",
-        "/bin/mandb",
-        "/usr/lib/openssh/ssh-keysign",
-        "/usr/lib/git-core/git",
-        "/usr/lib/x86_64-linux-gnu/crti.o",
-        "/usr/lib/x86_64-linux-gnu/libpcprofile.so",
-        "/usr/lib/ld-linux.so.2",
-    ],
-    'MSDOS': [
-        "~/.wine32/drive_c/windows/rundll.exe",
-        "~/.wine32/drive_c/windows/system32/gdi.exe",
-        "~/.wine32/drive_c/windows/system32/user.exe",
-        "~/.wine32/drive_c/windows/system32/mouse.drv",
-        "~/.wine32/drive_c/windows/system32/winaspi.dll",
-    ],
-    'PE32': [
-        "~/.wine32/drive_c/windows/winhlp32.exe",
-        "~/.wine32/drive_c/windows/system32/plugplay.exe",
-        "~/.wine32/drive_c/windows/system32/winemine.exe",
-        "~/.wine32/drive_c/windows/twain_32.dll",
-        "~/.wine32/drive_c/windows/twain_32/sane.ds",
-        "~/.wine32/drive_c/windows/system32/msscript.ocx",
-        "~/.wine32/drive_c/windows/system32/msgsm32.acm",
-    ],
-    'PE64': [
-        "~/.wine64/drive_c/windows/hh.exe",
-        "~/.wine64/drive_c/windows/system32/spoolsv.exe",
-        "~/.wine64/drive_c/windows/system32/dmscript.dll",
-        "~/.wine64/drive_c/windows/twain_64/gphoto2.ds",
-        "~/.wine64/drive_c/windows/system32/msscript.ocx",
-        "~/.wine64/drive_c/windows/system32/msadp32.acm",
-    ],
-}
 
 
 def _init_base():
