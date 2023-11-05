@@ -1,7 +1,4 @@
 # -*- coding: UTF-8 -*-
-from tinyscript.helpers import lazy_object
-
-
 __all__ = ["Unpacker"]
 
 __initialized = False

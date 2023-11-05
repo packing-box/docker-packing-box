@@ -1,6 +1,6 @@
 # -*- coding: UTF-8 -*-
 from tinyscript import functools, json, logging
-from tinyscript.helpers import is_file, is_folder, lazy_load_module, Path
+from tinyscript.helpers import is_file, is_folder, Path
 
 lazy_load_module("pandas", alias="pd")
 

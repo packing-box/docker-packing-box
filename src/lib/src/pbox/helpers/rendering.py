@@ -1,7 +1,4 @@
 # -*- coding: UTF-8 -*-
-from tinyscript.helpers.common import lazy_object
-
-
 __all__ = ["progress_bar", "render", "NOK", "NOK_GREY", "OK", "OK_GREY", "STATUS"]
 
 

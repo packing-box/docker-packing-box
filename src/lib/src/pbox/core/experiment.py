@@ -1,6 +1,6 @@
 # -*- coding: UTF-8 -*-
 from tinyscript import logging, re
-from tinyscript.helpers import confirm, execute_and_log as run, lazy_object, user_input, Path
+from tinyscript.helpers import confirm, execute_and_log as run, user_input, Path
 from tinyscript.report import *
 
 from .dataset import *

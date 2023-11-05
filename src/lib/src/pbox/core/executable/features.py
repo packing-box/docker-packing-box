@@ -1,7 +1,7 @@
 # -*- coding: UTF-8 -*-
 from collections import deque
 from tinyscript import itertools, logging, re
-from tinyscript.helpers import is_generator, lazy_load_module, Path
+from tinyscript.helpers import is_generator, Path
 
 from ...helpers import dict2, expand_formats, load_yaml_config, MetaBase, FORMATS
 

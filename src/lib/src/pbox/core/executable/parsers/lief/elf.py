@@ -1,6 +1,4 @@
 # -*- coding: UTF-8 -*-
-from tinyscript.helpers import lazy_load_object
-
 from .__common__ import *
 
 

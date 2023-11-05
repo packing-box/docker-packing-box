@@ -1,6 +1,6 @@
 # -*- coding: UTF-8 -*-
 from functools import wraps
-from tinyscript.helpers import ints2hex, is_iterable, lazy_load_module, Path
+from tinyscript.helpers import ints2hex, is_iterable, Path
 
 from ...helpers import *
 

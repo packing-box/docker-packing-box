@@ -1,6 +1,6 @@
 # -*- coding: UTF-8 -*-
 from tinyscript import colored, hashlib, json, random, time
-from tinyscript.helpers import confirm, human_readable_size, lazy_load_module, slugify, Path, TempPath
+from tinyscript.helpers import confirm, human_readable_size, slugify, Path, TempPath
 from tinyscript.report import *
 
 from .plot import *

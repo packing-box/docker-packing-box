@@ -1,6 +1,5 @@
 # -*- coding: UTF-8 -*-
 from tinyscript import ensure_str, random, re, subprocess
-from tinyscript.helpers import lazy_object
 
 
 __all__ = ["Packer"]

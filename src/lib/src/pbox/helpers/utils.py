@@ -1,6 +1,5 @@
 # -*- coding: UTF-8 -*-
 from tinyscript import functools, re
-from tinyscript.helpers.common import lazy_load_module, lazy_object
 
 
 def set_font(*a):
@@ -13,8 +12,7 @@ lazy_load_module("yaml")
 
 
 __all__ = ["at_interrupt", "benchmark", "bin_label", "bold", "class_or_instance_method", "execute_and_get_values_list",
-           "get_counts", "lazy_object", "lazy_load_module", "mpl", "np", "plt", "shorten_str", "strip_version", "yaml",
-           "COLORMAP"]
+           "get_counts", "mpl", "np", "plt", "shorten_str", "strip_version", "yaml", "COLORMAP"]
 
 COLORMAP = {
     'red':        (255, 0,   0),

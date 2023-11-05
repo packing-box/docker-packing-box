@@ -1,7 +1,6 @@
 # -*- coding: UTF-8 -*-
 import builtins as bi
 from tinyscript import logging
-from tinyscript.helpers import lazy_load_module, lazy_object
 
 lazy_load_module("sklearn.pipeline", alias="sklpl")
 

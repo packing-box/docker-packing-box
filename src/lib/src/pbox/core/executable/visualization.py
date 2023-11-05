@@ -1,5 +1,5 @@
 # -*- coding: UTF-8 -*-
-from tinyscript.helpers import lazy_load_module, Path
+from tinyscript.helpers import Path
 
 
 __all__ = ["binary_diff_plot", "binary_diff_text"]

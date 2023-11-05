@@ -1,5 +1,5 @@
 # -*- coding: UTF-8 -*-
-from tinyscript.helpers import lazy_load_module, lazy_load_object, Path
+from tinyscript.helpers import Path
 
 from ....helpers.items import load_yaml_config
 
