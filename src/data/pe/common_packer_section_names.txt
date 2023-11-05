@@ -18,13 +18,13 @@ BitArts
 .c
 .ccg
 .ccg3p
-.charmve
+#.charmve  # used by packager for creating an installer
+.cobf
 .d
 DAStub
 .depack
 .e
 .eagle
-.ecode
 .edata
 .enigma1
 .enigma2
@@ -38,11 +38,12 @@ DAStub
 .FISHPEP
 FSG!
 Fuck
-.imrsiv
 .g
-.gentee
+#.gentee  # used by packager for creating an installer
 .h
+.huan
 .i
+.imrsiv
 .j
 .jdpack
 .k
@@ -66,8 +67,8 @@ MEW
 .naked2
 n-coded
 .n-coder
-.neolite
 .neolit
+.neolite
 .nPack
 .nsp0
 nsp0
@@ -102,7 +103,7 @@ PELOCKnt
 .perplex
 PESHiELD
 .petite
-.pinclie
+#.pinclie  # used by packager for creating an installer
 ProCrypt
 .profile
 .q
@@ -110,6 +111,7 @@ ProCrypt
 .RLPack
 .rmnet
 RCryptor
+.RCrypt
 .RPCrypt
 .s
 .seau
@@ -123,6 +125,7 @@ RCryptor
 .svkp
 .t
 Themida
+.themida
 .Themida
 .taz
 .tsuarch
@@ -144,13 +147,17 @@ UPX!
 VProtect
 .w
 .winapi
+.winlice
 WinLicen
-_winzip_
+.winzip
+#_winzip_  # used by packager for creating an installer
 .WWPACK
 .WWP32
 .x
+.x64
 .y
 .y0da
+.y0da_1
 yC
 .yP
 .yzpack
