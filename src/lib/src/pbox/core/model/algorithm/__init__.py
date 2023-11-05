@@ -20,7 +20,7 @@ def __init_metaalgo():
         def __getattribute__(self, name):
             # this masks some attributes for child classes (e.g. Algorithm.registry can be accessed, but when the
             #  registry of child classes is computed, the child classes, e.g. RF, won't be able to access RF.registry)
-            if name in ["get", "iteritems", "mro", "registry", "source"] and self._instantiable:
+            if name in ["get", "iteritems", "mro", "registry"] and self._instantiable:
                 raise AttributeError("'%s' object has no attribute '%s'" % (self.__name__, name))
             return super(MetaAlgorithm, self).__getattribute__(name)
         
@@ -84,12 +84,18 @@ def __init_algo():
             # this masks some attributes for child instances in the same way as for child classes
             if name in ["get", "iteritems", "mro", "registry"] and self._instantiable:
                 raise AttributeError("'%s' object has no attribute '%s'" % (self.__class__.__name__, name))
-            return super(Item, self).__getattribute__(name)
+            return super(Algorithm, self).__getattribute__(name)
         
         def is_weka(self):
             """ Simple method for checking if the algorithm is based on a Weka class. """
             from .weka import WekaClassifier
             return self.base.__base__ is WekaClassifier
+        
+        @property
+        def source(self):
+            if not hasattr(self, "_source"):
+                self.__class__._source = ""
+            return self.__class__._source
     # ensure it initializes only once (otherwise, this loops forever)
     if not __initialized:
         __initialized = True
