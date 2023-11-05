@@ -31,3 +31,6 @@ alias csview='visidata --csv-delimiter ";" $@'
 
 # trid alias for setting LC_ALL
 alias trid='LC_ALL=C trid -d:/usr/bin/triddefs.trd'
+
+# Shortcut for pip install
+alias pip-install="pip install --user --no-warn-script-location --break-system-packages"

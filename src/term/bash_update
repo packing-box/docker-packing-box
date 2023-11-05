@@ -10,10 +10,11 @@ system-update() {
 
 # pip-update
 pip-upgrade() {
-  sudo pip3 freeze - local \
+  python3 -m pip -q install --user --no-warn-script-location --break-system-packages --upgrade pip
+  pip freeze - local \
     | grep -v "^\-e" \
     | cut -d = -f 1 \
-    | xargs -n1 pip3 install --user --break-system-packages
+    | xargs -n1 pip -q install --user --no-warn-script-location --break-system-packages --upgrade
 }
 
 # packing-box update command (development)
@@ -30,10 +31,10 @@ pbox-update() {
   __package_update() {
     if [ ! "$*" = "-n" ] && [ ! "$*" = "--no-internet" ] && [ $ret -eq 0 ]; then
       printf "${CYA}Upgrading pbox library...${RST}\n"
-      pip3 -qq install --user --no-warn-script-location --break-system-packages --upgrade /mnt/share/src/lib/
+      pip -qq install --user --no-warn-script-location --break-system-packages --upgrade /mnt/share/src/lib/
     else
       printf "${CYA}Upgrading pbox library (ignore package index)...${RST}\n"
-      pip3 -qq install --user --no-warn-script-location --break-system-packages --no-index --no-build-isolation --upgrade /mnt/share/src/lib/
+      pip -qq install --user --no-warn-script-location --break-system-packages --no-index --no-build-isolation --upgrade /mnt/share/src/lib/
     fi
   }
   if [ "$*" = "-h" ] || [ "$*" = "--help" ]; then
@@ -56,7 +57,7 @@ pbox-update() {
     mv -f $OPT/bin/userdb*.txt $OPT/detectors/
     if [ ! "$*" = "-n" ] && [ ! "$*" = "--no-internet" ] && [ $ret -eq 0 ]; then
       printf "${CYA}Upgrading Pip...${RST}\n"
-      pip3 -qq install --user --no-warn-script-location --break-system-packages --upgrade pip
+      pip -qq install --user --no-warn-script-location --break-system-packages --upgrade pip
     fi
     __package_update
     __completion_update
