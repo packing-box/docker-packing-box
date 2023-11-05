@@ -3,13 +3,14 @@ import builtins as bi
 from functools import cached_property
 from tinyscript import hashlib, logging
 from tinyscript.helpers import classproperty, positive_int, slugify, Path
-from warnings import filterwarnings
+from warnings import filterwarnings, simplefilter
 
 from .helpers.config import *
 
 
 filterwarnings("ignore", "Trying to unpickle estimator DecisionTreeClassifier")
 filterwarnings("ignore", "Behavior when concatenating bool-dtype and numeric-dtype arrays is deprecated")
+simplefilter("ignore", ResourceWarning)
 
 
 bi.cached_property = cached_property
