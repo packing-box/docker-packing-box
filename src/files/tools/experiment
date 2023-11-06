@@ -7,7 +7,7 @@ from tinyscript import *
 NAME = config.get('experiment')
 
 __script__      = "Experiment management tool"
-__version__     = "1.1.0"
+__version__     = "1.1.1"
 __doc__         = """
 This tool aims to manage an experiment (a structure that can hold custom YAML configurations, datasets and models).
 """
@@ -50,7 +50,7 @@ if __name__ == '__main__':
         sparsers.add_parser("compress", help="convert the datasets to fileless datasets")
         ch = sorted(["commands", "README"] + defs)
         sparsers.add_parser("edit", help="edit the README file or a YAML configuration file") \
-                .add_argument("config", nargs="?", default="README", metavar="NAME", choices=ch,
+                .add_argument("config", nargs="?", default="README", metavar="NAME",
                               help="edit the target experiment's README(.md), commands(.rc) or YAML configuration file"
                                    "\n {%s}" % ",".join(ch))
         sparsers.add_parser("import", help="import a YAML configuration file from anywhere") \
@@ -75,6 +75,8 @@ if __name__ == '__main__':
         logger.warning("Model cannot be named 'all' (reserved word)")
     elif args.command == "import":  # rationale: cannot name a method 'import' (Python-reserved word)
         Experiment(name)._import(**vars(args))
+    elif args.command == "edit":
+        Experiment(name).edit(config=args.config, force=True)
     else:
         getattr(Experiment(name), args.command)(**vars(args))
 

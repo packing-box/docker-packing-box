@@ -135,10 +135,17 @@ def __init():
             if not done:
                 l.warning("No dataset to be converted")
         
-        def edit(self, **kw):
+        def edit(self, force=False, **kw):
             """ Edit the README or a YAML configuration file. """
             l, conf = Experiment.logger, kw.get('config')
-            p = self[conf] # can be README.md, commands.rc or YAML config files
+            try:
+                p = self[conf] # can be README.md, commands.rc or YAML config files
+            except KeyError:
+                if force:
+                    p = self.path.joinpath("conf").joinpath(conf + ".yml" if not conf.endswith(".yml") else conf)
+                    edit_file(p, text=True, logger=l)
+                    return
+                raise
             try:
                 p_main, p_exp = config[conf], self.path.joinpath("conf").joinpath(conf + ".yml")
                 self._import(p_main, error=True)
