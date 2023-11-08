@@ -1,31 +1,5 @@
 # -*- coding: UTF-8 -*-
-__all__ = ["progress_bar", "render", "NOK", "NOK_GREY", "OK", "OK_GREY", "STATUS"]
-
-
-DEFAULT_BACKEND = "rich"
-
-def __init(*args):
-    from tinyscript import colored
-    def _wrapper():
-        if isinstance(args[0], dict):
-            return {k: colored(*v) if isinstance(v, tuple) else v for k, v in args[0].items()}
-        return colored(*args)
-    return _wrapper
-NOK      = lazy_object(__init("☒", "red"))
-NOK_GREY = lazy_object(__init("☒", "grey50"))
-OK       = lazy_object(__init("☑", "green"))
-OK_GREY  = lazy_object(__init("☑", "grey50"))
-STATUS   = lazy_object(__init({
-                            'broken':        ("☒", "magenta"),
-                            'commercial':    "  💰",
-                            'gui':           ("🗗", "cyan"),
-                            'info':          ("ⓘ", "grey"),
-                            'installed':     ("☑", "orange"),
-                            'not installed': ("☒", "red"),
-                            'ok':            ("☑", "green"),
-                            'todo':          ("☐", "grey"),
-                            'useless':       ("ⓘ", "grey"),
-                        }))
+__all__ = ["progress_bar", "render"]
 
 
 def progress_bar(unit="samples", silent=False, **kwargs):

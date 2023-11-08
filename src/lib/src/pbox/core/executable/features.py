@@ -3,7 +3,7 @@ from collections import deque
 from tinyscript import itertools, logging, re
 from tinyscript.helpers import is_generator, Path
 
-from ...helpers import dict2, expand_formats, load_yaml_config, MetaBase, FORMATS
+from ...helpers import dict2, expand_formats, load_yaml_config, MetaBase
 
 lazy_load_module("yaml")
 

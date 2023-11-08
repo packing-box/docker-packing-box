@@ -3,26 +3,7 @@ from tinyscript import functools, re
 
 
 __all__ = ["aggregate_formats", "collapse_formats", "expand_formats", "format_shortname", "get_format_group",
-           "ExeFormatDict", "FORMATS", "SIGNATURES"]
-
-
-FORMATS = {
-    'All':    ["ELF", "Mach-O", "MSDOS", "PE"],
-    'ELF':    ["ELF32", "ELF64"],
-    'Mach-O': ["Mach-O32", "Mach-O64", "Mach-Ou"],
-    'PE':     [".NET", "PE32", "PE64"],
-}
-SIGNATURES = {
-    '^Mach-O 32-bit ':                         "Mach-O32",
-    '^Mach-O 64-bit ':                         "Mach-O64",
-    '^Mach-O universal binary ':               "Mach-Ou",
-    '^MS-DOS executable\s*':                   "MSDOS",
-    '^PE32\+? executable (.+?)\.Net assembly': ".NET",
-    '^PE32 executable ':                       "PE32",
-    '^PE32\+ executable ':                     "PE64",
-    '^(set[gu]id )?ELF 32-bit ':               "ELF32",
-    '^(set[gu]id )?ELF 64-bit ':               "ELF64",
-}
+           "ExeFormatDict"]
 
 
 format_shortname = lambda s: re.sub(r"([-_\.])", "", s.lower())

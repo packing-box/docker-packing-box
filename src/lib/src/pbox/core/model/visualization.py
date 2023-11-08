@@ -8,9 +8,6 @@ from ...helpers import *
 lazy_load_module("sklearn.tree", alias="sktree")
 
 
-__all__ = ["VISUALIZATIONS"]
-
-
 def _preprocess(f):
     """ This decorator preprocesses the input data and updates the keyword-arguments with this fitted data. """
     @wraps(f)
@@ -264,11 +261,11 @@ def text_rf(classifier, **params):
     return s
 
 
-VISUALIZATIONS = {
+_VISUALIZATIONS = {
     'DT':  {'image': image_dt, 'text': text_dt},
     'kNN': {'image': image_knn, 'data': True},
     'RF':  {'image': image_rf, 'text': text_rf},
 }
 for a in ['AC', 'AP', 'Birch', 'DBSCAN', 'KMeans', 'MBKMeans', 'MS', 'OPTICS', 'SC']:
-    VISUALIZATIONS[a] = {'image': image_clustering, 'data': True, 'target': True}
+    _VISUALIZATIONS[a] = {'image': image_clustering, 'data': True, 'target': True}
 

@@ -21,7 +21,7 @@ def _parse_parameter(param):
 
 def __init():
     global __initialized
-    from .__common__ import _init_base, PARAM_PATTERN
+    from .__common__ import _init_base
     from ..executable import Executable
     Base = _init_base()
     

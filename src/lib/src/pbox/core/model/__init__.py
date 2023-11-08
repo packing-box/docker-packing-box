@@ -7,7 +7,6 @@ from .algorithm import *
 from .algorithm import __all__ as _algo
 from .metrics import *
 from .metrics import __all__ as _metrics
-from .visualization import *
 from ..dataset import *
 from ..executable import *
 from ..pipeline import *
@@ -606,8 +605,9 @@ class Model(BaseModel):
         if len(self.pipeline.steps) == 0:
             self.logger.warning("Model shall be trained before visualizing")
             return
+        from .visualization import _VISUALIZATIONS
         a = self._metadata['algorithm']
-        viz_dict = VISUALIZATIONS.get(a['name'], {})
+        viz_dict = _VISUALIZATIONS.get(a['name'], {})
         viz_func = viz_dict.get(["text", "image"][export])
         if viz_func is None:
             self.logger.warning("Visualization not available for this algorithm%s" % [" in text mode", ""][export])

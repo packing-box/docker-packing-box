@@ -1,7 +1,7 @@
 # -*- coding: UTF-8 -*-
 from tinyscript import logging
 
-from ...helpers import dict2, expand_formats, get_data, get_format_group, load_yaml_config, MetaBase, FORMATS
+from ...helpers import dict2, expand_formats, get_data, get_format_group, load_yaml_config, MetaBase
 
 
 __all__ = ["Alterations"]

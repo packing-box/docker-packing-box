@@ -2,7 +2,7 @@
 __all__ = ["mofeats", "MOFEATS"]
 
 
-MOFEATS = {}  #TODO
+_MOFEATS = {}  #TODO
 
 
 def mofeats(executable):  #TODO

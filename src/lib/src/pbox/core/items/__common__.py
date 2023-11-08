@@ -6,41 +6,13 @@ from tinyscript.report import *
 
 from ..executable import Executable
 from ...helpers import *
-from ...helpers.items import _init_item, TEST_FILES
 
 
 __all__ = ["Base"]
 
 
-# for a screenshot: "xwd -display $DISPLAY -root -silent | convert xwd:- png:screenshot.png"
-GUI_SCRIPT = """#!/bin/bash
-source ~/.bash_xvfb
-{{preamble}}
-SRC="$1"
-NAME="$(basename "$1" | sed 's/\(.*\)\..*/\1/')"
-DST="$HOME/.wine%(arch)s/drive_c/users/user/Temp/${1##*/}"
-FILE="c:\\\\users\\\\user\\\\Temp\\\\${1##*/}"
-cp -f "$SRC" "$DST"
-WINEPREFIX=\"$HOME/.wine%(arch)s\" WINEARCH=win%(arch)s wine "$EXE" &
-sleep .5
-{{actions}}
-ps -eaf | grep -v grep | grep -E -e "/bin/bash.+bin/$NAME" -e ".+/$NAME\.exe\$" \
-                                 -e 'bin/wineserver$' -e 'winedbg --auto' \
-                                 -e 'windows\\system32\\services.exe$' \
-                                 -e 'windows\\system32\\conhost.exe --unix' \
-                                 -e 'windows\\system32\\explorer.exe /desktop$' \
-        | awk {'print $2'} | xargs kill -9
-sleep .1
-mv -f "$DST" "$SRC"{{postamble}}
-"""
-OS_COMMANDS = subprocess.check_output("compgen -c", shell=True, executable="/bin/bash").splitlines()
-ERR_PATTERN = r"^\x07?\s*(?:\-\s*)?(?:\[(?:ERR(?:OR)?|\!)\]|ERR(?:OR)?\:)\s*"
-PARAM_PATTERN = r"{{([^\{\}]*?)(?:\[([^\{\[\]\}]*?)\])?}}"
-STATUS_DISABLED = ["broken", "commercial", "info", "useless"]
-STATUS_ENABLED = lazy_object(lambda: [s for s in STATUS.keys() if s not in STATUS_DISABLED + ["not installed"]])
-
-
 def _init_base():
+    from ...helpers.items import _init_item
     Item = _init_item()
     class Base(Item):
         """ Base item abstraction, for defining the common machinery for Detector, Packer and Unpacker.

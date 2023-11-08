@@ -4,11 +4,6 @@ __all__ = ["Detector"]
 __initialized = False
 
 
-THRESHOLDS = {
-    'absolute-majority': lambda l: round(l / 2. + .5),
-}
-
-
 def decide(results, **kwargs):
     """ Decision heuristic of the superdetector.
     

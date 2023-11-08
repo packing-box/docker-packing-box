@@ -4,7 +4,7 @@ from tinyscript.helpers import Path
 
 __all__ = ["binary_diff_plot", "binary_diff_text"]
 
-MIN_ZONE_WIDTH = 0
+_MIN_ZONE_WIDTH = 0
 
 # helper functions from Bintropy
 __btype   = lambda b: str(type(b)).split(".")[2]
@@ -29,13 +29,13 @@ def _characteristics_no_entropy(executable):
     # convert to 3-tuple (EP offset on plot, EP file offset, section name containing EP)
     data['entrypoint'] = None if ep is None else (int(ep // chunksize), ep, __secname(ep_section))
     # sections
-    data['sections'] = [(0, int(max(MIN_ZONE_WIDTH, binary.sections[0].offset // chunksize)), "Headers")] \
+    data['sections'] = [(0, int(max(_MIN_ZONE_WIDTH, binary.sections[0].offset // chunksize)), "Headers")] \
                        if len(binary.sections) > 0 else []
     for section in sorted(binary.sections, key=lambda x:x.offset):
         name = __secname(getattr(binary, "real_section_names", {}).get(section.name, section.name))
         start = max(data['sections'][-1][1] if len(data['sections']) > 0 else 0, int(section.offset // chunksize))
-        max_end = min(max(start + MIN_ZONE_WIDTH, int((section.offset + section.size) // chunksize)), n_samples)
-        data['sections'].append((int(min(start, max_end - MIN_ZONE_WIDTH)), int(max_end), name))
+        max_end = min(max(start + _MIN_ZONE_WIDTH, int((section.offset + section.size) // chunksize)), n_samples)
+        data['sections'].append((int(min(start, max_end - _MIN_ZONE_WIDTH)), int(max_end), name))
     # adjust the entry point (be sure that its position on the plot is within the EP section)
     if ep:
         ep_pos, _, ep_sec_name = data['entrypoint']

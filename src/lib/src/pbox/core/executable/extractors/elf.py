@@ -4,10 +4,10 @@
 from elftools.elf.elffile import ELFFile
 
 
-__all__ = ["elfeats", "ELFEATS"]
+__all__ = ["elfeats"]
 
 
-ELFEATS = {
+_ELFEATS = {
     'magic': "Sum of magic bytes",
     # 7f 45 4c 46 01 01 01 00 00 00 00 00 00 00 00 00 
     # 7f 45 4c 46 02 01 01 00 00 00 00 00 00 00 00 00 

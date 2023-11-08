@@ -2,13 +2,13 @@
 from .elf import *
 from .macho import *
 from .pe import *
-from ....helpers.formats import expand_formats, FORMATS
+from ....helpers.formats import expand_formats
 
 
 __all__ = ["Extractors"]
 
 
-EXTRACTORS = {
+_EXTRACTORS = {
     'ELF': {
         'elfeats': elfeats,
     },
@@ -35,7 +35,7 @@ class Extractors(dict):
             # consider most specific features first, then intermediate classes and finally the collapsed class "All"
             for flist in [expand_formats("All"), list(FORMATS.keys())[1:], ["All"]]:
                 for f in flist:
-                    for name, func in EXTRACTORS.get(f, {}).items():
+                    for name, func in _EXTRACTORS.get(f, {}).items():
                         for f2 in expand_formats(f):
                             Extractors.registry.setdefault(f2, {})
                             Extractors.registry[f2].setdefault(name, func)

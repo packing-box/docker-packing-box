@@ -11,14 +11,6 @@ from ..helpers import *
 __all__ = ["Experiment"]
 
 
-COMMIT_VALID_COMMANDS = [
-    # OS commands
-    "cd", "cp", "mkdir", "mv",
-    # packing-box commands
-    "analyzer", "dataset", "detector", "model", "packer", "unpacker", "visualizer",
-]
-
-
 def __init():
     class Experiment(Entity):
         """ Folder structure:

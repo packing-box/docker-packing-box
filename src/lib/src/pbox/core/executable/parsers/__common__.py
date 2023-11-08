@@ -7,7 +7,6 @@ from ....helpers.data import get_data
 
 __all__ = ["get_section_class", "supported_parsers", "AbstractParsedExecutable"]
 
-DEFAULT_SECTION_SLOTS = ["name", "size", "offset", "content", "virtual_address"]
 
 rawbytes = lambda s: bytes(getattr(s, "tobytes", lambda: s)())
 
@@ -113,6 +112,9 @@ class AbstractParsedExecutable(AbstractBase):
         elif hasattr(section, "name"):
             return self.section(section.name, original)
         raise ValueError(".section(...) only supports a section name or a parsed section object as input")
+    
+    def section_names(self, *sections):
+        return [s.name for s in (sections or self)]
     
     @property
     def checksum(self):

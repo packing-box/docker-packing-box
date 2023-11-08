@@ -11,22 +11,21 @@ __all__ = ["get_section_class", "lief", "Binary", "BuildConfig"]
 def __init_CS2CS_MODE():
     from capstone import CS_ARCH_ARM, CS_ARCH_ARM64, CS_ARCH_MIPS, CS_ARCH_PPC, CS_ARCH_X86, CS_MODE_ARM, \
                          CS_MODE_MIPS32, CS_MODE_MIPS64, CS_MODE_32, CS_MODE_64
-    CS2CS_MODE = {
+    return {
         CS_ARCH_ARM:   {32: CS_MODE_ARM,    64: CS_MODE_ARM},
         CS_ARCH_ARM64: {32: CS_MODE_ARM,    64: CS_MODE_ARM},
         CS_ARCH_MIPS:  {32: CS_MODE_MIPS32, 64: CS_MODE_MIPS64},
         CS_ARCH_PPC:   {32: CS_MODE_32,     64: CS_MODE_64},
         CS_ARCH_X86:   {32: CS_MODE_32,     64: CS_MODE_64},
     }
-    return CS2CS_MODE
-lazy_load_object("CS2CS_MODE", __init_CS2CS_MODE)
+lazy_load_object("_CS2CS_MODE", __init_CS2CS_MODE)
 
 
 def __init_LIEF2CS_ARCH():
     from capstone import CS_ARCH_ARM, CS_ARCH_ARM64, CS_ARCH_MIPS, CS_ARCH_PPC, CS_ARCH_SPARC, CS_ARCH_SYSZ, \
                          CS_ARCH_X86, CS_ARCH_XCORE
     from lief import ARCHITECTURES as ARCH
-    LIEF2CS_ARCH = {
+    return {
         ARCH.ARM:   {32: CS_ARCH_ARM,   64: CS_ARCH_ARM64},
         ARCH.ARM64: {32: CS_ARCH_ARM,   64: CS_ARCH_ARM64},
         ARCH.INTEL: {32: CS_ARCH_X86,   64: CS_ARCH_X86},
@@ -37,8 +36,7 @@ def __init_LIEF2CS_ARCH():
         ARCH.X86:   {32: CS_ARCH_X86,   64: CS_ARCH_X86},
         ARCH.XCORE: {32: CS_ARCH_XCORE, 64: CS_ARCH_XCORE},
     }
-    return LIEF2CS_ARCH
-lazy_load_object("LIEF2CS_ARCH", __init_LIEF2CS_ARCH)
+lazy_load_object("_LIEF2CS_ARCH", __init_LIEF2CS_ARCH)
 
 
 def __init_lief(lief):
@@ -108,8 +106,8 @@ class Binary(AbstractParsedExecutable):
     def disassemble(self, offset=None, n=32, mnemonic=False):
         from capstone import Cs, CS_MODE_LITTLE_ENDIAN as CS_MODE_LE
         offset, idc = offset or self.entrypoint, [32, 64][self.path.format[-2:] == "64"]
-        arch = LIEF2CS_ARCH[self.architecture][idc]
-        disassembler = Cs(arch, CS2CS_MODE.get(arch, {}).get(idc, CS_MODE_LE))
+        arch = _LIEF2CS_ARCH[self.architecture][idc]
+        disassembler = Cs(arch, _CS2CS_MODE.get(arch, {}).get(idc, CS_MODE_LE))
         r = []
         for i in disassembler.disasm(bytes(self.get_content_from_virtual_address(offset, n*8)), offset):
             if len(r) >= n:

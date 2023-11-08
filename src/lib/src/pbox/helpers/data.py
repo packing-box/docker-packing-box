@@ -7,8 +7,6 @@ lazy_load_module("pandas", alias="pd")
 
 __all__ = ["file_or_folder_or_dataset", "filter_data", "filter_data_iter", "get_data", "pd"]
 
-EXTENSIONS = [".json", ".txt"]
-
 
 def file_or_folder_or_dataset(method):
     """ This decorator allows to handle, as the first positional argument of an instance method, either an executable,
@@ -197,14 +195,14 @@ def get_data(exe_format):
     if group != exe_format:
         path = config['data'].joinpath(_name(group))
         if path.exists():
-            for datafile in path.listdir(lambda p: p.extension in EXTENSIONS):
+            for datafile in path.listdir(lambda p: p.extension in DATA_EXTENSIONS):
                 if datafile.stem.endswith("_" + _name(exe_format)):
                     data["_".join(datafile.stem.split("_")[:-1]).upper()] = _open(datafile)
     # then the files without specific mention in a subfolder of config['data'] that matches a format class and
     #  finally the files without specific mention at the root of config['data']
     for path in [config['data'].joinpath(_name(group)), config['data']]:
         if path.exists():
-            for datafile in path.listdir(lambda p: p.extension in EXTENSIONS):
+            for datafile in path.listdir(lambda p: p.extension in DATA_EXTENSIONS):
                 if not datafile.stem.endswith("_" + _name(exe_format)):
                     c = datafile.stem.upper()
                     data[c] = _add(_open(datafile), data[c]) if c in data else _open(datafile)

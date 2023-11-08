@@ -12,43 +12,8 @@ def __init_skm(*a):
 lazy_load_module("sklearn.metrics", alias="skm", postload=__init_skm)
 
 
-__all__ = ["classification_metrics", "clustering_metrics", "regression_metrics",
-           "highlight_best", "metric_headers", "METRIC_DISPLAY"]
+__all__ = ["classification_metrics", "clustering_metrics", "regression_metrics", "highlight_best", "metric_headers"]
 
-
-# metric format function: p=precision, m=multiplier, s=symbol
-mformat = lambda p=3, m=1, s=None: lambda x: "-" if x == "-" else ("{:.%df}{}" % p).format(m * x, s or "")
-METRIC_DISPLAY = {
-    # helpers
-    '%':   mformat(2, 100, "%"),
-    'ms':  mformat(3, 1000, "ms"), # used for 'Processing Time' in metric_headers(...)
-    'nbr': mformat(),
-    'classification': {
-        'Accuracy':  "%",
-        'Precision': "%",
-        'Recall':    "%",
-        'F-Measure': "%",
-        'MCC':       "%",
-        'AUC':       "%",
-    },
-    'clustering': {
-        # labels known
-        'Rand\nScore': "nbr",
-        'Adjusted\nMutual\nInformation': "nbr",
-        'Homogeneity': "nbr",
-        'Completeness': "nbr",
-        'V-Measure': "nbr",
-        # labels not known
-        'Silhouette\nScore': "nbr",
-        'Calinski\nHarabasz\nScore': "nbr",
-        'Davies\nBouldin\nScore': "nbr",
-    },
-    'regression': {
-        'MSE': "nbr",
-        'MAE': "nbr",
-    },
-}
-NO_VALUE = "-"
 
 _METRIC_CATEGORIES = ["classification", "clustering", "regression"]
 _METRIC_DISPLAYS = {}
@@ -70,7 +35,7 @@ def _convert_output(f):
             return
         r = f(X, yp, *a, **kw)
         if isinstance(r, (list, tuple)):
-            v = list(map(lambda x: NO_VALUE if x == -1 else x, r[0]))
+            v = list(map(lambda x: NO_METRIC_VALUE if x == -1 else x, r[0]))
             if pt is not None:
                 v.append(pt)
             return (v, ) + [(), r[1:]][len(r) > 1]

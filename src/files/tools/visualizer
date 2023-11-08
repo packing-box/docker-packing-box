@@ -22,23 +22,6 @@ __examples__    = [
 ]
 
 
-LABELS = {
-    'not-packed':         "Original",
-    'Notpacked':          "Original",
-    'BeRoEXEPacker':      "BeRo",
-    'Enigma Virtual Box': "Enigma VBox",
-    'Eronana Packer':     "Eronana",
-}
-
-
-def legend_location(string):
-    ver, hor = string.split("-", 1)
-    if ver not in ["lower", "center", "upper"] or hor not in ["left", "center", "right"]:
-        raise ValueError(string)
-    return string.replace("-", " ")
-legend_location.__name__ = "legend location"
-
-
 def find_files_with_labels(folder, pattern, selected=None, nbr_not_selected=None, display=False, force_display=False,
                            remove=False, filter_selected=True, exclude=None):
     """ Find files matching the given filename pattern withing the specified folder. It uses subfolders' names as labels

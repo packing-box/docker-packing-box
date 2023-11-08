@@ -5,6 +5,7 @@ from tinyscript import hashlib, logging
 from tinyscript.helpers import classproperty, positive_int, slugify, Path
 from warnings import filterwarnings, simplefilter
 
+from .constants import *
 from .helpers.config import *
 
 
@@ -17,23 +18,6 @@ bi.cached_property = cached_property
 bi.classproperty = classproperty
 bi.configure_logging = configure_logging
 bi.null_logger = logging.nullLogger
-
-bi.LOG_FORMATS = ["%(asctime)s [%(levelname)s] %(message)s", "%(asctime)s [%(levelname)-8s] %(name)-18s - %(message)s"]
-bi.PACKING_BOX_SOURCES = {
-    'ELF': ["/usr/bin", "/usr/sbin"],
-    'PE':  ["~/.wine32/drive_c/windows", "~/.wine64/drive_c/windows"],
-}
-bi.PBOX_HOME = Path("~/.packing-box", create=True, expand=True)
-for sf in ["conf", "data", "datasets", "models"]:
-    PBOX_HOME.joinpath(sf).mkdir(0o764, True, True)
-bi.RENAME_FUNCTIONS = {
-    'as-is':   lambda p: p,
-    'slugify': slugify,
-}
-
-# label markers and conversion for Scikit-Learn and Weka
-bi.NOT_LABELLED, bi.NOT_PACKED = "?-"  # impose markers for distinguishing between unlabelled and not-packed data
-bi.LABELS_BACK_CONV = {NOT_LABELLED: -1, NOT_PACKED: 0}  # values used with sklearn for unlabelled and null class
 
 
 _it = lambda s, v: positive_int(v)
@@ -70,6 +54,10 @@ _vh.__name__ = "hash algorithm"
 
 opt_tuple = lambda k: ("conf/%s.yml" % k, "PATH", "path to %s YAML definition" % k, _rp, ["workspace", PBOX_HOME], True)
 psr_tuple = lambda f: (None, "PARSER", "name of the module for parsing %s executables" % f, _st, "default_parser")
+
+
+for sf in ["conf", "data", "datasets", "models"]:
+    PBOX_HOME.joinpath(sf).mkdir(0o764, True, True)
 
 bi.config = Config("packing-box",
     # defaults

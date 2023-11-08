@@ -4,64 +4,29 @@ from tinyscript import inspect, logging, random, re
 from tinyscript.helpers import is_file, is_folder, set_exception, Path, TempPath
 from tinyscript.helpers.expressions import WL_NODES
 
-
 lazy_load_module("yaml")
 set_exception("NotInstantiable", "TypeError")
 
 
-__all__ = ["dict2", "load_yaml_config", "select_features", "Item", "MetaBase", "MetaItem", "TEST_FILES"]
+__all__ = ["dict2", "load_yaml_config", "select_features", "Item", "MetaBase", "MetaItem"]
 
 _EVAL_NAMESPACE = {k: getattr(builtins, k) for k in ["abs", "divmod", "float", "hash", "hex", "id", "int", "len",
                                                      "list", "max", "min", "next", "oct", "ord", "pow", "range",
                                                      "range2", "round", "set", "str", "sum", "tuple", "type"]}
-TEST_FILES = {
-    'ELF32': [
-        "/usr/bin/perl",
-        "/usr/lib/wine/wine",
-        "/usr/lib/wine/wineserver32",
-        "/usr/libx32/crti.o",
-        "/usr/libx32/libpcprofile.so",
-    ],
-    'ELF64': [
-        "/bin/cat",
-        "/bin/ls",
-        "/bin/mandb",
-        "/usr/lib/openssh/ssh-keysign",
-        "/usr/lib/git-core/git",
-        "/usr/lib/x86_64-linux-gnu/crti.o",
-        "/usr/lib/x86_64-linux-gnu/libpcprofile.so",
-        "/usr/lib/ld-linux.so.2",
-    ],
-    'MSDOS': [
-        "~/.wine32/drive_c/windows/rundll.exe",
-        "~/.wine32/drive_c/windows/system32/gdi.exe",
-        "~/.wine32/drive_c/windows/system32/user.exe",
-        "~/.wine32/drive_c/windows/system32/mouse.drv",
-        "~/.wine32/drive_c/windows/system32/winaspi.dll",
-    ],
-    'PE32': [
-        "~/.wine32/drive_c/windows/winhlp32.exe",
-        "~/.wine32/drive_c/windows/system32/plugplay.exe",
-        "~/.wine32/drive_c/windows/system32/winemine.exe",
-        "~/.wine32/drive_c/windows/twain_32.dll",
-        "~/.wine32/drive_c/windows/twain_32/sane.ds",
-        "~/.wine32/drive_c/windows/system32/msscript.ocx",
-        "~/.wine32/drive_c/windows/system32/msgsm32.acm",
-    ],
-    'PE64': [
-        "~/.wine64/drive_c/windows/hh.exe",
-        "~/.wine64/drive_c/windows/system32/spoolsv.exe",
-        "~/.wine64/drive_c/windows/system32/dmscript.dll",
-        "~/.wine64/drive_c/windows/twain_64/gphoto2.ds",
-        "~/.wine64/drive_c/windows/system32/msscript.ocx",
-        "~/.wine64/drive_c/windows/system32/msadp32.acm",
-    ],
-}
-UNDEF_RESULT = "undefined"
-WL_EXTRA_NODES = ("arg", "arguments", "keyword", "lambda")
+_WL_EXTRA_NODES = ("arg", "arguments", "keyword", "lambda")
 
 
 _fmt_name = lambda x: (x or "").lower().replace("_", "-")
+
+
+def _select(lst, random_lst=None, inclusions=None, exclusions=None):
+    """ Helper for selecting the first argument of a list given inclusions or exclusions, then choosing randomly among a
+         given list when the first list is consumed. """
+    for x in lst:
+        if x in (exclusions or []) or x not in (inclusions or lst + (random_lst or [])):
+            continue
+        return x
+    return random.choice(random_lst, exclusions, False)
 
 
 class dict2(dict):
@@ -81,14 +46,14 @@ class dict2(dict):
     
     def __call__(self, data, silent=False, **kwargs):
         d = {k: getattr(random, k) for k in ["choice", "randbytes", "randint", "randrange", "randstr"]}
-        d['apply'] = _apply
+        d.update({'apply': _apply, 'select': _select})
         d.update(_EVAL_NAMESPACE)
         d.update(data)
         kwargs.update(getattr(self, "parameters", {}))
         # execute an expression from self.result (can be a single expression or a list of expressions to be chained)
         def _exec(expr):
             try:
-                r = eval2(expr, d, {}, whitelist_nodes=WL_NODES + WL_EXTRA_NODES)
+                r = eval2(expr, d, {}, whitelist_nodes=WL_NODES + _WL_EXTRA_NODES)
                 if len(kwargs) == 0:  # means no parameter provided
                     return r
             except NameError as e:

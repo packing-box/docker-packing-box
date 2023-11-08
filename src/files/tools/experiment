@@ -4,7 +4,7 @@ from pbox import *
 from tinyscript import *
 
 
-NAME = config.get('experiment')
+_NAME = config.get('experiment')
 
 __script__      = "Experiment management tool"
 __version__     = "1.1.1"
@@ -26,7 +26,7 @@ __examples__ = [[
     "compress my-experiment",
     "list",
     "purge test-*",
-]][NAME == ""]
+]][_NAME == ""]
 
 check = lambda s: Experiment.check(s)
 
@@ -34,7 +34,7 @@ check = lambda s: Experiment.check(s)
 if __name__ == '__main__':
     sparsers = parser.add_subparsers(dest="command", metavar="CMD", title="positional argument",
                                      help="command to be executed")
-    if NAME is None:
+    if _NAME is None:
         add_argument(sparsers.add_parser("compress", help="convert the datasets of an experiment to fileless datasets"),
                      "xpname")
         sparsers.add_parser("list", help="list the existing experiments")
@@ -63,7 +63,7 @@ if __name__ == '__main__':
     initialize(noargs_action="usage")
     configure_logging(args.verbose)
     # prepare parsed arguments
-    name = getattr(args, "name", NAME)
+    name = getattr(args, "name", _NAME)
     # now execute
     if args.command == "purge":
         if not Experiment.purge(name):
