@@ -175,6 +175,10 @@ def rename_all_sections(old_sections, new_sections):
 
 def rename_section(old_section, new_name, error=True):
     """ Rename a given section. """
+    if old_section is None:
+        raise ValueError("Old section shall not be None")
+    if new_name is None:
+        raise ValueError("New section name shall not be None")
     if len(new_name) > 8:
         raise ValueError("Section name can't be longer than 8 characters")
     def _rename_section(parsed, logger):

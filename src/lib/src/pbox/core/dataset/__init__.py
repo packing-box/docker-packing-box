@@ -677,7 +677,7 @@ class Dataset(Entity):
     def plot(self, subcommand=None, **kw):
         """ Plot something about the dataset. """
         # ensure input dataset(s) have their features computed before plotting
-        if 'dataset' in kw and kw['dataset']._files:
+        if 'dataset' in kw and kw['dataset']._files and subcommand not in ["labels", "samples"]:
             kw['dataset']._compute_all_features()
         if 'datasets' in kw:
             kw['datasets'] = [Dataset.load(ds) for ds in (kw['datasets'] or [])]

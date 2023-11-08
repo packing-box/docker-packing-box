@@ -31,10 +31,10 @@ def figure_path(f):
          put it in the "figures" subfolder of the current experiment's folder if relevant. """
     @functools.wraps(f)
     def _wrapper(*a, **kw):
-        exp, filename = PBOX_HOME.joinpath("experiment.env"), f(*a, **kw)
+        exp, fn = PBOX_HOME.joinpath("experiment.env"), f(*a, **kw)
         if exp.exists():
-            filename = str(Path(exp.read_text()).joinpath("figures", filename))
-        return filename
+            fn = str(Path(exp.read_text()).joinpath("figures", fn))
+        return fn
     return _wrapper
 
 

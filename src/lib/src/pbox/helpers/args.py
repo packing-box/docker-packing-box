@@ -2,10 +2,7 @@
 from tinyscript.helpers.data.types import folder_exists, json_config, pos_int
 
 
-__all__ = ["add_argument", "expand_parameters", "percentage", "set_yaml"]
-
-
-IMG_FORMATS = ("jpg", "png", "tif", "svg")
+__all__ = ["add_argument", "expand_parameters", "legend_location", "percentage", "set_yaml"]
 
 
 def add_argument(parser, name, **kwargs):
@@ -73,6 +70,14 @@ def expand_parameters(*strings, **kw):
                 pass
             d[k] = v
     return d
+
+
+def legend_location(string):
+    ver, hor = string.split("-", 1)
+    if ver not in ["lower", "center", "upper"] or hor not in ["left", "center", "right"]:
+        raise ValueError(string)
+    return string.replace("-", " ")
+legend_location.__name__ = "legend location"
 
 
 def percentage(p):
