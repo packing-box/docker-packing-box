@@ -11,7 +11,7 @@ lazy_load_module("seaborn")
 lazy_load_module("textwrap")
 
 
-__all__ = ["plot", "PLOTS"]
+__all__ = ["plot"]
 
 
 @figure_path
@@ -287,6 +287,13 @@ def _dataset_features_bar_chart(dataset, feature=None, multiclass=False, format=
     return dataset.basename + "_features_" + ["", "combo-"][len(feature) > 1] + feature[0] + "." + format
 
 
+def _dataset_samples(dataset, **kw):
+    from bintropy import plot
+    for exe in dataset:
+        dataset.logger.info("Plotting %s (%s)..." % (exe.basename, Path(exe.realpath).basename))
+        yield exe.plot(prefix=dataset.basename + "_", **kw)
+
+
 def plot(obj, ptype, dpi=200, **kw):
     """ Generic plot function. """
     try:
@@ -295,24 +302,30 @@ def plot(obj, ptype, dpi=200, **kw):
         root.mkdir(exist_ok=True)
     except FileNotFoundError:
         root = Path(".")
-    obj.logger.info("Preparing data...")
+    obj.logger.info("Preparing plot data...")
     try:
-        img = root.joinpath(PLOTS[ptype](obj, **kw))
+        imgs = _PLOTS[ptype](obj, **kw)
+        if isinstance(imgs, str):
+            imgs = [root.joinpath(imgs)]
+        import matplotlib.pyplot
+        for img in imgs:
+            if img is None:
+                continue
+            obj.logger.info("Saving to %s..." % img)
+            matplotlib.pyplot.savefig(img, format=kw.get('format'), dpi=dpi, bbox_inches="tight")
     except KeyError:
-        obj.logger.error("Plot type %s does not exist (should be one of [%s])" % (ptype, "|".join(PLOTS.keys())))
+        obj.logger.error("Plot type %s does not exist (should be one of [%s])" % (ptype, "|".join(_PLOTS.keys())))
         return
     except TypeError:
-        return
-    obj.logger.info("Saving to %s..." % img)
-    import matplotlib.pyplot
-    matplotlib.pyplot.savefig(img, format=kw.get('format'), dpi=dpi, bbox_inches="tight")
+        raise
 
 
-PLOTS = {
+_PLOTS = {
     'ds-features':         _dataset_features_bar_chart,
     'ds-features-compare': _dataset_features_comparison_heatmap,
     'ds-infogain':         _dataset_information_gain_bar_chart,
     'ds-infogain-compare': _dataset_information_gain_comparison_heatmap,
     'ds-labels':           _dataset_labels_pie_chart,
+    'ds-samples':          _dataset_samples,
 }
 

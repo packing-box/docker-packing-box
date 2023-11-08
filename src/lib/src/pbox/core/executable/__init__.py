@@ -12,7 +12,7 @@ from .features import __all__ as _features
 from .parsers import get_parser
 from .visualization import *
 from .visualization import __all__ as _viz
-from ...helpers.formats import *
+from ...helpers import *
 
 
 __all__ = ["is_exe", "Executable"] + _alter + _features + _viz
@@ -142,6 +142,12 @@ class Executable(Path):
         if self.group == "PE":
             self._parsed.real_section_names  # trigger computation of real names
         return self._parsed
+    
+    def plot(self, format="png", prefix="", dpi=200, sublabel="size-ep-ent", **kw):
+        from bintropy import plot
+        fn = Path(self.realpath).basename
+        imgn = figure_path(lambda: prefix + fn)()
+        plot(self, img_name=imgn, labels=[self.label], sublabel=sublabel, format=format, dpi=dpi, target=fn, **kw)
     
     @cached_property
     def block_entropy_256B(self):

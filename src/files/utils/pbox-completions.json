@@ -4,7 +4,7 @@
     "convert": "`list-datasets-with-files`",
     "list": null,
     "plot": {
-      "(?:features|infogain|labels).*": "`list-datasets`"
+      "(?:features|infogain|labels|samples).*": "`list-datasets`"
     }
   },
   "experiment": [
