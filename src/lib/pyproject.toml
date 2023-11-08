@@ -33,19 +33,20 @@ classifiers = [
   "Topic :: Software Development :: Libraries :: Python Modules",
 ]
 dependencies = [
-  "bintropy>=1.4.8",
+  "bintropy>=1.4.9",
   "capstone",
   "dsff>=1.0.3",
 #  "filebytes",
   "lief>=0.13.0",
 #  "macholibre@git+https://github.com/aaronst/macholibre.git",
+  "matplotlib<3.8",  # see: https://github.com/matplotlib/matplotlib/issues/27289
   "pandas>=1.5.0",
   "pefile",
   "peid",
   "pyelftools",
   "rich",
   "scikit-learn>=1.2.2",
-  "tinyscript>=1.29.2",
+  "tinyscript>=1.29.3",
   "weka",
 ]
 dynamic = ["version"]
