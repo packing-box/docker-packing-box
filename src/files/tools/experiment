@@ -7,7 +7,7 @@ from tinyscript import *
 _NAME = config.get('experiment')
 
 __script__      = "Experiment management tool"
-__version__     = "1.1.1"
+__version__     = "1.1.2"
 __doc__         = """
 This tool aims to manage an experiment (a structure that can hold custom YAML configurations, datasets and models).
 """
@@ -28,8 +28,6 @@ __examples__ = [[
     "purge test-*",
 ]][_NAME == ""]
 
-check = lambda s: Experiment.check(s)
-
 
 if __name__ == '__main__':
     sparsers = parser.add_subparsers(dest="command", metavar="CMD", title="positional argument",
@@ -43,20 +41,16 @@ if __name__ == '__main__':
         add_argument(sparsers.add_parser("purge", help="purge an experiment"), "xpname",
                      note="use 'all' to purge every dataset or the wildcard '*' to select a part of them")
     else:
-        defs = list(config._defaults['definitions'].keys())
         sparsers.add_parser("close", help="close the current experiment")
         sparsers.add_parser("commit", help="commit the last OS command to the resource file (commands.rc)") \
                 .add_argument("-f", "--force", action="store_true", help="commit without confirmation")
         sparsers.add_parser("compress", help="convert the datasets to fileless datasets")
-        ch = sorted(["commands", "README"] + defs)
         sparsers.add_parser("edit", help="edit the README file or a YAML configuration file") \
                 .add_argument("config", nargs="?", default="README", metavar="NAME",
-                              help="edit the target experiment's README(.md), commands(.rc) or YAML configuration file"
-                                   "\n {%s}" % ",".join(ch))
+                              help="edit the target experiment's README(.md), commands(.rc) or YAML configuration file")
         sparsers.add_parser("import", help="import a YAML configuration file from anywhere") \
-                .add_argument("config", nargs="?", default="README", metavar="NAME", choices=ch,
-                              help="import the target YAML configuration file(s) within the experiment"
-                                   "\n {%s}" % ",".join(defs))
+                .add_argument("config", type=yaml_file, metavar="YAML",
+                              help="import the target YAML configuration file(s) within the experiment")
         sparsers.add_parser("list", help="list the existing experiments")
         sparsers.add_parser("replay", help="replay commands from experiment's commanrds.rc")
         sparsers.add_parser("show", help="get an overview of the experiment")

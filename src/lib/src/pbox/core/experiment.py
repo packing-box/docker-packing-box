@@ -73,16 +73,16 @@ def __init():
             """ Get dataset's length. """
             return Dataset.count() + Model.count()
         
-        def _import(self, source=None, **kw):
+        def _import(self, **kw):
             """ Import a custom YAML configuration file or set of YAML configuration files. """
             l = Experiment.logger
-            p_src = Path(source)
+            p_src = Path(kw.get('config'))
             p_exp = self.path.joinpath("conf").joinpath(p_src.basename)
             try:
                 if not p_src.extension == ".yml":
                     raise KeyError
                 config.get(p_src.stem, sections="definitions", error=True)
-                if not p_src.is_samepath(p_exp):
+                if not p_src.is_samepath(p_exp) and (not p_exp.exists() or confirm("overwrite %s ?" % p_exp)):
                     l.debug("copying configuration file%s from '%s'..." % (["", "s"][p_src.is_dir()], p_src))
                     p_src.copy(p_exp)
             except KeyError:
@@ -140,7 +140,7 @@ def __init():
                 raise
             try:
                 p_main, p_exp = config[conf], self.path.joinpath("conf").joinpath(conf + ".yml")
-                self._import(p_main, error=True)
+                self._import(config=p_main, error=True)
                 if p_exp.is_file():
                     l.debug("editing experiment's %s configuration..." % conf)
                     edit_file(p_exp, text=True, logger=l)

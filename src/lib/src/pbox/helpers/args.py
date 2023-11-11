@@ -2,7 +2,7 @@
 from tinyscript.helpers.data.types import folder_exists, json_config, pos_int
 
 
-__all__ = ["add_argument", "expand_parameters", "legend_location", "percentage", "set_yaml"]
+__all__ = ["add_argument", "expand_parameters", "legend_location", "percentage", "set_yaml", "yaml_file"]
 
 
 def add_argument(parser, name, **kwargs):
@@ -102,4 +102,16 @@ def set_yaml(namespace):
                     setattr(glob[name], "source", v)
                 else:
                     glob['logger'].warning("Could not find a class matching '%s'" % k)
+
+
+def yaml_file(path):
+    from .items import load_yaml_config
+    try:
+        load_yaml_config(path)
+    except Exception as e:
+        from tinyscript import logging
+        logging.getLogger("main").error(e)
+        raise ValueError("bad YAML")
+    return path
+yaml_file.__name__ = "YAML file"
 
