@@ -1,7 +1,7 @@
 # -*- coding: UTF-8 -*-
 import builtins
-from tinyscript import inspect, logging, random, re
-from tinyscript.helpers import is_file, is_folder, set_exception, Path, TempPath
+from tinyscript import inspect, logging, random, re, string
+from tinyscript.helpers import get_terminal_size, is_file, is_folder, is_iterable, set_exception, Path, TempPath
 from tinyscript.helpers.expressions import WL_NODES
 
 lazy_load_module("yaml")
@@ -17,16 +17,20 @@ _WL_EXTRA_NODES = ("arg", "arguments", "keyword", "lambda")
 
 
 _fmt_name = lambda x: (x or "").lower().replace("_", "-")
+_sec_name = lambda s: getattr(s, "real_name", getattr(s, "name", s))
 
 
 def _select(lst, random_lst=None, inclusions=None, exclusions=None):
     """ Helper for selecting the first argument of a list given inclusions or exclusions, then choosing randomly among a
          given list when the first list is consumed. """
+    exc, inc, lst = exclusions, inclusions, lst if is_iterable(lst) else [lst]
+    lst = [_sec_name(x) for x in lst]
+    exc, inc = exc() if callable(exc) else exc or [], inc() if callable(inc) else inc or lst + (random_lst or [])
     for x in lst:
-        if x in (exclusions or []) or x not in (inclusions or lst + (random_lst or [])):
+        if x in exc or x not in inc:
             continue
         return x
-    return random.choice(random_lst, exclusions, False)
+    return random.choice(random_lst or [], exclusions, False)
 
 
 class dict2(dict):
@@ -53,6 +57,7 @@ class dict2(dict):
         # execute an expression from self.result (can be a single expression or a list of expressions to be chained)
         def _exec(expr):
             try:
+                d.pop('__builtins__', None)  # security issue ; ensure builtins are removed !
                 r = eval2(expr, d, {}, whitelist_nodes=WL_NODES + _WL_EXTRA_NODES)
                 if len(kwargs) == 0:  # means no parameter provided
                     return r
@@ -62,10 +67,11 @@ class dict2(dict):
                 raise
             except Exception as e:
                 if not silent:
-                    dict2._logger.warning("Bad expression: %s" % result)
-                    dict2._logger.error(str(e))
-                    dict2._logger.debug("Variables:\n- %s" % \
-                                      "\n- ".join("%s(%s)=%s" % (k, type(v).__name__, v) for k, v in d.items()))
+                    dict2._logger.warning("Bad expression: %s" % expr)
+                    dict2._logger.exception(e)
+                    w = get_terminal_size()[0]
+                    dict2._logger.debug("Variables:\n- %s" % "\n- ".join(string.shorten("%s(%s)=%s" % \
+                                        (k, type(v).__name__, v), w - 2) for k, v in d.items()))
                 return
             try:
                 return r(**kwargs)
@@ -74,7 +80,7 @@ class dict2(dict):
                     dict2._logger.warning("Bad function: %s" % result)
                     dict2._logger.error(str(e))
         # now execute expression(s) ; support for multiple expressions must be explicitely enabled for the class
-        if getattr(self.__class__, "_multi_expr", False) and isinstance(self.result, (list, tuple)):
+        if not getattr(self.__class__, "_multi_expr", False) and isinstance(self.result, (list, tuple)):
             raise ValueError("List of expressions is not supported for the result of %s" % self.__class__.__name__)
         retv = [_exec(result) for result in (self.result if isinstance(self.result, (list, tuple)) else [self.result])]
         return retv[0] if len(retv) == 1 else tuple(retv)
@@ -188,10 +194,11 @@ def _init_metaitem():
         
         @source.setter
         def source(self, path):
+            cfg_key, l = '%ss' % self.__name__.lower(), self.logger
             # case 1: self is a parent class among Analyzer, Detector, ... ;
             #          then 'source' means the source path for loading child classes
             try:
-                p = Path(str(path or config['%ss' % self.__name__.lower()]), expand=True)
+                p = Path(str(path or config[cfg_key]), expand=True)
                 if hasattr(self, "_source") and self._source == p:
                     return
                 self._source = p
@@ -223,11 +230,12 @@ def _init_metaitem():
             # reset the registry
             self.registry = []
             if not p.exists():
-                self.logger.warning("'%s' does not exist ; set back to default" % p)
-                p, func = config.DEFAULTS['definitions']['%ss' % self.__name__.lower()]
+                l.warning("'%s' does not exist ; set back to default" % p)
+                p, func = config.DEFAULTS['definitions'][cfg_key]
                 p = func(p)
             # start parsing items of the target class
-            _cache = {}
+            _cache, cnt = {}, {'tot': 0, 'var': 0}
+            l.debug("loading %s from %s..." % (cfg_key, p))
             for item, data in load_yaml_config(p, ("base", "install", "steps", "variants")):
                 # ensure the related item is available in module's globals()
                 #  NB: the item may already be in globals in some cases like pbox.items.packer.Ezuri
@@ -273,11 +281,14 @@ def _init_metaitem():
                 for it in [i] + vilist:
                     _setattr(it, data)
                 self.registry.append(i())
+                cnt['tot'] += 1
                 # overwrite parameters specific to variants
                 for vitem, vdata in variants.items():
                     vi = glob[vitem]
                     _setattr(vi, vdata)
                     self.registry.append(vi())
+                    cnt['var'] += 1
+            l.debug("%d %s loaded%s" % (cnt['tot'], cfg_key, ["", " (%d variants)" % cnt['var']][cnt['var'] > 0]))
     return MetaItem
 lazy_load_object("MetaItem", _init_metaitem)
 
@@ -356,7 +367,7 @@ def _init_item():
 lazy_load_object("Item", _init_item)
 
 
-def load_yaml_config(cfg, no_defaults=(), parse_defaults=True):
+def load_yaml_config(cfg, no_defaults=(), parse_defaults=True, test_only=False):
     """ Load a YAML configuration, either as a single file or a folder with YAML files (in this case, loading
          defaults.yml in priority to get the defaults first). """
     def _set(config):
@@ -415,6 +426,9 @@ def load_yaml_config(cfg, no_defaults=(), parse_defaults=True):
         with c.open() as f:
             cfg = yaml.load(f, Loader=yaml.Loader)
         d.update(_set(cfg or {}))
+    if test_only:
+        _set(d)
+        return cfg
     # collect properties that are applicable for all the other features
     for name, params in _set(d).items():
         yield name, params

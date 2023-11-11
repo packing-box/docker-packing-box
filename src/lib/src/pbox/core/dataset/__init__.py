@@ -207,7 +207,7 @@ class Dataset(Entity):
                 l.debug("loading dataset '%s'..." % self.basename)
         except AttributeError:  # self._data does not exist yet
             pass
-        l.debug("dataset: type=%s (class: %s), name=%s" % \
+        l.debug("type=%s (class: %s), name=%s" % \
                 (["fileless", "normal"][self._files], self.__class__.__name__, self.name))
         if self._files:
             self.files.mkdir(exist_ok=True)
@@ -333,7 +333,7 @@ class Dataset(Entity):
         for e in filter_data_iter(df, query, limit, logger=self.logger):
             exe = Executable(dataset=self, hash=e.hash)
             exe.chmod(0o600)
-            for m in alterations.Alterations(exe):
+            for m in alterations.Alterations(exe)[:]:
                 self._alterations.setdefault(m, [])
                 self._alterations[m].append(e.hash)
             exe.chmod(0o400)
@@ -730,17 +730,21 @@ class Dataset(Entity):
         else:
             l.warning("%s already exists" % name2)
     
-    def revert(self, **kw):
+    def revert(self, init=False, **kw):
         """ Revert to the latest version of the dataset (if a backup copy exists in /tmp). """
         b, l = self.backup, self.logger
         if b is None:
-            l.warning("No backup found ; could not revert")
+            if not init:
+                l.warning("No backup found ; could not revert")
+            init = False  # no more revert possible ; initial state reached
         else:
             l.debug("reverting %s to previous backup..." % self.basename)
             self._remove()
             b._copy(self.path)
             b._remove()
             self._save()
+        if init:  # if reverting to initial state, continue reverting
+            self.revert(init=True)
     
     def select(self, name2=None, query=None, limit=0, **kw):
         """ Select a subset from the current dataset based on multiple criteria. """

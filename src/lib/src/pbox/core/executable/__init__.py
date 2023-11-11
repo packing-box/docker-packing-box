@@ -218,9 +218,11 @@ class Executable(Path):
     
     @cached_property
     def parsed(self):
-        return self.parse()  # this will use the default parser (lief)
+        if not hasattr(self, "_parsed"):
+            self.parse()  # this will use the default parser (lief)
+        return self._parsed
     
-    @cached_property
+    @property
     def rawdata(self):
         # NB: this property is for debugging, it never gets called within pbox
         from .extractors import Extractors

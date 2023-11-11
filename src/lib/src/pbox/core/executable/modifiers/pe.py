@@ -4,7 +4,7 @@ from ..parsers import *
 
 __all__ = [
     # utils
-   "get_pe_data",
+   "get_pe_data", "valid_names",
     # modifiers
    "add_API_to_IAT", "add_lib_to_IAT", "add_section", "append_to_section", "move_entrypoint_to_new_section",
    "move_entrypoint_to_slack_space", "rename_all_sections", "rename_section", "set_checksum",
@@ -17,7 +17,13 @@ def get_pe_data():
     from ....helpers.data import get_data
     d = get_data("PE")['COMMON_DLL_IMPORTS']
     d = {'COMMON_API_IMPORTS': [(lib, api) for lib in d for api in d[lib]]}
+    for k in ["COMMON_PACKER_SECTION_NAMES", "STANDARD_SECTION_NAMES"]:
+        d[k] = valid_names(d[k])
     return d
+
+
+valid_names = lambda nl: list(filter(lambda n: len(n) <= 8, map(lambda x: x if isinstance(x, str) else \
+                                                                getattr(x, "real_name", getattr(x, "name", "")), nl)))
 
 
 # ------------------------------------------------- Modifiers ----------------------------------------------------------
@@ -100,9 +106,9 @@ def append_to_section(section, data):
         available_size = s.size - len(s.content)
         d = list(data(available_size)) if callable(data) else list(data)
         if len(d) > available_size:
-            kw['logger'].warning("Warning: Data length is greater than the available space at the end of the section." \
-                                 " The slack space is limited to %d bytes, %d bytes of data were provided. Data will " \
-                                 "be truncated to fit in the slack space." % (available_size, len(d)))
+            logger.warning("Warning: Data length is greater than the available space at the end of the section. The" \
+                           " slack space is limited to %d bytes, %d bytes of data were provided. Data will be " \
+                           "truncated to fit in the slack space." % (available_size, len(d)))
             d = d[:available_size]
         s.content = list(s.content) + d
     return _append_to_section
@@ -173,20 +179,17 @@ def rename_all_sections(old_sections, new_sections):
     return _rename_all_sections
 
 
-def rename_section(old_section, new_name, error=True):
+def rename_section(old_section, new_name):
     """ Rename a given section. """
     if old_section is None:
         raise ValueError("Old section shall not be None")
     if new_name is None:
         raise ValueError("New section name shall not be None")
     if len(new_name) > 8:
-        raise ValueError("Section name can't be longer than 8 characters")
+        raise ValueError("Section name can't be longer than 8 characters (%s)" % new_name)
     def _rename_section(parsed, logger):
-        if isinstance(old_section, str):
-            parsed_sec = parsed.section(old_section)
-            sec = [s for s in parsed.sections if parsed_sec.name == old_section][0]
-        else:
-            sec = old_section
+        sec = parsed.section(old_section, original=True) if isinstance(old_section, str) else old_section
+        logger.debug("rename: %s -> %s" % (sec.name or "<empty>", new_name))
         sec.name = new_name
     return _rename_section
 

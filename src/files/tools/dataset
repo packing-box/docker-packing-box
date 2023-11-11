@@ -190,8 +190,10 @@ if __name__ == '__main__':
     add_argument(remove, "query")
     rename = add_argument(cmds.add_parser("rename", category="create/modify/delete", help="rename a dataset"), "dsname")
     rename.add_argument("name2", type=ts.folder_does_not_exist, help="new name of the dataset")
-    add_argument(cmds.add_parser("revert", category="create/modify/delete",
-                                 help="revert a dataset to its previous state"), "dsname")
+    revert = add_argument(cmds.add_parser("revert", category="create/modify/delete",
+                                          help="revert a dataset to its previous state"), "dsname")
+    revert.add_argument("-i", "--init", action="store_true", help="revert up to initial state",
+                        note="this removes all backups")
     select = add_argument(cmds.add_parser("select", category="create/modify/delete",
                                           help="select a subset of the dataset"), "dsname")
     select.add_argument("name2", type=ts.folder_does_not_exist, help="name of the new dataset")

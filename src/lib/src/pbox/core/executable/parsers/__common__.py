@@ -97,7 +97,7 @@ class AbstractParsedExecutable(AbstractBase):
                         if hasattr(s, "real_name"):
                             s.real_name = real_name
                         return s
-            raise ValueError("no section named '%s'" % name)
+            raise ValueError("no section named '%s'" % section)
         elif isinstance(section, AbstractBase):
             if original:
                 for s1, s2 in zip(self, self.sections):
@@ -114,6 +114,7 @@ class AbstractParsedExecutable(AbstractBase):
         raise ValueError(".section(...) only supports a section name or a parsed section object as input")
     
     def section_names(self, *sections):
+        sections = sections[0] if len(sections) == 1 and isinstance(sections, (list, tuple)) else sections
         return [s.name for s in (sections or self)]
     
     @property
@@ -123,6 +124,10 @@ class AbstractParsedExecutable(AbstractBase):
     @property
     def code(self):
         return self.path.bytes
+    
+    @property
+    def empty_name_sections(self):
+        return [s for s in self if getattr(s, "real_name", s.name) == ""]
     
     @property
     def non_standard_sections(self):

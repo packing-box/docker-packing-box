@@ -97,6 +97,7 @@ class Features(dict, metaclass=MetaBase):
                             for subfmt in expand_formats(fmt):
                                 ft.registry.setdefault(subfmt, {})
                                 ft.registry[subfmt][feat.name] = feat
+            l.debug("%d features loaded" % len(Features.names()))
         if exe is not None and exe.format in ft.registry:
             from .extractors import Extractors
             self._rawdata = Extractors(exe)

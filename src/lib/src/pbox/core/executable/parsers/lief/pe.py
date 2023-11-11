@@ -50,7 +50,7 @@ def __init_pe():
         
         @property
         def entrypoint_section(self):
-            return self._parsed.section_from_rva(self._parsed.optional_header.addressof_entrypoint)
+            return PESection(self._parsed.section_from_rva(self._parsed.optional_header.addressof_entrypoint))
         
         @property
         def iat(self):

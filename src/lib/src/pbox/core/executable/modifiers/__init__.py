@@ -16,7 +16,7 @@ from .macho import *
 from .macho import __all__ as _macho
 from .pe import *
 from .pe import __all__ as _pe
-from ....helpers import format_shortname, FORMATS
+from ....helpers import format_shortname
 
 
 __all__ = ["Modifiers"]
