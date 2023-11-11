@@ -11,21 +11,45 @@ class Alteration(dict2):
     _multi_expr = True
     
     def __call__(self, executable, namespace, **kwargs):
-        self._exe = executable
+        self._exe, l = executable, self._logger
+        l.debug("applying alterations to %s%s..." % (executable.stem, ["", " (%d steps)" % self.loop][self.loop > 1]))
         # loop the specified number of times or simply once if not specified
-        for _ in range(self.loop):
+        for i in range(self.loop):
             parsed = executable.parse(self.parser)
             namespace.update({'binary': parsed, executable.group.lower(): parsed})
-            self._logger.debug("applying alteration...")
-            super().__call__(namespace)(parsed, self._logger)
-            self._logger.debug("rebuilding binary...")
-            self._logger.debug(" > build config: %s" % parsed._build_config)
+            try:
+                func = super().__call__(namespace, silent=self.fail=="stop")
+                if func is None:
+                    continue
+                if not isinstance(func, (list, tuple)):
+                    func = [func]
+                for f in func:
+                    if not callable(f):
+                        continue
+                    f(parsed, l)
+            except:
+                # unexpected error, thrown exception and leave
+                if self.fail == "error":
+                    raise
+                # in this case, the error is not known, exception shall be thrown and next iterations shall be tried
+                elif self.fail == "continue":
+                    continue
+                # in this situation, it is known that the loop will fail at some point, no exception trace is needed
+                elif self.fail == "stop":
+                    break
+                else:
+                    raise ValueError("Bad 'fail' value (should be one of: continue|error|stop)")
+            l.debug("rebuilding binary (build config: %s)" % parsed._build_config)
             parsed.build()
     
     # default values on purpose not set via self.setdefault(...)
     @cached_property
     def apply(self):
         return self.get('apply', False)
+    
+    @cached_property
+    def fail(self):
+        return self.get('fail', "error")
     
     @cached_property
     def loop(self):
@@ -54,7 +78,8 @@ class Alterations(list, metaclass=MetaBase):
         if a.registry is None:
             src = a.source  # WARNING! this line must appear BEFORE a.registry={} because the first time that the
                             #           source attribute is called, it is initialized and the registry is reset to None
-            a.namespaces, a.registry = {}, {}
+            l.debug("loading alterations from %s..." % src)
+            a.namespaces, a.registry, dsbcnt = {}, {}, 0
             # collect properties that are applicable for all the alterations
             for name, params in load_yaml_config(src):
                 r = params.pop('result', {})
@@ -68,6 +93,25 @@ class Alterations(list, metaclass=MetaBase):
                             for subfmt in expand_formats(fmt):
                                 a.registry.setdefault(subfmt, {})
                                 a.registry[subfmt][alt.name] = alt
+                            if not alt.apply:
+                                l.debug("%s is disabled" % alt.name)
+                                dsbcnt += 1
+            # consider re-enabling only alterations for which there is no more than one alteration per format ;
+            #  if multiple alterations on the same format, leave these disabled
+            reenable = Alterations.names()
+            for fmt, alts in a.registry.items():
+                if len(alts) > 1:
+                    for alt in alts.keys():
+                        try:
+                            reenable.remove(alt)
+                        except ValueError:
+                            continue
+            for alt in reenable:
+                l.debug("re-enabling %s as it is a single applicable alteration" % alt)
+                Alterations[alt].apply = True
+                dsbcnt -= 1
+            tot = len(Alterations.names())
+            l.debug("%d alterations loaded (%d enabled)" % (tot, tot - dsbcnt))
         # check the list of selected alterations if relevant, and filter out bad names (if warn=True)
         for name in (select or [])[:]:
             if name not in a.registry[exe.format]:
