@@ -99,8 +99,11 @@ Manalyze:
   install:
     - git:  https://github.com/JusticeRage/Manalyze
     - exec: mv $TMP/manalyze $OPT/manalyze
-    - setp: $OPT/manalyze
-    - make: bin -j5
+    - cd:   $OPT/manalyze
+    - exec:
+      - cmake .
+      - sed -i 's/#include <cstring>/#include <cstdint>\n#include <cstring>/' $OPT/manalyze/external/hash-library/sha512.h
+      - make -j5
   source: https://github.com/JusticeRage/Manalyze
   status: ok
   weak:   true
