@@ -2,6 +2,7 @@
 from functools import wraps
 from tinyscript.helpers import ints2hex, is_iterable, Path
 
+from ..executable import Executable
 from ...helpers import *
 
 lazy_load_module("numpy", alias="np")
@@ -287,9 +288,10 @@ def _dataset_features_bar_chart(dataset, feature=None, multiclass=False, format=
     return dataset.basename + "_features_" + ["", "combo-"][len(feature) > 1] + feature[0] + "." + format
 
 
-def _dataset_samples(dataset, **kw):
+def _dataset_samples(dataset, query=None, n=0, **kw):
     from bintropy import plot
-    for exe in dataset:
+    for e in filter_data_iter(dataset._data, query, n or 0, logger=dataset.logger):
+        exe = Executable(dataset=dataset, hash=e.hash)
         dataset.logger.info("Plotting %s (%s)..." % (exe.basename, Path(exe.realpath).basename))
         yield exe.plot(prefix=dataset.basename + "_", **kw)
 

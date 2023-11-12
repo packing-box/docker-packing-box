@@ -13,18 +13,17 @@ This tool aims to manage an experiment (a structure that can hold custom YAML co
 """
 __description__ = "Manipulate experiments (dedicated workspaces for datasets, models and custom configs)"
 __examples__ = [[
-    "list",
+    "close",
+    "commit",
+    "compress",
     "edit",
     "edit features",
+    "list",
     "show",
-    "commit",
-    "edit commands",
-    "compress",
-    "close",
 ], [
-    "open my-experiment",
     "compress my-experiment",
     "list",
+    "open my-experiment",
     "purge test-*",
 ]][_NAME == ""]
 

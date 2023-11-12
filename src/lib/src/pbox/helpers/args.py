@@ -2,7 +2,7 @@
 from tinyscript.helpers.data.types import folder_exists, json_config, pos_int
 
 
-__all__ = ["add_argument", "expand_parameters", "legend_location", "percentage", "set_yaml", "yaml_file"]
+__all__ = ["add_argument", "expand_parameters", "item_exists", "legend_location", "percentage", "set_yaml", "yaml_file"]
 
 
 def add_argument(parser, name, **kwargs):
@@ -70,6 +70,14 @@ def expand_parameters(*strings, **kw):
                 pass
             d[k] = v
     return d
+
+
+def item_exists(string):
+    for k in ['workspace', 'datasets', 'models']:
+        p = config[k].joinpath(string)
+        if p.exists():
+            return p
+    raise ValueError("Path does not exist")
 
 
 def legend_location(string):

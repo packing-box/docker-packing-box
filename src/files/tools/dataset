@@ -178,6 +178,8 @@ if __name__ == '__main__':
     add_argument(plot_lab, "format")
     plot_samp = add_argument(pcmds.add_parser("samples", help="plot each executable from the target dataset"), "dsname")
     add_argument(plot_samp, "format")
+    plot_samp.add_argument("-n", type=ts.pos_int, help="plot only N samples")
+    add_argument(plot_samp, "query")
     preproc = add_argument(cmds.add_parser("preprocess", category="read",
                                            help="preprocess the input dataset given preprocessors"), "dsname")
     preproc.add_argument("-p", "--preprocessor", action="extend", nargs="*", choices=PREPROCESSORS.keys(), help=pp_help)

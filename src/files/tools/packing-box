@@ -34,7 +34,7 @@ def _set_subparsers(parent, *items):
         p = sparsers.add_parser(i)
         if i in ["alterations", "features"]:
             if parent._name == "test":
-                p.add_argument("-c", "--config", metavar="YAML", default=str(config[i]), type=ts.file_exists,
+                p.add_argument("-c", "--config", metavar="YAML", default=str(config[i]), type=yaml_file,
                                help="%s set's YAML definition" % i)
         else:
             p.add_argument(i, default=[], action="extend", nargs="*", help="specific %s to %s" % (i, parent._name))
@@ -45,14 +45,6 @@ def _set_subparsers(parent, *items):
             p.add_argument("-k", "--keep", action="store_true", help="keep test files")
             if i not in ["alterations", "features"]:
                 p.add_argument("--boolean", action="store_true", help="only consider packed or not packed labels")
-
-
-def __item_exists(string):
-    for k in ['workspace', 'datasets', 'models']:
-        p = config[k].joinpath(string)
-        if p.exists():
-            return p
-    raise ValueError("Path does not exist")
 
 
 if __name__ == '__main__':
@@ -92,7 +84,7 @@ if __name__ == '__main__':
     # level 2 subparsers for actions against the workspace
     sp = p.add_subparsers(dest="subcommand", help="subcommand to be executed")
     edt = sp.add_parser("edit", help="edit something from the workspace")
-    edt.add_argument("item", type=__item_exists, help="item to be edited")
+    edt.add_argument("item", type=item_exists, help="item to be edited")
     view = sp.add_parser("view", help="view the folders and subfolders tree of the workspace")
     # now, initialize arguments
     initialize(noargs_action="usage", ext_logging=True, autocomplete=True)

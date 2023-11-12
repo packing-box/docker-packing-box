@@ -125,18 +125,18 @@ def filter_data_iter(df, query=None, limit=0, sample=True, progress=True, transi
     limit = n if limit <= 0 else min(n, limit)
     if sample and limit < n:
         df = df.sample(n=limit)
-    i, genenerator = 0, filter_data(df, query, **kw).itertuples()
+    i, generator = 0, filter_data(df, query, **kw).itertuples()
     if progress:
         with progress_bar(transient=transient) as p:
             task = p.add_task("", total=limit)
-            for row in genenerator:
+            for row in generator:
                 yield row
                 i += 1
                 p.update(task, advance=1.)
                 if i >= limit > 0:
                     break
     else:
-        for row in genenerator:
+        for row in generator:
             yield row
             i += 1
             if i >= limit > 0:
