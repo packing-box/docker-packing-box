@@ -15,8 +15,10 @@ __all__ = [
 def get_pe_data():
     """ Derive other PE-specific data from this of ~/.packing-box/data/pe. """
     from ....helpers.data import get_data
-    d = get_data("PE")['COMMON_DLL_IMPORTS']
-    d = {'COMMON_API_IMPORTS': [(lib, api) for lib in d for api in d[lib]]}
+    d = {k: v for k, v in get_data("PE").items() if k in ["COMMON_API_IMPORTS", "COMMON_DLL_IMPORTS",
+                                                          "COMMON_PACKER_SECTION_NAMES", "STANDARD_SECTION_NAMES"]}
+    dll = d.pop('COMMON_DLL_IMPORTS')
+    d['COMMON_API_IMPORTS'] = [(lib, api) for lib in dll for api in dll[lib]]
     for k in ["COMMON_PACKER_SECTION_NAMES", "STANDARD_SECTION_NAMES"]:
         d[k] = valid_names(d[k])
     return d
