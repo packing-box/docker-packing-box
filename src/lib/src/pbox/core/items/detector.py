@@ -94,6 +94,7 @@ def __init():
               - multiclass:  NOT_LABELLED, NOT_PACKED, "unknown" or "[packer-label]"
             """
             label, multiclass, dslen = kwargs.get('label'), kwargs.get('multiclass', True), kwargs.get('dslen')
+            kwargs['binary'] = not multiclass
             exe = Executable(executable)
             # in binaryclass, transform the output to -1|0|1
             actual_label = label if multiclass else bin_label(label)
@@ -137,7 +138,7 @@ def __init():
                     self.logger.debug("did not detect anything")
                 else:
                     label = label.strip()
-                # if binary classification, convert the result to 1|0 (Yes|No)
+                # if binary classification, convert the result to 1|0|-1 (Yes|No|Not-labelled)
                 if not multiclass:
                     label = bin_label(label)
                 if dslen:

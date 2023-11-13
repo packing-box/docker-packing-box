@@ -132,7 +132,7 @@ def move_entrypoint_to_new_section(name, section_type=None, characteristics=None
         #  jmp eax
         #  entrypoint_data = [0xb8] + list(old_entry.to_bytes(4, 'little')) + [0xff, 0xe0]
         full_data = list(pre_data) + entrypoint_data + list(post_data)
-        add_section(name, section_type, characteristics, full_data)(parsed, logger)
+        add_section(name, section_type or parsed.SECTION_TYPES['TEXT'], characteristics, full_data)(parsed, logger)
         parsed.optional_header.addressof_entrypoint = parsed.get_section(name).virtual_address + len(pre_data)
     return _move_entrypoint_to_new_section
 
@@ -181,16 +181,21 @@ def rename_all_sections(old_sections, new_sections):
     return _rename_all_sections
 
 
-def rename_section(old_section, new_name):
+def rename_section(old_section, new_name, error=True):
     """ Rename a given section. """
-    if old_section is None:
+    if error and old_section is None:
         raise ValueError("Old section shall not be None")
     if new_name is None:
         raise ValueError("New section name shall not be None")
     if len(new_name) > 8:
         raise ValueError("Section name can't be longer than 8 characters (%s)" % new_name)
     def _rename_section(parsed, logger):
-        sec = parsed.section(old_section, original=True) if isinstance(old_section, str) else old_section
+        try:
+            sec = parsed.section(old_section, original=True) if isinstance(old_section, str) else old_section
+        except ValueError:
+            if error:
+                raise
+            return
         logger.debug("rename: %s -> %s" % (sec.name or "<empty>", new_name))
         sec.name = new_name
     return _rename_section

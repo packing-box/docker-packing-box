@@ -2,7 +2,8 @@
 from tinyscript.helpers.data.types import folder_exists, json_config, pos_int
 
 
-__all__ = ["add_argument", "expand_parameters", "item_exists", "legend_location", "percentage", "set_yaml", "yaml_file"]
+__all__ = ["add_argument", "expand_parameters", "feature_identifier", "item_exists", "legend_location", "percentage",
+           "set_yaml", "yaml_file"]
 
 
 def add_argument(parser, name, **kwargs):
@@ -70,6 +71,13 @@ def expand_parameters(*strings, **kw):
                 pass
             d[k] = v
     return d
+
+
+def feature_identifier(name):
+    Features(None)
+    if name not in Features.names():
+        raise ValueError
+    return name
 
 
 def item_exists(string):

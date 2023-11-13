@@ -79,7 +79,7 @@ if __name__ == '__main__':
                         msg += ("\n{: <%d}: {}" % mlen).format(name, label)
                     if msg != "Decisions:":
                         logger.warning(msg)
-                if not args.failures_only or r != l:
+                if not args.metrics_only and (not args.failures_only or r != l):
                     log = [logger.warning if r == NL else logger.failure if r != l else \
                            logger.success, logger.info][l == NL]
                     log("{}: {}".format(exe, decision))

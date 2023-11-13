@@ -1,5 +1,4 @@
 #!/usr/bin/python3
-# PYTHON_ARGCOMPLETE_OK
 # -*- coding: UTF-8 -*-
 from pbox import *
 from tinyscript import *
@@ -46,13 +45,6 @@ __examples__    = [
 ]
 
 check = lambda s: Dataset.check(s) or FilelessDataset.check(s)
-
-
-def _feature_identifier(name):
-    Features(None)
-    if name not in Features.names():
-        raise ValueError
-    return name
 
 
 if __name__ == '__main__':
@@ -142,13 +134,13 @@ if __name__ == '__main__':
     pcmds = plot.add_subparsers(dest="subcommand", help="command to be executed")
     plot_feat = add_argument(pcmds.add_parser("features", help="distribution of a given feature or multiple features "
                                                                "combined (bar chart)"), "dsname")
-    plot_feat.add_argument("feature", action="extend", nargs="*", type=_feature_identifier, help="feature identifiers")
+    plot_feat.add_argument("feature", action="extend", nargs="*", type=feature_identifier, help="feature identifiers")
     add_argument(plot_feat, "format")
     plot_feat.add_argument("-m", "--multiclass", action="store_true",
                            help="process features using multiple label classes")
     plot_featcomp = add_argument(pcmds.add_parser("features-compare", help="compare feature difference between this "
                                                                            "dataset and others"), "dsname")
-    plot_featcomp.add_argument("feature", action="extend", nargs="*", type=_feature_identifier,
+    plot_featcomp.add_argument("feature", action="extend", nargs="*", type=feature_identifier,
                                help="feature identifiers")
     plot_featcomp.add_argument("-a", "--aggregate", help="Pattern to aggregate some of the features together",
                                default="byte_[0-9]+_after_ep")
@@ -164,7 +156,7 @@ if __name__ == '__main__':
     plot_ig.add_argument("-n", "--max-features", type=ts.pos_int, help="plot n features with highest information gain")
     plot_igcomp = add_argument(pcmds.add_parser("infogain-compare", help="compare information gain difference between "
                                                                          "this dataset and others"), "dsname")
-    plot_igcomp.add_argument("feature", action="extend", nargs="*", type=_feature_identifier, help="feature identifiers")
+    plot_igcomp.add_argument("feature", action="extend", nargs="*", type=feature_identifier, help="feature identifiers")
     plot_igcomp.add_argument("-a", "--aggregate", help="Pattern to aggregate some of the features together",
                              default="byte_[0-9]+_after_ep")
     plot_igcomp.add_argument("-d", "--datasets", action="extend", nargs="*", help="datasets to compare features to",
