@@ -313,7 +313,11 @@ def run(name, exec_func=execute, parse_func=lambda x, **kw: x, stderr_func=lambd
                 p = [p]
             p = normalize(*p, **vars(a))
             if a.binary:
-                p = str(p is not None)
+                # when NOT_LABELLED, this means that there was as many traces for multiple packers, hence it could not
+                #  be decided but yet, it is packed
+                p = str({NOT_PACKED: NOT_PACKED, None: None}.get(p, True))
+        else:
+            p = " ".join(p) if isinstance(p, (list, tuple)) else str(p)
         if p is not None:
             if a.benchmark:
                 p += " " + str(dt)
