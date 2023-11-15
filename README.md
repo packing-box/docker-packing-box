@@ -11,7 +11,7 @@ This Docker container is a CLI environment featuring a toolkit that gathers exec
 
 Here is what you can see when you start up the Docker container.
 
-![](docs/pages/imgs/screenshot.png)
+<p align="center"><img src="https://raw.githubusercontent.com/packing-box/docker-packing-box/main/docs/pages/imgs/screenshot.png"></p>
 
 The various items integrated in the Packing-Box are defined in the very declarative and easy-to-use YAML format through different [configuration files](https://github.com/packing-box/docker-packing-box/tree/main/src/conf). This makes shaping the scope for evaluations and machine learning model training straightforward and practical for researchers.
 
@@ -86,7 +86,7 @@ Machine Learning models are fine-tuned through the [YAML configuration files](ht
 - [`algorithms.yml`](https://github.com/packing-box/docker-packing-box/blob/main/src/conf/algorithms.yml): the algorithms that are used with their static or dynamic parameters while training models
 - [`features.yml`](https://github.com/packing-box/docker-packing-box/blob/main/src/conf/features.yml): the characteristics to be considered while training and using models
 
-![](docs/pages/imgs/machine-learning-pipeline.png)
+<p align="center"><img src="https://raw.githubusercontent.com/packing-box/docker-packing-box/main/docs/pages/imgs/machine-learning-pipeline.png"></p>
 
 The *PREPARE* phase, especially *feature engineering*, is fine-tuned with the *features* YAML definition. Note that feature extraction is achieved with the [`pbox`](https://github.com/packing-box/docker-packing-box/tree/main/src/lib/pbox) package of the Packing-Box while feature derivation and transformation is fine-tuned via the *features* YAML file.
 
@@ -98,10 +98,10 @@ The *PREPARE* phase, especially *dataset generation*, is achieved with the [`dat
 
 **Operation** | **Description** | **Command**
 :---:| --- | ---
-**`make`** ![](docs/pages/imgs/dataset-operations-make.png) | Make a new dataset, either fully packed or mixed with not-packed samples | `# dataset make dataset -c PE -n 200 -s /path/to/pe`
-**`merge`** ![](docs/pages/imgs/dataset-operations-merge.png) | Merge two datasets | `# dataset merge dataset dataset2`
-**`select`** ![](docs/pages/imgs/dataset-operations-select.png) | Select a subset of a dataset to create a new one | `# dataset select dataset dataset2 -q "format == 'PE32'"`
-**`update`** ![](docs/pages/imgs/dataset-operations-update.png) | Update a dataset with new samples given their labels | `# dataset update dataset -l labels.json -s folder-of-executables`
+**`make`** ![](https://raw.githubusercontent.com/packing-box/docker-packing-box/main/docs/pages/imgs/dataset-operations-make.png) | Make a new dataset, either fully packed or mixed with not-packed samples | `# dataset make dataset -c PE -n 200 -s /path/to/pe`
+**`merge`** ![](https://raw.githubusercontent.com/packing-box/docker-packing-box/main/docs/pages/imgs/dataset-operations-merge.png) | Merge two datasets | `# dataset merge dataset dataset2`
+**`select`** ![](https://raw.githubusercontent.com/packing-box/docker-packing-box/main/docs/pages/imgs/dataset-operations-select.png) | Select a subset of a dataset to create a new one | `# dataset select dataset dataset2 -q "format == 'PE32'"`
+**`update`** ![](https://raw.githubusercontent.com/packing-box/docker-packing-box/main/docs/pages/imgs/dataset-operations-update.png) | Update a dataset with new samples given their labels | `# dataset update dataset -l labels.json -s folder-of-executables`
 
 ### Data Visualization
 
@@ -113,7 +113,7 @@ In order to visualize feature values:
 $ dataset plot test-mix byte_0_after_ep byte_1_after_ep --multiclass
 ```
 
-![](docs/pages/imgs/data-visualization-features.png)
+<p align="center"><img src="https://raw.githubusercontent.com/packing-box/docker-packing-box/main/docs/pages/imgs/data-visualization-features.png"></p>
 
 In order to visualize samples (aims to compare the not-packed and some packed versions):
 
@@ -121,7 +121,7 @@ In order to visualize samples (aims to compare the not-packed and some packed ve
 $ visualizer plot "PsExec.exe$" dataset -s -l not-packed -l MEW -l RLPack -l UPX
 ```
 
-![](docs/pages/imgs/data-visualization-psexec.png)
+<p align="center"><img src="https://raw.githubusercontent.com/packing-box/docker-packing-box/main/docs/pages/imgs/data-visualization-psexec.png"></p>
 
 This will work for instance for a structure formatted as such:
 
@@ -140,9 +140,9 @@ The *TRAIN* and *PREDICT* phases of the pipeline are achieved with the [`model`]
 
 **Operation** | **Description** | **Command**
 :---:| --- | ---
-**`compare`** ![](docs/pages/imgs/model-operations-compare.png) | Compare the performance metrics of multiple models | `# model compare model --dataset dataset --model model2`
-**`test`** ![](docs/pages/imgs/model-operations-test.png) | Test a model on a given dataset | `# model test model --name dataset`
-**`train`** ![](docs/pages/imgs/model-operations-train.png) | Train a model given an algorithm and input dataset | `# model train dataset --algorithm dt`
+**`compare`** ![](https://raw.githubusercontent.com/packing-box/docker-packing-box/main/docs/pages/imgs/model-operations-compare.png) | Compare the performance metrics of multiple models | `# model compare model --dataset dataset --model model2`
+**`test`** ![](https://raw.githubusercontent.com/packing-box/docker-packing-box/main/docs/pages/imgs/model-operations-test.png) | Test a model on a given dataset | `# model test model --name dataset`
+**`train`** ![](https://raw.githubusercontent.com/packing-box/docker-packing-box/main/docs/pages/imgs/model-operations-train.png) | Train a model given an algorithm and input dataset | `# model train dataset --algorithm dt`
 
 
 ## :star: Related Projects
