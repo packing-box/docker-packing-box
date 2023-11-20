@@ -5,7 +5,6 @@ from tinyscript.report import *
 
 from .plot import *
 from ..executable import *
-from ..pipeline import *
 from ...helpers import *
 
 lazy_load_module("alterations", "pbox.core.executable")
@@ -677,8 +676,8 @@ class Dataset(Entity):
     def plot(self, subcommand=None, **kw):
         """ Plot something about the dataset. """
         # ensure input dataset(s) have their features computed before plotting
-        if 'dataset' in kw and kw['dataset']._files and subcommand not in ["labels", "samples"]:
-            kw['dataset']._compute_all_features()
+        if self._files and subcommand not in ["labels", "samples"]:
+            self._compute_all_features()
         if 'datasets' in kw:
             kw['datasets'] = [Dataset.load(ds) for ds in (kw['datasets'] or [])]
             [ds._compute_all_features() for ds in kw['datasets'] if ds._files]
@@ -693,6 +692,7 @@ class Dataset(Entity):
         fnames = sorted(self._features.keys())
         data = self._data[fnames]
         if preprocessor:
+            from ..pipeline import make_pipeline, DebugPipeline
             p = DebugPipeline()
             make_pipeline(p, preprocessor, self.logger)
             p.steps.append(("debug", DebugTransformer()))

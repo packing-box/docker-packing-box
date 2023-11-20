@@ -156,13 +156,14 @@ class BaseModel(Entity):
             for col in missing_cols:
                 self._features[col] = np.nan
             self._data = self._data.reindex(columns=sorted(self._features.keys()))
+        # if data has to be unlabelled, force values for column 'label'
         if unlabelled:
             self._target['label'] = NOT_LABELLED
+        # fill missing values
         self._data, self._target = self._data.fillna(-1), self._target.fillna(NOT_LABELLED)
-        if not multiclass:  # convert to binary class
-            self._target = self._target.replace(LABELS_BACK_CONV)
-            self._target.loc[~self._target.label.isin([-1, 0]), "label"] = 1
-            self._target = self._target.astype('int')
+        # convert to binary class
+        if not multiclass:
+            self._target = self._target.map(LABELS_BACK_CONV).fillna(1).astype('int')
         # create the pipeline if it does not exist (i.e. while training)
         if not data_only:
             self.pipeline = DebugPipeline()

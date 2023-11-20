@@ -1,5 +1,5 @@
 # -*- coding: UTF-8 -*-
-__all__ = ["mofeats", "MOFEATS"]
+__all__ = ["mofeats"]
 
 
 _MOFEATS = {}  #TODO

@@ -81,7 +81,6 @@ def binary_diff_plot(file1, file2, img_name=None, img_format="png", legend1="", 
     from difflib import SequenceMatcher
     from matplotlib.cm import ScalarMappable
     from matplotlib.colors import ListedColormap
-    plt.rcParams['font.family'] = "serif"
     lloc = kwargs.get('legend_location', "lower right")
     lloc_side = lloc.split()[1] in ["left", "right"]
     nf, N_TOP, N_TOP2, N_BOT, N_BOT2 = 2, 1.2, 1.6, -.15, -.37

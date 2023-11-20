@@ -17,6 +17,8 @@ from ...helpers import *
 
 __all__ = ["is_exe", "Executable"] + _alter + _features + _viz
 
+_N_SECTIONS = re.compile(r", \d+ sections$")
+
 is_exe = lambda e: Executable(e).format is not None
 
 
@@ -145,9 +147,15 @@ class Executable(Path):
     
     def plot(self, format="png", prefix="", dpi=200, sublabel="size-ep-ent", **kw):
         from bintropy import plot
-        fn = Path(self.realpath).basename
-        imgn = figure_path(lambda: prefix + fn)()
+        fn = prefix + Path(self.realpath).basename
+        if hasattr(self, "_dataset"):
+            fn = Path(self._dataset.basename, "samples", fn)
+        imgn = figure_path(lambda: fn)()
         plot(self, img_name=imgn, labels=[self.label], sublabel=sublabel, format=format, dpi=dpi, target=fn, **kw)
+    
+    @property
+    def bin_label(self):
+        return READABLE_LABELS(self.label, True)
     
     @cached_property
     def block_entropy_256B(self):
@@ -187,7 +195,7 @@ class Executable(Path):
     def filetype(self):
         from magic import from_file
         try:
-            return from_file(str(self))
+            return _N_SECTIONS.sub("", from_file(str(self)))
         except OSError:
             return
     

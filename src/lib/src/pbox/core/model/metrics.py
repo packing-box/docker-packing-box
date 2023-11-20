@@ -23,7 +23,6 @@ for k in _METRIC_CATEGORIES:
 _N_LAB = 30
 
 
-
 def _convert_output(f):
     @functools.wraps(f)
     def _wrapper(X, yp, *a, **kw):
@@ -40,17 +39,6 @@ def _convert_output(f):
                 v.append(pt)
             return (v, ) + [(), r[1:]][len(r) > 1]
         return r
-    return _wrapper
-
-
-def _skip_if_labels_ignored(f):
-    @functools.wraps(f)
-    def _wrapper(*a, **kw):
-        l, ignore = kw.get('logger', null_logger), kw.get('ignore_labels', False)
-        if ignore:
-            l.debug("> labels ignored, skipping %s metrics..." % f.__name__.split("_")[0])
-            return
-        return f(*a, **kw)
     return _wrapper
 
 
@@ -113,6 +101,17 @@ def _map_values_to_integers(*arrays, **kwargs):
         n = min(_N_LAB, len(y))
         l.debug("> %d first %s labels: %s%s" % (n, ["true", "predicted"][i], ["     ", ""][i], str(y[:n])))
     return out_arrays
+
+
+def _skip_if_labels_ignored(f):
+    @functools.wraps(f)
+    def _wrapper(*a, **kw):
+        l, ignore = kw.get('logger', null_logger), kw.get('ignore_labels', False)
+        if ignore:
+            l.debug("> labels ignored, skipping %s metrics..." % f.__name__.split("_")[0])
+            return
+        return f(*a, **kw)
+    return _wrapper
 
 
 def highlight_best(data, headers=None, exclude_cols=[0, -1], formats=_METRIC_DISPLAYS):
