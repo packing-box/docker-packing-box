@@ -2,17 +2,25 @@
 from tinyscript import functools, re
 
 
-def set_font(*a):
-    plt.rcParams['font.family'] = "serif"
+def set_params(*a):
+    plt.rcParams['figure.dpi'] = config['dpi']
+    plt.rcParams['figure.titlesize'] = config['title_font_size']
+    plt.rcParams['figure.titleweight'] = "bold"
+    plt.rcParams['font.family'] = config['font_family']
+    plt.rcParams['image.cmap'] = config['colormap']
+    plt.set_cmap(config['colormap'])
+    if config['dark_mode']:
+        plt.style.use(['dark_background', 'presentation'])
 
 lazy_load_module("matplotlib", alias="mpl")
-lazy_load_module("matplotlib.pyplot", alias="plt", postload=set_font)
+lazy_load_module("matplotlib.pyplot", alias="plt", postload=set_params)
 lazy_load_module("numpy", alias="np")
+lazy_load_module("pandas", alias="pd")
 lazy_load_module("yaml")
 
 
 __all__ = ["at_interrupt", "benchmark", "bin_label", "bold", "class_or_instance_method", "execute_and_get_values_list",
-           "get_counts", "mpl", "np", "plt", "shorten_str", "strip_version", "yaml"]
+           "get_counts", "mpl", "np", "pd", "plt", "shorten_str", "strip_version", "yaml"]
 
 
 bin_label = lambda l: {NOT_LABELLED.lower(): -1, 'false': 0, NOT_PACKED.lower(): 0, 'true': 1, None: None} \

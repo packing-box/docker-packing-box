@@ -44,8 +44,6 @@ __examples__    = [
     "view my-dataset -q \"'PE32' in format\"",
 ]
 
-check = lambda s: Dataset.check(s) or FilelessDataset.check(s)
-
 
 if __name__ == '__main__':
     pp_help = "preprocessor for shaping the data\n- %s\n" % \
@@ -68,14 +66,12 @@ if __name__ == '__main__':
     browse = add_argument(cmds.add_parser("browse", category="read",
                                           help="compute features and browse the resulting data"), "dsname")
     bgroup = browse.add_mutually_exclusive_group()
-    bgroup.add_argument("-f", "--features-set", metavar="YAML", type=ts.file_exists, default=str(config['features']),
-                        help="features set's YAML definition")
+    add_argument(bgroup, "features-set")
     bgroup.add_argument("-n", "--no-feature", action="store_true", help="do not compute features")
     add_argument(browse, "query")
     convert = add_argument(cmds.add_parser("convert", category="create/modify/delete",
                                            help="convert the target dataset to a fileless one"), "dsname")
-    convert.add_argument("-f", "--features-set", metavar="YAML", type=ts.file_exists, default=str(config['features']),
-                         help="features set's YAML definition")
+    add_argument(convert, "features-set")
     convert.add_argument("-n", "--new-name", help="name for the new converted dataset",
                          note="if None, the original dataset is overwritten")
     add_argument(cmds.add_parser("edit", category="create/modify/delete", help="edit the data file"), "dsname")
@@ -91,14 +87,12 @@ if __name__ == '__main__':
     fix = add_argument(cmds.add_parser("fix", category="create/modify/delete", help="fix a corrupted dataset"),
                        "dsname")
     fgroup = fix.add_mutually_exclusive_group()
-    fgroup.add_argument("-d", "--detect", action="store_true", help="detect used packer with installed detectors")
-    fgroup.add_argument("-l", "--labels", type=ts.json_config, help="set labels from a JSON file")
+    add_argument(fgroup, "detect", "labels")
     ingest = cmds.add_parser("ingest", category="create/modify/delete",
                              help="ingest samples from a folder into new dataset(s)")
     ingest.add_argument("folder", type=ts.folder_exists, help="target folder with subfolders containing samples")
     igroup = ingest.add_mutually_exclusive_group()
-    igroup.add_argument("-d", "--detect", action="store_true", help="detect used packer with installed detectors")
-    igroup.add_argument("-l", "--labels", type=ts.json_config, help="set labels from a JSON file")
+    add_argument(igroup, "detect", "labels")
     ingest.add_argument("--merge", action="store_true", help="merge all subfolders into a single dataset")
     ingest.add_argument("-m", "--min-samples", type=ts.pos_int, default=100,
                         help="minimum of samples to be found in subfolders for being kept")
@@ -126,89 +120,67 @@ if __name__ == '__main__':
                       help="packer to be used")
     make.add_argument("-s", "--source-dir", action="extend", nargs="*", type=lambda p: ts.Path(p, expand=True),
                       help="executables source directory to be included")
-    merge = add_argument(cmds.add_parser("merge", category="create/modify/delete", help="merge two datasets"), "dsname")
+    merge = cmds.add_parser("merge", category="create/modify/delete", help="merge two datasets")
+    add_argument(merge, "dsname")
     add_argument(merge, "dsname", argname="name2", help="name of the dataset to merge")
     merge.add_argument("-n", "--new-name", help="name for the new merged dataset",
                        note="if None, the original dataset is overwritten")
     plot = cmds.add_parser("plot", category="read", help="plot something about the dataset")
     pcmds = plot.add_subparsers(dest="subcommand", help="command to be executed")
-    plot_feat = add_argument(pcmds.add_parser("features", help="distribution of a given feature or multiple features "
-                                                               "combined (bar chart)"), "dsname")
-    plot_feat.add_argument("feature", action="extend", nargs="*", type=feature_identifier, help="feature identifiers")
-    add_argument(plot_feat, "format")
-    plot_feat.add_argument("-m", "--multiclass", action="store_true",
-                           help="process features using multiple label classes")
-    plot_featcomp = add_argument(pcmds.add_parser("features-compare", help="compare feature difference between this "
-                                                                           "dataset and others"), "dsname")
-    plot_featcomp.add_argument("feature", action="extend", nargs="*", type=feature_identifier,
-                               help="feature identifiers")
-    plot_featcomp.add_argument("-a", "--aggregate", help="Pattern to aggregate some of the features together",
-                               default="byte_[0-9]+_after_ep")
-    plot_featcomp.add_argument("-d", "--datasets", action="extend", nargs="*", help="datasets to compare features to",
-                               required=True)
-    add_argument(plot_featcomp, "format")
-    plot_featcomp.add_argument("-n", "--max-features", type=ts.pos_int, help="plot n features with largest difference")
-    plot_ig = add_argument(pcmds.add_parser("infogain", help="sorted distribution of information gains for the selected "
-                                                             "features (bar chart)"), "dsname")
-    plot_ig.add_argument("feature", action="extend", nargs="*", help="feature identifiers")
-    add_argument(plot_ig, "format")
-    plot_ig.add_argument("-m", "--multiclass", action="store_true", help="use multiple label classes")
-    plot_ig.add_argument("-n", "--max-features", type=ts.pos_int, help="plot n features with highest information gain")
-    plot_igcomp = add_argument(pcmds.add_parser("infogain-compare", help="compare information gain difference between "
-                                                                         "this dataset and others"), "dsname")
-    plot_igcomp.add_argument("feature", action="extend", nargs="*", type=feature_identifier, help="feature identifiers")
-    plot_igcomp.add_argument("-a", "--aggregate", help="Pattern to aggregate some of the features together",
-                             default="byte_[0-9]+_after_ep")
-    plot_igcomp.add_argument("-d", "--datasets", action="extend", nargs="*", help="datasets to compare features to",
-                             required=True)
-    add_argument(plot_igcomp, "format")
-    plot_igcomp.add_argument("-n", "--max-features", type=ts.pos_int,
-                             help="plot n features with highest information gain")
-    plot_igcomp.add_argument("-m", "--multiclass", action="store_true", help="use multiple label classes")
-    plot_lab = add_argument(pcmds.add_parser("labels", help="distribution of labels in the dataset (pie chart)"),
-                            "dsname")
-    add_argument(plot_lab, "format")
-    plot_samp = add_argument(pcmds.add_parser("samples", help="plot each executable from the target dataset"), "dsname")
-    add_argument(plot_samp, "format")
+    plot_char = pcmds.add_parser("characteristic", help="plot reduced data highlighting a characteristic")
+    add_argument(plot_char, "dsname")
+    plot_char.add_argument("characteristic", type=characteristic_identifier, help="characteristic/feature identifier",
+                           note="by 'characteristic', it is meant either executable metadata or feature")
+    add_argument(plot_char, "binary")
+    plot_feat = pcmds.add_parser("features", help="distribution of one or multiple features (bar chart)")
+    add_argument(plot_feat, "dsname", "feature", "format", "multiclass")
+    plot_featcomp = pcmds.add_parser("features-compare", help="compare feature difference with other datasets")
+    add_argument(plot_featcomp, "dsname", "feature", "aggregate", "datasets", "format", "max-features",
+                 max_feats_with="largest difference")
+    plot_ig = pcmds.add_parser("infogain", help="sorted distribution of information gains for the selected features "
+                                                "(bar chart)")
+    add_argument(plot_ig, "dsname", "feature", "format", "multiclass", "max-features",
+                 max_feats_with="highest information gain")
+    plot_igcomp = pcmds.add_parser("infogain-compare", help="compare information gain difference between this dataset "
+                                                            "and others")
+    add_argument(plot_igcomp, "dsname", "feature", "aggregate", "datasets", "format", "multiclass", "max-features",
+                 max_feats_with="highest information gain")
+    plot_lab = pcmds.add_parser("labels", help="distribution of labels in the dataset (pie chart)")
+    add_argument(plot_lab, "dsname", "format")
+    plot_samp = pcmds.add_parser("samples", help="plot each executable from the target dataset")
+    add_argument(plot_samp, "dsname", "format")
     plot_samp.add_argument("-n", type=ts.pos_int, help="plot only N samples")
     add_argument(plot_samp, "query")
-    preproc = add_argument(cmds.add_parser("preprocess", category="read",
-                                           help="preprocess the input dataset given preprocessors"), "dsname")
+    preproc = cmds.add_parser("preprocess", category="read", help="preprocess the input dataset given preprocessors")
+    add_argument(preproc, "dsname")
     preproc.add_argument("-p", "--preprocessor", action="extend", nargs="*", choices=PREPROCESSORS.keys(), help=pp_help)
     add_argument(preproc, "query")
-    purge = add_argument(cmds.add_parser("purge", category="create/modify/delete", help="purge a dataset"), "dsname",
-                         force=True, note="use 'all' to purge all datasets or '*' to select a part of them")
+    purge = cmds.add_parser("purge", category="create/modify/delete", help="purge a dataset")
+    add_argument(purge, "dsname", force=True, note="use 'all' to purge all datasets or '*' to select a part of them")
     purge.add_argument("-b", "--backup", action="store_true", help="only purge backups")
     remove = add_argument(cmds.add_parser("remove", category="create/modify/delete",
                                           help="remove executables from a dataset"), "dsname")
     add_argument(remove, "query")
-    rename = add_argument(cmds.add_parser("rename", category="create/modify/delete", help="rename a dataset"), "dsname")
-    rename.add_argument("name2", type=ts.folder_does_not_exist, help="new name of the dataset")
+    rename = cmds.add_parser("rename", category="create/modify/delete", help="rename a dataset")
+    add_argument(rename, "dsname", "dsname2")
     revert = add_argument(cmds.add_parser("revert", category="create/modify/delete",
                                           help="revert a dataset to its previous state"), "dsname")
     revert.add_argument("-i", "--init", action="store_true", help="revert up to initial state",
                         note="this removes all backups")
-    select = add_argument(cmds.add_parser("select", category="create/modify/delete",
-                                          help="select a subset of the dataset"), "dsname")
-    select.add_argument("name2", type=ts.folder_does_not_exist, help="name of the new dataset")
-    select.add_argument("-n", "--number", dest="limit", type=ts.pos_int, default=0,
-                        help="limit number of executables for the output dataset", note="0 means all")
-    add_argument(select, "query")
+    select = cmds.add_parser("select", category="create/modify/delete", help="select a subset of the dataset")
+    add_argument(select, "dsname", "dsname2", "number", "query")
     show = add_argument(cmds.add_parser("show", category="read", help="get an overview of the dataset"), "dsname")
     show.add_argument("-l", "--limit", default=10, type=int, help="number of executables to be displayed per format")
     show.add_argument("--per-format", action="store_true", help="display statistics per format")
-    update = add_argument(cmds.add_parser("update", category="create/modify/delete",
-                                          help="update a dataset with new executables"), "dsname", force=True)
+    update = cmds.add_parser("update", category="create/modify/delete", help="update a dataset with new executables")
+    add_argument(update, "dsname", force=True)
     ugroup = update.add_mutually_exclusive_group()
-    ugroup.add_argument("-d", "--detect", action="store_true", help="detect used packer with installed detectors")
-    ugroup.add_argument("-l", "--labels", type=ts.json_config, help="set labels from a JSON file")
-    update.add_argument("-n", "--number", dest="n", type=ts.pos_int, default=0,
-                        help="number of executables for the output dataset", note="0 means all")
+    add_argument(ugroup, "detect", "labels", "number", dest="n")
     update.add_argument("-r", "--refresh", action="store_true", help="refresh labels of already existing executables")
     update.add_argument("-s", "--source-dir", action="extend", nargs="*", type=lambda p: ts.Path(p, expand=True),
                         help="executables source directory to be included")
-    add_argument(add_argument(cmds.add_parser("view", category="read", help="view executables filtered from a dataset"),
-                              "dsname"), "query")
+    view = cmds.add_parser("view", category="read", help="view executables filtered from a dataset")
+    add_argument(view, "dsname", "query")
     initialize(noargs_action="usage")
     configure_logging(args.verbose)
     if args.command == "plot" and args.subcommand == "features" and len(args.feature) == 0:

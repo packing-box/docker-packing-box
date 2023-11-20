@@ -22,16 +22,13 @@ __examples__    = [
     "show [model_name]",
 ]
 
-check = lambda s: Model.check(s) or DumpedModel.check(s)
-
 
 if __name__ == '__main__':
     sparsers = parser.add_subparsers(dest="command", metavar="CMD", title="positional argument",
                                      help="command to be executed")
-    browse = add_argument(sparsers.add_parser("browse", category="read", help="browse input data (including "
-                                              "predictions) based on the selected criteria"), "mdname")
-    browse.add_argument("executable", nargs="?",
-                        help="executable or folder containing executables or dataset or data CSV file")
+    browse = sparsers.add_parser("browse", category="read", help="browse input data (including predictions) based on "
+                                                                 "the selected criteria")
+    add_argument(browse, "mdname", "executable", nargs="?")
     browse.add_argument("-q", "--query", help="query for filtering records to be selected",
                         note="see <https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.query.html>")
     compare = add_argument(sparsers.add_parser("compare", category="read", help="compare the selected model with "
@@ -41,29 +38,21 @@ if __name__ == '__main__':
     compare.add_argument("-i", "--include", action="store_true", help="include unformatted models")
     compare.add_argument("-m", "--model", type=Model.load, action="extend", nargs="*",
                          help="model to be added in the comparison")
-    add_argument(sparsers.add_parser("edit", category="create/modify/delete", help="edit the performance log file"),
-                 "mdname", force=True)
+    edit = sparsers.add_parser("edit", category="create/modify/delete", help="edit the performance log file")
+    add_argument(edit, "mdname", force=True)
     listm = sparsers.add_parser("list", category="read", help="list all the models from the workspace")
     listm.add_argument("--algorithms", action="store_true", help="show available algorithms instead of models")
-    preproc = add_argument(sparsers.add_parser("preprocess", category="read",
-                                               help="preprocess features and visualize the result"), "mdname")
-    preproc.add_argument("executable", nargs="?",
-                         help="executable or folder containing executables or dataset or data CSV file")
-    preproc.add_argument("-f", "--features-set", metavar="YAML", type=ts.file_exists, default=config['features'],
-                         help="features set's YAML definition", note="similar to 'dataset browse', except that it "
-                         "requires a model to apply its preprocessors in addition")
+    preproc = sparsers.add_parser("preprocess", category="read", help="preprocess features and visualize the result")
+    add_argument(preproc, "mdname", "executable", "features-set", nargs="?", note="similar to 'dataset browse', except "
+                                                      "that it requires a model to apply its preprocessors in addition")
     add_argument(sparsers.add_parser("purge", category="create/modify/delete",
                                      help="purge the selected model"), "mdname", force=True)
     rename = add_argument(sparsers.add_parser("rename", category="create/modify/delete",
                                               help="rename the selected model"), "mdname")
     rename.add_argument("name2", type=ts.folder_does_not_exist, help="new name of the model")
     add_argument(sparsers.add_parser("show", category="read", help="get an overview of the model"), "mdname")
-    test = add_argument(sparsers.add_parser("test", category="read", help="test the model on a given input"), "mdname")
-    test.add_argument("executable", help="executable or folder containing executables or dataset or data CSV file")
-    test.add_argument("-f", "--features-set", metavar="YAML", type=ts.file_exists, default=config['features'],
-                      help="features set's YAML definition")
-    test.add_argument("--ignore-labels", action="store_true",
-                      help="while computing metrics, only consider those not requiring labels")
+    test = sparsers.add_parser("test", category="read", help="test the model on a given input")
+    add_argument(test, "mdname", "executable", "features-set", "ignore-labels")
     test.add_argument("--sep", default=",", choices=",;|\t", help="set the CSV separator",
                       note="required when using input CSV data instead of a Dataset (no effect otherwise)")
     train = sparsers.add_parser("train", category="create/modify/delete", help="train a model on the given dataset")
@@ -75,14 +64,12 @@ if __name__ == '__main__':
                             is not None]) for a in Algorithm.registry))
     train.add_argument("--algorithms-set", metavar="YAML", type=ts.file_exists, default=config['algorithms'],
                        help="algorithms set's YAML definition")
-    train.add_argument("-f", "--features-set", metavar="YAML", type=ts.file_exists, default=config['features'],
-                       help="features set's YAML definition")
+    add_argument(train, "features-set")
     train.add_argument("-m", "--multiclass", action="store_true", help="train the model using multiple label classes")
     train.add_argument("-r", "--reset", action="store_true", help="reset the model before (re)training")
     train.add_argument("--cv", default=5, type=ts.pos_int, help="number of Cross-Validation folds")
     train.add_argument("--feature", action="extend", nargs="*", help="list of features to be selected")
-    train.add_argument("--ignore-labels", action="store_true",
-                       help="while computing metrics, only consider those not requiring labels")
+    add_argument(train, "ignore-labels")
     train.add_argument("--n-jobs", help="number of jobs to be run in parallel")
     train.add_argument("-p", "--param", nargs="*", help="comma-separated list of parameters for the algorithm",
                        note="fixing a parameter with this option disables it from the cross-validation")
@@ -98,7 +85,7 @@ if __name__ == '__main__':
                                help="distance threshold for dendrograms colors")
     viz_dependent.add_argument("-f", "--features", nargs="*",type=lambda x: x.split(","),
                                help="comma separated list of features to be selected", default="")
-    viz_dependent.add_argument("-l", "--hierarchy_levels", metavar="H", default=4, type=int,
+    viz_dependent.add_argument("-l", "--hierarchy-levels", metavar="H", default=4, type=int,
                                help="number of levels to display when truncating dendrogram")
     viz_dependent.add_argument("-n", "--n-components", metavar="N", default=20, type=int,
                                help="number of components for dimensionality reduction")

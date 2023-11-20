@@ -1,10 +1,10 @@
 # -*- coding: UTF-8 -*-
 from contextlib import contextmanager
 from tinyscript import functools, os, re, subprocess
-from tinyscript.helpers import Path, TempPath
+from tinyscript.helpers import is_file, is_folder, Path, TempPath
 
 
-__all__ = ["data_to_temp_file", "edit_file", "figure_path", "find_files_in_folder"]
+__all__ = ["data_to_temp_file", "edit_file", "figure_path", "file_or_folder_or_dataset", "find_files_in_folder"]
 
 
 @contextmanager
@@ -32,9 +32,111 @@ def figure_path(f):
     @functools.wraps(f)
     def _wrapper(*a, **kw):
         exp, fn = PBOX_HOME.joinpath("experiment.env"), f(*a, **kw)
+        # at this point, 'fn' is either a string or Path, with eventually separators for subfolders if the figure is to
+        #  be sorted in the scope of an experiment
+        if Path(fn).extension[1:] not in IMG_FORMATS:
+            fn = str(fn) + "." + kw.get('format', "png")
+        fn = Path(fn)
+        # by convention, if we are saving files in the workspace of an experiment, using separators will sort the figure
+        #  according to the defined structure (e.g. if an experiment has multiple datasets, it is cleaner to sort its
+        #  figures with a tree structure that uses datasets' names)
         if exp.exists():
-            fn = str(Path(exp.read_text()).joinpath("figures", fn))
-        return fn
+            fn = Path(exp.read_text()).joinpath("figures", fn)
+            fn.dirname.mkdir(exist_ok=True, parents=True)
+        # by convention, if the given path is not absolute and we are not saving files in the workspace of an open
+        #  experiment, we shall remain in the current folder, hence replacing separators by underscores
+        elif not fn.is_absolute():
+            fn = str(fn).replace("/", "_")
+        return str(fn)
+    return _wrapper
+
+
+def file_or_folder_or_dataset(method):
+    """ This decorator allows to handle, as the first positional argument of an instance method, either an executable,
+         a folder with executables or the executable files from a Dataset. """
+    @functools.wraps(method)
+    def _wrapper(self, *args, **kwargs):
+        from ..core.executable import Executable
+        kwargs['silent'] = kwargs.get('silent', False)
+        # collect executables and folders from args
+        n, e, l = -1, [], {}
+        # exe list extension function
+        def _extend_e(i):
+            nonlocal n, e, l
+            # append the (Fileless)Dataset instance itself
+            if not isinstance(i, Executable) and getattr(i, "is_valid", lambda: False)():
+                if not kwargs['silent']:
+                    self.logger.debug("input is a (Fileless)Dataset structure")
+                for exe in i:
+                    e.append(exe)
+                return True
+            # single executable
+            elif is_file(i):
+                if not kwargs['silent']:
+                    self.logger.debug("input is a single executable")
+                if i not in e:
+                    i = Path(i)
+                    i.dataset = None
+                    e.append(i)
+                    lbl = kwargs.get('label')
+                    if lbl:
+                        l = {i.stem: lbl}
+                return True
+            # normal folder or FilelessDataset's path or Dataset's files path
+            elif is_folder(i):
+                if not kwargs['silent']:
+                    self.logger.debug("input is a folder of executables")
+                for f in Path(i).walk(filter_func=lambda p: p.is_file()):
+                    f.dataset = None
+                    if str(f) not in e:
+                        e.append(f)
+                return True
+            else:
+                i = config['datasets'].joinpath(i)
+                # check if it has the structure of a dataset
+                if all(i.joinpath(f).is_file() for f in ["data.csv", "metadata.json"]):
+                    if i.joinpath("files").is_dir() and not i.joinpath("features.json").exists():
+                       
+                        if not kwargs['silent']:
+                            self.logger.debug("input is Dataset from %s" % config['datasets'])
+                        data = pd.read_csv(str(i.joinpath("data.csv")), sep=";")
+                        l = {exe.hash: exe.label for exe in data.itertuples()}
+                        dataset = i.basename
+                        for f in i.joinpath("files").listdir():
+                            f.dataset = dataset
+                            if str(f) not in e:
+                                e.append(f)
+                        return True
+                    # otherwise, it is a FilelessDataset and it won't work as this decorator requires samples
+                    self.logger.warning("FilelessDataset is not supported as it does not hold samples to iterate")
+            return False
+        # use the extension function to parse:
+        # - positional arguments up to the last valid file/folder
+        # - then the 'file' keyword-argument
+        for n, a in enumerate(args):
+            # if not a valid file, folder or dataset, stop as it is another type of argument
+            if not _extend_e(a):
+                break
+        args = tuple(args[n+1:])
+        for a in kwargs.pop('file', []):
+            _extend_e(a)
+        # then handle the list
+        i, kwargs['silent'] = -1, kwargs.get('silent', False)
+        for i, exe in enumerate(e):
+            exe = Executable(exe)
+            if exe.format is None:  # format is not in the executable SIGNATURES of pbox.core.executable
+                self.logger.debug("'%s' is not a valid executable" % exe)
+                continue
+            kwargs['dslen'] = len(e)
+            # this is useful for a decorated method that handles the difference between the computed and actual labels
+            kwargs['label'] = l.get(Path(exe).stem, NOT_LABELLED)
+            try:
+                yield method(self, exe, *args, **kwargs)
+            except ValueError as err:
+                self.logger.exception(err)
+            kwargs['silent'] = True
+        if i == -1:
+            self.logger.error("No (valid) executable selected")
     return _wrapper
 
 

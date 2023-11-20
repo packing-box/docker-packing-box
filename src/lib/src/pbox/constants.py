@@ -221,4 +221,7 @@ bi.UNDEF_RESULT = "undefined"
 # label markers and conversion for Scikit-Learn and Weka
 bi.NOT_LABELLED, bi.NOT_PACKED = "?-"  # impose markers for distinguishing between unlabelled and not-packed data
 bi.LABELS_BACK_CONV = {NOT_LABELLED: -1, NOT_PACKED: 0}  # values used with sklearn for unlabelled and null class
+bi.READABLE_LABELS = lambda l, binary=False: {(LABELS_BACK_CONV[NOT_PACKED] if binary else NOT_PACKED): 'not packed', \
+                                        (LABELS_BACK_CONV[NOT_LABELLED] if binary else NOT_LABELLED): 'not labelled'} \
+                                        .get(l, 'packed' if binary else l)
 

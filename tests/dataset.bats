@@ -126,12 +126,14 @@ teardown_file(){
 # ✓ plot
 @test "plot distributions of $TEST_DS2" {
   FILE="$TESTS_DIR/$TEST_XP/figures/$TEST_DS2"
-  assert_file_not_exist "${FILE}_labels.png"
+  LABELS="${FILE}/labels.png"
+  assert_file_not_exist "${LABELS}"
   run dataset plot labels "$TEST_DS2"
-  assert_file_exist "${FILE}_labels.png"
-  assert_file_not_exist "${FILE}_features_entropy.png"
+  assert_file_exist "${LABELS}"
+  ENTROPY="${FILE}/features/entropy.png"
+  assert_file_not_exist "${ENTROPY}"
   run dataset plot features "$TEST_DS2" entropy
-  assert_file_exist "${FILE}_features_entropy.png"
+  assert_file_exist "${ENTROPY}"
 }
 
 # ✗ alter

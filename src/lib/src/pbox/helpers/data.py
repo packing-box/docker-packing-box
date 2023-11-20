@@ -1,105 +1,16 @@
 # -*- coding: UTF-8 -*-
-from tinyscript import functools, json, logging
-from tinyscript.helpers import is_file, is_folder, Path
+from tinyscript import functools, json
+from tinyscript.helpers import is_function
 
-lazy_load_module("pandas", alias="pd")
-
-
-__all__ = ["file_or_folder_or_dataset", "filter_data", "filter_data_iter", "get_data", "pd"]
+from .utils import np, pd
 
 
-def file_or_folder_or_dataset(method):
-    """ This decorator allows to handle, as the first positional argument of an instance method, either an executable,
-         a folder with executables or the executable files from a Dataset. """
-    @functools.wraps(method)
-    def _wrapper(self, *args, **kwargs):
-        from ..core.executable import Executable
-        kwargs['silent'] = kwargs.get('silent', False)
-        # collect executables and folders from args
-        n, e, l = -1, [], {}
-        # exe list extension function
-        def _extend_e(i):
-            nonlocal n, e, l
-            # append the (Fileless)Dataset instance itself
-            if not isinstance(i, Executable) and getattr(i, "is_valid", lambda: False)():
-                if not kwargs['silent']:
-                    self.logger.debug("input is a (Fileless)Dataset structure")
-                for exe in i:
-                    e.append(exe)
-                return True
-            # single executable
-            elif is_file(i):
-                if not kwargs['silent']:
-                    self.logger.debug("input is a single executable")
-                if i not in e:
-                    i = Path(i)
-                    i.dataset = None
-                    e.append(i)
-                    lbl = kwargs.get('label')
-                    if lbl:
-                        l = {i.stem: lbl}
-                return True
-            # normal folder or FilelessDataset's path or Dataset's files path
-            elif is_folder(i):
-                if not kwargs['silent']:
-                    self.logger.debug("input is a folder of executables")
-                for f in Path(i).walk(filter_func=lambda p: p.is_file()):
-                    f.dataset = None
-                    if str(f) not in e:
-                        e.append(f)
-                return True
-            else:
-                i = config['datasets'].joinpath(i)
-                # check if it has the structure of a dataset
-                if all(i.joinpath(f).is_file() for f in ["data.csv", "metadata.json"]):
-                    if i.joinpath("files").is_dir() and not i.joinpath("features.json").exists():
-                       
-                        if not kwargs['silent']:
-                            self.logger.debug("input is Dataset from %s" % config['datasets'])
-                        data = pd.read_csv(str(i.joinpath("data.csv")), sep=";")
-                        l = {exe.hash: exe.label for exe in data.itertuples()}
-                        dataset = i.basename
-                        for f in i.joinpath("files").listdir():
-                            f.dataset = dataset
-                            if str(f) not in e:
-                                e.append(f)
-                        return True
-                    # otherwise, it is a FilelessDataset and it won't work as this decorator requires samples
-                    self.logger.warning("FilelessDataset is not supported as it does not hold samples to iterate")
-            return False
-        # use the extension function to parse:
-        # - positional arguments up to the last valid file/folder
-        # - then the 'file' keyword-argument
-        for n, a in enumerate(args):
-            # if not a valid file, folder or dataset, stop as it is another type of argument
-            if not _extend_e(a):
-                break
-        args = tuple(args[n+1:])
-        for a in kwargs.pop('file', []):
-            _extend_e(a)
-        # then handle the list
-        i, kwargs['silent'] = -1, kwargs.get('silent', False)
-        for i, exe in enumerate(e):
-            exe = Executable(exe)
-            if exe.format is None:  # format is not in the executable SIGNATURES of pbox.core.executable
-                self.logger.debug("'%s' is not a valid executable" % exe)
-                continue
-            kwargs['dslen'] = len(e)
-            # this is useful for a decorated method that handles the difference between the computed and actual labels
-            kwargs['label'] = l.get(Path(exe).stem, NOT_LABELLED)
-            try:
-                yield method(self, exe, *args, **kwargs)
-            except ValueError as err:
-                self.logger.exception(err)
-            kwargs['silent'] = True
-        if i == -1:
-            self.logger.error("No (valid) executable selected")
-    return _wrapper
+__all__ = ["filter_data", "filter_data_iter", "get_data", "pd", "reduce_data"]
 
 
 def filter_data(df, query=None, **kw):
     """ Fitler an input Pandas DataFrame based on a given query. """
-    i, l = -1, kw.get('logger', logging.nullLogger)
+    i, l = -1, kw.get('logger', null_logger)
     if query is None or query.lower() == "all":
         return df
     try:
@@ -187,6 +98,9 @@ def get_data(exe_format):
         if fp.extension == ".json":
             with fp.open() as f:
                 return _sort(json.load(f))
+        elif fp.extension in [".yaml", ".yml"]:
+            with fp.open() as f:
+                return _sort(yaml.safe_load(f))
         else:
             return _sort([_uncmt(l) for l in fp.read_text().split("\n") if _uncmt(l) != ""])
     # first, get the group (simply use exe_format if it is precisely a group)
@@ -207,4 +121,44 @@ def get_data(exe_format):
                     c = datafile.stem.upper()
                     data[c] = _add(_open(datafile), data[c]) if c in data else _open(datafile)
     return data
+
+
+def reduce_data(X, n_components=20, perplexity=30, random_state=42, imputer_strategy="mean", scaler=None,
+                reduction_algorithm="PCA", return_scaled=False, return_suffix=False, **kw):
+    """ Reduce input data to 2 components, using a combination of PCA/ICA and TSNE, first imputing missing values and
+         scaling data with an input scaler. """
+    from sklearn.impute import SimpleImputer
+    from sklearn.preprocessing import MinMaxScaler
+    l = kw.get('logger', null_logger)
+    n, n_cols, p = n_components, len(X.columns), perplexity
+    rs, suffix = 42, ""
+    # impute missing values and scale data
+    l.debug(f"imputing values using strategy {imputer_strategy}...")
+    X = SimpleImputer(missing_values=np.nan, strategy=imputer_strategy).fit_transform(X)
+    l.debug(f"scaling data with {(scaler or MinMaxScaler).__name__}...")
+    Xs = X = (scaler or MinMaxScaler)().fit_transform(X)
+    # preprocess data with a PCA with n components to reduce the high dimensionality (better performance)
+    if n < n_cols:
+        from sklearn.decomposition import FastICA, PCA
+        a = {'ICA': FastICA, 'PCA': PCA}[reduction_algorithm](n, random_state=rs() if is_function(rs) else rs)
+        suffix += "_%s%d" % (reduction_algorithm.lower(), n)
+        l.debug(f"reducing data to {n} components with {reduction_algorithm}...")
+        if 'target' in kw:
+            a.fit(X, kw['target'])
+            X = a.transform(X)
+        else:
+            X = a.fit_transform(X)
+    # now reduce the n components to 2 dimensions with t-SNE (better results but less performance) if relevant
+    if n > 2:
+        from sklearn.manifold import TSNE
+        l.debug(f"reducing data to 2 components with TSNE...")
+        X = TSNE(2, random_state=rs() if is_function(rs) else rs, perplexity=p).fit_transform(X)
+        suffix += "_tsne2-p%d" % p
+    # return result(s) accordingly
+    r = (X, )
+    if return_scaled:
+        r += (Xs, )
+    if return_suffix:
+        r += (suffix, )
+    return r[0] if len(r) == 0 else r
 

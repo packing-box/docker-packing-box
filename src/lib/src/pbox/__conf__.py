@@ -11,6 +11,7 @@ from .helpers.config import *
 
 filterwarnings("ignore", "Trying to unpickle estimator DecisionTreeClassifier")
 filterwarnings("ignore", "Behavior when concatenating bool-dtype and numeric-dtype arrays is deprecated")
+simplefilter("ignore", FutureWarning)
 simplefilter("ignore", ResourceWarning)
 
 
@@ -59,6 +60,10 @@ psr_tuple = lambda f: (None, "PARSER", "name of the module for parsing %s execut
 for sf in ["conf", "data", "datasets", "models"]:
     PBOX_HOME.joinpath(sf).mkdir(0o764, True, True)
 
+# Option description formats (apply to 'defaults' and 'hidden'):
+#  - 4-tuple: (default, metavar, description, transform_function)
+#  - 5-tuple: (...                                              , overrides)
+#  - 6-tuple: (...                                                         , join_default_to_override)
 bi.config = Config("packing-box",
     # defaults
     {
@@ -84,6 +89,13 @@ bi.config = Config("packing-box",
             'elf_parser':     psr_tuple("ELF"),
             'macho_parser':   psr_tuple("Mach-O"),
             'pe_parser':      psr_tuple("PE"),
+        },
+        'visualization': {
+            'colormap':        ("jet", "CMAP", "name of matplotlib.colors.Colormap to apply to plots"),
+            'dark_mode':       ("false", "BOOL", "enable dark mode", _bl),
+            'dpi':             ("200", "DPI", "figures' dots per inch", _it),
+            'font_family':     ("serif", "FAMILY", "font family for every text"),
+            'title_font_size': ("16", "SIZE", "font size for plot titles", _it),
         },
     },
     # envvars

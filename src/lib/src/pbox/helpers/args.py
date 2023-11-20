@@ -1,60 +1,105 @@
 # -*- coding: UTF-8 -*-
-from tinyscript.helpers.data.types import folder_exists, json_config, pos_int
+from tinyscript import functools
+from tinyscript.helpers.data.types import file_exists, folder_does_not_exist, folder_exists, json_config, pos_int
 
 
-__all__ = ["add_argument", "expand_parameters", "feature_identifier", "item_exists", "legend_location", "percentage",
-           "set_yaml", "yaml_file"]
+__all__ = ["add_argument", "characteristic_identifier", "expand_parameters", "item_exists", "legend_location",
+           "percentage", "set_yaml", "yaml_file"]
 
 
-def add_argument(parser, name, **kwargs):
+def add_argument(parser, *names, **kwargs):
     """ Set a standard argument for the given parser. """
-    from inspect import currentframe
-    glob = currentframe().f_back.f_globals
-    check = glob.get('check', lambda *a, **kw: True)
-    if name == "dsname":
-        def dataset_exists(string):
-            if string == "all" or "*" in string or check(string) or kwargs.get('force', False):
-                return string
-            raise ValueError("Invalid dataset")
-        note = kwargs.get('note', None)
-        parser.add_argument(kwargs.get('argname', "name"), type=dataset_exists,
-                            help=kwargs.get('help', "name of the dataset"),
-                            **({} if note is None else {'note': note}))
-    elif name == "folder":
-        parser.add_argument("filename", help="binary to be represented ; format is regex")
-        parser.add_argument("folder", type=folder_exists, help="target folder")
-        if kwargs.get('alias', False):
-            parser.add_argument("-a", "--alias", type=json_config, help="input label alias in JSON format")
-        if kwargs.get('fmt', False):
-            parser.add_argument("-f", "--format", default="png", choices=IMG_FORMATS, help="image format")
-        if kwargs.get('extended', True):
-            parser.add_argument("-l", "--label", nargs="*", action="extend", help="select specific label (keeps order)")
-            parser.add_argument("-m", "--max-not-matching", type=pos_int, help="maximum number of labels not matching")
-    elif name == "format":
-        parser.add_argument("-f", "--format", default="png", choices=IMG_FORMATS, help="image file format for plotting")
-    elif name == "mdname":
-        def model_exists(string):
-            if string == "all" or "*" in string or check(string) or kwargs.get('force', False):
-                return string
-            raise ValueError("Invalid model")
-        a = ("-n", "--name", ) if kwargs.get('optional', False) else ("name", )
-        kw = {'type': model_exists, 'help': kwargs.get('help', "name of the model")}
-        parser.add_argument(*a, **kw)
-    elif name == "query":
-        parser.add_argument("-q", "--query", default=kwargs.get('default', "all"),
-                            help="query for filtering records to be selected",
-                            note="see <https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.query.html>")
-    elif name == "xpname":
-        def experiment_exists(string):
-            if string == "all" or "*" in string or check(string) or kwargs.get('force', False):
-                return string
-            raise ValueError("Invalid experiment")
-        note = kwargs.get('note', None)
-        parser.add_argument("name", type=experiment_exists, help=kwargs.get('help', "name of the experiment"),
-                            **({} if note is None else {'note': note}))
-    else:
-        raise ValueError("Argument '%s' not defined" % name)
+    params = {k: kwargs[k] for k in ["nargs", "note"] if kwargs.get(k) is not None}
+    for name in names:
+        if name == "aggregate":
+            parser.add_argument("-a", "--aggregate", help="pattern to aggregate some of the features together",
+                                default="byte_[0-9]+_after_ep")
+        elif name == "binary":
+            parser.add_argument("-b", "--binary", dest="multiclass", action="store_false",
+                                help="process features using binary classification (1:True/0:False/-1:Unlabelled)")
+        elif name == "detect":
+            parser.add_argument("-d", "--detect", action="store_true",
+                                help="detect used packer with the superdetector",
+                                note="type '?' to see installed detectors that vote as a superdetector")
+        elif name == "datasets":
+            parser.add_argument("-d", "--datasets", action="extend", nargs="*", help="datasets to compare features to",
+                                required=True)
+        elif name == "dsname":
+            parser.add_argument(kwargs.get('argname', "name"), type=dataset_exists(kwargs.get('force', False)),
+                                help=kwargs.get('help', "name of the dataset"), **params)
+        elif name == "dsname2":
+            parser.add_argument("name2", type=folder_does_not_exist, help="new name of the dataset")
+        elif name == "executable":
+            parser.add_argument("executable", help="executable or folder containing executables or dataset or data CSV"
+                                                   " file", **params)
+        elif name == "feature":
+            parser.add_argument("feature", action="extend", nargs="*", type=feature_identifier,
+                                help="feature identifiers")
+        elif name == "features-set":
+            parser.add_argument("-f", "--features-set", metavar="YAML", type=yaml_file,
+                                default=str(config['features']), help="features set's YAML definition", **params)
+        elif name == "folder":
+            parser.add_argument("filename", help="binary to be represented ; format is regex")
+            parser.add_argument("folder", type=folder_exists, help="target folder")
+            if kwargs.get('alias', False):
+                parser.add_argument("-a", "--alias", type=json_config, help="input label alias in JSON format")
+            if kwargs.get('fmt', False):
+                parser.add_argument("-f", "--format", default="png", choices=IMG_FORMATS, help="image format")
+            if kwargs.get('extended', True):
+                parser.add_argument("-l", "--label", nargs="*", action="extend",
+                                    help="select specific label (keeps order)")
+                parser.add_argument("-m", "--max-not-matching", type=pos_int,
+                                    help="maximum number of labels not matching")
+        elif name == "format":
+            parser.add_argument("-f", "--format", default="png", choices=IMG_FORMATS, help="output image file format")
+        elif name == "ignore-labels":
+            parser.add_argument("--ignore-labels", action="store_true",
+                                help="while computing metrics, only consider those not requiring labels")
+        elif name == "labels":
+            parser.add_argument("-l", "--labels", type=json_config, help="set labels from a JSON file")
+        elif name == "max-features":
+            parser.add_argument("-n", "--max-features", type=pos_int,
+                                help=f"plot n features with {kwargs['max_feats_with']}")
+        elif name == "mdname":
+            a = ("-n", "--name", ) if kwargs.get('optional', False) else ("name", )
+            kw = {'type': model_exists(kwargs.get('force', False)), 'help': kwargs.get('help', "name of the model")}
+            parser.add_argument(*a, **kw)
+        elif name == "multiclass":
+            parser.add_argument("-m", "--multiclass", action="store_true", help="process features using true labels",
+                                note="if False, means binary classification (1:True/0:False/-1:Unlabelled)")
+        elif name == "number":
+            parser.add_argument("-n", "--number", dest=kwargs.get('dest', "limit"), type=pos_int, default=0,
+                                help="limit number of executables for the output dataset", note="0 means all")
+        elif name == "query":
+            parser.add_argument("-q", "--query", default=kwargs.get('default', "all"),
+                                help="query for filtering records to be selected",
+                                note="see <https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.query.html>")
+        elif name == "xpname":
+            parser.add_argument("name", type=experiment_exists(kwargs.get('force', False)),
+                                help=kwargs.get('help', "name of the experiment"), **params)
+        else:
+            raise ValueError(f"Argument '{name}' not defined")
     return parser
+
+
+def characteristic_identifier(name):
+    if name not in ["format", "label", "signature"]:
+        try:
+            return feature_identifier(name)
+        except ValueError:
+            raise ValueError("Not a valid characteristic")
+    return name
+
+
+def dataset_exists(force=False):
+    def _wrapper(string):
+        from pbox.core.dataset import Dataset, FilelessDataset
+        check = lambda s: Dataset.check(s) or FilelessDataset.check(s)
+        if string == "all" or "*" in string or check(string) or force:
+            return string
+        raise ValueError("Invalid dataset")
+    _wrapper.__name__ = "dataset"
+    return _wrapper
 
 
 def expand_parameters(*strings, **kw):
@@ -73,10 +118,21 @@ def expand_parameters(*strings, **kw):
     return d
 
 
+def experiment_exists(force=False):
+    def _wrapper(string):
+        from pbox.core.experiment import Experiment
+        if string == "all" or "*" in string or Experiment.check(string) or force:
+            return string
+        raise ValueError("Invalid experiment")
+    _wrapper.__name__ = "experiment"
+    return _wrapper
+
+
 def feature_identifier(name):
+    from pbox.core.executable import Features
     Features(None)
     if name not in Features.names():
-        raise ValueError
+        raise ValueError("Not a feature identifier")
     return name
 
 
@@ -94,6 +150,17 @@ def legend_location(string):
         raise ValueError(string)
     return string.replace("-", " ")
 legend_location.__name__ = "legend location"
+
+
+def model_exists(force=False):
+    def _wrapper(string):
+        from pbox.core.experiment import DumpedModel, Model
+        check = lambda s: Model.check(s) or DumpedModel.check(s)
+        if string == "all" or "*" in string or check(string) or force:
+            return string
+        raise ValueError("Invalid model")
+    _wrapper.__name__ = "model"
+    return _wrapper
 
 
 def percentage(p):
@@ -117,7 +184,7 @@ def set_yaml(namespace):
                 if name in glob:
                     setattr(glob[name], "source", v)
                 else:
-                    glob['logger'].warning("Could not find a class matching '%s'" % k)
+                    glob['logger'].warning(f"Could not find a class matching '{k}'")
 
 
 def yaml_file(path):
