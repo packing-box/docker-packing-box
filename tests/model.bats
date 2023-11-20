@@ -75,7 +75,7 @@ teardown_file(){
 }
 
 @test "train models for every available algorithm based on $TEST_DS" {
-  for ALGO in `model train --help 2>&1 | grep -i '\-\-algorithm ' - | cut -d'}' -f1 | cut -d'{' -f2 | sed -r 's/,/ /g'`; do
+  for ALGO in `list-all-algorithms`; do
     # AdaBoost failing with AttributeError: 'DecisionTreeClassifier' object has no attribute 'ccp_alpha'
     if [[ "$ALGO" != "ab" ]]; then
       model train "$TEST_DS" -a $ALGO
