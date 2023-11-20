@@ -8,6 +8,7 @@ from os import listdir
 from os.path import exists, expanduser, isdir, isfile, join, splitext
 
 
+CONFIG   = None
 CONFIGS  = ["algorithms.yml", "alterations.yml", "analyzers.yml", "detectors.yml", "features.yml", "packers.yml",
             "unpackers.yml"]
 DEFAULTS = {
@@ -23,19 +24,21 @@ _fmt_name = lambda x: (x or "").lower().replace("_", "-")
 
 def __parse_config():
     """ Helper function for parsing ~/.packing-box.conf """
-    cfg, d = configparser.ConfigParser(), {'experiment': None}
-    try:
-        cfg.read_file(expanduser("~/.packing-box.conf"))
-        d['workspace'] = cfg['main'].get('workspace', DEFAULTS['workspace'])
-        d['experiments'] = cfg['main'].get('experiments', DEFAULTS['experiments'])
-    except (configparser.MissingSectionHeaderError, KeyError):
-        d['workspace'] = DEFAULTS['workspace']
-        d['experiments'] = DEFAULTS['experiments']
-    exp_env = expanduser("~/.packing-box/experiment.env")
-    if exists(exp_env):
-        with open(exp_env) as f:
-            d['experiment'] = f.read().strip()
-    return d
+    global CONFIG
+    if CONFIG is None:
+        cfg, CONFIG = configparser.ConfigParser(), {'experiment': None}
+        try:
+            cfg.read_file(expanduser("~/.packing-box.conf"))
+            CONFIG['workspace'] = cfg['main'].get('workspace', DEFAULTS['workspace'])
+            CONFIG['experiments'] = cfg['main'].get('experiments', DEFAULTS['experiments'])
+        except (configparser.MissingSectionHeaderError, KeyError):
+            CONFIG['workspace'] = DEFAULTS['workspace']
+            CONFIG['experiments'] = DEFAULTS['experiments']
+        exp_env = expanduser("~/.packing-box/experiment.env")
+        if exists(exp_env):
+            with open(exp_env) as f:
+                CONFIG['experiment'] = f.read().strip()
+    return CONFIG
 
 
 def _configfile(cfgfile):
@@ -43,7 +46,10 @@ def _configfile(cfgfile):
         def _subwrapper(return_list=False):
             """ Decorator for listing something from the current workspace """
             cfg = __parse_config()
-            with open(join(cfg['experiment'] or cfg['workspace'], "conf", "%s.yml" % cfgfile)) as fp:
+            path = join(cfg['experiment'], "conf", "%s.yml" % cfgfile)
+            if not exists(path):
+                path = join(cfg['workspace'], "conf", "%s.yml" % cfgfile)
+            with open(path) as fp:
                 yaml_str = "\n".join(l for l in fp.readlines() if len(l.split(":")) > 1 and \
                                                                   not re.match(r"\!{1,2}", l.split(":", 1)[1].lstrip()))
             cfg = yaml.safe_load(yaml_str)
