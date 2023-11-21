@@ -17,9 +17,9 @@
      "import": [
       "local IFS=$'\\n'",
       "COMPREPLY=($(compgen -o plusdirs -f -X '!*.yml' -- \"$curr\"))"
-     ]}, "NAME = \"test\""],
+     ]}, "_NAME = \"test\""],
     [{"compress|open": "`list-experiments`",
-      "purge": "all `list-experiments`"}, "NAME = None"]
+      "purge": "all `list-experiments`"}, "_NAME = None"]
   ],
   "model": {
     "*": "`list-models`",

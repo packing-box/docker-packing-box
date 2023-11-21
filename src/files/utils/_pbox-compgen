@@ -15,15 +15,14 @@ __examples__  = [
 ]
 
 
-_compreply = lambda c, i=1, sc=False, pl=True: "COMPREPLY%s=($(compgen -W \"%s\" -- \"${COMP_WORDS[%d]}\"))%s\n" % \
-                                               (["", "+"][pl], " ".join(sorted(set(c))), i, ["", " ;;"][sc])
+_compreply = lambda c, i=1, sc=False, pl=True: f"COMPREPLY{['','+'][pl]}=($(compgen -W \"{' '.join(sorted(set(c)))}\" -- \"${{COMP_WORDS[{i}]}}\")){['',' ;;'][sc]}\n"
 _dictdepth = lambda d: 1 + max(map(_dictdepth, d.values())) if isinstance(d, dict) and len(d) > 0 else 0
-_varname   = lambda d: ["curr", "%sprev" % ((d-1) * "s")][d > 0]
+_varname   = lambda d: ["curr", f"{(d-1)*'s'}prev"][d > 0]
 
 
 def _gen_completions(tool, config, indent=2):
     i = indent * " "
-    p = {'block': "", 'compreply': "%sCOMPREPLY=()\n" % i, 'init': "", 'locals': "%slocal" % i, 'tool': tool.basename}
+    block, compreply, init, locals_ = "", f"{i}COMPREPLY=()\n", "", f"{i}local"
     # main function for computing a function block
     def _gen_block(cfg, commands, offset=0, no_init=False):
         depths = {}
@@ -59,7 +58,7 @@ def _gen_completions(tool, config, indent=2):
                     # case 1: v holds one key that is reflected in lower depths ; this means that it is not about
                     #          selecting a the case from a subparser but simply the next argument
                     #         E.g. {'test': {'test': "DO_SOMETHING"}} ;
-                    if len(v) == 1 and "_%s_" % k == list(v.keys())[0]:
+                    if len(v) == 1 and f"_{k}_" == list(v.keys())[0]:
                         _dict2depth(v, ref_cmds, depth+1, parents)
                     # case 2: v holds one or more keys with case selections, meaning that a subparser is defined
                     #         E.g. {'test': {'choice1|choice2': "DO_SOMETHING"}}
@@ -71,48 +70,50 @@ def _gen_completions(tool, config, indent=2):
                     ref_dct[nk] = nv
         # function for building format parameters for the template of completions function
         def _depth(dct, indent_offset=0):
+            nonlocal block, compreply, init, locals_
             # nested recursive function for building case blocks
             def _cases(dct, depth, argpos, case_offset=0, nested=False):
+                nonlocal block
                 offset = indent_offset+case_offset*2+1
-                p['block'] += indent * (offset+1) * " " + "case \"$%s\" in\n" % _varname(argpos)
+                block += indent * (offset+1) * " " + f"case \"${_varname(argpos)}\" in\n"
                 for case, complv in dct.items():
-                    p['block'] += indent * (offset+2) * " " + "\"%s\")\n" % case.replace("|", "\"|\"")
+                    quoted_case = case.replace('|','"|"')
+                    block += f"{indent*(offset+2)*' '}\"{quoted_case}\")\n"
                     if isinstance(complv, dict) and len(complv) == 1 and case == list(complv.keys())[0]:
                         complv = complv[list(complv.keys())[0]]
                     if isinstance(complv, dict):
                         _cases(complv, depth, argpos-1, case_offset+1, True)
                     elif isinstance(complv, list):
                         for line in complv[:-1]:
-                            p['block'] += indent * (offset+3) * " " + line.rstrip() + "\n"
-                        p['block'] += indent * (offset+3) * " " + complv[-1].rstrip() + " ;;\n"
+                            block += indent * (offset+3) * " " + line.rstrip() + "\n"
+                        block += indent * (offset+3) * " " + complv[-1].rstrip() + " ;;\n"
                     else:
-                        p['block'] += indent * (offset+3) * " " + _compreply([complv.replace("|", " ")], depth+1, True)
-                p['block'] += indent * (offset+2) * " " + "*) ;;\n"
-                p['block'] += indent * (offset+1) * " " + "esac%s\n" % ["", " ;;"][nested]
+                        block += indent * (offset+3) * " " + _compreply([complv.replace("|", " ")], depth+1, True)
+                block += indent * (offset+2) * " " + "*) ;;\n"
+                block += indent * (offset+1) * " " + f"esac{['', ' ;;'][nested]}\n"
             # start computing parts of the completion script
             max_depth = _dictdepth(dct)
             if max_depth == 0 or len(commands) == 0:
-                p['compreply'] = indent * " " + _compreply(commands or [dct[1]['']], pl=False)
-                p['locals'] = ""
+                compreply = indent * " " + _compreply(commands or [dct[1]['']], pl=False)
+                locals_ = ""
             else:
                 # loop on depth for creating the if blocks
                 for depth in range(max_depth):
-                    varname = _varname(depth)
+                    var = _varname(depth)
                     if not no_init:
-                        p['locals'] += " %s" % varname
-                        p['init'] += indent * " " + "%s=${COMP_WORDS[COMP_CWORD%s]}\n" % \
-                                                    (varname, "" if depth == 0 else "-%d" % depth)
-                    p['block'] += indent * (indent_offset+1) * " " + \
-                                  "%sif [ $COMP_CWORD -eq %d ]; then\n" % (["", "el"][depth > 0], depth+1)
+                        locals_ += f" {var}"
+                        init += indent * " " + f"{var}=${{COMP_WORDS[COMP_CWORD{['-'+str(depth),''][depth==0]}]}}\n"
+                    block += indent * (indent_offset+1) * " " + \
+                                  f"{['','el'][depth>0]}if [ $COMP_CWORD -eq {depth+1} ]; then\n"
                     # for 'if [ $COMP_CWORD -eq 1 ]' (depth 0), set the complete list of commands
                     if depth == 0:
-                        p['block'] += indent * (indent_offset+2) * " " + _compreply(commands)
+                        block += indent * (indent_offset+2) * " " + _compreply(commands)
                     # for further depths, create the case block
                     else:
                         _cases(depths[depth], depth, depth)
-                #p['block'] += indent * (indent_offset+1) * " " + "else\n"
-                #p['block'] += indent * (indent_offset+2) * " " + "COMPREPLY=()\n"
-                p['block'] += indent * (indent_offset+1) * " " + "fi\n"
+                #block += indent * (indent_offset+1) * " " + "else\n"
+                #block += indent * (indent_offset+2) * " " + "COMPREPLY=()\n"
+                block += indent * (indent_offset+1) * " " + "fi\n"
         # compute a transformation of the config dictionary to a format that can be processed by _depth and start
         #  building the parameters for the template
         _dict2depth(cfg, commands)
@@ -120,6 +121,7 @@ def _gen_completions(tool, config, indent=2):
     # start computation here
     if isinstance(config, list):
         cond, true, false = config
+        true_cmd, false_cmd = [], []
         try:
             true, true_cmd = true
         except TypeError:
@@ -130,26 +132,25 @@ def _gen_completions(tool, config, indent=2):
             pass
         loc = list(set(true.pop('_locals_', []) + false.pop('_locals_', [])))
         _gen_block(true, _get_commands(tool, true_cmd), 1)
-        block = p['block']
-        p['block'] = ""
+        true_block = block
+        block = ""
         _gen_block(false, _get_commands(tool, false_cmd), 1, True)
-        p['block'] = "%(i)sif [[ %(cond)s ]]; then\n%(true)s%(i)selse\n%(false)s%(i)sfi\n" % \
-                     {'i': i, 'cond': cond, 'true': block, 'false': p['block']}
+        block = f"{i}if [[ {cond} ]]; then\n{true_block}{i}else\n{block}{i}fi\n"
     else:
         loc = config.pop('_locals_', [])
         _gen_block(config, _get_commands(tool))
     for var in loc:
-        p['locals'] += " %s" % var
-    if p['locals'] != "":
-        p['locals'] += "\n"
-    return "_%(tool)s_completions() {\n%(locals)s%(compreply)s%(init)s%(block)s}\n\n" % p
+        locals_ += f" {var}"
+    if locals_ != "":
+        locals_ += "\n"
+    return f"_{tool.basename}_completions() {{\n{locals_}{compreply}{init}{block}}}\n\n"
 
 
 def _get_commands(tool, cond=""):
-    cmds, module = ckdict(_separator_="|"), "_%s.py" % tool.basename
+    cmds, module = ckdict(_separator_="|"), f"_{tool.basename}.py"
     # copy the target tool to modify it so that its parser tree can be retrieved
     ntool = tool.copy(module)
-    ntool.write_text(ntool.read_text().replace("if __name__ == '__main__':", "%s\ndef main():" % cond) \
+    ntool.write_text(ntool.read_text().replace("if __name__ == '__main__':", f"{cond}\ndef main():") \
                                       .replace("if __name__ == \"__main__\":", "def main():") \
                                       .replace("initialize(", "return parser\n    initialize(") \
                                       .rstrip("\n") + "\n\nif __name__ == '__main__':\n    main()\n")
@@ -158,8 +159,8 @@ def _get_commands(tool, cond=""):
     try:
         __parsers = {PythonPath(module).module.main(): ArgumentParser(globals())}
     except Exception as e:
-        logger.critical("Completion generation failed for tool: %s" % tool.basename)
-        logger.error("Source (%s):\n%s" % (module, ntool.read_text()))
+        logger.critical(f"Completion generation failed for tool: {tool.basename}")
+        logger.error(f"Source ({module}):\n{ntool.read_text()}")
         logger.exception(e)
         sys.exit(1)
     # now import the populated list of parser calls from within the tinyscript.parser module
@@ -209,8 +210,7 @@ def _get_commands(tool, cond=""):
                 ref_psr = ref_psr[:-1]
             # unexpected
             else:
-                raise ValueError("Unexpected condition while handling state change (%s,%s) => (%s,%s)" % \
-                                 (parent, child, nparent, nchild))
+                raise ValueError(f"Unexpected condition while state change ({parent},{child}) => ({nparent},{nchild})")
             parent, child = nparent, nchild
     # cleanup between loading different tools
     ProxyArgumentParser.reset()
@@ -219,21 +219,20 @@ def _get_commands(tool, cond=""):
 
 
 def compgen(configs, source, indent=2):
-    completions = {'functions': "", 'completes': ""}
+    completes, functions = "", ""
     for f in Path(source, expand=True).listdir(ts.is_file):
         n = f.basename
         config = configs.get(n, "DOES_NOT_EXIST")
         if config == "DOES_NOT_EXIST":
             continue
         elif isinstance(config, str):
-            completions['functions'] += "_%(name)s_completions() {\n%(block)s\n}\n\n" % \
-                                        {'name': n, 'block': config.strip().replace("%%", "%")}
+            functions += f"_{n}_completions() {{\n{config.strip().replace('%%','%')}\n}}\n\n"
         else:
             completion_func = _gen_completions(f, config or {}, indent) or ""
-            completions['functions'] += completion_func + "\n"
+            functions += completion_func + "\n"
             logger.debug(str(f) + ":\n" + completion_func)
-        completions['completes'] += "complete -F _%(name)s_completions %(name)s\n" % {'name': n}
-    return "#/usr/bin/env bash\n%(functions)s%(completes)s" % completions
+        completes += f"complete -F _{n}_completions {n}\n"
+    return f"#/usr/bin/env bash\n{functions}{completes}"
 
 
 if __name__ == '__main__':
