@@ -58,8 +58,8 @@ def add_argument(parser, *names, **kwargs):
         elif name == "labels":
             parser.add_argument("-l", "--labels", type=json_config, help="set labels from a JSON file")
         elif name == "max-features":
-            parser.add_argument("-n", "--max-features", type=pos_int,
-                                help=f"plot n features with {kwargs['max_feats_with']}")
+            parser.add_argument("-n", "--max-features", default=0, type=pos_int,
+                                help=f"plot n features with {kwargs['max_feats_with']}", note="0 means no limit")
         elif name == "mdname":
             a = ("-n", "--name", ) if kwargs.get('optional', False) else ("name", )
             kw = {'type': model_exists(kwargs.get('force', False)), 'help': kwargs.get('help', "name of the model")}
@@ -70,10 +70,19 @@ def add_argument(parser, *names, **kwargs):
         elif name == "number":
             parser.add_argument("-n", "--number", dest=kwargs.get('dest', "limit"), type=pos_int, default=0,
                                 help="limit number of executables for the output dataset", note="0 means all")
+        elif name == "ncomponents":
+            parser.add_argument("-n", "--n-components", metavar="N", default=20, type=int,
+                                help="number of components for dimensionality reduction")
+        elif name == "perplexity":
+            parser.add_argument("-p", "--perplexity", metavar="P", default=30, type=int,
+                                help="t-SNE perplexity for dimensionality reduction")
         elif name == "query":
             parser.add_argument("-q", "--query", default=kwargs.get('default', "all"),
                                 help="query for filtering records to be selected",
                                 note="see <https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.query.html>")
+        elif name == "reduction-algorithm":
+            parser.add_argument("-a", "--reduction-algorithm", default="PCA", choices=("ICA", "PCA"),
+                                help="dimensionality reduction algorithm")
         elif name == "xpname":
             parser.add_argument("name", type=experiment_exists(kwargs.get('force', False)),
                                 help=kwargs.get('help', "name of the experiment"), **params)

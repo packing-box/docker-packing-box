@@ -57,7 +57,6 @@ if __name__ == '__main__':
                       note="required when using input CSV data instead of a Dataset (no effect otherwise)")
     train = sparsers.add_parser("train", category="create/modify/delete", help="train a model on the given dataset")
     train.add_argument("dataset", type=Dataset.load, help="dataset for training the model")
-    add_argument(train, "mdname", force=True)
     train.add_argument("-a", "--algorithm", choices=[a.name for a in Algorithm.registry], default="dt", metavar="ALGO",
                        help="machine learning algorithm to be used\n- %s\n * supports Grid Search cross-validation\n" %\
                             "\n- ".join("%s: %s%s" % (a.name.ljust(8), a.description, ["", "*"][a.parameters.get('cv') \
@@ -79,18 +78,14 @@ if __name__ == '__main__':
     viz_dependent = visualize.add_argument_group("options depending on the chosen algorithm", before="extra arguments")
     viz_dependent.add_argument("--imputer-strategy", default="mean", choices=("constant", "mean", "most_frequent"),
                                help="strategy for imputing missing values")
-    viz_dependent.add_argument("-a", "--reduction-algorithm", default="PCA", choices=("ICA", "PCA"),
-                               help="dimensionality reduction algorithm")
+    add_argument(viz_dependent, "reduction-algorithm")
     viz_dependent.add_argument("-d", "--distance-threshold", default=15, type=int,
                                help="distance threshold for dendrograms colors")
     viz_dependent.add_argument("-f", "--features", nargs="*",type=lambda x: x.split(","),
                                help="comma separated list of features to be selected", default="")
     viz_dependent.add_argument("-l", "--hierarchy-levels", metavar="H", default=4, type=int,
                                help="number of levels to display when truncating dendrogram")
-    viz_dependent.add_argument("-n", "--n-components", metavar="N", default=20, type=int,
-                               help="number of components for dimensionality reduction")
-    viz_dependent.add_argument("-p", "--perplexity", metavar="P", default=30, type=int,
-                               help="t-SNE perplexity for dimensionality reduction")
+    add_argument(viz_dependent, "ncomponents", "perplexity")
     viz_dependent.add_argument("-r", "--reduce-train-data", action="store_true", help="reduce the training data",
                                note="the data is only reduced for the visualization by default")
     viz_dependent.add_argument("-t", "--plot-labels", action="store_true", help="plot true labels of packers")

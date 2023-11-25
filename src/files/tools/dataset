@@ -131,7 +131,7 @@ if __name__ == '__main__':
     add_argument(plot_char, "dsname")
     plot_char.add_argument("characteristic", type=characteristic_identifier, help="characteristic/feature identifier",
                            note="by 'characteristic', it is meant either executable metadata or feature")
-    add_argument(plot_char, "binary")
+    add_argument(plot_char, "reduction-algorithm", "binary", "ncomponents", "perplexity")
     plot_feat = pcmds.add_parser("features", help="distribution of one or multiple features (bar chart)")
     add_argument(plot_feat, "dsname", "feature", "format", "multiclass")
     plot_featcomp = pcmds.add_parser("features-compare", help="compare feature difference with other datasets")
