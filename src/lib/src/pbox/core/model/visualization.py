@@ -22,9 +22,9 @@ def _preprocess(f):
     """ This decorator preprocesses the input data and updates the keyword-arguments with this fitted data. """
     @wraps(f)
     def _wrapper(*a, **kw):
-        kw['reduced_data'], kw['scaled_data'], suffix = reduce_data(return_scaled=True, return_suffix=True, **kw)
+        kw['reduced_data'], kw['scaled_data'], s = reduce_data(kw['data'], return_scaled=True, return_suffix=True, **kw)
         fig = f(*a, **kw)
-        fig.dst_suffix = suffix
+        fig.dst_suffix = s
         return fig
     return _wrapper
 
@@ -57,7 +57,7 @@ def image_knn(classifier, **params):
     knn.fit(X, y)
     # now set color map then plot
     labels = list(y.label.unique())
-    colors = mpl.cm.get_cmap("jet", len(labels))
+    colors = plt.get_cmap(plt.rcParams['image.cmap'], len(labels))
     fig, axes = plt.subplots()
     DecisionBoundaryDisplay.from_estimator(knn, X, cmap=colors, ax=axes, alpha=.3,
                                            response_method="predict", plot_method="pcolormesh", shading="auto")
@@ -85,24 +85,18 @@ def image_rf(classifier, width=5, fontsize=10, **params):
 def image_clustering(classifier, **params):
     from scipy.cluster.hierarchy import linkage, fcluster, dendrogram
     from sklearn.cluster import AgglomerativeClustering
-    X, y = params['data'], params['target']
-    X_reduced, X_scaled = params['reduced_data'], params['scaled_data']      
+    X, y, Xr, Xs = params['data'], params['target'], params['reduced_data'], params['scaled_data']      
     # retrain either with the preprocessing data or with the original data
     cls = Algorithm.get(params['algo_name']).base(**params['algo_params'])
-    if params.get('reduce_train_data', False):
-        label = cls.fit_predict(X_reduced)
-    else: 
-        label = cls.fit_predict(X_scaled)
+    label = cls.fit_predict(Xr if params.get('reduce_train_data', False) else np.asarray(Xs, order="C"))
     # get labels for hierarchical clustering
     is_hierarchical = isinstance(cls, AgglomerativeClustering)
     if is_hierarchical:
-        if params.get('reduce_train_data', False):
-            Z = linkage(X_reduced, method='ward')
-        else:
-            Z = linkage(X_scaled, method='average')
+        Z = linkage([Xs, Xr][params.get('reduce_train_data', False)], method='ward')
         color_threshold = params['distance_threshold']
     # now set color map
-    colors = mpl.cm.get_cmap("jet")
+    #colors = plt.get_cmap("jet")
+    colors = plt.get_cmap(plt.rcParams['image.cmap'])
     # adjust number of plots and size of figure
     features = params['features'][0]
     n_features = len(features)
@@ -121,12 +115,11 @@ def image_clustering(classifier, **params):
         if is_hierarchical:
             raise ValueError("Error: Zone selection is not compatible with hierarchical clustering")
         x_min, x_max, y_min, y_max = params['range']
-        range_mask = (X_reduced[:, 0] >= x_min) & (X_reduced[:, 0] <= x_max) & \
-                     (X_reduced[:, 1] >= y_min) & (X_reduced[:, 1] <= y_max)
-        X_reduced, X, y, label = X_reduced[range_mask], X[range_mask], y[range_mask], label[range_mask]
+        range_mask = (Xr[:, 0] >= x_min) & (Xr[:, 0] <= x_max) & (Xr[:, 1] >= y_min) & (Xr[:, 1] <= y_max)
+        Xr, X, y, label = Xr[range_mask], X[range_mask], y[range_mask], label[range_mask]
         for k in ['extension', 'format', 'labels']:
             params[k] = params[k][range_mask]
-        if X_reduced.size == 0:
+        if Xr.size == 0:
             raise ValueError("Selected zone is empty")
     # plot dendrogram for hierarchical clustering
     if is_hierarchical: 
@@ -140,7 +133,7 @@ def image_clustering(classifier, **params):
         current_ax += 1
     # plot predicted cluster labels
     if is_hierarchical:
-        axes[current_ax].scatter(X_reduced[d['leaves'],0],X_reduced[d['leaves'],1], color=d['leaves_color_list'])
+        axes[current_ax].scatter(Xr[d['leaves'],0],Xr[d['leaves'],1], color=d['leaves_color_list'])
     else: 
         predicted_labels = np.unique(label)
         offset = 0
@@ -149,44 +142,41 @@ def image_clustering(classifier, **params):
         cluster_colors = {i: colors((i + offset) / len(predicted_labels)) for i in predicted_labels} \
                          if not is_hierarchical else cluster_colors
         for i in predicted_labels:
-            axes[current_ax].scatter(X_reduced[label == i, 0], X_reduced[label == i, 1] , label=i,
-                                     color=cluster_colors[i])
+            axes[current_ax].scatter(Xr[label == i, 0], Xr[label == i, 1] , label=i, color=cluster_colors[i])
     axes[current_ax].set_title("Clusters", fontsize=font_size)
     current_ax += 1
     # plot true labels
     if params['plot_labels']:
         if params['multiclass']:
             y_labels = np.unique(params['labels'])
-            colors_labels = mpl.cm.get_cmap("jet", len(y_labels))
+            colors_labels = plt.get_cmap(plt.rcParams['image.cmap'], len(y_labels))
             label_map = {label: 'Not packed' if label == '-' else f'Packed : {label}' for label in y_labels}
         else: 
-            colors_labels = mpl.cm.get_cmap("jet", 2)
+            colors_labels = plt.get_cmap(plt.rcParams['image.cmap'], 2)
             y_labels = np.unique(y.label.ravel())
             label_map = {0: 'Not packed', 1: 'Packed'}
         for i, y_label in enumerate(y_labels):
             labels_mask = params['labels'] == y_label if params['multiclass'] else y.label.ravel() == y_label
-            axes[current_ax].scatter(X_reduced[labels_mask, 0], X_reduced[labels_mask, 1],
-                            label=label_map[y_label], color=colors_labels(i), alpha=1.0)
+            axes[current_ax].scatter(Xr[labels_mask, 0], Xr[labels_mask, 1], label=label_map[y_label],
+                                     color=colors_labels(i), alpha=1.0)
         axes[current_ax].legend(loc='upper left', bbox_to_anchor=(1, 1),fontsize=font_size-2)  
         axes[current_ax].set_title("Target", fontsize=font_size)
         current_ax += 1
     # plot file formats
     if params['plot_formats']:
         unique_formats = np.unique(params['format'])
-        for file_format in unique_formats:
-            format_mask = params['format'] == file_format
-            axes[current_ax].scatter(X_reduced[format_mask, 0], X_reduced[format_mask, 1],
-                            label=file_format, cmap=colors, alpha=1.0)
+        for fmt in unique_formats:
+            format_mask = params['format'] == fmt
+            axes[current_ax].scatter(Xr[format_mask, 0], Xr[format_mask, 1], label=fmt, cmap=colors, alpha=1.0)
         axes[current_ax].legend(loc='upper left', bbox_to_anchor=(1, 1),fontsize=font_size-2)
         axes[current_ax].set_title("File Formats", fontsize=font_size)
         current_ax += 1 
     # plot file extensions
     if params['plot_extensions']:
         unique_extensions = np.unique(params['extension'])
-        for file_extension in unique_extensions:
-            extension_mask = params['extension'] == file_extension
-            axes[current_ax].scatter(X_reduced[extension_mask, 0], X_reduced[extension_mask, 1],
-                            label=file_extension, cmap=colors, alpha=1.0)
+        for ext in unique_extensions:
+            extension_mask = params['extension'] == ext
+            axes[current_ax].scatter(Xr[extension_mask, 0], Xr[extension_mask, 1], label=ext, cmap=colors, alpha=1.0)
         axes[current_ax].legend(loc='upper left', bbox_to_anchor=(1, 1),fontsize=font_size-2)
         axes[current_ax].set_title("File Extensions", fontsize=font_size)
         current_ax += 1 
@@ -197,15 +187,14 @@ def image_clustering(classifier, **params):
             unique_feature_values = np.unique(X[feature])
             # plot a continuous colorbar if the feature is continuous and a legend otherwise 
             if len(unique_feature_values) > 6:
-                sc = axes[current_ax].scatter(X_reduced[:, 0], X_reduced[:, 1], c=X[feature].to_numpy(), cmap=colors,
+                sc = axes[current_ax].scatter(Xr[:, 0], Xr[:, 1], c=X[feature].to_numpy(), cmap=colors,
                                               alpha=1.0)
                 norm = mpl.colors.Normalize(vmin=X[feature].min(), vmax=X[feature].max())
                 color_bars[current_ax] = norm
             else: 
-                for feature_value in unique_feature_values:
-                    axes[current_ax].scatter(X_reduced[X[feature] == feature_value, 0],
-                                             X_reduced[X[feature] == feature_value, 1],
-                                             label=feature_value, cmap=colors, alpha=1.0)
+                for val in unique_feature_values:
+                    axes[current_ax].scatter(Xr[X[feature] == val, 0], Xr[X[feature] == val, 1],
+                                             label=val, cmap=colors, alpha=1.0)
                     axes[current_ax].legend(loc='upper left', bbox_to_anchor=(1, 1), fontsize=font_size-2)  
             axes[current_ax].set_title(feature, fontsize=font_size)
             current_ax += 1 

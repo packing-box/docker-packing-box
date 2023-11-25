@@ -3,6 +3,7 @@
 *.backup
 .DS_Store
 temp/
+tmp/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
@@ -68,13 +69,14 @@ target/
 .vagrant
 .test
 .pytest_cache
-tmp
 TODO
 .mypy_cache
 research-*/
 dataset-*/
 datasets/
 experiments*/
+/*.png
+/*.exe
 
 # config files
 #src/conf/*.yml

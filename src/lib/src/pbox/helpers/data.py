@@ -124,14 +124,14 @@ def get_data(exe_format):
 
 
 def reduce_data(X, n_components=20, perplexity=30, random_state=42, imputer_strategy="mean", scaler=None,
-                reduction_algorithm="PCA", return_scaled=False, return_suffix=False, **kw):
+                reduction_algorithm="PCA", return_scaled=False, return_suffix=False, return_meta=False, **kw):
     """ Reduce input data to 2 components, using a combination of PCA/ICA and TSNE, first imputing missing values and
          scaling data with an input scaler. """
     from sklearn.impute import SimpleImputer
     from sklearn.preprocessing import MinMaxScaler
     l = kw.get('logger', null_logger)
-    n, n_cols, p = n_components, len(X.columns), perplexity
-    rs, suffix = 42, ""
+    n, n_cols, p, ra = n_components, len(X.columns), perplexity, reduction_algorithm
+    rs, suffix, metadata = 42, "", {}
     # impute missing values and scale data
     l.debug(f"imputing values using strategy {imputer_strategy}...")
     X = SimpleImputer(missing_values=np.nan, strategy=imputer_strategy).fit_transform(X)
@@ -140,25 +140,32 @@ def reduce_data(X, n_components=20, perplexity=30, random_state=42, imputer_stra
     # preprocess data with a PCA with n components to reduce the high dimensionality (better performance)
     if n < n_cols:
         from sklearn.decomposition import FastICA, PCA
-        a = {'ICA': FastICA, 'PCA': PCA}[reduction_algorithm](n, random_state=rs() if is_function(rs) else rs)
-        suffix += "_%s%d" % (reduction_algorithm.lower(), n)
-        l.debug(f"reducing data to {n} components with {reduction_algorithm}...")
+        a = {'ICA': FastICA, 'PCA': PCA}[ra](n, random_state=rs() if is_function(rs) else rs)
+        suffix += f"_{ra.lower()}{n}"
+        metadata[ra + ':n'] = n
+        l.debug(f"reducing data to {n} components with {ra}...")
         if 'target' in kw:
             a.fit(X, kw['target'])
             X = a.transform(X)
         else:
             X = a.fit_transform(X)
     # now reduce the n components to 2 dimensions with t-SNE (better results but less performance) if relevant
+    if n == 2 and p != 30:
+        l.warning("setting the perplexity when using PCA with 2 components has no effect because TSNE is not used")
     if n > 2:
         from sklearn.manifold import TSNE
         l.debug(f"reducing data to 2 components with TSNE...")
         X = TSNE(2, random_state=rs() if is_function(rs) else rs, perplexity=p).fit_transform(X)
-        suffix += "_tsne2-p%d" % p
+        suffix += f"_tsne2-p{p}"
+        metadata['TSNE:n'] = 2
+        metadata['perplexity'] = p
     # return result(s) accordingly
     r = (X, )
     if return_scaled:
         r += (Xs, )
     if return_suffix:
         r += (suffix, )
+    if return_meta:
+        r += (metadata, )
     return r[0] if len(r) == 0 else r
 

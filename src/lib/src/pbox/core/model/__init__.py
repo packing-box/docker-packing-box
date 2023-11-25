@@ -163,7 +163,7 @@ class BaseModel(Entity):
         self._data, self._target = self._data.fillna(-1), self._target.fillna(NOT_LABELLED)
         # convert to binary class
         if not multiclass:
-            self._target = self._target.map(LABELS_BACK_CONV).fillna(1).astype('int')
+            self._target = self._target.map(lambda x: LABELS_BACK_CONV.get(x, 1)).astype('int')
         # create the pipeline if it does not exist (i.e. while training)
         if not data_only:
             self.pipeline = DebugPipeline()

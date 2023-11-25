@@ -19,8 +19,8 @@ def _characteristic_scatter_plot(dataset, characteristic=None, multiclass=True, 
     X, prefix = dataset._data, "bin_" if characteristic == "label" and not multiclass else ""
     if not multiclass:
         X['label'] = X.label.map(LABELS_BACK_CONV).fillna(1).astype('int')
-    X_reduced, suffix = reduce_data(X[sorted(dataset._features.keys())], logger=dataset.logger, return_suffix=True,
-                                    **kwargs)
+    X_reduced, suffix, meta = reduce_data(X[sorted(dataset._features.keys())], logger=dataset.logger,
+                                          return_suffix=True, return_meta=True, **kwargs)
     # define plot
     # important note: 'plt' needs to be called BEFORE 'mpl' ; otherwise, further references to
     #                  'matplotlib' will be seen as 'mpl', causing "ModuleNotFoundError: No module named 'mpl'"
@@ -35,6 +35,7 @@ def _characteristic_scatter_plot(dataset, characteristic=None, multiclass=True, 
         pass
     plt.rcParams['xtick.labelsize'] = plt.rcParams['ytick.labelsize'] = fsize
     plt.suptitle(f"Characteristic '{characteristic}' of dataset {dataset.name}")
+    plt.title(", ".join(f"{k}={v}" for k, v in meta.items()))
     # plot a continuous colorbar if the characteristic is continuous and a legend otherwise 
     if len(unique_values) > 6 and characteristic not in ["format", "label", "signature"]:
         sc = plt.scatter(X_reduced[:, 0], X_reduced[:, 1], c=X[characteristic].to_numpy(), alpha=1.0)
@@ -191,7 +192,7 @@ def _features_comparison_heatmap(dataset, datasets=None, feature=None, max_featu
     pivoted = df.dropna().pivot_table(index='experiment', values=feature, aggfunc=np.mean)[feature]
     pivoted_rank = pivoted_rank.drop(index=dataset.basename)
     pivoted = pivoted.drop(index=dataset.basename)
-    if max_features is None or max_features > len(feature):
+    if max_features in [None, 0] or max_features > len(feature):
         max_features = len(feature)
     if aggregate is not None:
         to_group = list(pivoted.columns.str.extract("(" + aggregate + ")",expand=False).dropna())
@@ -232,7 +233,7 @@ def _information_gain_bar_chart(dataset, feature=None, max_features=None, multic
     labels = feats['label'] if multiclass else feats['label'] == NOT_PACKED
     feats = feats[feature]
     info = mic(feats, labels, n_neighbors=5)
-    if max_features is None or max_features > len(feature):
+    if max_features in [None, 0] or max_features > len(feature):
         max_features = len(feature)
     l.debug("plotting figure...")
     # feature ranking
@@ -270,7 +271,7 @@ def _information_gain_comparison_heatmap(dataset, datasets=None, feature=None, m
     df = df.groupby('experiment').apply(fct)
     df = df - df.loc[dataset.basename]
     df = df.drop(index=dataset.basename)
-    if max_features is None or max_features > len(feature):
+    if max_features in [None, 0] or max_features > len(feature):
         max_features = len(feature)
     if aggregate is not None:
         to_group = list(df.columns.str.extract("(" + aggregate + ")",expand=False).dropna())
@@ -334,10 +335,13 @@ def _labels_pie_chart(dataset, **kw):
 
 def _samples_individual_visualization(dataset, query=None, n=0, **kw):
     from bintropy import plot
+    if not dataset._files:
+        dataset.logger.warning("Plotting individual samples only works for datasets with files")
+        return
     for e in filter_data_iter(dataset._data, query, n or 0, logger=dataset.logger):
         exe = Executable(dataset=dataset, hash=e.hash)
-        dataset.logger.info("Plotting %s (%s)..." % (exe.basename, Path(exe.realpath).basename))
-        yield exe.plot(prefix=dataset.basename + "_", **kw)
+        dataset.logger.info(f"Plotting {exe.basename} ({Path(exe.realpath).basename})...")
+        yield exe.plot(**kw)
 
 
 def plot(obj, ptype, dpi=200, **kw):
