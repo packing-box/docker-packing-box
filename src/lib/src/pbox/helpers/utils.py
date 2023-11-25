@@ -12,7 +12,40 @@ def set_params(*a):
     if config['dark_mode']:
         plt.style.use(['dark_background', 'presentation'])
 
-lazy_load_module("matplotlib", alias="mpl")
+#FIXME: lazy loading of mpl throws an error with plt
+#lazy_load_module("matplotlib", alias="mpl")
+import matplotlib as mpl
+"""
+Traceback (most recent call last):
+  File "/home/user/.opt/tools/model", line 122, in <module>
+    getattr(Model(**vars(args)), args.command)(**vars(args))
+  File "/home/user/.local/lib/python3.11/site-packages/pbox/core/model/__init__.py", line 631, in visualize
+    fig = viz_func(self.classifier, **params)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/user/.local/lib/python3.11/site-packages/pbox/core/model/visualization.py", line 27, in _wrapper
+    fig = f(*a, **kw)
+          ^^^^^^^^^^^
+  File "/home/user/.local/lib/python3.11/site-packages/pbox/core/model/visualization.py", line 113, in image_clustering
+    plt.rcParams['axes.labelsize'] = 16
+    ^^^^^^^^^^^^
+  File "/home/user/.local/lib/python3.11/site-packages/tinyscript/__conf__.py", line 48, in _load
+    glob[alias] = glob[module] = m = import_module(*((module, ) if relative is None else ("." + module, relative)))
+                                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.11/importlib/__init__.py", line 126, in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<frozen importlib._bootstrap>", line 1204, in _gcd_import
+  File "<frozen importlib._bootstrap>", line 1176, in _find_and_load
+  File "<frozen importlib._bootstrap>", line 1147, in _find_and_load_unlocked
+  File "<frozen importlib._bootstrap>", line 690, in _load_unlocked
+  File "<frozen importlib._bootstrap_external>", line 940, in exec_module
+  File "<frozen importlib._bootstrap>", line 241, in _call_with_frames_removed
+  File "/home/user/.local/lib/python3.11/site-packages/matplotlib/pyplot.py", line 52, in <module>
+    import matplotlib.colorbar
+  File "/home/user/.local/lib/python3.11/site-packages/matplotlib/colorbar.py", line 19, in <module>
+    from matplotlib import _api, cbook, collections, cm, colors, contour, ticker
+ModuleNotFoundError: No module named 'mpl'
+"""
 lazy_load_module("matplotlib.pyplot", alias="plt", postload=set_params)
 lazy_load_module("numpy", alias="np")
 lazy_load_module("pandas", alias="pd")
