@@ -97,25 +97,29 @@ def __init():
         
         def close(self, **kw):
             """ Close the currently open experiment. """
+            del config['autocommit']
             del config['experiment']
         
-        def commit(self, force=False, **kw):
+        def commit(self, force=False, silent=False, **kw):
             """ Commit the latest executed OS command to the resource file (.rc). """
             l = Experiment.logger
             rc = self['commands']
             rc.touch()
             rc_last_line = ""
-            for rc_last_line in rc.read_lines():
+            for rc_last_line in rc.read_lines(encoding="utf-8", reverse=True):
                 pass
-            hist = list(Path("~/.bash_history", expand=True).read_lines())
-            while len(hist) > 0 and all(not hist[-1].startswith(cmd + " ") for cmd in COMMIT_VALID_COMMANDS):
-                hist.pop()
-            if len(hist) == 0 or hist[-1].strip() == rc_last_line.strip():
-                l.warning("Nothing to commit")
-            elif force or confirm("Do you really want to commit this command: %s ?" % hist[-1]):
-                l.debug("writing command '%s' to commands.rc..." % hist[-1])
+            if rc_last_line:
+                l.debug(f"last command: {rc_last_line}")
+            hist_last_line = ""
+            for hist_last_line in Path("~/.bash_history", expand=True).read_lines(encoding="utf-8", reverse=True):
+                if any(hist_last_line.startswith(cmd + " ") for cmd in COMMIT_VALID_COMMANDS):
+                    break
+            if hist_last_line == "" or hist_last_line == rc_last_line:
+                getattr(l, ["warning", "debug"][silent])("Nothing to commit")
+            elif force or confirm("Do you really want to commit this command: %s ?" % hist_last_line):
+                l.debug("writing command '%s' to commands.rc..." % hist_last_line)
                 with rc.open('a') as f:
-                    f.write(hist[-1].strip())
+                    f.write(hist_last_line)
         
         def compress(self, **kw):
             """ Compress the experiment by converting all datasets to fileless datasets. """

@@ -30,9 +30,9 @@ _ws = lambda s, v: Path(s['workspace'].joinpath(v), create=True, expand=True).ab
 
 def _bl(s, v):
     _v = str(v).lower()
-    if _v in ["true", "yes"]:
+    if _v in ["true", "yes", "1"]:
         return True
-    elif _v in ["false", "no"]:
+    elif _v in ["false", "no", "0"]:
         return False
     raise ValueError(v)
 _bl.__name__ = "boolean"
@@ -80,8 +80,9 @@ bi.config = Config("packing-box",
             'wine_errors': ("false", "BOOL", "display Wine errors", _bl),
         },
         'others': {
+            'autocommit':     ("false", "BOOL", "auto-commit in commands.rc (only works when experiment opened)", _bl),
             'data':           ("data", "PATH", "path to executable formats' related data, relative to the workspace",
-                                  _rp, ["workspace", PBOX_HOME], True),
+                               _rp, ["workspace", PBOX_HOME], True),
             'hash_algorithm': ("sha256", "ALGORITHM", "hashing algorithm for identifying samples", _vh),
         },
         'parsers': {
@@ -100,6 +101,7 @@ bi.config = Config("packing-box",
     },
     # envvars
     {
+        'autocommit':  ("BOOL", "auto-commit commands in commands.rc (only works when experiment opened)", _bl),
         'experiment':  ("PATH", "path to the current experiment folder", _np),
         'experiments': ("PATH", "path to the experiments folder", _np),
     },

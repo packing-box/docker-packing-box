@@ -41,8 +41,10 @@ if __name__ == '__main__':
                      note="use 'all' to purge every dataset or the wildcard '*' to select a part of them")
     else:
         sparsers.add_parser("close", help="close the current experiment")
-        sparsers.add_parser("commit", help="commit the last OS command to the resource file (commands.rc)") \
-                .add_argument("-f", "--force", action="store_true", help="commit without confirmation")
+        commit = sparsers.add_parser("commit", help="commit the last OS command to the resource file (commands.rc)")
+        commit.add_argument("-f", "--force", action="store_true", help="commit without confirmation")
+        commit.add_argument("-q", "--quiet", dest="silent", action="store_true",
+                              help="do not show warning if nothing to commit")
         sparsers.add_parser("compress", help="convert the datasets to fileless datasets")
         sparsers.add_parser("edit", help="edit the README file or a YAML configuration file") \
                 .add_argument("config", nargs="?", default="README", metavar="NAME",

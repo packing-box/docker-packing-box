@@ -209,6 +209,16 @@ function setprompt(){
 setprompt
 PROMPT_COMMAND+=setprompt
 
+# enable autocommit in experiment
+function autocommit() {
+  local AUTOCOMMIT=`cat $HOME/.packing-box/autocommit.env 2>/dev/null`
+  local EXPERIMENT=`cat $HOME/.packing-box/experiment.env 2>/dev/null`
+  if [ ! -z "$EXPERIMENT" ] && [ "$AUTOCOMMIT" = "True" ]; then
+    experiment commit -fq
+  fi
+}
+export PROMPT_COMMAND+=";autocommit"
+
 # Shell optional behaviors
 shopt -s checkhash      # Check that a command found in the hash table exists before trying to execute it. If a hashed command no longer exists, a normal path search is performed.
 shopt -s checkwinsize   # Check window size after each command and update $LINES & $COLUMNS.
@@ -282,4 +292,5 @@ fi
 (ls ~/.wine32 >/dev/null || WINEPREFIX="$HOME/.wine32" WINEARCH=win32 wineboot &) >/dev/null 2>&1
 (ls ~/.wine64 >/dev/null || WINEPREFIX="$HOME/.wine64" WINEARCH=win64 wineboot &) >/dev/null 2>&1
 
+# enable loading additional modules at Python interpreter startup
 export PYTHONSTARTUP="$HOME/.pythonrc.py"
