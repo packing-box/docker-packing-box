@@ -72,23 +72,25 @@ class Features(dict, metaclass=MetaBase):
                             f = []
                             for val in itertools.product(*values):
                                 p = {k: v for k, v in params.items()}
+                                val = val[0] if isinstance(val, tuple) and len(val) == 1 else val
                                 try:
                                     e = expr % val
                                 except Exception as e:
-                                    l.error("expression: %s" % expr)
-                                    l.error("value:      %s (%s)" % (str(val), type(val)))
+                                    l.error(f"expression: {expr}")
+                                    l.error(f"value:      {val}")
                                     raise
                                 try:
                                     n = name % val
                                 except TypeError:
-                                    l.error("missing formatter in name '%s'" % d)
+                                    l.error(f"name:  {name}")
+                                    l.error(f"value: {val}")
                                     raise
                                 d = p['description']
                                 try:
                                     p['description'] = d % val
                                 except TypeError:
-                                    l.warning("name: %s" % n)
-                                    l.error("missing formatter in description '%s'" % d)
+                                    l.error(f"description: {name}")
+                                    l.error(f"value:       {val}")
                                     raise
                                 f.append(Feature(p, name=n, result=e, logger=l))
                         else:

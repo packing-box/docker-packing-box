@@ -131,7 +131,7 @@ class AbstractParsedExecutable(AbstractBase):
     
     @property
     def non_standard_sections(self):
-        d = get_data(self.path.format)['STANDARD_SECTION_NAMES']
+        d = [""] + get_data(self.path.format)['STANDARD_SECTION_NAMES']
         return [s for s in self if getattr(s, "real_name", s.name) not in d]
     
     @property
@@ -157,7 +157,7 @@ class AbstractParsedExecutable(AbstractBase):
     
     @property
     def standard_sections(self):
-        d = get_data(self.path.format)['STANDARD_SECTION_NAMES']
+        d = [""] + get_data(self.path.format)['STANDARD_SECTION_NAMES']
         return [s for s in self if getattr(s, "real_name", s.name) in d]
 
 
@@ -174,10 +174,13 @@ def get_section_class(name, **mapping):
              it can be modified by alterations, which will break things. Also, if different parsers are used in
              subsequent alterations, a common format is required.
         """
-        __slots__ = slots
+        __slots__ = ["binary"] + slots
         
-        def __init__(self, section):
+        def __init__(self, section, binary=None):
             for attr in self.__slots__:
+                if attr == "binary":
+                    self.binary = binary
+                    continue
                 value = mapping.get(attr, attr)
                 if isinstance(value, (type(lambda: 0), cached_property)):
                     continue
@@ -193,15 +196,22 @@ def get_section_class(name, **mapping):
         
         @property
         def block_entropy_256B(self):
-            return entropy(self.content, 256, True)[1]
+            return self.block_entropy(256, True)[1]
         
         @property
         def block_entropy_512B(self):
-            return entropy(self.content, 512, True)[1]
+            return self.block_entropy(512, True)[1]
         
         @property
         def entropy(self):
-            return entropy(self.content)
+            return entropy(rawbytes(self.content))
+        
+        @property
+        def is_standard(self):
+            if self.binary is None:
+                return
+            sn = lambda s: getattr(s, "real_name", s.name)
+            return sn(self) in map(sn, self.binary.standard_sections)
     
     for attr, value in mapping.items():
         if isinstance(value, cached_property):

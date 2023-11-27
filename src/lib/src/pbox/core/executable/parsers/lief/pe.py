@@ -27,7 +27,7 @@ def __init_pe():
         
         def __iter__(self):
             for s in self.sections:
-                s = PESection(s)
+                s = PESection(s, self)
                 if hasattr(self, "_real_section_names"):
                     s.real_name = self.real_section_names.get(s.name, s.name)
                 yield s
@@ -50,7 +50,7 @@ def __init_pe():
         
         @property
         def entrypoint_section(self):
-            return PESection(self._parsed.section_from_rva(self._parsed.optional_header.addressof_entrypoint))
+            return PESection(self._parsed.section_from_rva(self._parsed.optional_header.addressof_entrypoint), self)
         
         @property
         def iat(self):

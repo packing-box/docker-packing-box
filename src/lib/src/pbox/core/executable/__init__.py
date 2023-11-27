@@ -3,7 +3,8 @@ from bintropy import entropy
 from contextlib import suppress
 from datetime import datetime
 from tinyscript import hashlib, re, shutil
-from tinyscript.helpers import Path, TempPath
+from tinyscript.helpers import human_readable_size, Path, TempPath
+from tinyscript.report import *
 
 from .alterations import *
 from .alterations import __all__ as _alter
@@ -31,7 +32,6 @@ class Executable(Path):
     (3) dataset-bound, with a new destination dataset
     """
     FIELDS = ["realpath", "format", "signature", "size", "ctime", "mtime"]
-    HASH = config['hash_algorithm']  # possible values: hashlib.algorithms_available
     
     def __new__(cls, *parts, **kwargs):
         data, fields = None, ["hash", "label"] + Executable.FIELDS
@@ -59,6 +59,17 @@ class Executable(Path):
                         pass
                 return self
         self = super(Executable, cls).__new__(cls, *parts, **kwargs)
+        # if the target executable has a path that may indicate it is part of a dataset, automatically set it
+        found = False
+        if ds1 is None and self.parts[-2] == "files":
+            from ..dataset import Dataset, FilelessDataset
+            for dscls in [Dataset, FilelessDataset]:
+                try:
+                    ds1 = dscls(self.parts[-3])
+                    found = True
+                    break
+                except ValueError:
+                    pass
         if ds1 is not None:
             # case (2)
             h = kwargs.pop('hash', self.basename)
@@ -68,6 +79,9 @@ class Executable(Path):
                     self = super(Executable, cls).__new__(cls, str(exe), **kwargs)
                     self.hash = h  # avoid hash recomputation
                     self._destination = ds1.files.joinpath(self.hash)
+                elif found:     # if the executable has "files" in its path and a valid dataset name before but it
+                    ds1 = None  #  actually does not exist in this dataset, automatically unset it
+        if ds1 is not None:
             self._dataset = ds1
             # AttributeError: this occurs when the dataset is still empty, therefore holding no 'hash' column
             # IndexError:     this occurs when the executable did not exist in the dataset yet
@@ -84,6 +98,10 @@ class Executable(Path):
             if ds2 is not None and ds2._files:
                 self._destination = ds2.files.joinpath(h)
         self.label = kwargs.pop('label', getattr(self, "label", NOT_LABELLED))
+        # if a label was found, the hash retrived from the parent dataset is this of the not packed version, hence it
+        #  shall be recomputed
+        if self.label not in [NOT_LABELLED, NOT_PACKED]:
+            del self.hash
         return self
     
     def _reset(self):
@@ -153,6 +171,49 @@ class Executable(Path):
         imgn = figure_path(lambda: fn)()
         plot(self, img_name=imgn, labels=[self.label], sublabel=sublabel, format=format, dpi=dpi, target=fn, **kw)
     
+    def show(self, **kw):
+        ds = hasattr(self, "_dataset")
+        # base information
+        l = [f"**Hash**:          {self.hash}",
+             f"**Filename**:      {Path(self.realpath).basename}",
+             f"**Format**:        {self.format}",
+             f"**Signature**:     {self.signature}",
+             f"**Entry point**:   0x{self.parsed.entrypoint:02X} ({self.parsed.entrypoint_section.name})",
+             f"**Size**:          {human_readable_size(self.size)}",
+             f"**Entropy**:       {self.entropy}",
+             f"**Block entropy**: {self.block_entropy_256B}"]
+        if ds:
+            l += [f"**Label**:         {self.label}"]
+        # sections
+        h, s = [], []
+        for i, sec in enumerate(self.parsed):
+            row = []
+            if i == 0:
+                h.append("Name")
+            rn = f" ({sec.real_name})" if hasattr(sec, "real_name") and sec.real_name != sec.name else ""
+            row.append(f"{sec.name}{rn}")
+            if i == 0:
+                h.append("Raw size")
+            row.append(human_readable_size(sec.size))
+            if hasattr(sec, "virtual_size"):
+                if i == 0:
+                    h.append("Virtual size")
+                row.append(human_readable_size(sec.virtual_size))
+            if i == 0:
+                h.extend(["Entropy", "Block entropy (256B)"])
+            row.append(f"{sec.entropy:.5f}" if sec.size > 0 else "-")
+            row.append(f"{sec.block_entropy_256B:.5f}" if sec.size > 0 and sec.block_entropy_256B is not None else "-")
+            if i == 0:
+                h.append("Standard")
+            row.append(f"{'NY'[sec.is_standard]}")
+            s.append(row)
+        # features
+        maxlen = max(map(len, self.data.keys()))
+        f = [f"{'**'+n+'**:':<{maxlen+6}}{v}" for n, v in self.data.items()]
+        render(Section("Base Information"), List(l),
+               Section("Sections"), Table(s, column_headers=h),
+               Section("Features"), List(f))
+    
     @property
     def bin_label(self):
         return READABLE_LABELS(self.label, True)
@@ -214,7 +275,7 @@ class Executable(Path):
     
     @cached_property
     def hash(self):
-        return getattr(hashlib, Executable.HASH + "_file")(str(self))
+        return getattr(hashlib, config['hash_algorithm'] + "_file")(str(self))
     
     @property
     def metadata(self):

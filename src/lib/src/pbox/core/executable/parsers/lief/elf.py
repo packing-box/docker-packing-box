@@ -13,7 +13,7 @@ def __init_elf():
         
         def __iter__(self):
             for s in self.sections:
-                yield ELFSection(s)
+                yield ELFSection(s, self)
         
         def _get_builder(self):
             return lief.ELF.Builder(self._parsed)

@@ -13,7 +13,7 @@ def __init_macho():
         
         def __iter__(self):
             for s in self.sections:
-                yield MachOSection(s)
+                yield MachOSection(s, self)
         
         def _get_builder(self):
             return lief.MachO.Builder(self._parsed)
