@@ -1,0 +1,42 @@
+#!/usr/bin/python3
+# -*- coding: UTF-8 -*-
+from pbox import *
+from tinyscript import *
+
+
+__script__      = "Executable manipulation tool"
+__version__     = "1.0.0"
+__doc__         = """
+This tool aims to manipulate a single executable.
+"""
+__description__ = "Manipulate a single executable"
+__examples__ = [
+    "alter rename_sections",
+    "parse lief",
+    "show",
+    "visualize",
+]
+
+
+if __name__ == '__main__':
+    sparsers = parser.add_subparsers(dest="command", metavar="CMD", title="positional argument",
+                                     help="command to be executed")
+    sparsers.add_parser("close", help="close the current experiment")
+    alter = sparsers.add_parser("alter", help="alter the target executable with the given alteration")
+    add_argument(alter, "executable")
+    agroup = alter.add_mutually_exclusive_group()
+    add_argument(agroup, "alteration", "alterations-set", optional=True)
+    feat = sparsers.add_parser("features", help="compute features of the target executable")
+    add_argument(feat, "executable", "features-set")
+    add_argument(sparsers.add_parser("show", help="show information about the target executable"), "executable")
+    initialize(noargs_action="usage")
+    configure_logging(args.verbose)
+    # now execute
+    if args.command == "visualize":
+        pass  #TODO
+    elif args.command == "features":
+        Features.source = args.features_set
+        Executable(args.executable).show(False, False, True)
+    else:
+        getattr(Executable(args.executable), args.command)(**vars(args))
+

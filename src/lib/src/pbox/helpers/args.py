@@ -9,11 +9,19 @@ __all__ = ["add_argument", "characteristic_identifier", "expand_parameters", "it
 
 def add_argument(parser, *names, **kwargs):
     """ Set a standard argument for the given parser. """
+    opt = kwargs.get('optional', False)
     params = {k: kwargs[k] for k in ["nargs", "note"] if kwargs.get(k) is not None}
     for name in names:
         if name == "aggregate":
             parser.add_argument("-a", "--aggregate", help="pattern to aggregate some of the features together",
                                 default="byte_[0-9]+_after_ep")
+        elif name == "alteration":
+            a = ("-a", "--alteration", ) if opt else ("alteration", )
+            kw = {'action': "extend", 'nargs': "*", 'type': alteration_identifier, 'help': "alteration identifiers"}
+            parser.add_argument(*a, **kw)
+        elif name == "alterations-set":
+            parser.add_argument("-a", "--alterations-set", metavar="YAML", default=str(config['alterations']),
+                                type=file_exists, help="alterations set's YAML definition")
         elif name == "binary":
             parser.add_argument("-b", "--binary", dest="multiclass", action="store_false",
                                 help="process features using binary classification (1:True/0:False/-1:Unlabelled)")
@@ -30,8 +38,11 @@ def add_argument(parser, *names, **kwargs):
         elif name == "dsname2":
             parser.add_argument("name2", type=folder_does_not_exist, help="new name of the dataset")
         elif name == "executable":
-            parser.add_argument("executable", help="executable or folder containing executables or dataset or data CSV"
-                                                   " file", **params)
+            if kwargs.get('single', False):
+                parser.add_argument("executable", help="executagle file", **params)
+            else:
+                parser.add_argument("executable", help="executable or folder containing executables or dataset or data"
+                                                       " CSV file", **params)
         elif name == "feature":
             parser.add_argument("feature", action="extend", nargs="*", type=feature_identifier,
                                 help="feature identifiers")
@@ -61,7 +72,7 @@ def add_argument(parser, *names, **kwargs):
             parser.add_argument("-n", "--max-features", default=0, type=pos_int,
                                 help=f"plot n features with {kwargs['max_feats_with']}", note="0 means no limit")
         elif name == "mdname":
-            a = ("-n", "--name", ) if kwargs.get('optional', False) else ("name", )
+            a = ("-n", "--name", ) if opt else ("name", )
             kw = {'type': model_exists(kwargs.get('force', False)), 'help': kwargs.get('help', "name of the model")}
             parser.add_argument(*a, **kw)
         elif name == "multiclass":
@@ -89,6 +100,14 @@ def add_argument(parser, *names, **kwargs):
         else:
             raise ValueError(f"Argument '{name}' not defined")
     return parser
+
+
+def alteration_identifier(name):
+    from pbox.core.executable import Alterations
+    Alterations(None)
+    if name not in Alterations.names():
+        raise ValueError("Not an alteration identifier")
+    return name
 
 
 def characteristic_identifier(name):

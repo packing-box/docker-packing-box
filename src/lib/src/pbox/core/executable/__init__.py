@@ -171,48 +171,49 @@ class Executable(Path):
         imgn = figure_path(lambda: fn)()
         plot(self, img_name=imgn, labels=[self.label], sublabel=sublabel, format=format, dpi=dpi, target=fn, **kw)
     
-    def show(self, **kw):
-        ds = hasattr(self, "_dataset")
-        # base information
-        l = [f"**Hash**:          {self.hash}",
-             f"**Filename**:      {Path(self.realpath).basename}",
-             f"**Format**:        {self.format}",
-             f"**Signature**:     {self.signature}",
-             f"**Entry point**:   0x{self.parsed.entrypoint:02X} ({self.parsed.entrypoint_section.name})",
-             f"**Size**:          {human_readable_size(self.size)}",
-             f"**Entropy**:       {self.entropy}",
-             f"**Block entropy**: {self.block_entropy_256B}"]
-        if ds:
-            l += [f"**Label**:         {self.label}"]
-        # sections
-        h, s = [], []
-        for i, sec in enumerate(self.parsed):
-            row = []
-            if i == 0:
-                h.append("Name")
-            rn = f" ({sec.real_name})" if hasattr(sec, "real_name") and sec.real_name != sec.name else ""
-            row.append(f"{sec.name}{rn}")
-            if i == 0:
-                h.append("Raw size")
-            row.append(human_readable_size(sec.size))
-            if hasattr(sec, "virtual_size"):
+    def show(self, base_info=True, sections=True, features=False, **kw):
+        ds, r = hasattr(self, "_dataset"), []
+        if base_info:
+            l = [f"**Hash**:          {self.hash}",
+                 f"**Filename**:      {Path(self.realpath).basename}",
+                 f"**Format**:        {self.format}",
+                 f"**Signature**:     {self.signature}",
+                 f"**Entry point**:   0x{self.parsed.entrypoint:02X} ({self.parsed.entrypoint_section.name})",
+                 f"**Size**:          {human_readable_size(self.size)}",
+                 f"**Entropy**:       {self.entropy}",
+                 f"**Block entropy**: {self.block_entropy_256B}"]
+            if ds:
+                l += [f"**Label**:         {self.label}"]
+            r += [Section("Base Information"), List(l)]
+        if sections:
+            h, s = [], []
+            for i, sec in enumerate(self.parsed):
+                row = []
                 if i == 0:
-                    h.append("Virtual size")
-                row.append(human_readable_size(sec.virtual_size))
-            if i == 0:
-                h.extend(["Entropy", "Block entropy (256B)"])
-            row.append(f"{sec.entropy:.5f}" if sec.size > 0 else "-")
-            row.append(f"{sec.block_entropy_256B:.5f}" if sec.size > 0 and sec.block_entropy_256B is not None else "-")
-            if i == 0:
-                h.append("Standard")
-            row.append(f"{'NY'[sec.is_standard]}")
-            s.append(row)
-        # features
-        maxlen = max(map(len, self.data.keys()))
-        f = [f"{'**'+n+'**:':<{maxlen+6}}{v}" for n, v in self.data.items()]
-        render(Section("Base Information"), List(l),
-               Section("Sections"), Table(s, column_headers=h),
-               Section("Features"), List(f))
+                    h.append("Name")
+                rn = f" ({sec.real_name})" if hasattr(sec, "real_name") and sec.real_name != sec.name else ""
+                row.append(f"{sec.name}{rn}")
+                if i == 0:
+                    h.append("Raw size")
+                row.append(human_readable_size(sec.size))
+                if hasattr(sec, "virtual_size"):
+                    if i == 0:
+                        h.append("Virtual size")
+                    row.append(human_readable_size(sec.virtual_size))
+                if i == 0:
+                    h.extend(["Entropy", "Block entropy (256B)"])
+                row.append(f"{sec.entropy:.5f}" if sec.size > 0 else "-")
+                row.append(f"{sec.block_entropy_256B:.5f}" if sec.size > 0 and sec.block_entropy_256B is not None else "-")
+                if i == 0:
+                    h.append("Standard")
+                row.append(f"{'NY'[sec.is_standard]}")
+                s.append(row)
+            r += [Section("Sections"), Table(s, column_headers=h)]
+        if features:
+            maxlen = max(map(len, self.data.keys()))
+            f = [f"{'**'+n+'**:':<{maxlen+6}}{v}" for n, v in self.data.items()]
+            r += [Section("Features"), List(f)]
+        render(*r)
     
     @property
     def bin_label(self):
