@@ -11,6 +11,7 @@ from .helpers.config import *
 
 filterwarnings("ignore", "Trying to unpickle estimator DecisionTreeClassifier")
 filterwarnings("ignore", "Behavior when concatenating bool-dtype and numeric-dtype arrays is deprecated")
+simplefilter("ignore", DeprecationWarning)
 simplefilter("ignore", FutureWarning)
 simplefilter("ignore", ResourceWarning)
 
@@ -28,6 +29,13 @@ _st = lambda s, v: str(v)
 _ws = lambda s, v: Path(s['workspace'].joinpath(v), create=True, expand=True).absolute()
 
 
+def _ae(s, v):
+    if v not in ["default", "pcode", "vex"]:
+        raise ValueError(f"Angr engine shall be one of: default|pcode|vex")
+    return v
+_ae.__name__ = "Angr engine"
+
+
 def _bl(s, v):
     _v = str(v).lower()
     if _v in ["true", "yes", "1"]:
@@ -36,6 +44,13 @@ def _bl(s, v):
         return False
     raise ValueError(v)
 _bl.__name__ = "boolean"
+
+
+def _cg(s, v):
+    if v not in ["emulated", "fast"]:
+        raise ValueError(f"CFG algorithm shall be one of: emulated|fast")
+    return v.capitalize()
+_cg.__name__ = "CFG extraction algorithm"
 
 
 def _rp(s, v):
@@ -48,7 +63,7 @@ _rp.__name__ = "path"
 
 def _vh(s, v):
     if v not in hashlib.algorithms_available:
-        raise ValueError(v)
+        raise ValueError(f"'{v}' is not a valid hash algorithm")
     return v
 _vh.__name__ = "hash algorithm"
 
@@ -72,6 +87,11 @@ bi.config = Config("packing-box",
             'experiments':   ("/mnt/share/experiments", "PATH", "path to the experiments folder", _np),
             'backup_copies': ("3", "COPIES", "keep N backups of datasets ; for commands that trigger backups", _it),
             'exec_timeout':  ("10", "SECONDS", "execution timeout of items (detectors, packers, ...)", _it),
+        },
+        'cfg': {
+            'angr_engine':       ("pcode", "ENGINE", "set the engine for CFG extraction by Angr", _ae),
+            'extract_algorithm': ("fast", "ALGO", "CFG extraction algorithm", _cg),
+            'extract_timeout':   ("20", "SECONDS", "execution timeout for computing CFG of an executable", _it),
         },
         'definitions': {k: opt_tuple(k) for k in \
                         ['algorithms', 'alterations', 'analyzers', 'detectors', 'features', 'packers', 'unpackers']},

@@ -33,6 +33,7 @@ classifiers = [
   "Topic :: Software Development :: Libraries :: Python Modules",
 ]
 dependencies = [
+  "angr",
   "bintropy>=1.4.9",
   "capstone",
   "dsff>=1.0.3",
@@ -44,6 +45,7 @@ dependencies = [
   "pefile",
   "peid",
   "pyelftools",
+  "pypcode",
   "rich",
   "scikit-learn>=1.2.2",
   "tinyscript>=1.29.5",

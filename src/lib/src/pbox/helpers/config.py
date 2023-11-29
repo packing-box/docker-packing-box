@@ -7,12 +7,19 @@ __all__ = ["configure_logging", "Config"]
 
 
 _BASE_LOGGERS = [l for l in logging.root.manager.loggerDict] + ["rich"]
+_LOG_CONFIG = None
 _NAMING_CONVENTION = r"(?i)^[a-z][a-z0-9]*(?:[-_][a-z0-9]+)*$"
 
 
-def configure_logging(verbose=False, levels=("INFO", "DEBUG")):
+def configure_logging(verbose=False, levels=("INFO", "DEBUG"), reset=False, exceptions=()):
+    global _LOG_CONFIG
+    if reset and _LOG_CONFIG:
+        verbose, levels = _LOG_CONFIG
     logging.configLogger(logging.getLogger("main"), levels[verbose], fmt=LOG_FORMATS[min(verbose, 1)], relative=True)
-    logging.setLoggers(*[l for l in logging.root.manager.loggerDict if l not in _BASE_LOGGERS])
+    logging.setLoggers(*[l for l in logging.root.manager.loggerDict if not all(re.match(bl, l) for bl in \
+                                                                               _BASE_LOGGERS + list(exceptions))])
+    if _LOG_CONFIG is None:
+        _LOG_CONFIG = (verbose, levels)
 
 
 class Config:

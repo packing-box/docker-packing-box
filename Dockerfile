@@ -110,7 +110,9 @@ RUN python3 -m pip install --user --upgrade --break-system-packages pip
 RUN pip3 install --user --no-warn-script-location --ignore-installed --break-system-packages \
         angr capa capstone meson pandas poetry scikit-learn \
  && pip3 install --user --no-warn-script-location --ignore-installed --break-system-packages \
-        pydl8.5 thefuck tinyscript tldr weka
+        pydl8.5 thefuck tinyscript tldr weka \
+ && pip3 install --user --no-warn-script-location --ignore-installed --break-system-packages -e \
+        "git+https://github.com/unicorn-engine/unicorn.git#egg=unicorn&subdirectory=bindings/python"
 # initialize Go
 RUN go mod init pbox &
 # +--------------------------------------------------------------------------------------------------------------------+

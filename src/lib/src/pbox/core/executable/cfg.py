@@ -1,70 +1,54 @@
-import angr
-import os
-import stopit
-import time
+from tinyscript import code, logging, re, time
+from tinyscript.helpers import Capture, Timeout, TimeoutError
 
-EMULATED = True
-TIMEOUT = 10
-USE_PCODE = False # Default engine is VEX
 
-binaries = [f for f in os.listdir(os.getcwd()) if f.endswith('.exe')] # Needs to contain the filenames of all binaries in the dataset (later, the path of their directory is prepended to have the full path to each executable)
-total_binaries = len(binaries)
+def _config_angr_loggers():
+    angr_loggers = ["angr.*", "cle\..*", "pyvex.*"]
+    configure_logging(reset=True, exceptions=angr_loggers)
+    from ...helpers.config import _LOG_CONFIG
+    for l in logging.root.manager.loggerDict:
+        if any(re.match(al, l) for al in angr_loggers):
+            logging.getLogger(l).setLevel([logging.WARNING, logging.DEBUG][_LOG_CONFIG[0]])
+    from cle.backends.pe.regions import PESection
+    code.insert_line(PESection.__init__, "from tinyscript.helpers import ensure_str", 0)
+    code.replace(PESection.__init__, "pe_section.Name.decode()", "ensure_str(pe_section.Name)")
+lazy_load_module("angr", postload=_config_angr_loggers)
 
-def cfg_log_msg(msg, filename, i):
-    print(msg + f" : {filename} : [{i+1}/{total_binaries}]")
 
-results = []
-
-for i, filename in enumerate(binaries):
-    exe_path = os.path.join(os.getcwd(), filename)
-    cfg_log_msg(f"Starting analysis", filename, i)
+class CFG:
+    logger = logging.getLogger("executable.cfg")
     
-    try:
-        if USE_PCODE:
-            p = angr.Project(exe_path, load_options={'auto_load_libs': False}, engine=angr.engines.UberEnginePcode)
-        else:
-            p = angr.Project(exe_path, load_options={'auto_load_libs': False})
-    except Exception as e:
-        print(e)
-        cfg_log_msg(f"Failed to load project", filename, i)
-        results.append([filename, -1, 0, -1])
-        continue
-        
-    cfg_manager = p.kb.cfgs
-    cfg_model = cfg_manager.new_model(f"{filename}")
-
-    timeout_reached = False
-    complete_extraction_time = -1
-    start_time = time.time()
+    def __init__(self, target, engine=None, **kw):
+        self.__target, self.engine = str(target), engine
     
-    with stopit.ThreadingTimeout(TIMEOUT) as to_ctx_mgr:
-        assert to_ctx_mgr.state == to_ctx_mgr.EXECUTING
+    def compute(self, algorithm=None, timeout=None, **kw):
+        l = self.__class__.logger
+        if self.__project is None:
+            l.error(f"{self.__target}: CFG project not created ; please set the engine")
+            return
         try:
-            if EMULATED:
-                p.analyses.CFGEmulated(fail_fast=False, resolve_indirect_jumps=True, normalize=True, model=cfg_model)
-            else:
-                p.analyses.CFGFast(fail_fast=False, resolve_indirect_jumps=True, normalize=True, model=cfg_model)
-        except stopit.utils.TimeoutException:
-            timeout_reached = True
-            cfg_log_msg(f"Timeout reached when extracting CFG", filename, i)
+            with Capture() as c, Timeout(timeout or config['extract_timeout'], stop=True) as to:
+                getattr(self.__project.analyses, f"CFG{algorithm or config['extract_algorithm']}") \
+                    (fail_fast=False, resolve_indirect_jumps=True, normalize=True, model=self.model)
+        except TimeoutError:
+            l.warning(f"{self.__target}: Timeout reached when extracting CFG")
         except Exception as e:
-            print(e)
-            cfg_log_msg(f"Failed to extract CFG", filename, i)
-            found_node_at_entry = cfg_model.get_any_node(cfg_model.project.entry) is not None
-            results.append([filename, complete_extraction_time, found_node_at_entry, -1])
-            continue
-        
-        if not timeout_reached:
-            end_time = time.time()
-            complete_extraction_time = int(end_time - start_time)
-            cfg_log_msg(f"Completed analysis in {complete_extraction_time} seconds", filename, i)
-            
-    found_node_at_entry = cfg_model.get_any_node(cfg_model.project.entry) is not None
-    num_nodes_found = len(cfg_model.graph.nodes())
+            l.error(f"{self.__target}: Failed to extract CFG")
+            l.exception(e)
     
-    results.append([filename, complete_extraction_time, found_node_at_entry, num_nodes_found])
+    @property
+    def engine(self):
+        return self._engine
+    
+    @engine.setter
+    def engine(self, name=None):
+        name = config['angr_engine'] if name is None else name
+        cls = "UberEngine" if name in ["default", "vex"] else f"UberEngine{name.capitalize()}"
+        try:
+            self._engine = getattr(angr.engines, cls)
+            self.__project = angr.Project(self.__target, load_options={'auto_load_libs': False}, engine=self._engine)
+            self.model = self.__project.kb.cfgs.new_model(f"{self.__target}")
+        except Exception as e:
+            self._engine = self.__project = None
+            self.__class__.logger.exception(e)
 
-longest_filename = max([len(x) for x in binaries])
-print("{:<{}} | {:<15} | {:<16} | {:<13}".format('Filename', longest_filename, 'Extraction Time','Entry Node Found','# Nodes Found'))
-for res in results:
-    print("{:<{}} | {:<15} | {:<16} | {:<13}".format(res[0], longest_filename, res[1], res[2], res[3]))
