@@ -1,0 +1,23 @@
+#!/usr/bin/python3
+# -*- coding: UTF-8 -*-
+from pboxtools import *
+from reminder import REMINDer
+from reminder.__info__ import __author__, __license__, __source__, __version__
+
+
+ARGS = [
+    [("--threshold-highest-entropy", ), {'default': 6.85, 'type': float,
+                                         'help': "threshold for the entropy of the Entry Point section"}],
+]
+
+
+@version("REMINDer %s <%s> by %s\nLicensed under %s" % (__version__, __source__, __author__, __license__))
+@catch_exception
+def execute(name, **kwargs):
+    kwargs['orig_args']['logger'] = kwargs['logger']
+    return str(REMINDer(**kwargs['orig_args']).detect(kwargs['path']))
+
+
+if __name__ == "__main__":
+    run("REMINDer", exec_func=execute, binary_only=True, parser_args=ARGS)
+
