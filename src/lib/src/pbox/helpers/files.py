@@ -3,6 +3,8 @@ from contextlib import contextmanager
 from tinyscript import functools, os, re, subprocess
 from tinyscript.helpers import is_file, is_folder, Path, TempPath
 
+from .utils import pd
+
 
 __all__ = ["data_to_temp_file", "edit_file", "figure_path", "file_or_folder_or_dataset", "find_files_in_folder"]
 

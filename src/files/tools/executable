@@ -18,6 +18,7 @@ __examples__ = [
 ]
 
 
+#TODO: visualize, disassemble, [readelf|readpe|readmo], fingerprint
 if __name__ == '__main__':
     sparsers = parser.add_subparsers(dest="command", metavar="CMD", title="positional argument",
                                      help="command to be executed")
