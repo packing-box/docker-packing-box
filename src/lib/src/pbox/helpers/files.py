@@ -1,12 +1,62 @@
 # -*- coding: UTF-8 -*-
 from contextlib import contextmanager
 from tinyscript import functools, os, re, subprocess
-from tinyscript.helpers import is_file, is_folder, Path, TempPath
+from tinyscript.helpers import is_file, is_folder, is_hash, set_exception, Path, TempPath
 
 from .utils import pd
 
 
-__all__ = ["data_to_temp_file", "edit_file", "figure_path", "file_or_folder_or_dataset", "find_files_in_folder"]
+__all__ = ["data_to_temp_file", "edit_file", "figure_path", "file_or_folder_or_dataset", "find_files_in_folder",
+           "Locator", "Path"]
+
+
+set_exception("BadSchemeError", "ValueError")
+set_exception("NotAnExperimentError", "ValueError")
+
+
+class Locator(Path):
+    """ Extension of the Path class from Tinyscript to support special schemes dedicated to Packing Box. """
+    def __new__(cls, *parts, **kwargs):
+        try:
+            scheme, path = str(parts[0]).split("://")
+        except ValueError:
+            return super(Path, cls).__new__(cls, *parts, **kwargs)
+        if scheme in ["conf", "data"]:
+            if scheme == "conf" and not path.endswith(".yml"):
+                path += ".yml"
+            p = config['workspace'].joinpath(scheme, path)
+        elif scheme in ["dataset", "model"]:
+            from ..core import Dataset, Model
+            return locals()[scheme.capitalize()].load(path)
+        elif scheme == "executable":
+            from ..core import is_exe, Dataset, Executable
+            if is_hash(path):
+                for ds in Dataset.iteritems():
+                    p = ds.joinpath("files", path)
+                    if p.exists():
+                        return Executable(str(p))
+            for srcs in PACKING_BOX_SOURCES.values():
+                for src in srcs:
+                    for exe in Path(src, expand=True).walk(filter_func=is_exe, sort=False):
+                        if exe.basename == path:
+                            return Executable(str(exe))
+            raise FileNotFoundError(f"[Errno 2] No such executable: '{path}'")
+        elif scheme == "experiment":
+            from ..core import Experiment
+            try:
+                return Experiment(config['experiment'])
+            except KeyError:
+                return Experiment(path)
+        elif scheme in ["figure", "script"]:
+            try:
+                p = config['experiment'].joinpath(scheme + "s", path)
+            except KeyError:
+                raise NotAnExperimentError("This scheme can only be used in the context of an experiment")
+        else:
+            raise BadSchemeError(f"'{scheme}' is not a valid scheme")
+        if p.exists():
+            return p
+        raise FileNotFoundError(f"[Errno 2] No such {scheme}: '{path}'")
 
 
 @contextmanager
@@ -36,14 +86,14 @@ def figure_path(f):
         exp, fn = PBOX_HOME.joinpath("experiment.env"), f(*a, **kw)
         # at this point, 'fn' is either a string or Path, with eventually separators for subfolders if the figure is to
         #  be sorted in the scope of an experiment
-        if Path(fn).extension[1:] not in IMG_FORMATS:
+        if BasePath(fn).extension[1:] not in IMG_FORMATS:
             fn = str(fn) + "." + kw.get('format', "png")
-        fn = Path(fn)
+        fn = BasePath(fn)
         # by convention, if we are saving files in the workspace of an experiment, using separators will sort the figure
         #  according to the defined structure (e.g. if an experiment has multiple datasets, it is cleaner to sort its
         #  figures with a tree structure that uses datasets' names)
         if exp.exists():
-            fn = Path(exp.read_text()).joinpath("figures", fn)
+            fn = BasePath(exp.read_text()).joinpath("figures", fn)
             fn.dirname.mkdir(exist_ok=True, parents=True)
         # by convention, if the given path is not absolute and we are not saving files in the workspace of an open
         #  experiment, we shall remain in the current folder, hence replacing separators by underscores
@@ -77,7 +127,7 @@ def file_or_folder_or_dataset(method):
                 if not kwargs['silent']:
                     self.logger.debug("input is a single executable")
                 if i not in e:
-                    i = Path(i)
+                    i = BasePath(i)
                     i.dataset = None
                     e.append(i)
                     lbl = kwargs.get('label')
@@ -88,7 +138,7 @@ def file_or_folder_or_dataset(method):
             elif is_folder(i):
                 if not kwargs['silent']:
                     self.logger.debug("input is a folder of executables")
-                for f in Path(i).walk(filter_func=lambda p: p.is_file()):
+                for f in BasePath(i).walk(filter_func=lambda p: p.is_file()):
                     f.dataset = None
                     if str(f) not in e:
                         e.append(f)
@@ -131,7 +181,7 @@ def file_or_folder_or_dataset(method):
                 continue
             kwargs['dslen'] = len(e)
             # this is useful for a decorated method that handles the difference between the computed and actual labels
-            kwargs['label'] = l.get(Path(exe).stem, NOT_LABELLED)
+            kwargs['label'] = l.get(BasePath(exe).stem, NOT_LABELLED)
             try:
                 yield method(self, exe, *args, **kwargs)
             except ValueError as err:
@@ -144,8 +194,8 @@ def file_or_folder_or_dataset(method):
 
 def find_files_in_folder(path):
     """ Utility function to find files based on a path whose basename can be a regex pattern. """
-    p = Path(path)
+    p = BasePath(path)
     regex = re.compile(p.basename)
-    for fp in Path(p.dirname).listdir(filter_func=lambda x: x.is_file() and regex.search(x.basename)):
+    for fp in BasePath(p.dirname).listdir(filter_func=lambda x: x.is_file() and regex.search(x.basename)):
         yield fp
 
