@@ -11,10 +11,10 @@ This tool aims to manipulate a single executable.
 """
 __description__ = "Manipulate a single executable"
 __examples__ = [
-    "alter rename_sections",
-    "parse lief",
-    "show",
-    "visualize",
+    "alter rename_sections program.exe",
+    "parse lief program.exe",
+    "show program.exe",
+    "visualize program.exe",
 ]
 
 
@@ -22,7 +22,6 @@ __examples__ = [
 if __name__ == '__main__':
     sparsers = parser.add_subparsers(dest="command", metavar="CMD", title="positional argument",
                                      help="command to be executed")
-    sparsers.add_parser("close", help="close the current experiment")
     alter = sparsers.add_parser("alter", help="alter the target executable with the given alteration")
     add_argument(alter, "executable")
     agroup = alter.add_mutually_exclusive_group()
