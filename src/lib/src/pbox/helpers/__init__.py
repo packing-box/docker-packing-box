@@ -4,6 +4,8 @@ This subpackage contains code supporting other subpackages, including helper con
 """
 from .args import *
 from .args import __all__ as _args
+from .commands import *
+from .commands import __all__ as _cmds
 from .data import *
 from .data import __all__ as _data
 from .entities import *
@@ -20,5 +22,5 @@ from .utils import *
 from .utils import __all__ as _utils
 
 
-__all__ = _args + _data + _entities + _files + _formats + _items + _rendering + _utils
+__all__ = _args + _cmds + _data + _entities + _files + _formats + _items + _rendering + _utils
 

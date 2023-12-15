@@ -2,9 +2,7 @@
 # -*- coding: UTF-8 -*-
 from pbox import *
 from tinyscript import *
-from tinyscript.argreparse import ArgumentParser
-from tinyscript.helpers import CompositeKeyDict as ckdict, Path, PythonPath
-from tinyscript.parser import ProxyArgumentParser
+from tinyscript.helpers import Path
 
 
 __script__    = "Bash Completions Generator"
@@ -15,7 +13,8 @@ __examples__  = [
 ]
 
 
-_compreply = lambda c, i=1, sc=False, pl=True: f"COMPREPLY{['','+'][pl]}=($(compgen -W \"{' '.join(sorted(set(c)))}\" -- \"${{COMP_WORDS[{i}]}}\")){['',' ;;'][sc]}\n"
+_compreply = lambda c, i=1, sc=False, pl=True: f"COMPREPLY{['','+'][pl]}=($(compgen -W \"{' '.join(sorted(set(c)))}\"" \
+                                               f" -- \"${{COMP_WORDS[{i}]}}\")){['',' ;;'][sc]}\n"
 _dictdepth = lambda d: 1 + max(map(_dictdepth, d.values())) if isinstance(d, dict) and len(d) > 0 else 0
 _varname   = lambda d: ["curr", f"{(d-1)*'s'}prev"][d > 0]
 
@@ -131,91 +130,19 @@ def _gen_completions(tool, config, indent=2):
         except TypeError:
             pass
         loc = list(set(true.pop('_locals_', []) + false.pop('_locals_', [])))
-        _gen_block(true, _get_commands(tool, true_cmd), 1)
+        _gen_block(true, get_commands(tool, true_cmd), 1)
         true_block = block
         block = ""
-        _gen_block(false, _get_commands(tool, false_cmd), 1, True)
+        _gen_block(false, get_commands(tool, false_cmd), 1, True)
         block = f"{i}if [[ {cond} ]]; then\n{true_block}{i}else\n{block}{i}fi\n"
     else:
         loc = config.pop('_locals_', [])
-        _gen_block(config, _get_commands(tool))
+        _gen_block(config, get_commands(tool))
     for var in loc:
         locals_ += f" {var}"
     if locals_ != "":
         locals_ += "\n"
     return f"_{tool.basename}_completions() {{\n{locals_}{compreply}{init}{block}}}\n\n"
-
-
-def _get_commands(tool, cond=""):
-    cmds, module = ckdict(_separator_="|"), f"_{tool.basename}.py"
-    # copy the target tool to modify it so that its parser tree can be retrieved
-    ntool = tool.copy(module)
-    ntool.write_text(ntool.read_text().replace("if __name__ == '__main__':", f"{cond}\ndef main():") \
-                                      .replace("if __name__ == \"__main__\":", "def main():") \
-                                      .replace("initialize(", "return parser\n    initialize(") \
-                                      .rstrip("\n") + "\n\nif __name__ == '__main__':\n    main()\n")
-    ntool.chmod(0o755)
-    # populate the real parser and add information arguments
-    try:
-        __parsers = {PythonPath(module).module.main(): ArgumentParser(globals())}
-    except Exception as e:
-        logger.critical(f"Completion generation failed for tool: {tool.basename}")
-        logger.error(f"Source ({module}):\n{ntool.read_text()}")
-        logger.exception(e)
-        sys.exit(1)
-    # now import the populated list of parser calls from within the tinyscript.parser module
-    from tinyscript.parser import parser_calls, ProxyArgumentParser
-    global parser_calls
-    #  proxy parser to real parser recursive conversion function
-    def __proxy_to_real_parser(value):
-        """ Source: tinyscript.parser """
-        if isinstance(value, ProxyArgumentParser):
-            return __parsers[value]
-        elif isinstance(value, (list, tuple)):
-            return [__proxy_to_real_parser(_) for _ in value]
-        return value
-    #  now iterate over the registered calls
-    pairs = []
-    for proxy_parser, method, args, kwargs, proxy_subparser in parser_calls:
-        real_parser = __parsers[proxy_parser]
-        args = (__proxy_to_real_parser(v) for v in args)
-        kwargs = {k: __proxy_to_real_parser(v) for k, v in kwargs.items()}
-        real_subparser = getattr(real_parser, method)(*args, **kwargs)
-        if real_subparser is not None:
-            __parsers[proxy_subparser] = real_subparser
-        if not isinstance(real_subparser, str):
-            real_subparser._parent = real_parser
-    parent, child, ref_psr, ref_dct = None, None, ('main', ), cmds
-    for parser in __parsers.values():
-        if isinstance(parser, ArgumentParser):
-            try:
-                nparent, nchild = parser._parent._parent.name, parser.name
-            except AttributeError:
-                nparent, nchild = None, parser.name
-            if nparent is None:
-                continue
-            # depth increases
-            if nparent == child:
-                ref_dct[child][nchild] = ckdict(_separator_="|")
-                ref_dct[child]['_parent'] = ref_dct
-                ref_dct = ref_dct[child]
-                ref_psr += (child, )
-            # depth does not change
-            elif nparent == parent or parent is None:
-                ref_dct[nchild] = ckdict(_separator_="|")
-            # depth decreases
-            elif len(ref_psr) > 1 and nparent == ref_psr[-2]:
-                ref_dct = ref_dct.pop('_parent', cmds)
-                ref_dct[nchild] = ckdict(_separator_="|")
-                ref_psr = ref_psr[:-1]
-            # unexpected
-            else:
-                raise ValueError(f"Unexpected condition while state change ({parent},{child}) => ({nparent},{nchild})")
-            parent, child = nparent, nchild
-    # cleanup between loading different tools
-    ProxyArgumentParser.reset()
-    ntool.remove()
-    return cmds
 
 
 def compgen(configs, source, indent=2):
