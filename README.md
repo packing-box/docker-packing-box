@@ -9,6 +9,11 @@
 
 This Docker container is a CLI environment featuring a toolkit that gathers executable analyzers, packing detectors, packers and unpackers but also many tools for generating and manipulating datasets of packed and not-packed executables of different formats (including PE, ELF and Mach-O) for the sake of evaluating static detection techniques and tools, visualizing executables' layout and automating machine learning pipelines with the support of many algorithms.
 
+See the Black Hat Arsenal presentations for demonstrations:
+
+- [Packing-Box: Playing with Executable Packing](https://raw.githubusercontent.com/packing-box/docker-packing-box/main/docs/material/bheu22-packingbox.pdf)
+- [Packing-Box: Breaking Detectors & Visualizing Packing](https://raw.githubusercontent.com/packing-box/docker-packing-box/main/docs/material/bheu23-packingbox.pdf)
+
 Here is what you can see when you start up the Docker container.
 
 <p align="center"><img src="https://raw.githubusercontent.com/packing-box/docker-packing-box/main/docs/pages/imgs/screenshot.png"></p>
