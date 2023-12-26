@@ -947,7 +947,7 @@ class Dataset(Entity):
             p = Path(path)
             for i, s in enumerate(src):
                 if p.is_under(s):
-                    return i, str(p.relative_to(s))
+                    return i, str(p.absolute().relative_to(s))
             return -1, path
         # parse formats, collect counts per size range and list of files
         #  counts list: not labelled, not packed, packed
@@ -1039,8 +1039,8 @@ class Dataset(Entity):
     def list(cls, show_all=False, hide_files=False, raw=False, **kw):
         """ List all the datasets from the given path. """
         if raw:
-            for name in sorted([dset.basename] for dset in Path(config['datasets']) \
-                                .listdir(lambda p: Dataset.check(p) or FilelessDataset.check(p))):
+            for name in sorted([dset.basename for dset in Path(config['datasets']) \
+                            .listdir(lambda p: Dataset.check(p) or FilelessDataset.check(p))], key=lambda x: x.lower()):
                 print(name)
         else:
             l = cls.logger
