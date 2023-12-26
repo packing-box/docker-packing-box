@@ -86,14 +86,14 @@ def figure_path(f):
         exp, fn = PBOX_HOME.joinpath("experiment.env"), f(*a, **kw)
         # at this point, 'fn' is either a string or Path, with eventually separators for subfolders if the figure is to
         #  be sorted in the scope of an experiment
-        if BasePath(fn).extension[1:] not in IMG_FORMATS:
+        if Path(fn).extension[1:] not in IMG_FORMATS:
             fn = str(fn) + "." + kw.get('format', "png")
-        fn = BasePath(fn)
+        fn = Path(fn)
         # by convention, if we are saving files in the workspace of an experiment, using separators will sort the figure
         #  according to the defined structure (e.g. if an experiment has multiple datasets, it is cleaner to sort its
         #  figures with a tree structure that uses datasets' names)
         if exp.exists():
-            fn = BasePath(exp.read_text()).joinpath("figures", fn)
+            fn = Path(exp.read_text()).joinpath("figures", fn)
             fn.dirname.mkdir(exist_ok=True, parents=True)
         # by convention, if the given path is not absolute and we are not saving files in the workspace of an open
         #  experiment, we shall remain in the current folder, hence replacing separators by underscores
@@ -127,7 +127,7 @@ def file_or_folder_or_dataset(method):
                 if not kwargs['silent']:
                     self.logger.debug("input is a single executable")
                 if i not in e:
-                    i = BasePath(i)
+                    i = Path(i)
                     i.dataset = None
                     e.append(i)
                     lbl = kwargs.get('label')
@@ -138,7 +138,7 @@ def file_or_folder_or_dataset(method):
             elif is_folder(i):
                 if not kwargs['silent']:
                     self.logger.debug("input is a folder of executables")
-                for f in BasePath(i).walk(filter_func=lambda p: p.is_file()):
+                for f in Path(i).walk(filter_func=lambda p: p.is_file()):
                     f.dataset = None
                     if str(f) not in e:
                         e.append(f)
@@ -181,7 +181,7 @@ def file_or_folder_or_dataset(method):
                 continue
             kwargs['dslen'] = len(e)
             # this is useful for a decorated method that handles the difference between the computed and actual labels
-            kwargs['label'] = l.get(BasePath(exe).stem, NOT_LABELLED)
+            kwargs['label'] = l.get(Path(exe).stem, NOT_LABELLED)
             try:
                 yield method(self, exe, *args, **kwargs)
             except ValueError as err:
@@ -194,8 +194,8 @@ def file_or_folder_or_dataset(method):
 
 def find_files_in_folder(path):
     """ Utility function to find files based on a path whose basename can be a regex pattern. """
-    p = BasePath(path)
+    p = Path(path)
     regex = re.compile(p.basename)
-    for fp in BasePath(p.dirname).listdir(filter_func=lambda x: x.is_file() and regex.search(x.basename)):
+    for fp in Path(p.dirname).listdir(filter_func=lambda x: x.is_file() and regex.search(x.basename)):
         yield fp
 
