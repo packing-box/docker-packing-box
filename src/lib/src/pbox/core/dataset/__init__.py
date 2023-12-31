@@ -456,56 +456,51 @@ class Dataset(Entity):
         self._save()
     
     def ingest(self, folder, labels=None, rename_func=slugify, detect=False, min_samples=0, max_samples=0, merge=False,
-               prefix="", exclude=None, **kw):
+               prefix="", exclude=None, overwrite=None, **kw):
         """ Ingest every subfolder of a target folder to make it a dataset provided a dictionary of labels. """
         l, p = self.logger, Path(folder)
         name = prefix + rename_func(p.stem)
         kw['silent'] = True
         if merge:
             dataset = Dataset(name, load=False)
-            if dataset.exists():
-                if confirm(f"Are you sure you want to overwrite '{dataset.basename}' ?"):
-                    dataset._purge()
-                else:
-                    return
-            dataset._load()
+            overwrite = Dataset.confirm_overwrite(dataset, overwrite)
         l.info("Searching for subfolders with samples to be ingested %s..." % \
                (f"in the new dataset '{dataset.basename}'" if merge else "as distinct datasets"))
-        for sp in p.walk(filter_func=lambda x: x.is_dir() and all(not y.startswith(".") for y in x.parts[1:])):
-            if any(x in (exclude or []) for x in sp.parts[1:]):
-                l.debug(f"{sp.stem} was excluded by the user")
-                continue
-            i, keep = 0, True
-            for f in sp.listdir():
-                # only select "leaf" subfolder, that is those with only files
-                if not f.is_file():
-                    keep = False
-                    break
-                # count the executables in this subfolder, other files (e.g. could be README.md) are not an issue
-                if Executable(f).is_valid():
-                    i += 1
-            # check that we have a subfolder that contains not less and not more executable samples than needed
-            if not keep:
-                l.debug(f"{sp.stem} is not a leaf subfolder")
-                continue
-            if min_samples > 0 and i < min_samples:
-                l.debug(f"{sp.stem} has too few samples")
-                continue
-            if max_samples > min_samples and i > max_samples:
-                l.debug(f"{sp.stem} has too much samples")
-                continue
-            l.debug(f"found a subfolder called {sp.stem} that has {i} executable samples")
-            if not merge:
-                name = prefix + rename_func(sp.stem)
-                dataset = Dataset(name, load=False)
-                if dataset.exists():
-                    if confirm(f"Are you sure you want to overwrite '{dataset.basename}' ?"):
-                        dataset._purge()
-                    else:
-                        return
-                dataset._load()
-            l.info(f"Ingesting subfolder '{sp.stem}' into {name}...")
-            dataset.update([sp, p][merge], labels=labels, detect=detect, **kw)
+        if overwrite:
+            for sp in p.walk(filter_func=lambda x: x.is_dir() and all(not y.startswith(".") for y in x.parts[1:])):
+                if any(x in (exclude or []) for x in sp.parts[1:]):
+                    l.debug(f"{sp.stem} was excluded by the user")
+                    continue
+                i, keep = 0, True
+                for f in sp.listdir():
+                    # only select "leaf" subfolder, that is those with only files
+                    if not f.is_file():
+                        keep = False
+                        break
+                    # count the executables in this subfolder, other files (e.g. could be README.md) are not an issue
+                    if Executable(f).is_valid():
+                        i += 1
+                # check that we have a subfolder that contains not less and not more executable samples than needed
+                if not keep:
+                    l.debug(f"{sp.stem} is not a leaf subfolder")
+                    continue
+                if min_samples > 0 and i < min_samples:
+                    l.debug(f"{sp.stem} has too few samples")
+                    continue
+                if max_samples > min_samples and i > max_samples:
+                    l.debug(f"{sp.stem} has too much samples")
+                    continue
+                l.debug(f"found a subfolder called {sp.stem} that has {i} executable samples")
+                if not merge:
+                    name = prefix + rename_func(sp.stem)
+                    dataset = Dataset(name, load=False)
+                    if not Dataset.confirm_overwrite(dataset, overwrite):
+                        l.warning(f"Ingestion aborted ('{dataset.basename}' already exists)")
+                        continue
+                l.info(f"Ingesting subfolder '{sp.stem}' into {name}...")
+                dataset.update([sp, p][merge], labels=labels, detect=detect, **kw)
+        else:
+            l.warning(f"Ingestion aborted ('{dataset.basename}' already exists)")
     
     @backup
     def make(self, n=0, formats=["All"], balance=False, packer=None, pack_all=False, **kw):
@@ -1053,19 +1048,33 @@ class Dataset(Entity):
     
     @classmethod
     def validate(cls, folder, **kw):
-        f = Path(folder, expand=True)
+        # consider 'folder' as a dataset from the workspace first
+        f = config['datasets'].joinpath(folder)
+        # if not in the workspace, consider 'folder' as the path
         if not f.is_dir():
-            f = config['datasets'].joinpath(folder)
-            if not f.exists():
-                raise ValueError("Folder does not exist")
-            if not f.is_dir():
-                raise ValueError("Input is not a folder")
+            f = Path(folder, expand=True)
+        if not f.exists():
+            raise ValueError("Folder does not exist")
+        if not f.is_dir():
+            raise ValueError("Input is not a folder")
         if not f.joinpath("files").is_dir():
             raise ValueError("Missing 'files' folder")
         for fn in ["data.csv", "metadata.json"]:
             if not f.joinpath(fn).exists():
                 raise ValueError(f"'{fn}' does not exist")
         return f
+    
+    @staticmethod
+    def confirm_overwrite(dataset, overwrite=None):
+        if dataset.exists():
+            if overwrite is None:
+                overwrite = confirm(f"Are you sure you want to overwrite '{dataset.basename}' ?")
+            if overwrite:
+                dataset._purge()
+            else:
+                return
+        dataset._load()
+        return overwrite
     
     @staticmethod
     def labels_from_file(labels):
@@ -1130,13 +1139,15 @@ class FilelessDataset(Dataset):
     
     @classmethod
     def validate(cls, folder, **kw):
-        f = Path(folder, expand=True)
+        # consider 'folder' as a dataset from the workspace first
+        f = config['datasets'].joinpath(folder)
+        # if not in the workspace, consider 'folder' as the path
         if not f.is_dir():
-            f = config['datasets'].joinpath(folder)
-            if not f.exists():
-                raise ValueError("Folder does not exist")
-            if not f.is_dir():
-                raise ValueError("Input is not a folder")
+            f = Path(folder, expand=True)
+        if not f.exists():
+            raise ValueError("Folder does not exist")
+        if not f.is_dir():
+            raise ValueError("Input is not a folder")
         if f.joinpath("files").is_dir():
             raise ValueError("Has 'files' folder while it should not")
         for fn in ["data.csv", "metadata.json", "features.json"]:

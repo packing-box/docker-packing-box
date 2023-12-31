@@ -29,6 +29,7 @@ __examples__    = [
     "make my-dataset -f ELF -n 500 --source-dir /path/to/dotnet/exe",
     "make my-dataset -f PE,ELF -n 2000",
     "merge my-dataset dataset-to-be-merged",
+    "plot characteristic my-dataset label --perplexity 50",
     "plot features my-dataset byte_0_after_ep byte_1_after_ep",
     "plot features my-dataset number_resources --format png",
     "plot labels my-dataset",
@@ -98,6 +99,7 @@ if __name__ == '__main__':
                         help="minimum of samples to be found in subfolders for being kept")
     ingest.add_argument("-M", "--max-samples", type=ts.pos_int, default=0,
                         help="maximum of samples to be found in subfolders for being kept")
+    ingest.add_argument("--overwrite", action="store_true", help="overwrite if dataset already exists")
     ingest.add_argument("-p", "--prefix", default="", help="prefix to be added to the name(s) of the new dataset(s)")
     ingest.add_argument("-r", "--rename", default="slugify", choices=tuple(RENAME_FUNCTIONS.keys()),
                         help="apply a function for naming the new dataset(s)")
