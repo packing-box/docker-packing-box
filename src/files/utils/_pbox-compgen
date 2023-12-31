@@ -7,7 +7,7 @@ from tinyscript.helpers import Path
 
 __script__    = "Bash Completions Generator"
 __version__   = "1.0"
-__requires__  = {'tinyscript': "1.28.4"}
+__requires__  = {'tinyscript': ">=1.30.1"}
 __examples__  = [
     "~/.opt/utils/pbox-completions.json -f ~/.bash_completion",
 ]
@@ -130,14 +130,14 @@ def _gen_completions(tool, config, indent=2):
         except TypeError:
             pass
         loc = list(set(true.pop('_locals_', []) + false.pop('_locals_', [])))
-        _gen_block(true, get_commands(tool, true_cmd), 1)
+        _gen_block(true, get_commands(tool, true_cmd, logger=logger), 1)
         true_block = block
         block = ""
-        _gen_block(false, get_commands(tool, false_cmd), 1, True)
+        _gen_block(false, get_commands(tool, false_cmd, logger=logger), 1, True)
         block = f"{i}if [[ {cond} ]]; then\n{true_block}{i}else\n{block}{i}fi\n"
     else:
         loc = config.pop('_locals_', [])
-        _gen_block(config, get_commands(tool))
+        _gen_block(config, get_commands(tool, logger=logger))
     for var in loc:
         locals_ += f" {var}"
     if locals_ != "":
@@ -152,7 +152,8 @@ def compgen(configs, source, indent=2):
         config = configs.get(n, "DOES_NOT_EXIST")
         if config == "DOES_NOT_EXIST":
             continue
-        elif isinstance(config, str):
+        logger.debug(f"Generating completion for {n}...")
+        if isinstance(config, str):
             functions += f"_{n}_completions() {{\n{config.strip().replace('%%','%')}\n}}\n\n"
         else:
             completion_func = _gen_completions(f, config or {}, indent) or ""
