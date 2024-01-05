@@ -1,6 +1,7 @@
 # -*- coding: UTF-8 -*-
 from bintropy import entropy
 from tinyscript import functools
+from tinyscript.helpers import execute
 
 from ....helpers.data import get_data
 
@@ -146,9 +147,9 @@ class AbstractParsedExecutable(AbstractBase):
             if all(match(r"/\d+$", n) is None for n in names):
                 self._real_section_names = {}
                 return self._real_section_names
-            from subprocess import check_output
-            real_names, out = [], check_output(["objdump", "-h", str(self.path)]).decode("latin-1")
-            for l in out.split("\n"):
+            real_names = []
+            out, _ = execute(["objdump", "-h", str(self.path)])
+            for l in out.decode("latin-1").split("\n"):
                 m = match(r"\s+\d+\s(.*?)\s+", l)
                 if m:
                     real_names.append(m.group(1))
