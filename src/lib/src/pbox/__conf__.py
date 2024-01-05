@@ -31,7 +31,7 @@ _ws = lambda s, v: Path(s['workspace'].joinpath(v), create=True, expand=True).ab
 
 def _ae(s, v):
     if v not in ["default", "pcode", "vex"]:
-        raise ValueError(f"Angr engine shall be one of: default|pcode|vex")
+        raise ValueError(f"bad Angr engine '{v}' ; shall be one of: default|pcode|vex")
     return v
 _ae.__name__ = "Angr engine"
 
@@ -48,9 +48,16 @@ _bl.__name__ = "boolean"
 
 def _cg(s, v):
     if v not in ["emulated", "fast"]:
-        raise ValueError(f"CFG algorithm shall be one of: emulated|fast")
+        raise ValueError(f"bad CFG algorithm '{v}' ; shall be one of: emulated|fast")
     return v.capitalize()
 _cg.__name__ = "CFG extraction algorithm"
+
+
+def _fmt(s, v):
+    if v not in IMG_FORMATS:
+        raise ValueError(f"invalid image format '{v}' ; shall be one of: {'|'.join(IMG_FORMATS)}")
+    return v
+_fmt.__name__ = "image format"
 
 
 def _rp(s, v):
@@ -94,7 +101,7 @@ bi.config = Config("packing-box",
             'extract_timeout':   ("20", "SECONDS", "execution timeout for computing CFG of an executable", _it),
         },
         'definitions': {k: opt_tuple(k) for k in \
-                        ['algorithms', 'alterations', 'analyzers', 'detectors', 'features', 'packers', 'unpackers']},
+             ['algorithms', 'alterations', 'analyzers', 'detectors', 'features', 'packers', 'scenarios', 'unpackers']},
         'logging': {
             'lief_errors': ("false", "BOOL", "display LIEF parsing errors", _bl),
             'wine_errors': ("false", "BOOL", "display Wine errors", _bl),
@@ -112,10 +119,12 @@ bi.config = Config("packing-box",
             'pe_parser':      psr_tuple("PE"),
         },
         'visualization': {
+            'bbox_inches':     ("tight", "BBOX", "bbox in inches for saving the figure"),
             'colormap':        ("jet", "CMAP", "name of matplotlib.colors.Colormap to apply to plots"),
             'dark_mode':       ("false", "BOOL", "enable dark mode", _bl),
             'dpi':             ("200", "DPI", "figures' dots per inch", _it),
             'font_family':     ("serif", "FAMILY", "font family for every text"),
+            'format':          ("png", "FORMAT", "image format for saving figures", _fmt),
             'title_font_size': ("16", "SIZE", "font size for plot titles", _it),
         },
     },
