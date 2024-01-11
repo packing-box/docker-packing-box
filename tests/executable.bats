@@ -11,10 +11,12 @@ setup_file() {
   export TESTS_DIR="/tmp/tests-`openssl rand -hex 16`"
   export TEST_DS="DS01"
   export TEST_XP="XP01"
-  export TEST_EXE="`ls $TESTS_DIR/$TEST_XP/datasets/$TEST_DS/files | head -1`"
   # create a dedicated workspace for the tests
   echo -en "$TESTS_DIR" > ~/.packing-box/experiments.env
   run experiment open "$TEST_XP"
+  # make a small dataset and take the name of its first sample
+  run dataset make "$TEST_DS" -f PE -p upx -n 10
+  export TEST_EXE="$TESTS_DIR/$TEST_XP/datasets/$TEST_DS/files/`ls $TESTS_DIR/$TEST_XP/datasets/$TEST_DS/files | head -1`"
 }
 
 setup() {
@@ -28,7 +30,7 @@ teardown_file(){
   # clean up the dedicated workspace
   run experiment close
   rm -f ~/.packing-box/experiments.env
-  rm -rf "$TESTS_DIR"
+  #rm -rf "$TESTS_DIR"
 }
 
 
@@ -44,13 +46,13 @@ teardown_file(){
   assert_output --partial 'Block entropy'
   refute_output --partial "Label"
 }
-@test "show information about $TEST_EXE (from a dataset)" {
+@test "show information about $(basename -- $TEST_EXE) (from a dataset)" {
   run executable show $TEST_EXE
   assert_output --partial 'Label'
 }
 
 # ✓ features
-@test "show features of $TEST_EXE (from a dataset)" {
+@test "show features of $(basename -- $TEST_EXE) (from a dataset)" {
   run executable features $TEST_EXE
   assert_output --partial 'Features'
   assert_output --partial 'entropy'

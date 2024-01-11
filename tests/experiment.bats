@@ -5,6 +5,8 @@
 
 # TODO:
 # ✗ compress
+# ✗ play
+# ✗ replay
 
 
 setup_file() {
