@@ -10,6 +10,8 @@ from .data import *
 from .data import __all__ as _data
 from .entities import *
 from .entities import __all__ as _entities
+from .figure import *
+from .figure import __all__ as _fig
 from .files import *
 from .files import __all__ as _files
 from .formats import *
@@ -22,5 +24,5 @@ from .utils import *
 from .utils import __all__ as _utils
 
 
-__all__ = _args + _cmds + _data + _entities + _files + _formats + _items + _rendering + _utils
+__all__ = _args + _cmds + _data + _entities + _fig + _files + _formats + _items + _rendering + _utils
 

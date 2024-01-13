@@ -10,10 +10,7 @@ lazy_load_module("seaborn")
 lazy_load_module("textwrap")
 
 
-__all__ = ["plot"]
-
-
-@figure_path
+@save_figure
 def _characteristic_scatter_plot(dataset, characteristic=None, multiclass=True, **kwargs):
     """ Plot a scatter plot of dataset's reduced data, highlighting the selected characteristic. """
     X, prefix = dataset._data, "bin_" if characteristic == "label" and not multiclass else ""
@@ -59,15 +56,16 @@ def _characteristic_scatter_plot(dataset, characteristic=None, multiclass=True, 
     return f"{dataset.basename}/characteristic/{prefix}{characteristic}{suffix}"
 
 
-@figure_path
+@save_figure
 def _features_bar_chart(dataset, feature=None, multiclass=False, scaler=None, **kw):
     """ Plot the distribution of the given feature or multiple features combined. """
-    if feature is None: 
+    l = dataset.logger
+    if feature is None:
+        l.warning("No feature provided, stopping.")
         return  # no feature to handle
     from sklearn.covariance import empirical_covariance
     from sklearn.preprocessing import MinMaxScaler
     scaler = scaler or MinMaxScaler
-    l = dataset.logger
     # data preparation
     feature = select_features(dataset, feature)
     l.info("Counting values for feature%s %s..." % (["", "s"][len(feature) > 1], ", ".join(feature)))
@@ -171,7 +169,7 @@ def _features_bar_chart(dataset, feature=None, multiclass=False, scaler=None, **
     return f"{dataset.basename}/features/{['', 'combo-'][len(feature) > 1]}{feature[0]}"
 
 
-@figure_path
+@save_figure
 def _features_comparison_heatmap(dataset, datasets=None, feature=None, max_features=None,
                                  aggregate="byte_[0-9]+_after_ep", **kw):
     """ Plot a heatmap with the diffferences of feature values between a reference dataset (Dataset instance) and the
@@ -221,7 +219,7 @@ def _features_comparison_heatmap(dataset, datasets=None, feature=None, max_featu
     return f"{dataset.basename}/features-compare/{'-'.join(datasets_feats)}"
 
 
-@figure_path
+@save_figure
 def _information_gain_bar_chart(dataset, feature=None, max_features=None, multiclass=False, **kw):
     """ Plot a bar chart of the information gain of features in descending order. """
     from sklearn.feature_selection import mutual_info_classif as mic
@@ -253,7 +251,7 @@ def _information_gain_bar_chart(dataset, feature=None, max_features=None, multic
     return f"{dataset.basename}/infogain"
 
 
-@figure_path
+@save_figure
 def _information_gain_comparison_heatmap(dataset, datasets=None, feature=None, max_features=None, multiclass=False,
                                          aggregate="byte_[0-9]+_after_ep", **kw):
     """ Plot a heatmap with the diffferences of information gain between a reference dataset (Dataset instance) and the
@@ -296,7 +294,7 @@ def _information_gain_comparison_heatmap(dataset, datasets=None, feature=None, m
     return f"{dataset.basename}/infogain-compare/{'-'.join(datasets_feats)}"
 
 
-@figure_path
+@save_figure
 def _labels_pie_chart(dataset, **kw):
     """ Describe the dataset with a pie chart. """
     l = dataset.logger
@@ -333,6 +331,7 @@ def _labels_pie_chart(dataset, **kw):
     return f"{dataset.basename}/labels"
 
 
+@save_figure
 def _samples_individual_visualization(dataset, query=None, n=0, **kw):
     from bintropy import plot
     if not dataset._files:
@@ -344,38 +343,13 @@ def _samples_individual_visualization(dataset, query=None, n=0, **kw):
         yield exe.plot(**kw)
 
 
-def plot(obj, ptype, dpi=200, **kw):
-    """ Generic plot function. """
-    try:
-        with Path("~/.packing-box/experiment.env", expand=True).open() as f:
-            root = Path(f.read().strip()).joinpath("figures")
-        root.mkdir(exist_ok=True)
-    except FileNotFoundError:
-        root = Path(".")
-    obj.logger.info("Preparing plot data...")
-    try:
-        plot = _PLOTS[ptype]
-    except KeyError as e:
-        obj.logger.error(f"Plot type '{ptype}' does not exist (should be one of [{'|'.join(_PLOTS.keys())}])")
-        return
-    imgs = plot(obj, **kw)
-    if isinstance(imgs, str):
-        imgs = [root.joinpath(imgs)]
-    import matplotlib.pyplot
-    for img in imgs:
-        if img is None:
-            continue
-        obj.logger.info("Saving to %s..." % img)
-        matplotlib.pyplot.savefig(img, format=kw.get('format'), dpi=dpi, bbox_inches="tight")
-
-
 _PLOTS = {
-    'ds-characteristic':   _characteristic_scatter_plot,
-    'ds-features':         _features_bar_chart,
-    'ds-features-compare': _features_comparison_heatmap,
-    'ds-infogain':         _information_gain_bar_chart,
-    'ds-infogain-compare': _information_gain_comparison_heatmap,
-    'ds-labels':           _labels_pie_chart,
-    'ds-samples':          _samples_individual_visualization,
+    'characteristic':   _characteristic_scatter_plot,
+    'features':         _features_bar_chart,
+    'features-compare': _features_comparison_heatmap,
+    'infogain':         _information_gain_bar_chart,
+    'infogain-compare': _information_gain_comparison_heatmap,
+    'labels':           _labels_pie_chart,
+    'samples':          _samples_individual_visualization,
 }
 

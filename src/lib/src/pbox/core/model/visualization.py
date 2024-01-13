@@ -40,13 +40,14 @@ def _title(algo_name=None, dataset_name=None, n_components=None, perplexity=None
     return f"{algo_name} Visualization of dataset {dataset_name} \n with {dimensionality_reduction_info}"
 
 
+@save_figure
 def image_dt(classifier, width=5, fontsize=10, **params):
     params['filled'] = True
-    fig = plt.figure()
     sktree.plot_tree(classifier, **params)
-    return fig
+    return f"{classifier.model.basename}_decision-tree"
 
 
+@save_figure
 @_preprocess
 def image_knn(classifier, **params):
     from sklearn.inspection import DecisionBoundaryDisplay
@@ -62,9 +63,10 @@ def image_knn(classifier, **params):
     DecisionBoundaryDisplay.from_estimator(knn, X, cmap=colors, ax=axes, alpha=.3,
                                            response_method="predict", plot_method="pcolormesh", shading="auto")
     plt.scatter(X[:, 0], X[:, 1], c=[labels.index(v) for v in y.label.ravel()][::-1], cmap=colors, alpha=1.0)
-    return fig
+    return f"{classifier.model.basename}_knn-decision-boundary"
 
 
+@save_figure
 def image_rf(classifier, width=5, fontsize=10, **params):
     from math import ceil
     n = len(classifier.estimators_)
@@ -78,9 +80,10 @@ def image_rf(classifier, width=5, fontsize=10, **params):
     for i in range(n):
         sktree.plot_tree(classifier.estimators_[i], ax=axes[i], **params)
         axes[i].set_title("Estimator: %d" % i, fontsize=fontsize)
-    return fig
+    return f"{classifier.model.basename}_random-forest"
 
 
+@save_figure
 @_preprocess
 def image_clustering(classifier, **params):
     from scipy.cluster.hierarchy import linkage, fcluster, dendrogram
@@ -102,7 +105,7 @@ def image_clustering(classifier, **params):
     n_features = len(features)
     n_plots = int(params['plot_labels']) + int(is_hierarchical) + int(params['plot_extensions']) + \
               int(params['plot_formats']) + n_features + 1
-    font_size = 16
+    font_size, suffix = 16, ""
     plt.rcParams['axes.labelsize'] = 16
     plt.rcParams['xtick.labelsize'], plt.rcParams['ytick.labelsize'] = 14, 14
     fig, axes = plt.subplots(n_plots, figsize=(10 , 6 + 3 * n_plots))
@@ -121,6 +124,7 @@ def image_clustering(classifier, **params):
             params[k] = params[k][range_mask]
         if Xr.size == 0:
             raise ValueError("Selected zone is empty")
+        suffix += f"_selection-{x_min}-{x_max}-{y_min}-{y_max}"
     # plot dendrogram for hierarchical clustering
     if is_hierarchical: 
         # dendogram used to get the leaves and colors for the scatter plot since it is not truncated. 
@@ -131,6 +135,7 @@ def image_clustering(classifier, **params):
                    color_threshold=color_threshold, above_threshold_color='k')        
         axes[current_ax].set_title("Dendrogram", fontsize=font_size)
         current_ax += 1
+        suffix += f"_with-dendogram"
     # plot predicted cluster labels
     if is_hierarchical:
         axes[current_ax].scatter(Xr[d['leaves'],0],Xr[d['leaves'],1], color=d['leaves_color_list'])
@@ -162,6 +167,7 @@ def image_clustering(classifier, **params):
         axes[current_ax].legend(loc='upper left', bbox_to_anchor=(1, 1),fontsize=font_size-2)  
         axes[current_ax].set_title("Target", fontsize=font_size)
         current_ax += 1
+        suffix += f"_with-labels"
     # plot file formats
     if params['plot_formats']:
         unique_formats = np.unique(params['format'])
@@ -171,6 +177,7 @@ def image_clustering(classifier, **params):
         axes[current_ax].legend(loc='upper left', bbox_to_anchor=(1, 1),fontsize=font_size-2)
         axes[current_ax].set_title("File Formats", fontsize=font_size)
         current_ax += 1 
+        suffix += f"_with-formats"
     # plot file extensions
     if params['plot_extensions']:
         unique_extensions = np.unique(params['extension'])
@@ -180,6 +187,7 @@ def image_clustering(classifier, **params):
         axes[current_ax].legend(loc='upper left', bbox_to_anchor=(1, 1),fontsize=font_size-2)
         axes[current_ax].set_title("File Extensions", fontsize=font_size)
         current_ax += 1 
+        suffix += f"_with-extensions"
     # plot selected features
     color_bars = {}
     if features:
@@ -198,6 +206,7 @@ def image_clustering(classifier, **params):
                     axes[current_ax].legend(loc='upper left', bbox_to_anchor=(1, 1), fontsize=font_size-2)  
             axes[current_ax].set_title(feature, fontsize=font_size)
             current_ax += 1 
+            suffix += f"_with-features"
     title = _title(**params)
     plt.suptitle(title, fontweight="bold", fontsize=14, y=1.01)
     plt.subplots_adjust(hspace=0.5)
@@ -205,7 +214,7 @@ def image_clustering(classifier, **params):
     # colorbars have to be added after plt.tight_layout() to avoid overlapping with the plot
     for i in color_bars.keys():
         _add_colorbar(axes[i], color_bars[i], colors=colors)
-    return fig
+    return f"{classifier.model.basename}_{self.model.algorithm.name}-clusters{suffix}"
 
 
 def text_dt(classifier, **params):
