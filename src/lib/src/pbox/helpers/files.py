@@ -6,8 +6,7 @@ from tinyscript.helpers import is_file, is_folder, is_hash, set_exception, Path,
 from .utils import pd
 
 
-__all__ = ["data_to_temp_file", "edit_file", "figure_path", "file_or_folder_or_dataset", "find_files_in_folder",
-           "Locator", "Path"]
+__all__ = ["data_to_temp_file", "edit_file", "file_or_folder_or_dataset", "find_files_in_folder", "Locator", "Path"]
 
 
 set_exception("BadSchemeError", "ValueError")
@@ -76,31 +75,6 @@ def edit_file(path, csv_sep=";", text=False, **kw):
     if l:
         l.debug(cmd)
     subprocess.call(cmd, stderr=subprocess.PIPE, shell=True, **kw)
-
-
-def figure_path(f):
-    """ Decorator for computing the path of a figure given the filename returned by the wrapped function ;
-         put it in the "figures" subfolder of the current experiment's folder if relevant. """
-    @functools.wraps(f)
-    def _wrapper(*a, **kw):
-        exp, fn = PBOX_HOME.joinpath("experiment.env"), f(*a, **kw)
-        # at this point, 'fn' is either a string or Path, with eventually separators for subfolders if the figure is to
-        #  be sorted in the scope of an experiment
-        if Path(fn).extension[1:] not in IMG_FORMATS:
-            fn = str(fn) + "." + kw.get('format', "png")
-        fn = Path(fn)
-        # by convention, if we are saving files in the workspace of an experiment, using separators will sort the figure
-        #  according to the defined structure (e.g. if an experiment has multiple datasets, it is cleaner to sort its
-        #  figures with a tree structure that uses datasets' names)
-        if exp.exists():
-            fn = Path(exp.read_text()).joinpath("figures", fn)
-            fn.dirname.mkdir(exist_ok=True, parents=True)
-        # by convention, if the given path is not absolute and we are not saving files in the workspace of an open
-        #  experiment, we shall remain in the current folder, hence replacing separators by underscores
-        elif not fn.is_absolute():
-            fn = str(fn).replace("/", "_")
-        return str(fn)
-    return _wrapper
 
 
 def file_or_folder_or_dataset(method):
