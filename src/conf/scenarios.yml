@@ -1,0 +1,17 @@
+exploratory_data_analysis:
+  description: Exploratory Data Analysis (EDA) of packed samples from a given dataset
+  objective:   Plot visualizations of packed samples for EDA purpose
+  steps:
+    - name: Ingest the target folder into a single dataset
+      command: dataset ingest <input> --labels <input> --merge --overwrite
+    - name: Plot a visualization of the samples from the newly ingested dataset
+      command: dataset plot samples <name>
+
+model_training:
+  objective: Train a model based on the input dataset, algorithm and features set
+  steps:
+    - name: Create a reference dataset from the given source directory and the input labels
+      command: dataset update reference --source-dir <input> --labels <input>
+    - name: Train a model based on the newly created reference dataset given the input algorithm and features set
+      command: model train reference --algorithm <input> --features-set <input>
+

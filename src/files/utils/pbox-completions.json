@@ -7,6 +7,9 @@
       "(?:characteristic|features|infogain|labels|samples).*": "`list-datasets`"
     }
   },
+  "executable": {
+    "*": null
+  },
   "experiment": [
     "-f \"$HOME/.packing-box/experiment.env\"",
     [{"_locals_": ["exp"],
@@ -17,7 +20,8 @@
      "import": [
       "local IFS=$'\\n'",
       "COMPREPLY=($(compgen -o plusdirs -f -X '!*.yml' -- \"$curr\"))"
-     ]}, "_NAME = \"test\""],
+     ],
+     "play": "`list-all-scenarios`"}, "_NAME = \"test\""],
     [{"compress|open": "`list-experiments`",
       "purge": "all `list-experiments`"}, "_NAME = None"]
   ],

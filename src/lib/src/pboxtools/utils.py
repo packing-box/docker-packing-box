@@ -22,6 +22,15 @@ MDFILES  = ["dump.joblib", "features.json", "metadata.json", "performance.csv"]
 _fmt_name = lambda x: (x or "").lower().replace("_", "-")
 
 
+def __output(l, ret=False):
+    l.sort()
+    if ret:
+        return l
+    if len(l) > 0:
+        print(" ".join(l))
+    return 0
+
+
 def __parse_config():
     """ Helper function for parsing ~/.packing-box.conf """
     global CONFIG
@@ -45,20 +54,15 @@ def _configfile(cfgfile):
     def _wrapper(f):
         def _subwrapper(return_list=False):
             """ Decorator for listing something from the current workspace """
-            cfg = __parse_config()
-            path = join(cfg['experiment'], "conf", "%s.yml" % cfgfile)
+            cfg, parts = __parse_config(), ("conf", f"{cfgfile}.yml")
+            path = join(cfg['experiment'] or cfg['workspace'], *parts)
             if not exists(path):
-                path = join(cfg['workspace'], "conf", "%s.yml" % cfgfile)
+                path = join(cfg['workspace'], *parts)
             with open(path) as fp:
                 yaml_str = "\n".join(l for l in fp.readlines() if len(l.split(":")) > 1 and \
                                                                   not re.match(r"\!{1,2}", l.split(":", 1)[1].lstrip()))
             cfg = yaml.safe_load(yaml_str)
-            l = sorted(f(cfg))
-            if return_list:
-                return l
-            if len(l) > 0:
-                print(" ".join(l))
-            return 0
+            return __output(f(cfg))
         return _subwrapper
     return _wrapper
 
@@ -74,22 +78,17 @@ def _workspace(folder):
             for fp in listdir(root):
                 if f(join(root, fp)):
                     l.append(fp)
-            l.sort()
-            if return_list:
-                return l
-            if len(l) > 0:
-                print(" ".join(l))
-            return 0
+            return __output(l, return_list)
         return _subwrapper
     return _wrapper
 
 
-for item in ["alterations", "features"]:
+for item in ["alterations", "features", "scenarios"]:
     f1 = _configfile(item)(lambda cfg: sorted(list(x for x in cfg.keys() if not x.startswith("abstract_"))))
     f1.__doc__ = " List all %s available in the current workspace. " % item
     globals()['list_all_%s' % item] = f1
     f2 = _configfile(item)(lambda cfg: sorted([x for x, data in cfg.items() if not x.startswith("abstract_") and \
-                                                                               data.get('apply', True)]))
+                                                            data.get('keep' if item == "features" else 'apply', True)]))
     f2.__doc__ = " List enabled %s available in the current workspace. " % item
     globals()['list_enabled_%s' % item] = f2
 
@@ -152,12 +151,7 @@ def list_experiment_configs(return_list=False):
     l = [splitext(f)[0] for f in listdir(root)]
     if exists(join(xp, "commands.rc")):
         l.append("commands")
-    l.sort()
-    if return_list:
-        return l
-    if len(l) > 0:
-        print(" ".join(l))
-    return 0
+    return __output(l, return_list)
 
 
 def list_experiments(return_list=False):
@@ -169,10 +163,10 @@ def list_experiments(return_list=False):
            not any(fn not in EXPFILES for fn in listdir(xp)) and \
            not any(fn not in CONFIGS for fn in listdir(join(xp, "conf"))):
             l.append(f)
-    l.sort()
-    if return_list:
-        return l
-    if len(l) > 0:
-        print(" ".join(l))
-    return 0
+    return __output(l, return_list)
+
+
+def list_tools(return_list=False):
+    """ Main function for listing tools """
+    return __output([f for f in listdir(expanduser("~/.opt/tools")) if f not in ["?", "startup"]], return_list)
 

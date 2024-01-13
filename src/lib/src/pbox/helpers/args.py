@@ -4,7 +4,7 @@ from tinyscript.helpers.data.types import file_exists, folder_does_not_exist, fo
 
 
 __all__ = ["add_argument", "characteristic_identifier", "expand_parameters", "item_exists", "legend_location",
-           "percentage", "set_yaml", "yaml_file"]
+           "percentage", "scenario_identifier", "set_yaml", "yaml_file"]
 
 
 def add_argument(parser, *names, **kwargs):
@@ -122,8 +122,7 @@ def characteristic_identifier(name):
 def dataset_exists(force=False):
     def _wrapper(string):
         from pbox.core.dataset import Dataset, FilelessDataset
-        check = lambda s: Dataset.check(s) or FilelessDataset.check(s)
-        if string == "all" or "*" in string or check(string) or force:
+        if string == "all" or "*" in string or Dataset.check(string) or FilelessDataset.check(string) or force:
             return string
         raise ValueError("Invalid dataset")
     _wrapper.__name__ = "dataset"
@@ -160,7 +159,7 @@ def feature_identifier(name):
     from pbox.core.executable import Features
     Features(None)
     if name not in Features.names():
-        raise ValueError("Not a feature identifier")
+        raise ValueError("Not a valid feature")
     return name
 
 
@@ -196,6 +195,14 @@ def percentage(p):
     if 0. <= p <= 100.:
         return p / 100.
     raise ValueError
+
+
+def scenario_identifier(name):
+    from pbox.core.experiment import Scenario
+    name = name.replace("_", "-")
+    if name not in Scenario.names:
+        raise ValueError("Not a valid scenario")
+    return name
 
 
 def set_yaml(namespace):

@@ -3,12 +3,14 @@ from tinyscript import logging, re
 from tinyscript.helpers import confirm, execute_and_log as run, user_input, Path
 from tinyscript.report import *
 
-from .dataset import *
-from .model import *
-from ..helpers import *
+from .scenario import *
+from .scenario import __all__ as _scenario
+from ..dataset import *
+from ..model import *
+from ...helpers import *
 
 
-__all__ = ["Experiment"]
+__all__ = ["Experiment"] + _scenario
 
 
 def __init():
@@ -22,23 +24,16 @@ def __init():
           +-- models        models specific to the experiment
           +-- (figures)     figures generated with visualization tools
           +-- (scripts)     additional scripts
+          +-- commands.rc   commands for replaying experiment
           +-- README.md     notes for explaining the experiment
         """
-        FOLDERS = {'mandatory': ["conf", "datasets", "models"], 'optional':  ["data", "figures", "scripts"]}
+        STRUCTURE = ["conf", "datasets", "models", "commands.rc*", "README.md", "data*", "figures*", "scripts*"]
         
-        def __init__(self, name="experiment", load=False, **kw):
-            name = config.check(Path(name))
-            self.path = Path(config['experiments'].joinpath(name)).absolute()
+        def __new__(cls, name="experiment", **kw):
+            self = super(Experiment, cls).__new__(cls, name, **kw)
             if not self.path.is_under(config['experiments'].absolute()):
                 config['experiments'] = self.path.dirname
-            if load:
-                self.path.mkdir(exist_ok=True)
-                for folder in ["conf", "datasets", "models"]:
-                    folder = self.path.joinpath(folder)
-                    if not folder.exists():
-                        folder.mkdir()
-                self['README'].touch()
-                config['experiment'] = config['workspace'] = self.path
+            return self
         
         def __getitem__(self, name):
             """ Get something from the experiment folder, either a config file, a dataset or a model.
@@ -90,17 +85,20 @@ def __init():
                     l.error("'%s' is not a valid configuration name" % p_scr.basename)
                     raise KeyError
         
-        def _purge(self, **kw):
-            """ Purge the current experiment. """
-            Experiment.logger.debug("purging experiment...")
-            self.path.remove(error=False)
+        def _load(self):
+            for folder in ["conf", "datasets", "models"]:
+                folder = self.path.joinpath(folder)
+                if not folder.exists():
+                    folder.mkdir()
+            self['README'].touch()
+            config['experiment'] = config['workspace'] = self.path
         
         def close(self, **kw):
             """ Close the currently open experiment. """
             del config['autocommit']
             del config['experiment']
         
-        def commit(self, force=False, silent=False, **kw):
+        def commit(self, command=None, force=False, silent=False, **kw):
             """ Commit the latest executed OS command to the resource file (.rc). """
             l = Experiment.logger
             rc = self['commands']
@@ -110,10 +108,12 @@ def __init():
                 pass
             if rc_last_line:
                 l.debug(f"last command: {rc_last_line}")
-            hist_last_line = ""
-            for hist_last_line in Path("~/.bash_history", expand=True).read_lines(encoding="utf-8", reverse=True):
-                if any(hist_last_line.startswith(cmd + " ") for cmd in COMMIT_VALID_COMMANDS):
-                    break
+            hist_last_line = command or ""
+            if hist_last_line != "":
+                for hist_last_line in Path("~/.bash_history", expand=True).read_lines(encoding="utf-8", reverse=True):
+                    if any(hist_last_line.startswith(cmd + " ") for cmd in COMMIT_VALID_COMMANDS) and \
+                       all(o not in hist_last_line.split() for o in ["-h", "--help"]):
+                        break
             if hist_last_line == "" or hist_last_line == rc_last_line:
                 getattr(l, ["warning", "debug"][silent])("Nothing to commit")
             elif force or confirm("Do you really want to commit this command: %s ?" % hist_last_line):
@@ -158,19 +158,21 @@ def __init():
         
         def open(self, **kw):
             """ Open the current experiment, validating its structure. """
-            Experiment(self.path, True)  # ensures that, if the current experiment is not loaded yet (constructor 'load'
-                                         #  argument defaults to False), it create a blank structure if needed, hence
-                                         #  no validation required (i.e. with using Experiment.load(...))
+            Experiment(self.path, load=True)  # ensures that, if the current experiment is not loaded yet (constructor
+                                              #  'load' argument defaults to False), it create a blank structure if
+                                              #  hence needed, no validation required (i.e. using Experiment.load(...))
+        
+        def play(self, scenario=None, **kw):
+            """ Play a scenario. """
+            l = [s for s in Scenario.registry if s.name == scenario]
+            if len(l) == 0:
+                self.logger.error("Scenario does not exist")
+                return
+            l[0].run(experiment=self, **kw)
         
         def replay(self, stop=True, **kw):
             """ Replay registered commands (useful when a change in pbox or configuration files have been applied). """
-            # first, purge datasets, models and figures
-            Dataset.purge("all")
-            Model.purge("all")
-            if self.path.join("figures").exists():
-                for fig in self.path.join("figures").listdir():
-                    fig.remove(False)
-            # now, replay commands
+            self.reset(**kw)
             for cmd in self.commands:
                 try:
                     out, err, retc = run(cmd, **kw)
@@ -178,6 +180,14 @@ def __init():
                     if stop:
                         raise
                     self.logger.error(str(e))
+        
+        def reset(self, **kw):
+            """ Purge datasets, models and figures. """
+            Dataset.purge("all")
+            Model.purge("all")
+            if self.path.join("figures").exists():
+                for fig in self.path.join("figures").listdir():
+                    fig.remove(False)
         
         def show(self, **kw):
             """ Show an overview of the experiment. """
@@ -206,7 +216,7 @@ def __init():
             """ List all valid experiment folders. """
             data, headers = [], ["Name", "#Datasets", "#Models", "Custom configs"]
             for folder in config['experiments'].listdir(Experiment.check):
-                exp = Experiment(folder, False)
+                exp = Experiment(folder, load=False)
                 cfg = [f.stem for f in exp.path.joinpath("conf").listdir(Path.is_file) if f.extension == ".yml"]
                 data.append([folder.basename, Dataset.count(), Model.count(), ", ".join(cfg)])
             if len(data) > 0:
@@ -215,26 +225,12 @@ def __init():
                 cls.logger.warning("No experiment found in the workspace (%s)" % config['experiments'])
         
         @classmethod
-        def validate(cls, folder, warn=False, logger=None, **kw):
-            f = config['experiments'].joinpath(folder)
-            if not f.exists():
-                raise ValueError("Does not exist")
-            if not f.is_dir():
-                raise ValueError("Not a folder")
-            for fn in Experiment.FOLDERS['mandatory']:
-                if not f.joinpath(fn).exists():
-                    raise ValueError("Does not have %s" % fn)
-            for cfg in f.joinpath("conf").listdir():
-                if cfg.stem not in config._defaults['definitions'].keys() or cfg.extension != ".yml":
-                    raise ValueError("Unknown configuration file '%s'" % cfg)
-            for fn in f.listdir(Path.is_dir):
-                if fn not in Experiment.FOLDERS['mandatory'] + Experiment.FOLDERS['optional'] and warn and \
-                   logger is not None:
-                    logger.warning("Unknown subfolder '%s'" % fn)
-            for fn in f.listdir(Path.is_file):
-                if fn not in ["commands.rc", "README.md"] and warn and logger is not None:
-                    logger.warning("Unknown file '%s'" % fn)
-            return f
+        def validate(cls, folder, strict=False, empty=False, **kw):
+            p = super(Experiment, cls).validate(folder, strict, empty, **kw)
+            for cfg in p.joinpath("conf").listdir():
+                if strict and cfg.stem not in config._defaults['definitions'].keys() or cfg.extension != ".yml":
+                    raise StructuralError(f"'{p}' has unknown configuration file '{cfg}'")
+            return p
     
     logging.setLogger("experiment")
     return Experiment

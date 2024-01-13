@@ -20,17 +20,25 @@ _fmt_name = lambda x: (x or "").lower().replace("_", "-")
 _sec_name = lambda s: getattr(s, "real_name", getattr(s, "name", s))
 
 
-def _select(lst, random_lst=None, inclusions=None, exclusions=None):
-    """ Helper for selecting the first argument of a list given inclusions or exclusions, then choosing randomly among a
-         given list when the first list is consumed. """
-    exc, inc, lst = exclusions, inclusions, lst if is_iterable(lst) else [lst]
-    lst = [_sec_name(x) for x in lst]
-    exc, inc = exc() if callable(exc) else exc or [], inc() if callable(inc) else inc or lst + (random_lst or [])
-    for x in lst:
-        if x in exc or x not in inc:
-            continue
-        return x
-    return random.choice(random_lst or [], exclusions, False)
+def _select(apply_func=None):
+    def _wrapper(lst=(), random_lst=(), inclusions=(), exclusions=()):
+        """ Helper for selecting the first argument of a list given inclusions or exclusions, then choosing randomly
+             among a given list when the first list is consumed. """
+        _list = lambda l: list(l()) if callable(l) else list(l) if is_iterable(l) else [l]
+        _map = lambda l: list(map(apply_func, l)) if isinstance(apply_func, type(lambda: 0)) else l
+        # ensure that inputs are lists, allowing to make them from a function if desired
+        exc, inc, lst, rlst = _list(exclusions), _list(inclusions), _list(lst), _list(random_lst)
+        # map the function to be applied to all input lists
+        lst, rlst = _map(lst), _map(rlst)
+        exc, inc = _map(exc), _map(inc) or lst + rlst
+        # now iterate over the list of choices given first exclusions then inclusions
+        for x in lst:
+            if x in exc or x not in inc:
+                continue
+            return x
+        # if no entry returned yet, return an element from the random list given exclusions
+        return random.choice(rlst, exc, False)
+    return _wrapper
 
 
 class dict2(dict):
@@ -50,7 +58,7 @@ class dict2(dict):
     
     def __call__(self, data, silent=False, **kwargs):
         d = {k: getattr(random, k) for k in ["choice", "randbytes", "randint", "randrange", "randstr"]}
-        d.update({'apply': _apply, 'select': _select})
+        d.update({'apply': _apply, 'select': _select(), 'select_section_name': _select(_sec_name)})
         d.update(_EVAL_NAMESPACE)
         d.update(data)
         kwargs.update(getattr(self, "parameters", {}))
@@ -324,6 +332,7 @@ def _init_item():
         
         def help(self):
             """ Returns a help message in Markdown format. """
+            from tinyscript.report import Blockquote, Report, Section, Text
             md = Report()
             if getattr(self, "description", None):
                 md.append(Text(self.description))

@@ -7,7 +7,7 @@ from tinyscript import *
 _NAME = config.get('experiment')
 
 __script__      = "Experiment management tool"
-__version__     = "1.1.2"
+__version__     = "1.1.3"
 __doc__         = """
 This tool aims to manage an experiment (a structure that can hold custom YAML configurations, datasets and models).
 """
@@ -53,7 +53,9 @@ if __name__ == '__main__':
                 .add_argument("config", type=yaml_file, metavar="YAML",
                               help="import the target YAML configuration file(s) within the experiment")
         sparsers.add_parser("list", help="list the existing experiments")
-        sparsers.add_parser("replay", help="replay commands from experiment's commanrds.rc")
+        sparsers.add_parser("play", help="play the given scenario and update commands.rc") \
+                .add_argument("scenario", type=scenario_identifier, help="scenario to be played")
+        sparsers.add_parser("replay", help="replay commands from experiment's commands.rc")
         sparsers.add_parser("show", help="get an overview of the experiment")
     initialize(noargs_action="usage")
     configure_logging(args.verbose)
@@ -61,13 +63,11 @@ if __name__ == '__main__':
     name = getattr(args, "name", _NAME)
     # now execute
     if args.command == "purge":
-        if not Experiment.purge(name):
-            logger.warning("No experiment to purge in workspace (%s)" % str(config['experiments']) if name == "all" \
-                           else "No experiment matched the given name")
+        Experiment.purge(name)
     elif args.command == "list":
         Experiment.list()
     elif name == "all":
-        logger.warning("Model cannot be named 'all' (reserved word)")
+        logger.warning("Experiment cannot be named 'all' (reserved word)")
     elif args.command == "import":  # rationale: cannot name a method 'import' (Python-reserved word)
         Experiment(name)._import(**vars(args))
     elif args.command == "edit":
