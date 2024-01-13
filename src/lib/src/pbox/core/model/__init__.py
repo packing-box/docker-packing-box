@@ -25,6 +25,13 @@ FLOAT_FORMAT = "%.6f"
 
 class BaseModel(Entity):
     """ Base class for a model. """
+    DEFAULTS = {
+        '_features': {},
+        '_metadata': {},
+        '_performance': pd.DataFrame(),
+        'pipeline': DebugPipeline(),
+    }
+    
     def __len__(self):
         """ Get the length of model's pipeline. """
         return len(self.pipeline.steps)
@@ -166,7 +173,6 @@ class BaseModel(Entity):
             self._target = self._target.map(lambda x: LABELS_BACK_CONV.get(x, 1)).astype('int')
         # create the pipeline if it does not exist (i.e. while training)
         if not data_only:
-            self.pipeline = DebugPipeline()
             l.info("Making pipeline...")
             make_pipeline(self.pipeline, preprocessor, self.logger)
         # if only data is to be processed (i.e. while testing), stop here, the rest is for training the model
@@ -243,24 +249,15 @@ class BaseModel(Entity):
     
     @property
     def name(self):
+        if not hasattr(self, "_name"):
+            self._name = None
         return self._name
     
     @name.setter
     def name(self, value):
         self._name = config.check(value)
-    
-    @property
-    def path(self):
-        if self.name:
-            if not hasattr(self, "_path"):
-                self._path = Path(config['models'].joinpath(self.name)).absolute()
-            return self._path
-    
-    @path.setter
-    def path(self, value):
-        if not isinstance(value, Path):
-            value = Path(value).absolute()
-        self._path = value
+        self.path = Path(config['models'].joinpath(self._name)).absolute()
+        self._load()
 
 
 class Model(BaseModel):
@@ -272,17 +269,11 @@ class Model(BaseModel):
       +-- metadata.json                         # useful information about the model
       +-- performance.csv                       # performance testing data
     """
-    def __init__(self, name=None, load=True, **kw):
-        self.__read_only = False
-        self._features, self._metadata = {}, {}
-        self._performance = pd.DataFrame()
-        self.name = name.stem if isinstance(name, Path) else name
-        self.pipeline = DebugPipeline()
-        if load:
-            self._load()
+    STRUCTURE = ["dump.joblib", "features.json", "metadata.json", "performance.csv"]
     
     def _load(self):
         """ Load model's associated files if relevant or create instance's attributes. """
+        self.__read_only = False
         if not Model.check(self.path):  # NB: self.path is a property computed based on self.name
             return
         self.logger.debug("loading model %s..." % self.path)
@@ -300,12 +291,6 @@ class Model(BaseModel):
             else:
                 with p.open() as f:
                     setattr(self, "_" + n, json.load(f))
-    
-    def _purge(self, **kw):
-        """ Purge the current model. """
-        if self.path:
-            self.logger.debug("purging model...")
-            self.path.remove(error=False)
     
     def _save(self):
         """ Save model's state to the related files. """
@@ -422,16 +407,6 @@ class Model(BaseModel):
         result['label'] = ds._data['label']
         with data_to_temp_file(filter_data(result, query, logger=self.logger), prefix="model-preproc-") as tmp:
             edit_file(tmp, logger=self.logger)
-    
-    def rename(self, name2=None, **kw):
-        """ Rename the current model. """
-        l, path2 = self.logger, config['models'].joinpath(name2)
-        if not path2.exists():
-            self.logger.debug("renaming model...")
-            self.path.rename(path2)
-            self.path = path2
-        else:
-            self.logger.warning("%s already exists" % p)
     
     def show(self, **kw):
         """ Show an overview of the model. """
@@ -627,13 +602,12 @@ class Model(BaseModel):
             params['extension'] = self._dataset._data['realpath'].apply(lambda p: Path(p).extension)
             if viz_dict.get("target", True):
                 params['target'] = self._target
+        c = self.classifier
+        c.model = self
         if export:
-            fig = viz_func(self.classifier, **params)
-            dst = str(Path(output_dir).joinpath("%s%s.png" % (self.name, getattr(fig, "dst_suffix", ""))))
-            fig.savefig(dst, format="png", bbox_inches="tight")
-            self.logger.warning("Visualization saved to %s" % dst)
+            viz_func(c, **params)
         else:
-            print(viz_func(self.classifier, **params))
+            print(viz_func(c, **params))
     
     @property
     def algorithm(self):
@@ -651,7 +625,7 @@ class Model(BaseModel):
             r = [Section("Algorithms (%d)" % len(d)), Table(d, column_headers=["Name", "Description"])]
         else:
             d = []
-            for model in cls.iteritems():
+            for model in cls.iteritems(False):
                 with model.joinpath("metadata.json").open() as meta:
                     metadata = json.load(meta)
                 alg, ds = metadata['algorithm'], metadata['dataset']
@@ -671,26 +645,14 @@ class Model(BaseModel):
             r = [Section("Models (%d)" % len(d)),
                  Table(d, column_headers=["Name", "Algorithm", "Description", "Dataset", "Size", "Formats", "Packers"])]
         render(*r)
-    
-    @classmethod
-    def validate(cls, folder, **kw):
-        f = Path(folder, expand=True)
-        if not f.is_dir():
-            f = config['models'].joinpath(folder)
-            if not f.exists():
-                raise ValueError("Folder does not exist")
-            if not f.is_dir():
-                raise ValueError("Input is not a folder")
-        for fn in ["dump.joblib", "features.json", "metadata.json", "performance.csv"]:
-            if not f.joinpath(fn).exists():
-                raise ValueError("Folder does not have %s" % fn)
-        return f
 
 
 class DumpedModel(BaseModel):
-    def __init__(self, name=None, default_scaler=None, **kw):
+    STRUCTURE = "*.joblib"
+    
+    def _load(self):
         from sklearn.preprocessing import MinMaxScaler
-        obj, self.pipeline = joblib.load(str(name)), DebugPipeline()
+        obj = joblib.load(str(self.path))
         cls = obj.__class__.__name__
         if "Pipeline" not in cls:
             self.pipeline.append(("MinMaxScaler", default_scaler or MinMaxScaler)())
@@ -698,14 +660,11 @@ class DumpedModel(BaseModel):
         else:
             for s in obj.steps:
                 self.pipeline.append(s)
-        self._name = Path(name).stem  # this bypasses config.check(...)
-        self._features, self._metadata = {}, {}
         self.__p = config['models'].joinpath(".performances.csv")
         try:
             self._performance = pd.read_csv(str(self.__p), sep=";")
         except FileNotFoundError:
-            self._performance = pd.DataFrame()
-        self.path = name
+            pass
     
     def _save(self):
         self.logger.debug("> saving metrics to %s..." % str(self.__p))
@@ -713,15 +672,4 @@ class DumpedModel(BaseModel):
         k = p.columns
         p = p.loc[p.round(3).drop_duplicates(subset=k[:-1]).index]
         p.to_csv(str(self.__p), sep=";", columns=k, index=False, header=True, float_format=FLOAT_FORMAT)
-    
-    @classmethod
-    def validate(cls, folder, **kw):
-        f = Path(folder, expand=True)
-        if not f.exists():
-            f = config['models'].joinpath(folder)
-            if not f.exists():
-                raise ValueError("Folder does not exist")
-        if not f.is_file() and not f.extension == ".joblib":
-            raise ValueError("Input is not a .joblib")
-        return f
 

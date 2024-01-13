@@ -1,5 +1,5 @@
 # -*- coding: UTF-8 -*-
-from tinyscript import colored, hashlib, json, random, time
+from tinyscript import colored, hashlib, json, os, random, time
 from tinyscript.helpers import confirm, human_readable_size, slugify, Path, TempPath
 from tinyscript.report import *
 
@@ -17,7 +17,7 @@ __all__ = ["Dataset", "FilelessDataset"]
 def backup(f):
     """ Simple method decorator for making a backup of the dataset. """
     def _wrapper(s, *a, **kw):
-        if config['backup_copies'] > 0:
+        if not kw.get('do_not_backup', False) and config['backup_copies'] > 0:
             s.backup = s
         return f(s, *a, **kw)
     return _wrapper
@@ -35,25 +35,13 @@ class Dataset(Entity):
       +-- (alterations.json)  # if the dataset was altered, this contains the hashes of the altered executables with the
                               #  alterations applied
     """
-    def __init__(self, name="dataset", source_dir=None, load=True, name_check=False, **kw):
-        self._files = getattr(self.__class__, "_files", True)
-        if name_check:
-            config.check(Path(name).basename)
-        self.path = Path(config['datasets'].joinpath(name), create=load).absolute()
-        self.sources = source_dir or PACKING_BOX_SOURCES
-        if isinstance(self.sources, list):
-            self.sources = {'All': [str(x) for x in self.sources]}
-        for _, sources in self.sources.items():
-            for source in sources[:]:
-                s = Path(source, expand=True)
-                if not s.exists() or not s.is_dir():
-                    sources.remove(source)
-        if load:
-            self._load()
-        self.formats = getattr(self, "_metadata", {}).get('formats', [])
-        self.__change = False
-        self.__limit = 20
-        self.__per_format = False
+    STRUCTURE = ["files", "data.csv", "metadata.json", "features.json*", "alterations.json*"]
+    _files = True
+    
+    def __new__(cls, name="dataset", source_dir=None, **kw):
+        self = super(Dataset, cls).__new__(cls, name, **kw)
+        self.sources = source_dir
+        return self
     
     def __delitem__(self, executable):
         """ Remove an executable (by its real name or hash) from the dataset. """
@@ -99,7 +87,7 @@ class Dataset(Entity):
     def __hash__(self):
         """ Custom object hashing function. """
         return int.from_bytes(hashlib.md5(self.name.encode()).digest(), "little")
-    
+        
     def __iter__(self):
         """ Iterate over dataset's sample executables, computing the features and filling their dictionary too if self
              is a FilelessDataset. """
@@ -122,24 +110,26 @@ class Dataset(Entity):
             self._formats_exp = expand_formats(*value)
         super(Dataset, self).__setattr__(name, value)
     
-    def __setitem__(self, executable, label):
+    def __setitem__(self, executable, data):
         """ Add an executable based on its real name to the dataset.
         
         :param executable: either the path to the executable or its Executable instance
-        :param label:      either the text label of the given executable or its dictionary of data
+        :param data:       either the text label of the given executable or its dictionary of data
         """
         try:
-            label, update = label
-        except (TypeError, ValueError):  # TypeError occurs when label is None
-            label, update = label, False
+            data, update = data
+        except (TypeError, ValueError):  # TypeError occurs when data is None
+            data, update = data, False
         self.__change, l = True, self.logger
         df, e = self._data, executable
-        e = e if isinstance(e, Executable) else Executable(e, dataset=self)
-        # case (1) 'label' is a dictionary with the executable's attributes, i.e. from another dataset
-        if isinstance(label, dict):
-            d = label
+        e = e if isinstance(e, Executable) else \
+            Executable(e, dataset=self) if os.sep in str(e) else \
+            Executable(hash=e, dataset=self)
+        # case (1) 'data' is a dictionary with the executable's attributes, i.e. from another dataset
+        if isinstance(data, dict):
+            d = data
             # get metadata values from the input dictionary
-            for k, v in d.items():
+            for k, v in data.items():
                 if k in Executable.FIELDS:
                     setattr(e, k, v)
             # then ensure we compute the remaining values
@@ -150,7 +140,7 @@ class Dataset(Entity):
         else:
             d = e.metadata
             d['hash'] = e.hash
-            d['label'] = e.label = label
+            d['label'] = e.label = data
         if self._files:
             e.copy()
         self._metadata.setdefault('formats', [])
@@ -173,30 +163,28 @@ class Dataset(Entity):
     
     def _compute_all_features(self):
         """ Convenience function for computing the self._data pandas.DataFrame containing the feature values. """
-        self.logger.info("Computing features..." if self._files else "Loading features...")
-        with progress_bar() as p:
-            for exe in p.track(self):
-                d = self._compute_features(exe)
-                if self._files:
-                    self[exe.hash] = (d, True)  # True: force updating the row
+        if self._files:
+            self.logger.info("Computing features...")
+            with progress_bar() as p:
+                for exe in p.track(self):
+                    self[exe.basename] = (self._compute_features(exe), True)  # True: force updating the row
     
     def _compute_features(self, exe):
         """ Compute the features for a single Executable instance. """
-        exe = Executable(exe, dataset=self, force=True)
-        d = self[exe.hash, True]  # retrieve executable's record as a dictionary
-        d.update(exe.data)        # be sure to include the features
+        exe = Executable(hash=exe.basename, dataset=self)
+        d = self[exe.basename, True]  # retrieve executable's record as a dictionary
+        d.update(exe.data)  # be sure to include the features
         if not hasattr(self, "_features"):
             self._features = {}
             self._features.update(exe.features)
         return d
     
-    def _copy(self, path):
-        """ Copy the current dataset to a given destination. """
-        self.logger.debug(f"copying dataset '{self.basename}' to {path}")
-        self.path.copy(path)
-    
     def _load(self):
         """ Load dataset's associated files or create them. """
+        self.formats = getattr(self, "_metadata", {}).get('formats', [])
+        self.__change = False
+        self.__limit = 20
+        self.__per_format = False
         l = self.logger
         if not self.path.exists():
             l.debug(f"creating path {self.path}...")
@@ -223,30 +211,25 @@ class Dataset(Entity):
             else:
                 setattr(self, "_" + n, {})
     
-    def _purge(self, backup=False, **kw):
+    def _purge(self, backup_only=False, **kw):
         """ Purge the current dataset, including its backups. """
-        self.logger.debug("purging %s%s..." % (self.path, ["", "'s backups"][backup]))
-        if not backup:
-            self._remove()
+        if not backup_only:
+            super(Dataset, self)._purge()
         # also recursively purge the backups
+        self.logger.debug("purging dataset's backups...")
         try:
             self.backup._purge()
         except AttributeError:
             pass
     
-    def _remove(self):
-        """ Remove the current dataset. """
-        self.logger.debug("removing dataset '%s'..." % self.basename)
-        self.path.remove(error=False)
-    
     def _save(self):
         """ Save dataset's state to JSON files. """
-        l = self.logger
         if not self.__change:
             return
         if len(self) == 0 and not Dataset.check(self.basename):
             self._remove()
             return
+        l = self.logger
         l.debug(f"saving dataset '{self.basename}'...")
         self._metadata['formats'] = sorted(collapse_formats(*self._metadata['formats']))
         try:
@@ -280,7 +263,8 @@ class Dataset(Entity):
                 continue
             for src in srcs:
                 for exe in Path(src, expand=True).walk(filter_func=lambda x: x.is_file(), sort=False):
-                    exe = Executable(exe, dataset=self)
+                    exe = Executable(exe)
+                    exe._dataset = self
                     if exe.format is None or exe.format not in self._formats_exp or exe.stem in packers:
                         continue  # ignore unrelated files and packers themselves
                     if walk_all:
@@ -297,12 +281,13 @@ class Dataset(Entity):
         """ Alter executables with some given alterations. """
         l = self.logger
         if not self._files:
-            l.warning("Alterations work only if the files are available")
+            l.warning("Alterations work only if files are available")
             return
         if new_name is not None:
             ds = Dataset(new_name)
-            ds.merge(self.path.basename, silent=True, **kw)
-            ds.alter(packed_only, percentage, query, **kw)
+            self._copy(new_name, overwrite=kw.get('overwrite'))
+            ds._copy(self.path)
+            ds.alter(packed_only=packed_only, percentage=percentage, query=query, **kw)
             return
         limit = 0
         # filter out already altered samples first
@@ -381,6 +366,7 @@ class Dataset(Entity):
         l = self.logger
         l.debug("editing dataset's data.csv...")
         edit_file(self.path.joinpath("data.csv").absolute(), logger=l)
+        self.fix(**kw)
     
     def export(self, format=None, output=None, **kw):
         """ Export either packed executables from the dataset to the given output folder or the complete dataset to a
@@ -409,7 +395,6 @@ class Dataset(Entity):
                     tmp.append(fn)
             return
         if self._files:
-            l.info("Computing features...")
             self._compute_all_features()
         fields = ["hash"] + Executable.FIELDS
         fnames = [h for h in self._data.columns if h not in fields + ["label", "Index"]]
@@ -463,44 +448,44 @@ class Dataset(Entity):
         kw['silent'] = True
         if merge:
             dataset = Dataset(name, load=False)
-            overwrite = Dataset.confirm_overwrite(dataset, overwrite)
-        l.info("Searching for subfolders with samples to be ingested %s..." % \
-               (f"in the new dataset '{dataset.basename}'" if merge else "as distinct datasets"))
-        if overwrite:
-            for sp in p.walk(filter_func=lambda x: x.is_dir() and all(not y.startswith(".") for y in x.parts[1:])):
-                if any(x in (exclude or []) for x in sp.parts[1:]):
-                    l.debug(f"{sp.stem} was excluded by the user")
-                    continue
-                i, keep = 0, True
-                for f in sp.listdir():
-                    # only select "leaf" subfolder, that is those with only files
-                    if not f.is_file():
-                        keep = False
-                        break
-                    # count the executables in this subfolder, other files (e.g. could be README.md) are not an issue
-                    if Executable(f).is_valid():
-                        i += 1
-                # check that we have a subfolder that contains not less and not more executable samples than needed
-                if not keep:
-                    l.debug(f"{sp.stem} is not a leaf subfolder")
-                    continue
-                if min_samples > 0 and i < min_samples:
-                    l.debug(f"{sp.stem} has too few samples")
-                    continue
-                if max_samples > min_samples and i > max_samples:
-                    l.debug(f"{sp.stem} has too much samples")
-                    continue
-                l.debug(f"found a subfolder called {sp.stem} that has {i} executable samples")
-                if not merge:
-                    name = prefix + rename_func(sp.stem)
-                    dataset = Dataset(name, load=False)
-                    if not Dataset.confirm_overwrite(dataset, overwrite):
-                        l.warning(f"Ingestion aborted ('{dataset.basename}' already exists)")
-                        continue
-                l.info(f"Ingesting subfolder '{sp.stem}' into {name}...")
-                dataset.update([sp, p][merge], labels=labels, detect=detect, **kw)
+            if not Dataset.confirm_overwrite(dataset, overwrite):
+                l.warning(f"Ingestion aborted ('{dataset.basename}' already exists)")
+                return
+            l.info(f"Searching for subfolders with samples to be ingested in the new dataset '{dataset.basename}'...")
         else:
-            l.warning(f"Ingestion aborted ('{dataset.basename}' already exists)")
+            l.info(f"Searching for subfolders with samples to be ingested as distinct datasets...")
+        for sp in p.walk(filter_func=lambda x: x.is_dir() and all(not y.startswith(".") for y in x.parts[1:])):
+            if any(x in (exclude or []) for x in sp.parts[1:]):
+                l.debug(f"{sp.stem} was excluded by the user")
+                continue
+            i, keep = 0, True
+            for f in sp.listdir():
+                # only select "leaf" subfolder, that is those with only files
+                if not f.is_file():
+                    keep = False
+                    break
+                # count the executables in this subfolder, other files (e.g. could be README.md) are not an issue
+                if Executable(f).is_valid():
+                    i += 1
+            # check that we have a subfolder that contains not less and not more executable samples than needed
+            if not keep:
+                l.debug(f"{sp.stem} is not a leaf subfolder")
+                continue
+            if min_samples > 0 and i < min_samples:
+                l.debug(f"{sp.stem} has too few samples")
+                continue
+            if max_samples > min_samples and i > max_samples:
+                l.debug(f"{sp.stem} has too much samples")
+                continue
+            l.debug(f"found a subfolder called {sp.stem} that has {i} executable samples")
+            if not merge:
+                name = prefix + rename_func(sp.stem)
+                dataset = Dataset(name, load=False)
+                if not Dataset.confirm_overwrite(dataset, overwrite):
+                    l.warning(f"Ingestion aborted ('{dataset.basename}' already exists)")
+                    continue
+            l.info(f"Ingesting subfolder '{sp.stem}' into {name}...")
+            dataset.update([sp, p][merge], labels=labels, detect=detect, **kw)
     
     @backup
     def make(self, n=0, formats=["All"], balance=False, packer=None, pack_all=False, **kw):
@@ -623,35 +608,30 @@ class Dataset(Entity):
     @backup
     def merge(self, name2=None, new_name=None, silent=False, **kw):
         """ Merge another dataset with the current one. """
-        l = self.logger
+        if new_name is not None:
+            config.check(new_name)
+            self._copy(new_name, overwrite=kw.get('overwrite'))
+            return Dataset.load(new_name).merge(name2, silent=silent, **kw)
+        l, files = self.logger, True
         l_info = getattr(l, ["info", "debug"][silent])
         ds2 = Dataset.load(name2, name_check=False)
-        if new_name is not None:
-            dstype = FilelessDataset if not self._files or not ds2._files else Dataset
-            ds = dstype(new_name)
-            if dstype is FilelessDataset and self._files:
-                temp_name = random.randstr(16)
-                self.convert(temp_name, check=False)
-                ds.merge(temp_name)
-                FilelessDataset(temp_name, check=False)._purge()
-            else:
-                ds.merge(self.path.basename)
-            if dstype is FilelessDataset and ds2._files:
-                temp_name = random.randstr(16)
-                ds2.convert(temp_name, check=False)
-                ds.merge(temp_name)
-                FilelessDataset(temp_name, check=False)._purge()
-            else:
-                ds.merge(name2)
-            return
-        if self.__class__ is Dataset and ds2.__class__ is FilelessDataset:
-            l.error("Cannot merge a fileless dataset into a dataset (because files are missing)")
-            return
+        ds2_name = ds2.basename
+        # (1) merging a FilelessDataset into a Dataset
+        if isinstance(self, Dataset) and isinstance(ds2, FilelessDataset):
+            self.convert()
+            self._load()
+            files = False
+        # (2) merging a Dataset into a FilelessDataset
+        elif isinstance(self, FilelessDataset) and isinstance(ds2, Dataset):
+            ds2.convert(random.randstr(16), name_check=False)
+            self._load()
+            files = False
+        # (3) merging datasets of the same type
         # add rows from the input dataset
-        l_info("Merging rows from %s into %s..." % (ds2.basename, self.basename))
+        l_info(f"Merging rows from {ds2_name} into {self.basename}...")
         with progress_bar(silent=silent) as p:
             for r in p.track(ds2):
-                self[Executable(hash=r.hash, dataset=ds2, dataset2=self)] = r._row._asdict()
+                self[Executable(hash=r.hash, dataset=ds2, dataset2=[None, self][files])] = r._row._asdict()
         # as the previous operation does not update formats and features, do it manually
         self._metadata.setdefault('formats', [])
         for fmt in ds2._metadata.get('formats', []):
@@ -671,12 +651,13 @@ class Dataset(Entity):
     def plot(self, subcommand=None, **kw):
         """ Plot something about the dataset. """
         # ensure input dataset(s) have their features computed before plotting
+        from .visualization import _PLOTS
         if self._files and subcommand not in ["labels", "samples"]:
             self._compute_all_features()
         if 'datasets' in kw:
             kw['datasets'] = [Dataset.load(ds) for ds in (kw['datasets'] or [])]
             [ds._compute_all_features() for ds in kw['datasets'] if ds._files]
-        plot(self, "ds-%s" % subcommand, **kw)
+        _PLOTS[subcommand](self, **kw)
     
     def preprocess(self, query=None, preprocessor=None, **kw):
         """ Preprocess dataset given selected features and preprocessors and display it with visidata for review. """
@@ -711,19 +692,15 @@ class Dataset(Entity):
             del self[e.hash]
         self._save()
     
-    def rename(self, name2=None, **kw):
+    def rename(self, name2=None, overwrite=None, **kw):
         """ Rename the current dataset. """
-        l, path2 = self.logger, config['datasets'].joinpath(name2)
-        if not path2.exists():
-            l.debug(f"renaming {self.basename} (and backups) to {name2}...")
-            tmp = TempPath(".dataset-backup", hex(hash(self))[2:])
-            self.path.rename(path2)
-            self.path = path2
+        tmp = TempPath(".dataset-backup", hex(hash(self))[2:])
+        if super(Dataset, self).rename(name2, overwrite, **kw):
+            path2 = config['datasets'].joinpath(name2)
+            self.logger.debug(f"moving backups...")
             tmp2 = TempPath(".dataset-backup", hex(hash(self))[2:])
             tmp2.remove()
             tmp.rename(tmp2)
-        else:
-            l.warning(f"{name2} already exists")
     
     def revert(self, init=False, **kw):
         """ Revert to the latest version of the dataset (if a backup copy exists in /tmp). """
@@ -866,14 +843,15 @@ class Dataset(Entity):
     def backup(self):
         """ Get the latest backup. """
         l, bkp = self.logger, config['backup_copies']
-        l.debug("backup %s" % ["disabled", f"enabled (maximum copies: {bkp})"][bkp > 0])
+        bstatus = ["disabled", f"enabled (maximum copies: {bkp})"][bkp > 0]
+        l.debug(f"backup {bstatus}")
         tmp = TempPath(".dataset-backup", hex(hash(self))[2:])
         l.debug(f"backup root: {tmp}")
         backups = sorted(tmp.listdir(self.__class__.check), key=lambda p: -int(p.basename))
         if len(backups) > 0:
             l.debug(f"> found: {', '.join(map(lambda p: p.basename, backups))}")
         for backup in backups:
-            return self.__class__(backup, check=False)
+            return self.__class__(backup, name_check=False)
     
     @backup.setter
     def backup(self, dataset):
@@ -885,7 +863,7 @@ class Dataset(Entity):
         l.debug(f"backup root: {tmp}")
         backups, i = [], 0
         for i, backup in enumerate(sorted(tmp.listdir(self.__class__.check), key=lambda p: -int(p.basename))):
-            backup, n = self.__class__(backup, check=False), 0
+            backup, n = self.__class__(backup, name_check=False), 0
             # if there is a change since the last backup, create a new one
             if i == 0 and dataset != backup:
                 name = int(time.time())
@@ -898,7 +876,7 @@ class Dataset(Entity):
         if i == 0:
             name = int(time.time())
             l.debug(f"> creating backup {name}")
-            dataset._copy(tmp.joinpath(str(name)))
+            dataset._copy(tmp.joinpath(str(name)), name_check=False)
     
     @property
     def files(self):
@@ -1030,6 +1008,21 @@ class Dataset(Entity):
                     break
         return r
     
+    @property
+    def sources(self):
+        return getattr(self, "_sources", None)
+    
+    @sources.setter
+    def sources(self, source_dir=None):
+        self._sources = source_dir or PACKING_BOX_SOURCES
+        if isinstance(self._sources, list):
+            self._sources = {'All': [str(x) for x in self._sources]}
+        for _, sources in self._sources.items():
+            for source in sources[:]:
+                s = Path(source, expand=True)
+                if not s.exists() or not s.is_dir():
+                    sources.remove(source)
+    
     @classmethod
     def list(cls, show_all=False, hide_files=False, raw=False, **kw):
         """ List all the datasets from the given path. """
@@ -1045,36 +1038,6 @@ class Dataset(Entity):
                 render(section, table)
             else:
                 l.warning(f"No dataset found in the workspace ({config['datasets']})")
-    
-    @classmethod
-    def validate(cls, folder, **kw):
-        # consider 'folder' as a dataset from the workspace first
-        f = config['datasets'].joinpath(folder)
-        # if not in the workspace, consider 'folder' as the path
-        if not f.is_dir():
-            f = Path(folder, expand=True)
-        if not f.exists():
-            raise ValueError("Folder does not exist")
-        if not f.is_dir():
-            raise ValueError("Input is not a folder")
-        if not f.joinpath("files").is_dir():
-            raise ValueError("Missing 'files' folder")
-        for fn in ["data.csv", "metadata.json"]:
-            if not f.joinpath(fn).exists():
-                raise ValueError(f"'{fn}' does not exist")
-        return f
-    
-    @staticmethod
-    def confirm_overwrite(dataset, overwrite=None):
-        if dataset.exists():
-            if overwrite is None:
-                overwrite = confirm(f"Are you sure you want to overwrite '{dataset.basename}' ?")
-            if overwrite:
-                dataset._purge()
-            else:
-                return
-        dataset._load()
-        return overwrite
     
     @staticmethod
     def labels_from_file(labels):
@@ -1131,29 +1094,14 @@ class FilelessDataset(Dataset):
     """ Folder structure:
     
     [name]
-      +-- data.csv          # metadata and labels of the executable
-      +-- features.json     # dictionary of selected features and their descriptions
-      +-- metadata.json     # simple statistics about the dataset
+      +-- data.csv            # metadata and labels of the executable
+      +-- features.json       # dictionary of selected features and their descriptions
+      +-- metadata.json       # simple statistics about the dataset
+      +-- (alterations.json)  # if the dataset was altered, this contains the hashes of the altered executables with the
+                              #  alterations applied
     """
+    STRUCTURE = ["-files", "data.csv", "features.json", "metadata.json", "alterations.json*"]
     _files = False
-    
-    @classmethod
-    def validate(cls, folder, **kw):
-        # consider 'folder' as a dataset from the workspace first
-        f = config['datasets'].joinpath(folder)
-        # if not in the workspace, consider 'folder' as the path
-        if not f.is_dir():
-            f = Path(folder, expand=True)
-        if not f.exists():
-            raise ValueError("Folder does not exist")
-        if not f.is_dir():
-            raise ValueError("Input is not a folder")
-        if f.joinpath("files").is_dir():
-            raise ValueError("Has 'files' folder while it should not")
-        for fn in ["data.csv", "metadata.json", "features.json"]:
-            if not f.joinpath(fn).exists():
-                raise ValueError(f"'{fn}' does not exist")
-        return f
     
     #TODO: refactor (dates from pbox structure with 'common' and 'learning' subpackages, each containing respectively
     #       Dataset and FilelessDataset)

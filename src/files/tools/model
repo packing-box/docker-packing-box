@@ -5,7 +5,7 @@ from tinyscript import *
 
 
 __script__      = "Model manipulation tool"
-__version__     = "1.3.4"
+__version__     = "1.3.5"
 __contributors__ = [
     {'author': "Sébastien Martinez", 'reason': "extended ML algorithms, metrics and visualizations to unsupervised "
                                                "learning"},
@@ -102,9 +102,7 @@ if __name__ == '__main__':
     set_yaml(args)
     # now execute
     if args.command == "purge":
-        if not Model.purge(name):
-            logger.warning("No model to purge in workspace (%s)" % str(config['models']) if name == "all" else \
-                           "No model matched the given name")
+        Model.purge(name)
     elif args.command == "list":
         Model(**vars(args)).list()
     elif name == "all":

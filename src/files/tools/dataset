@@ -5,7 +5,7 @@ from tinyscript import *
 
 
 __script__       = "Dataset manipulation tool"
-__version__      = "2.6.4"
+__version__      = "2.6.5"
 __contributors__ = [
     {'author': "Romain Jennes", 'reason': "added dataset alterations and adversarial learning capabilities"},
 ]
@@ -40,7 +40,7 @@ __examples__    = [
     "select my-dataset my-new-dataset --query \"label == 'upx'\"",
     "show my-dataset --per-format --limit 20",
     "update my-dataset --detect --refresh -s /path1/to/exe -s /path2/to/exe",
-    "update my-dataset --source-dir /path/to/exe --labels /path/to/exe/labels.json",
+    "update my-dataset -f PE32 --source-dir /path/to/exe --labels /path/to/exe/labels.json",
     "view my-dataset --query \"ctime > 2020\"",
     "view my-dataset -q \"'PE32' in format\"",
 ]
@@ -177,7 +177,9 @@ if __name__ == '__main__':
     update = cmds.add_parser("update", category="create/modify/delete", help="update a dataset with new executables")
     add_argument(update, "dsname", force=True)
     ugroup = update.add_mutually_exclusive_group()
-    add_argument(ugroup, "detect", "labels", "number", dest="n")
+    add_argument(ugroup, "detect")
+    update.add_argument("-f", "--formats", type=ts.values_list, default="All", help="list of formats to be considered")
+    add_argument(ugroup, "labels", "number", dest="n")
     update.add_argument("-r", "--refresh", action="store_true", help="refresh labels of already existing executables")
     update.add_argument("-s", "--source-dir", action="extend", nargs="*", type=lambda p: ts.Path(p, expand=True),
                         help="executables source directory to be included")
@@ -194,9 +196,7 @@ if __name__ == '__main__':
     set_yaml(args)
     # now execute
     if args.command == "purge":
-        if not Dataset.purge(name):
-            logger.warning("No dataset to purge in workspace (%s)" % str(config['datasets']) if name == "all" else \
-                           "No dataset matched the given name")
+        Dataset.purge(name)
     elif args.command == "list":
         FilelessDataset(**vars(args)).list(**vars(args))
     elif name == "all":

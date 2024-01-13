@@ -15,7 +15,7 @@ def filter_data(df, query=None, **kw):
         return df
     try:
         r = df.query(query)
-        if len(r) == 0:
+        if len(r) == 0 and not kw.get('silent', False):
             l.warning("No data selected")
         return r
     except (AttributeError, KeyError) as e:
@@ -25,18 +25,19 @@ def filter_data(df, query=None, **kw):
     except pd.errors.UndefinedVariableError as e:
         l.error(e)
         l.info("Possible values:\n%s" % "".join("- %s\n" % n for n in df.columns))
-    return pd.DataFrame()
 
 
 def filter_data_iter(df, query=None, limit=0, sample=True, progress=True, transient=False, **kw):
     """ Generator for the filtered data from an input Pandas DataFrame based on a given query. """
     from .rendering import progress_bar
     df = filter_data(df, query, **kw)
+    if df is None:
+        return
     n = len(df.index)
     limit = n if limit <= 0 else min(n, limit)
     if sample and limit < n:
         df = df.sample(n=limit)
-    i, generator = 0, filter_data(df, query, **kw).itertuples()
+    i, generator = 0, filter_data(df, query, silent=True, **kw).itertuples()
     if progress:
         with progress_bar(transient=transient) as p:
             task = p.add_task("", total=limit)

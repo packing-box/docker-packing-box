@@ -2,7 +2,7 @@
 from bintropy import entropy
 from contextlib import suppress
 from datetime import datetime
-from tinyscript import hashlib, re, shutil
+from tinyscript import hashlib, os, re, shutil
 from tinyscript.helpers import human_readable_size, Path, TempPath
 from tinyscript.report import *
 
@@ -28,81 +28,89 @@ class Executable(Path):
     
     Can be initialized in different ways:
     (1) orphan executable (not coming from a dataset)
-    (2) dataset-bound (data is used to populate attributes based on the ; this does not require the file)
-    (3) dataset-bound, with a new destination dataset
+         args: parts
+        NB: mapped to dataset-bound if the given path ends by 'files/[hash]'
+    (2) orphan executable (to be bound to a dataset)
+         args:   parts (not a data row)
+         kwargs: dataset
+    (3) dataset-bound by data row (data is used to populate attributes ; this does not require the file)
+         args:   data row
+         kwargs: dataset
+    (4) dataset-bound by hash (data is used to populate attributes ; this does not require the file)
+         kwargs: hash, dataset
+    (5) dataset-bound, with a new destination dataset
+         kwargs: hash, dataset, dataset2
     """
     FIELDS = ["realpath", "format", "signature", "size", "ctime", "mtime"]
     
     def __new__(cls, *parts, **kwargs):
-        data, fields = None, ["hash", "label"] + Executable.FIELDS
-        ds1, ds2 = kwargs.pop('dataset', None), kwargs.pop('dataset2', None)
-        if len(parts) == 1:
-            e = parts[0]
-            # if reinstantiating an Executable instance, simply immediately return it
-            if isinstance(e, Executable) and not kwargs.get('force', False):
-                return e
-            # case (1) occurs when using pandas.DataFrame.itertuples() ; this produces an instance of
-            #  pandas.core.frame.Pandas (having the '_fields' attribute), hence causing an orphan executable
-            if all(hasattr(e, f) for f in fields) and hasattr(e, "_fields"):
-                try:
-                    dest = ds1.files.joinpath(e.hash)
-                except AttributeError:  # 'NoneType|FilelessDataset' object has no attribute 'files'
-                    dest = e.realpath
-                self = super(Executable, cls).__new__(cls, dest, **kwargs)
-                for f in fields:
-                    setattr(self, f, getattr(e, f))
-                if ds1:
-                    self._dataset = ds1
-                    try:
-                        self._destination = self._dataset.files.joinpath(self.hash)
-                    except AttributeError:  # 'FilelessDataset' object has no attribute 'files'
-                        pass
-                return self
-        self = super(Executable, cls).__new__(cls, *parts, **kwargs)
-        # if the target executable has a path that may indicate it is part of a dataset, automatically set it
-        found = False
-        if ds1 is None and self.parts[-2] == "files":
-            from ..dataset import Dataset, FilelessDataset
-            for dscls in [Dataset, FilelessDataset]:
-                try:
-                    ds1 = dscls(self.parts[-3])
-                    found = True
-                    break
-                except ValueError:
-                    pass
-        if ds1 is not None:
-            # case (2)
-            h = kwargs.pop('hash', self.basename)
-            if ds1._files:
-                exe = ds1.files.joinpath(h)
-                if exe.is_file():
-                    self = super(Executable, cls).__new__(cls, str(exe), **kwargs)
-                    self.hash = h  # avoid hash recomputation
-                    self._destination = ds1.files.joinpath(self.hash)
-                elif found:     # if the executable has "files" in its path and a valid dataset name before but it
-                    ds1 = None  #  actually does not exist in this dataset, automatically unset it
-        if ds1 is not None:
-            self._dataset = ds1
+        h, ds1, ds2 = kwargs.pop('hash', None), kwargs.pop('dataset', None), kwargs.pop('dataset2', None)
+        fields, kwargs['expand'], e = ["hash", "label"] + Executable.FIELDS, True, parts[0] if len(parts) == 1 else None
+        def _setattrs(exe, hash):
+            exe._dataset = ds1
+            exe._destination = ds1.path.joinpath("files", hash or exe.hash)
             # AttributeError: this occurs when the dataset is still empty, therefore holding no 'hash' column
             # IndexError:     this occurs when the executable did not exist in the dataset yet
             with suppress(AttributeError, IndexError):
                 d, meta_fields = ds1._data[ds1._data.hash == h].iloc[0].to_dict(), Executable.FIELDS + ["hash", "label"]
                 for a in meta_fields:
-                    setattr(self, a, d[a])
+                    setattr(exe, a, d[a])
                 f = {a: v for a, v in d.items() if a not in fields if str(v) != "nan"}
                 # if features could be retrieved, set the 'data' attribute (i.e. if already computed as it is part of a
                 #  FilelessDataset)
                 if len(f) > 0:
-                    setattr(self, "data", f)
-            # case (3)
+                    setattr(exe, "data", f)
             if ds2 is not None and ds2._files:
-                self._destination = ds2.files.joinpath(h)
-        self.label = kwargs.pop('label', getattr(self, "label", NOT_LABELLED))
-        # if a label was found, the hash retrived from the parent dataset is this of the not packed version, hence it
-        #  shall be recomputed
-        if self.label not in [NOT_LABELLED, NOT_PACKED]:
-            del self.hash
-        return self
+                exe._destination = ds2.files.joinpath(h)
+        # case (1) orphan excutable (no dataset)
+        if len(parts) > 0 and all(x is None for x in [h, ds1, ds2]):
+            label = kwargs.pop('label', NOT_LABELLED)
+            if len(parts) == 1:
+                # if reinstantiating an Executable instance, simply immediately return it
+                if isinstance(e, Executable):
+                    return e
+                elif isinstance(e, Path):
+                    self = super(Executable, cls).__new__(cls, e, **kwargs)
+                    self.label = label
+                    return self
+                parts = str(e).split(os.sep)
+                if parts[0] == "":
+                    parts[0] = os.sep
+            # if the target executable has a path that may indicate it is part of a dataset, automatically set it
+            if len(parts) >= 2 and parts[-2] == "files":
+                from ..dataset import Dataset
+                return Executable(hash=parts[-1], dataset=Dataset(Path(*parts[:-2])))
+            self = super(Executable, cls).__new__(cls, *parts, **kwargs)
+            self.label = label
+            return self
+        # case (2) orphan excutable (dataset to be bound with)
+        elif len(parts) > 0 and ds1 is not None and all(x is None for x in [h, ds2]) and not hasattr(e, "_fields"):
+            self = super(Executable, cls).__new__(cls, *parts, **kwargs)
+            _setattrs(self)
+            return self
+        # case (3) dataset-bound by data row
+        elif len(parts) == 1 and ds1 is not None and all(x is None for x in [h, ds2]) and \
+             all(hasattr(e, f) for f in fields) and hasattr(e, "_fields"):
+            # occurs when using pandas.DataFrame.itertuples() ; this produces an instance of pandas.core.frame.Pandas
+            #  (having the '_fields' attribute), hence causing an orphan executable
+            try:
+                dest = ds1.files.joinpath(e.hash)
+            except AttributeError:  # 'NoneType|FilelessDataset' object has no attribute 'files'
+                dest = e.realpath
+            self = super(Executable, cls).__new__(cls, dest, **kwargs)
+            _setattrs(self, e.hash)
+            for f in fields:
+                setattr(self, f, getattr(e, f))
+            return self
+        # case (4) dataset-bound by hash (when ds2 is None)
+        # case (5) dataset-bound, with a new destination dataset (when ds2 is not None)
+        elif len(parts) == 0 and all(x is not None for x in [h, ds1]):
+            exe = ds1.path.joinpath("files", h)
+            self = super(Executable, cls).__new__(cls, str(exe), **kwargs)
+            _setattrs(self, h)
+            return self
+        raise ValueError("Unsupported combination of arguments (see the docstring of the Executable class for more "
+                         "information)")
     
     def _reset(self):
         # ensure filetype and format will be recomputed at their next invocation (i.e. when a packer modifies the binary
@@ -122,14 +130,15 @@ class Executable(Path):
         return entropy(self.read_bytes(), blocksize, ignore_half_block_zeros)
     
     def copy(self, extension=False, overwrite=False):
-        dest = Executable(str(self.destination) + ["", self.extension.lower()][extension])
+        # NB: 'dest' is not instantiated with the Executable class as it does not exist yet
+        dest = Path(str(self.destination) + ["", self.extension.lower()][extension])
         if str(self) != dest:
             if overwrite and dest.exists():
                 dest.remove()
             try:  # copy file with its attributes and metadata
                 shutil.copy2(str(self), str(dest))
                 dest.chmod(0o400)
-                return dest
+                return Executable(str(dest))
             except:
                 pass
         # return None to indicate that the copy failed (i.e. when the current instance is already the destination path)
@@ -163,13 +172,13 @@ class Executable(Path):
             self._parsed.real_section_names  # trigger computation of real names
         return self._parsed
     
-    def plot(self, format="png", prefix="", dpi=200, sublabel="size-ep-ent", **kw):
+    def plot(self, format=None, prefix="", dpi=200, sublabel="size-ep-ent", **kw):
         from bintropy import plot
         fn = prefix + Path(self.realpath).basename
         if hasattr(self, "_dataset"):
             fn = Path(self._dataset.basename, "samples", fn)
-        imgn = figure_path(lambda: fn)()
-        plot(self, img_name=imgn, labels=[self.label], sublabel=sublabel, format=format, dpi=dpi, target=fn, **kw)
+        plot(self, img_name=figure_path(fn, format=format), labels=[self.label], sublabel=sublabel,
+             format=format or config['format'], dpi=dpi, target=fn, **kw)
     
     def show(self, base_info=True, sections=True, features=False, **kw):
         ds, r = hasattr(self, "_dataset"), []
@@ -203,7 +212,7 @@ class Executable(Path):
                 if i == 0:
                     h.extend(["Entropy", "Block entropy (256B)"])
                 row.append(f"{sec.entropy:.5f}" if sec.size > 0 else "-")
-                row.append(f"{sec.block_entropy_256B:.5f}" if sec.size > 0 and sec.block_entropy_256B is not None else "-")
+                row.append("-" if sec.size == 0 or sec.block_entropy_256B is None else f"{sec.block_entropy_256B:.5f}")
                 if i == 0:
                     h.append("Standard")
                 row.append(f"{'NY'[sec.is_standard]}")

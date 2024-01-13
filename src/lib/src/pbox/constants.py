@@ -5,7 +5,7 @@ from tinyscript.helpers import slugify, Path
 
 
 # basic framework constants
-bi.LOG_FORMATS = ["%(asctime)s [%(levelname)s] %(message)s", "%(asctime)s [%(levelname)-8s] %(name)-18s - %(message)s"]
+bi.LOG_FORMATS = ["%(asctime)s [%(levelname)s] %(message)s", "%(asctime)s [%(levelname)-8s] %(name)-18s %(message)s"]
 bi.PACKING_BOX_SOURCES = {
     'ELF': ["/usr/bin", "/usr/sbin"],
     'PE':  ["~/.wine32/drive_c/windows", "~/.wine64/drive_c/windows"],
