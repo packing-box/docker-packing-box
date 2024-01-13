@@ -13,10 +13,21 @@ class Alteration(dict2):
     def __call__(self, executable, namespace, **kwargs):
         self._exe, l = executable, self._logger
         l.debug("applying alterations to %s%s..." % (executable.stem, ["", " (%d steps)" % self.loop][self.loop > 1]))
-        # loop the specified number of times or simply once if not specified
-        for i in range(self.loop):
+        # loop the specified number of times or accross sections or simply once if not specified
+        # IMPORTANT NOTE: looping accross sections is done on a primary parsing of the executable, otherwise, a
+        #                  generator of sections could change during iteration because of alterations such as adding a
+        #                  new section ; this should be considered when designing an alteration
+        iterator = range(self.loop) if isinstance(self.loop, int) else \
+                   list(executable.parse(self.parser).__iter__()) if self.loop == "sections" else \
+                   None  # invalid 'loop' value
+        if iterator is None:
+            l.warning("Bad 'loop' value (should be positive integer or 'sections')")
+            return
+        for i in iterator:
             parsed = executable.parse(self.parser)
             namespace.update({'binary': parsed, executable.group.lower(): parsed})
+            if self.loop == "sections":
+                namespace['section'] = i
             try:
                 func = super().__call__(namespace, silent=self.fail=="stop")
                 if func is None:
@@ -36,6 +47,10 @@ class Alteration(dict2):
                     continue
                 # in this situation, it is known that the loop will fail at some point, no exception trace is needed
                 elif self.fail == "stop":
+                    break
+                # in this case, warn the user and stop
+                elif self.fail == "warn":
+                    l.warning()
                     break
                 else:
                     raise ValueError("Bad 'fail' value (should be one of: continue|error|stop)")

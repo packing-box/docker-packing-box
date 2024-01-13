@@ -41,6 +41,10 @@ def __init_pe():
             return builder
         
         @property
+        def api_imports(self):
+            return sorted(api.name for imp in self.imports for api in imp.entries)
+        
+        @property
         def checksum(self):
             return self._parsed.optional_header.computed_checksum
         
@@ -55,6 +59,10 @@ def __init_pe():
         @property
         def iat(self):
             return self._parsed.data_directory(lief.PE.DATA_DIRECTORY.IMPORT_TABLE)
+        
+        @property
+        def imported_dlls(self):
+            return sorted(dll.name for dll in self.imports)
         
         def sections_with_slack_space(self, length=1):
             return [s for s in self if s.size - len(s.content) >= length]

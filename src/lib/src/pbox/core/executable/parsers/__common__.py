@@ -188,7 +188,7 @@ def get_section_class(name, **mapping):
                 if isinstance(value, str):
                     tmp = section
                     for token in value.split("."):
-                        tmp = getattr(tmp, token)
+                        tmp = getattr(tmp, token, None)
                     value = tmp
                 setattr(self, attr, value)
         

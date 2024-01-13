@@ -1,3 +1,4 @@
+# -*- coding: UTF-8 -*-
 from tinyscript import code, logging, re, time
 from tinyscript.helpers import Capture, Timeout, TimeoutError
 
