@@ -485,7 +485,7 @@ class Dataset(Entity):
                     l.warning(f"Ingestion aborted ('{dataset.basename}' already exists)")
                     continue
             l.info(f"Ingesting subfolder '{sp.stem}' into {name}...")
-            dataset.update([sp, p][merge], labels=labels, detect=detect, **kw)
+            dataset.update([sp, p][merge], labels=labels, detect=detect, do_not_backup=True, **kw)
     
     @backup
     def make(self, n=0, formats=["All"], balance=False, packer=None, pack_all=False, **kw):
@@ -868,7 +868,7 @@ class Dataset(Entity):
             if i == 0 and dataset != backup:
                 name = int(time.time())
                 l.debug(f"> creating backup {name}")
-                dataset._copy(tmp.joinpath(str(name)))
+                dataset._copy(tmp.joinpath(str(name)), name_check=False, overwrite=True)
                 n = 1
             elif i >= config['backup_copies'] - n:
                 l.debug(f"> removing backup {backup.basename} (limit: {config['backup_copies']})")
@@ -876,7 +876,7 @@ class Dataset(Entity):
         if i == 0:
             name = int(time.time())
             l.debug(f"> creating backup {name}")
-            dataset._copy(tmp.joinpath(str(name)), name_check=False)
+            dataset._copy(tmp.joinpath(str(name)), name_check=False, overwrite=True)
     
     @property
     def files(self):

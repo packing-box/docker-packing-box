@@ -137,7 +137,7 @@ class Entity:
             else:
                 return False
         instance._load()
-        return overwrite
+        return True
     
     @classmethod
     def count(cls):

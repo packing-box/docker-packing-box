@@ -12,7 +12,7 @@ class Alteration(dict2):
     
     def __call__(self, executable, namespace, **kwargs):
         self._exe, l = executable, self._logger
-        l.debug("applying alterations to %s%s..." % (executable.stem, ["", " (%d steps)" % self.loop][self.loop > 1]))
+        l.debug(f"applying alterations to {executable.stem}%s..." % ["", f" ({self.loop} steps)"][self.loop > 1])
         # loop the specified number of times or accross sections or simply once if not specified
         # IMPORTANT NOTE: looping accross sections is done on a primary parsing of the executable, otherwise, a
         #                  generator of sections could change during iteration because of alterations such as adding a
@@ -54,7 +54,7 @@ class Alteration(dict2):
                     break
                 else:
                     raise ValueError("Bad 'fail' value (should be one of: continue|error|stop)")
-            l.debug("rebuilding binary (build config: %s)" % parsed._build_config)
+            l.debug(f"rebuilding binary (build config: {parsed._build_config})")
             parsed.build()
     
     # default values on purpose not set via self.setdefault(...)
@@ -93,7 +93,7 @@ class Alterations(list, metaclass=MetaBase):
         if a.registry is None:
             src = a.source  # WARNING! this line must appear BEFORE a.registry={} because the first time that the
                             #           source attribute is called, it is initialized and the registry is reset to None
-            l.debug("loading alterations from %s..." % src)
+            l.debug(f"loading alterations from {src}...")
             a.namespaces, a.registry, dsbcnt = {}, {}, 0
             # collect properties that are applicable for all the alterations
             for name, params in load_yaml_config(src):
@@ -109,7 +109,7 @@ class Alterations(list, metaclass=MetaBase):
                                 a.registry.setdefault(subfmt, {})
                                 a.registry[subfmt][alt.name] = alt
                             if not alt.apply:
-                                l.debug("%s is disabled" % alt.name)
+                                l.debug(f"{alt.name} is disabled")
                                 dsbcnt += 1
             # consider re-enabling only alterations for which there is no more than one alteration per format ;
             #  if multiple alterations on the same format, leave these disabled
@@ -121,16 +121,23 @@ class Alterations(list, metaclass=MetaBase):
                             reenable.remove(alt)
                         except ValueError:
                             continue
-            for alt in reenable:
-                l.debug("re-enabling %s as it is a single applicable alteration" % alt)
-                Alterations[alt].apply = True
+            for single_alt in reenable:
+                l.debug(f"re-enabling {single_alt} as it is a single applicable alteration")
+                for fmt, alts in a.registry.items():
+                    found = False
+                    for alt, obj in alts.items():
+                        if single_alt == alt:
+                            obj.apply = found = True
+                            break
+                    if found:
+                        break
                 dsbcnt -= 1
             tot = len(Alterations.names())
-            l.debug("%d alterations loaded (%d enabled)" % (tot, tot - dsbcnt))
+            l.debug(f"{tot} alterations loaded ({tot-dsbcnt} enabled)")
         # check the list of selected alterations if relevant, and filter out bad names (if warn=True)
         for name in (select or [])[:]:
             if name not in a.registry[exe.format]:
-                msg = "Alteration '%s' does not exist" % name
+                msg = f"Alteration '{name}' does not exist"
                 if warn:
                     l.warning(msg)
                     select.remove(name)
@@ -155,10 +162,10 @@ class Alterations(list, metaclass=MetaBase):
                 # run the alteration given the format-specific namespace
                 try:
                     alteration(exe, a.namespaces[exe.format])
-                    l.debug("applied alteration '%s'" % alteration.name)
+                    l.debug(f"applied alteration '{alteration.name}'")
                     self.append(name)
                 except NotImplementedError as e:
-                    l.warning("'%s' is not supported yet for parser '%s'" % (e.args[0], exe.parsed.parser))
+                    l.warning(f"'{e.args[0]}' is not supported yet for parser '{exe.parsed.parser}'")
                 except Exception as e:
                     l.exception(e)
     

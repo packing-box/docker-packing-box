@@ -16,6 +16,7 @@ Supervised:
         random_state:  42
   BN:
     base:        !!python/name:pbox.core.model.algorithm.weka.BayesNet  # based on weka.classifiers.bayes.BayesNet
+    boolean:     true
     description: Bayesian Network
     link:        https://weka.sourceforge.io/doc.stable/weka/classifiers/bayes/BayesNet.html
     parameters:
@@ -52,7 +53,6 @@ Supervised:
     multiclass:  false
     parameters:
       static:
-        iterative:  true
         time_limit: 60
       cv:
         max_depth: !!python/object/new:range [3, 6]
