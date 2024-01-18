@@ -62,7 +62,7 @@ def _configfile(cfgfile):
                 yaml_str = "\n".join(l for l in fp.readlines() if len(l.split(":")) > 1 and \
                                                                   not re.match(r"\!{1,2}", l.split(":", 1)[1].lstrip()))
             cfg = yaml.safe_load(yaml_str)
-            return __output(f(cfg))
+            return __output(f(cfg), return_list)
         return _subwrapper
     return _wrapper
 

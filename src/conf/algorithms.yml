@@ -200,7 +200,6 @@ Unsupervised:
     link:        https://scikit-learn.org/stable/modules/generated/sklearn.cluster.AgglomerativeClustering.html
     parameters:
       n_clusters:         auto
-      affinity:           euclidean
       distance_threshold: null
       linkage:            ward
   AP:

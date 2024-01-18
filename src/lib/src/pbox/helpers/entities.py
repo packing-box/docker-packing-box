@@ -16,6 +16,9 @@ class Entity:
     def __new__(cls, name=None, load=True, name_check=True, **kwargs):
         self = super(Entity, cls).__new__(cls)
         self._loaded = False
+        if load and name == "ALL":
+            self.logger.warning(f"{self.entity.capitalize()} cannot be named '{name}' (reserved word)")
+            return
         name = name or kwargs.get('folder')
         self.path = None if name is None else cls.path(name)
         if self.path and name_check:

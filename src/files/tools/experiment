@@ -7,7 +7,7 @@ from tinyscript import *
 _NAME = config.get('experiment')
 
 __script__      = "Experiment management tool"
-__version__     = "1.1.3"
+__version__     = "1.1.4"
 __doc__         = """
 This tool aims to manage an experiment (a structure that can hold custom YAML configurations, datasets and models).
 """
@@ -62,13 +62,7 @@ if __name__ == '__main__':
     # prepare parsed arguments
     name = getattr(args, "name", _NAME)
     # now execute
-    if args.command == "purge":
-        Experiment.purge(name)
-    elif args.command == "list":
-        Experiment.list()
-    elif name == "all":
-        logger.warning("Experiment cannot be named 'all' (reserved word)")
-    elif args.command == "import":  # rationale: cannot name a method 'import' (Python-reserved word)
+    if args.command == "import":  # rationale: cannot name a method 'import' (Python-reserved word)
         Experiment(name)._import(**vars(args))
     elif args.command == "edit":
         Experiment(name).edit(config=args.config, force=True)

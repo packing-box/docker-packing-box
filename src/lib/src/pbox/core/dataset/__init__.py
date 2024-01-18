@@ -485,7 +485,7 @@ class Dataset(Entity):
                     l.warning(f"Ingestion aborted ('{dataset.basename}' already exists)")
                     continue
             l.info(f"Ingesting subfolder '{sp.stem}' into {name}...")
-            dataset.update([sp, p][merge], labels=labels, detect=detect, do_not_backup=True, **kw)
+            dataset.update(sp, labels=labels, detect=detect, do_not_backup=True, **kw)
     
     @backup
     def make(self, n=0, formats=["All"], balance=False, packer=None, pack_all=False, **kw):
@@ -802,7 +802,7 @@ class Dataset(Entity):
                 total = sum(1 for _ in self._walk(True, {'All': source_dir}, True))
             found = False
             with progress_bar() as p:
-                for exe in p.track(files):
+                for exe in p.track(files, total=total):
                     if exe.format not in self._metadata['formats']:
                         self._metadata['formats'].append(exe.format)
                     _update(exe)

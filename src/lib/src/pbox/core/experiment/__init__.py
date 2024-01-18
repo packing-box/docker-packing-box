@@ -77,7 +77,8 @@ def __init():
                 if not p_src.extension == ".yml":
                     raise KeyError
                 config.get(p_src.stem, sections="definitions", error=True)
-                if not p_src.is_samepath(p_exp) and (not p_exp.exists() or confirm("overwrite %s ?" % p_exp)):
+                if not p_src.is_samepath(p_exp) and \
+                   (not p_exp.exists() or confirm(f"Are you sure you want to overwrite '{p_exp}' ?")):
                     l.debug("copying configuration file%s from '%s'..." % (["", "s"][p_src.is_dir()], p_src))
                     p_src.copy(p_exp)
             except KeyError:

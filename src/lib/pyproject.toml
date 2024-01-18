@@ -34,7 +34,7 @@ classifiers = [
 ]
 dependencies = [
   "angr",
-  "bintropy>=1.4.9",
+  "bintropy>=1.5.4",
   "capstone",
   "dsff>=1.0.3",
 #  "filebytes",
