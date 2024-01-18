@@ -1,0 +1,27 @@
+#!/usr/bin/python3
+# -*- coding: UTF-8 -*-
+import os
+from argparse import ArgumentParser, RawTextHelpFormatter
+from pboxtools.utils import _configfile, _fmt_name
+
+
+@_configfile("algorithms")
+def algorithms(cfg):
+    """ Main function for listing all analyzers available in the current workspace """
+    a = {}
+    for section in ["Semi-Supervised", "Supervised", "Unsupervised"]:
+        a.update(cfg.get(section, {}))
+    if 'defaults' in a:
+        del a['defaults']
+    return [(_fmt_name(n), p['description'], p['link']) for n, p in a.items()]
+
+
+if __name__ == '__main__':
+    links = algorithms(return_list=True)
+    parser = ArgumentParser(formatter_class=RawTextHelpFormatter)
+    parser.add_argument("name", choices=[a[0] for a in links], metavar="ALGO",
+                        help="name of the algorithm to look up the documentation for\n- %s" % \
+                             "\n- ".join(f"{a.ljust(8)}: {d}" for a, d, _ in links))
+    args = parser.parse_args()
+    os.system(f"lynx {[l for a, d, l in links if args.name == a][0]}")
+
