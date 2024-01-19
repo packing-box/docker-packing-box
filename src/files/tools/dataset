@@ -191,13 +191,13 @@ if __name__ == '__main__':
         logger.warning("No feature selected")
         sys.exit(0)
     # prepare parsed arguments
-    name = getattr(args, "name", None)
-    args.load = name is not None and args.command not in ["ingest", "list", "purge"]
+    args.load = getattr(args, "name", None) is not None and args.command not in ["ingest", "list", "purge"]
     set_yaml(args)
     # now execute
     if args.command == "ingest":
         args.rename_func = RENAME_FUNCTIONS[args.rename]
-    getattr(Dataset(**vars(args)), args.command)(**vars(args))
+    ds = Dataset(**vars(args))
+    getattr(ds, args.command)(**vars(args))
     # it may occur that packing fails with a silenced error and that the related executable file remains in the
     #  files subfolder of the dataset while not handled in data.csv, hence creating an inconsistency ;
     #  fixing the dataset right after the make command allows to avoid this inconsistency

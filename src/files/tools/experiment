@@ -60,12 +60,14 @@ if __name__ == '__main__':
     initialize(noargs_action="usage")
     configure_logging(args.verbose)
     # prepare parsed arguments
-    name = getattr(args, "name", _NAME)
+    args.name = getattr(args, "name", _NAME)
+    args.load = args.name is not None and args.command not in ["list", "purge"]
     # now execute
+    xp = Experiment(**vars(args))
     if args.command == "import":  # rationale: cannot name a method 'import' (Python-reserved word)
-        Experiment(name)._import(**vars(args))
+        xp._import(**vars(args))
     elif args.command == "edit":
-        Experiment(name).edit(config=args.config, force=True)
+        xp.edit(config=args.config, force=True)
     else:
-        getattr(Experiment(name), args.command)(**vars(args))
+        getattr(xp, args.command)(**vars(args))
 

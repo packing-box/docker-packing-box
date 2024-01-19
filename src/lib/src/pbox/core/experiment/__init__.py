@@ -31,7 +31,7 @@ def __init():
         
         def __new__(cls, name="experiment", **kw):
             self = super(Experiment, cls).__new__(cls, name, **kw)
-            if not self.path.is_under(config['experiments'].absolute()):
+            if self.path and not self.path.is_under(config['experiments'].absolute()):
                 config['experiments'] = self.path.dirname
             return self
         

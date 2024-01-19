@@ -13,7 +13,13 @@ _CACHE = {}
 class Entity:
     """ This class implements some base functionalities for abstractions based on folders
          (i.e Dataset, Experiment, Model). """
+    _classes = {}
+    
     def __new__(cls, name=None, load=True, name_check=True, **kwargs):
+        for c in cls.entity_classes:
+            if c.check(name, **kwargs):
+                cls = c
+                break
         self = super(Entity, cls).__new__(cls)
         self._loaded = False
         if load and name == "ALL":
@@ -24,6 +30,8 @@ class Entity:
         if self.path and name_check:
             config.check(self.name)
         _CACHE.setdefault(cls.entity, {})
+        # important note: not using __hash__() as some Entity's children may define __eq__() ; in this case, __hash__
+        #                  automatically becomes None and causes an Error
         h = int.from_bytes(hashlib.md5(str(self.path).encode()).digest(), "little")
         if h in _CACHE[cls.entity]:
             self = _CACHE[cls.entity][h]
@@ -31,7 +39,8 @@ class Entity:
             _CACHE[cls.entity][h] = self
         cls.logger.debug(f"creating {cls.__name__}({self.name})...")
         for attr, default in getattr(self, "DEFAULTS", {}).items():
-            setattr(self, attr, default)
+            if not hasattr(self, attr):
+                setattr(self, attr, default)
         if not load or self._loaded:
             return self
         if load and hasattr(self, "_load"):
@@ -74,6 +83,12 @@ class Entity:
         self.logger.debug(f"removing {self.__class__.entity} '{self.basename}'...")
         self.path.remove(error=False)
     
+    def _uncache(self):
+        """ Remove the current entity from cache. """
+        # important note: not using __hash__() as some Entity's children may define __eq__() ; in this case, __hash__
+        #                  automatically becomes None and causes an Error
+        del _CACHE[self.__class__.entity][int.from_bytes(hashlib.md5(str(self.path).encode()).digest(), "little")]
+    
     def exists(self):
         """ Dummy exists method. """
         return self.path.exists()
@@ -96,7 +111,7 @@ class Entity:
             self.path = path2
             return True
         else:
-            l.warning(f"{cls.entity.capitalize()} '{self.basename}' already exists")
+            l.warning(f"{cls.entity.capitalize()} '{self.basename}' already exists ; rename aborted")
             return False
     
     @property
@@ -271,7 +286,10 @@ class Entity:
     
     @classproperty
     def entity_classes(cls):
-        classes, current_cls = [], cls
+        n, ec = cls.__name__, Entity._classes
+        if n in ec:
+            return ec[n]
+        ec[n], current_cls = [], cls
         # use cases:
         #  (1) BaseModel > [Model, DumpedModel]
         #  (2) Dataset > FilessDataset
@@ -283,9 +301,11 @@ class Entity:
             current_cls = current_cls.__base__
         # then, parse the current class and its children (in this order of precedence)
         for c in itertools.chain([current_cls], current_cls.__subclasses__()):
-            if not c.__name__.startswith("Base"):
-                classes.append(c)
-        return classes
+            n2 = c.__name__
+            if not n2.startswith("Base"):
+                ec[n].append(c)
+            ec[n2] = ec[n]
+        return ec[n]
     
     @classproperty
     def instances(cls):

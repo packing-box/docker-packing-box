@@ -251,6 +251,8 @@ class Dataset(Entity):
                 if len(attr) > 0:
                     with self.path.joinpath(n + ".json").open('w+') as f:
                         json.dump(attr, f, indent=2)
+        if not self._files and self.path.joinpath("files").exists():
+            self.path.joinpath("files").remove()
         self.__change = False
     
     def _walk(self, walk_all=False, sources=None, silent=False):
@@ -358,6 +360,7 @@ class Dataset(Entity):
         except AttributeError:
             pass
         self._save()
+        self._uncache()  # need to clean instance from Entity's cache as Dataset was mutated to FilelessDataset
         s2 = self.path.size
         l_info(f"Size of new dataset: {human_readable_size(s2)} (compression factor: {int(s1/s2)})")
     

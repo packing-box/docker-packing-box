@@ -97,8 +97,7 @@ if __name__ == '__main__':
     initialize(noargs_action="usage")
     configure_logging(args.verbose)
     # prepare parsed arguments
-    name = getattr(args, "name", None)
-    args.load = name is not None and args.command not in ["list", "purge"]
+    args.load = getattr(args, "name", None) is not None and args.command not in ["list", "purge"]
     set_yaml(args)
     # now execute
     if args.command == "train":
