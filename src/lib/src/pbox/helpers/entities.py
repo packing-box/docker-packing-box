@@ -16,16 +16,20 @@ class Entity:
     _classes = {}
     
     def __new__(cls, name=None, load=True, name_check=True, **kwargs):
+        folder = kwargs.pop('folder', None)
+        name = name or folder
         for c in cls.entity_classes:
             if c.check(name, **kwargs):
                 cls = c
                 break
         self = super(Entity, cls).__new__(cls)
         self._loaded = False
-        if load and name == "ALL":
-            self.logger.warning(f"{self.entity.capitalize()} cannot be named '{name}' (reserved word)")
-            return
-        name = name or kwargs.get('folder')
+        if name in SPECIAL_INPUTS:
+            self.path = None
+            if load:
+                self.logger.warning(f"{self.entity.capitalize()} cannot be named '{name}' (reserved word)")
+                return
+            return self
         self.path = None if name is None else cls.path(name)
         if self.path and name_check:
             config.check(self.name)
@@ -36,14 +40,15 @@ class Entity:
         if h in _CACHE[cls.entity]:
             self = _CACHE[cls.entity][h]
         else:
+            cls.logger.debug(f"creating {cls.__name__}({self.name})...")
             _CACHE[cls.entity][h] = self
-        cls.logger.debug(f"creating {cls.__name__}({self.name})...")
         for attr, default in getattr(self, "DEFAULTS", {}).items():
             if not hasattr(self, attr):
                 setattr(self, attr, default)
         if not load or self._loaded:
             return self
         if load and hasattr(self, "_load"):
+            cls.logger.debug(f"loading {cls.__name__}({self.name})...")
             if self.path:
                 self.path.mkdir(exist_ok=True)
             self._load()
@@ -155,6 +160,7 @@ class Entity:
             else:
                 return False
         instance._load()
+        instance._loaded = True
         return True
     
     @classmethod
@@ -206,7 +212,7 @@ class Entity:
         purged = False
         def _iter(n):
             # purge everything
-            if n == "all":
+            if n == SPECIAL_INPUTS[0]:
                 for obj in cls.iteritems():
                     yield obj
             # purge a bunch of datasets based on a wildcard

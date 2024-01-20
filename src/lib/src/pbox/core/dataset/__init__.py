@@ -194,8 +194,6 @@ class Dataset(Entity):
                 l.debug("loading dataset '%s'..." % self.basename)
         except AttributeError:  # self._data does not exist yet
             pass
-        l.debug("type=%s (class: %s), name=%s" % \
-                (["fileless", "normal"][self._files], self.__class__.__name__, self.name))
         if self._files:
             self.files.mkdir(exist_ok=True)
         for n in ["alterations", "data", "metadata"] + [["features"], []][self._files]:

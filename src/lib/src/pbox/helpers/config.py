@@ -101,7 +101,7 @@ class Config:
     
     def check(self, name, raise_error=True):
         """ Check option name against the naming convention. """
-        if name in [x for y in self._defaults.values() for x in y.keys()] or name == "all" or \
+        if name in [x for y in self._defaults.values() for x in y.keys()] or name in SPECIAL_INPUTS or \
            not re.match(self._naming, name.basename if isinstance(name, Path) else str(name)):
             if raise_error:
                 raise ValueError("Bad input name (%s)" % name)

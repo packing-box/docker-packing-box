@@ -152,13 +152,13 @@ def _init_base():
         
         def run(self, executable, **kwargs):
             """ Customizable method for shaping the command line to run the item on an input executable. """
-            retval = self.name
+            e_pat, p_pat, retval = re.compile(ERR_PATTERN), re.compile(PARAM_PATTERN), self.name
             use_output = False
             verb = kwargs.get('verbose', False) and getattr(self, "verbose", False)
             bmark, binary, weak = kwargs.get('benchmark', False), kwargs.get('binary', False), kwargs.get('weak', False)
             extra_opt = "" if kwargs.get('extra_opt') is None else kwargs['extra_opt'] + " "
-            kw = {'logger': self.logger, 'silent': [], 'timeout': getattr(self, "timeout", config['exec_timeout']),
-                  'reraise': True}
+            kw = {'logger': [None, self.logger][verb], 'timeout': getattr(self, "timeout", config['exec_timeout']),
+                  'reraise': True, 'silent': []}
             if not config['wine_errors']:
                 kw['silent'].append(r"^[0-9a-f]{4}\:(?:err|fixme)\:")
             # local function for replacing tokens within the string lists, i.e. "silent" and "steps"
@@ -190,7 +190,7 @@ def _init_base():
                     step = step.replace("{{output}}", output)
                     use_output = True
                 # then, search for parameter patterns
-                m = re.search(PARAM_PATTERN, step)
+                m = p_pat.search(step)
                 if m:
                     name, values = m.groups()
                     values = self._params.get(name, (values or "").split("|"))
@@ -198,7 +198,7 @@ def _init_base():
                         disp = "%s=%s" % (name, value)
                         if len(values) == 2 and "" in values:
                             disp = "" if value == "" else name
-                        attempts.append((re.sub(PARAM_PATTERN, value, step), disp))
+                        attempts.append((p_pat.sub(value, step), disp))
                 # now, run attempts for this step in random order until one succeeds
                 random.shuffle(attempts)
                 attempts = attempts or [step]
@@ -220,14 +220,12 @@ def _init_base():
                         output, error, retc = None, str(e), 1
                     output = ensure_str(output or NOT_LABELLED).strip()
                     # filter out error lines from stdout
-                    out_err = "\n".join(re.sub(ERR_PATTERN, "", l) for l in output.splitlines() \
-                              if re.match(ERR_PATTERN, l))
-                    output  = "\n".join(l for l in output.splitlines() \
-                              if not re.match(ERR_PATTERN, l) and l.strip() != "")
+                    outerr = "\n".join(e_pat.sub("", l) for l in output.splitlines() if e_pat.match(l))
+                    output = "\n".join(l for l in output.splitlines() if not e_pat.match(l) and l.strip() != "")
                     # update error string obtained from stderr
                     self._error = "\n".join(l for l in error.splitlines() \
                                             if all(re.search(p, l) is None for p in kw.get('silent', [])))
-                    self._error = (self._error + "\n" + out_err).strip()
+                    self._error = (self._error + "\n" + outerr).strip()
                     if self.name in attempt and bmark:
                         output, dt = shlex.split(output.splitlines()[-1])
                     if retc > 0:

@@ -296,7 +296,7 @@ def run(name, exec_func=execute, parse_func=lambda x, **kw: x, stderr_func=lambd
     err = stderr_func(err, **vars(a))
     msg = DETECTORS[name].get('silent')
     if msg is not None:
-        err = "\n".join([line for line in err.splitlines() if all(re.search(m, line) is None for m in msg)])
+        err = "\n".join([line for line in (err or "").splitlines() if all(re.search(m, line) is None for m in msg)])
     if parse_stderr:
         out += "\n" + err
         err = ""

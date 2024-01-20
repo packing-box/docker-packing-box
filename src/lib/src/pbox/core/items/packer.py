@@ -92,10 +92,11 @@ def __init():
         def run(self, executable, **kwargs):
             """ Customizable method for shaping the command line to run the packer on an input executable. """
             # inspect steps and set custom parameters for non-standard packers
+            p_pat = re.compile(re.sub(r"\)\?\}\}$", ")}}", PARAM_PATTERN))
             for step in getattr(self, "steps", ["%s %s" % (self.name, executable)]):
                 if "{{password}}" in step and 'password' not in self._params:
                     self._params['password'] = [random.randstr()]
-                for name, value in re.findall(re.sub(r"\)\?\}\}$", ")}}", PARAM_PATTERN), step):
+                for name, value in p_pat.findall(step):
                     if name not in self._params:
                         self._params[name] = [" " + x if x.startswith("-") else _parse_parameter(x) \
                                               for x in value.split("|")]

@@ -15,6 +15,7 @@ bi.RENAME_FUNCTIONS = {
     'as-is':   lambda p: p,
     'slugify': slugify,
 }
+bi.SPECIAL_INPUTS = ["ALL"]  # first element is for 'all', next ones are for eventual future use
 
 
 # detection

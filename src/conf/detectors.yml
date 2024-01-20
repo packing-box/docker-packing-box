@@ -33,6 +33,14 @@ Bintropy:
   multiclass: false
   references:
     - https://ieeexplore.ieee.org/document/4140989
+  silent:
+    - Unable to find the section associated with
+    - out of range
+    - will be discarded
+    - Can't read the padding
+    - template corrupted
+    - Address of new exe header is corrupted
+    - Fail to parse the DOS Stub
   source: https://github.com/packing-box/bintropy
   status: ok
 
