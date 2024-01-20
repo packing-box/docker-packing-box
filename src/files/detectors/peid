@@ -14,7 +14,7 @@ ARGS = [
          (__version__, __source__, __author__, __license__))
 @catch_exception
 def execute(name, **kwargs):
-    return identify_packer(kwargs['path'], db=kwargs['orig_args']['db'], logger=kwargs['logger'])[0][1]
+    return identify_packer(kwargs['path'], db=kwargs['orig_args']['db'], logger=kwargs['logger'])[0][1] or []
 
 
 def parse(output, **kwargs):

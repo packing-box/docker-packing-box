@@ -9,8 +9,6 @@ ARGS = [
     [("-m", "--mode"), {'default': 0, 'choices': [0, 1, 2],
                         'help': "mode of operation (0: full ; 1: per section, 2: per segment)"}],
     [("-p", "--plot"), {'action': "store_true", 'help': "plot the entropy and sections"}],
-    [("--all-blocks", ), {'action': "store_true",
-                          'help': "consider all blocks, even those in which more than the half are zeros"}],
     [("--blocksize", ), {'default': 256, 'type': int, 'help': "block size to be considered"}],
     [("--threshold-average-entropy", ), {'default': 6.677, 'type': float, 'help': "threshold for the average entropy"}],
     [("--threshold-highest-entropy", ), {'default': 7.199, 'type': float, 'help': "threshold for the highest entropy"}],
@@ -22,7 +20,8 @@ ARGS = [
 def execute(name, **kwargs):
     if kwargs['orig_args'].pop('plot'):
         plot(kwargs['path'])
-    return str(bintropy(kwargs['path'], logger=kwargs['logger'], **kwargs['orig_args']))
+    return str(bintropy(kwargs['path'], ignore_half_block_same_byte=True, logger=kwargs['logger'],
+                        **kwargs['orig_args']))
 
 
 if __name__ == "__main__":

@@ -170,7 +170,7 @@ PEiD:
     - MSDOS
     - PE
   install:
-    - pip: peid
+    - pip: peid>=2.1.0
   maintained: false
   references:
     - https://www.aldeid.com/wiki/PEiD
@@ -199,7 +199,7 @@ PyPackerDetect:
     - MSDOS
     - PE
   install:
-    - pip: pypackerdetect
+    - pip: pypackerdetect>=1.1.2
   source: https://github.com/packing-box/pypackerdetect
   status: ok
   vote:   true
