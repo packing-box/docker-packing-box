@@ -115,5 +115,6 @@ if __name__ == '__main__':
                 rpt.append(Table(data, column_headers=["Label", "Count", "Percentage"]))
         if nc > 0:
             rpt.append(Table([m], column_headers=h))
-        render(*rpt)
+        if ns + nc > 0:
+            render(*rpt)
 

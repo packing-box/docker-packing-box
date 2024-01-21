@@ -40,8 +40,8 @@ def _init_base():
             self.__init = False
         
         def __expand(self, line):
-            return line.replace("$TMP", "/tmp/%ss" % self.type) \
-                       .replace("$OPT", expanduser("~/.opt/%ss" % self.type)) \
+            return line.replace("$TMP", f"/tmp/{self.type}s") \
+                       .replace("$OPT", expanduser(f"~/.opt/{self.type}s")) \
                        .replace("$BIN", expanduser("~/.opt/bin")) \
                        .replace("$CWD", self.__cwd or "")
         
