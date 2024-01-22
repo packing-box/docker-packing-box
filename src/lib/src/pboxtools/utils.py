@@ -10,13 +10,13 @@ from os.path import exists, expanduser, isdir, isfile, join, splitext
 
 CONFIG   = None
 CONFIGS  = ["algorithms.yml", "alterations.yml", "analyzers.yml", "detectors.yml", "features.yml", "packers.yml",
-            "unpackers.yml"]
+            "scenarios.yml", "unpackers.yml"]
 DEFAULTS = {
     'workspace':   expanduser("~/.packing-box"),
     'experiments': "/mnt/share/experiments"
 }
 DSFILES  = ["data.csv", "metadata.json"]
-EXPFILES = ["commands.rc", "README.md", "conf", "datasets", "figures", "models", "scripts"]
+EXPFILES = ["commands.rc", "README.md", "conf", "data", "datasets", "figures", "models", "scripts"]
 MDFILES  = ["dump.joblib", "features.json", "metadata.json", "performance.csv"]
 
 _fmt_name = lambda x: (x or "").lower().replace("_", "-")
@@ -58,10 +58,13 @@ def _configfile(cfgfile):
             path = join(cfg['experiment'] or cfg['workspace'], *parts)
             if not exists(path):
                 path = join(cfg['workspace'], *parts)
-            with open(path) as fp:
-                yaml_str = "\n".join(l for l in fp.readlines() if len(l.split(":")) > 1 and \
+            cfg, paths = {}, [join(path, f) for f in listdir(path) if splitext(f)[1] == ".yml"] if isdir(path) else \
+                             [path]
+            for path in paths:
+                with open(path) as fp:
+                    yaml_str = "\n".join(l for l in fp.readlines() if len(l.split(":")) > 1 and \
                                                                   not re.match(r"\!{1,2}", l.split(":", 1)[1].lstrip()))
-            cfg = yaml.safe_load(yaml_str)
+                cfg.update(yaml.safe_load(yaml_str.replace("!!python", "")) or {})
             return __output(f(cfg), return_list)
         return _subwrapper
     return _wrapper
