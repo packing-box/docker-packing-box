@@ -7,7 +7,7 @@ from tinyscript import *
 _NAME = config.get('experiment')
 
 __script__      = "Experiment management tool"
-__version__     = "1.1.4"
+__version__     = "1.2.0"
 __doc__         = """
 This tool aims to manage an experiment (a structure that can hold custom YAML configurations, datasets and models).
 """
@@ -18,6 +18,7 @@ __examples__ = [[
     "compress",
     "edit",
     "edit features",
+    "import config alterations.yml",
     "list",
     "show",
 ], [
@@ -49,12 +50,33 @@ if __name__ == '__main__':
         sparsers.add_parser("edit", help="edit the README file or a YAML configuration file") \
                 .add_argument("config", nargs="?", default="README", metavar="NAME",
                               help="edit the target experiment's README(.md), commands(.rc) or YAML configuration file")
-        sparsers.add_parser("import", help="import a YAML configuration file from anywhere") \
-                .add_argument("config", type=yaml_file, metavar="YAML",
-                              help="import the target YAML configuration file(s) within the experiment")
+        imp = sparsers.add_parser("import", help="import a YAML configuration, data or script into the experiment")
+        icmds = imp.add_subparsers(dest="subcommand", help="command to be executed")
+        icmd_conf = icmds.add_parser("config", help="import a YAML configuration file")
+        icmd_conf.add_argument("path", type=yaml_file, metavar="YAML",
+                               help="import the target YAML configuration file(s) within the experiment")
+        icmd_data = icmds.add_parser("data", help="import a data file")
+        icmd_data.add_argument("path", type=ts.file_exists, metavar="DATA",
+                               help="import the target data file within the experiment")
+        icmd_data.add_argument("-f", "--format", choices=sorted(list(FORMATS.keys()) + expand_formats("All")),
+                               default="All", help="set the applicable format of the input data file")
+        icmd_script = icmds.add_parser("script", help="import a script")
+        icmd_script.add_argument("path", type=ts.file_exists, metavar="SCRIPT",
+                                 help="import the script within the experiment")
         sparsers.add_parser("list", help="list the existing experiments")
         sparsers.add_parser("play", help="play the given scenario and update commands.rc") \
                 .add_argument("scenario", type=scenario_identifier, help="scenario to be played")
+        rem = sparsers.add_parser("remove", help="remove a YAML configuration, data or script from the experiment")
+        rcmds = rem.add_subparsers(dest="subcommand", help="command to be executed")
+        rcmd_conf = rcmds.add_parser("config", help="remove a YAML configuration file")
+        rcmd_conf.add_argument("path", type=yaml_file, metavar="YAML",
+                               help="remove the target YAML configuration file(s) from the experiment")
+        rcmd_data = rcmds.add_parser("data", help="remove a data file")
+        rcmd_data.add_argument("path", type=ts.file_exists, metavar="DATA",
+                               help="remove the target data file from the experiment")
+        rcmd_script = rcmds.add_parser("script", help="remove a script")
+        rcmd_script.add_argument("path", type=ts.file_exists, metavar="SCRIPT",
+                                 help="remove the script from the experiment")
         sparsers.add_parser("replay", help="replay commands from experiment's commands.rc")
         sparsers.add_parser("show", help="get an overview of the experiment")
     initialize(noargs_action="usage")

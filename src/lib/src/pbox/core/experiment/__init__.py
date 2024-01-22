@@ -1,5 +1,5 @@
 # -*- coding: UTF-8 -*-
-from tinyscript import logging, re
+from tinyscript import logging, re, subprocess
 from tinyscript.helpers import confirm, execute_and_log as run, user_input, Path
 from tinyscript.report import *
 
@@ -68,23 +68,43 @@ def __init():
             """ Get dataset's length. """
             return Dataset.count() + Model.count()
         
-        def _import(self, **kw):
-            """ Import a custom YAML configuration file or set of YAML configuration files. """
-            l = Experiment.logger
-            p_src = Path(kw.get('config'))
-            p_exp = self.path.joinpath("conf").joinpath(p_src.basename)
-            try:
-                if not p_src.extension == ".yml":
-                    raise KeyError
-                config.get(p_src.stem, sections="definitions", error=True)
-                if not p_src.is_samepath(p_exp) and \
-                   (not p_exp.exists() or confirm(f"Are you sure you want to overwrite '{p_exp}' ?")):
-                    l.debug("copying configuration file%s from '%s'..." % (["", "s"][p_src.is_dir()], p_src))
+        def _import(self, subcommand=None, path=None, **kw):
+            """ Import an item (among configs, data and scripts) to the experiment. """
+            _confirm = lambda p: not p.exists() or confirm(f"Are you sure you want to overwrite '{p}' ?")
+            l, p_src = Experiment.logger, Path(path)
+            if not p_src.exists():
+                l.error(f"'{p_src}' is not a item for import")
+                return
+            if subcommand == "config":
+                p_exp = self.path.joinpath("conf").joinpath(p_src.basename)
+                try:
+                    if not p_src.extension == ".yml":
+                        raise KeyError
+                    config.get(p_src.stem, sections="definitions", error=True)
+                    if not p_src.is_samepath(p_exp) and _confirm(p_exp):
+                        l.debug(f"copying configuration file{['', 's'][p_src.is_dir()]} from '{p_src}'...")
+                        p_src.copy(p_exp)
+                except KeyError:
+                    l.error(f"'{p_src}' is not a valid configuration name")
+            elif subcommand == "data":
+                fmt, d = kw.get('format', "All"), self.path.joinpath("data")
+                if fmt == "All":
+                    p_exp = d.joinpath(p_src.basename)
+                else:
+                    p_exp = d.joinpath(format_shortname(fmt))
+                    p_exp.mkdir(parents=True, exist_ok=True)
+                    if fmt in FORMATS['All']:
+                        p_exp = p_exp.joinpath(p_src.basename)
+                    elif fmt in expand_formats("All"):
+                        p_exp = p_exp.joinpath(f"{p_exp.stem}_{format_shortname(fmt)}{p_exp.extension}")
+                if _confirm(p_exp):
                     p_src.copy(p_exp)
-            except KeyError:
-                if kw.get('error', True):
-                    l.error("'%s' is not a valid configuration name" % p_scr.basename)
-                    raise KeyError
+            elif subcommand == "script":
+                p_exp = self.path.joinpath("scripts").joinpath(p_src.basename)
+                if _confirm(p_exp):
+                    p_src.copy(p_exp).chmod(0o744)
+            else:
+                raise ValueError("Bad subcommand (should be one of: config|data|script)")
         
         def _load(self):
             for folder in ["conf", "datasets", "models"]:
@@ -145,7 +165,7 @@ def __init():
                 raise
             try:
                 p_main, p_exp = config[conf], self.path.joinpath("conf").joinpath(conf + ".yml")
-                self._import(config=p_main, error=True)
+                self._import("config", p_main, error=True)
                 if p_exp.is_file():
                     l.debug("editing experiment's %s configuration..." % conf)
                     edit_file(p_exp, text=True, logger=l)
@@ -171,6 +191,20 @@ def __init():
                 return
             l[0].run(experiment=self, **kw)
         
+        def remove(self, subcommand=None, path=None, **kw):
+            """ Remove an item (among configs, data and scripts) from the experiment. """
+            l, folder = Experiment.logger, {'config': "conf", 'script': "scripts"}.get(subcommand, subcommand)
+            base = self.path.joinpath(folder)
+            if not base.exists():
+                raise ValueError("Bad subcommand (should be one of: config|data|script)")
+            p_src = base.joinpath(path)
+            if not p_src.exists():
+                l.error(f"'{p_src}' is not a valid item for removal")
+                return
+            p_src.remove()
+            if f"{folder}*" in self.STRUCTURE and sum(1 for _ in base.walk(filter_func=Path.is_file)) == 0:
+                base.remove()
+        
         def replay(self, stop=True, **kw):
             """ Replay registered commands (useful when a change in pbox or configuration files have been applied). """
             self.reset(**kw)
@@ -192,8 +226,26 @@ def __init():
         
         def show(self, **kw):
             """ Show an overview of the experiment. """
+            from pboxtools import utils
+            from textwrap import wrap
+            def _tree(name):
+                p = self.path.joinpath(name)
+                if not p.exists():
+                    return
+                n = sum(1 for _ in run(f"find {p} -type f")[0].splitlines())
+                if n > 0:
+                    render(Section(f"{name.capitalize()} ({n})"))
+                    print("")
+                    for l in subprocess.run(["tree", p], check=True, capture_output=True).stdout.splitlines()[1:-1]:
+                        print(l.decode())
+            cfg = [[f.stem, "\n".join(wrap(", ".join(getattr(utils, f'list_all_{f.stem}')(return_list=True))))] \
+                   for f in self.path.joinpath("conf").listdir() if f.extension == ".yml"]
+            if len(cfg) > 0:
+                render(Section(f"Configurations ({len(cfg)})"), Table(cfg, column_headers=["Name", "Entries"]))
+            _tree("data")
             Dataset.list()
             Model.list()
+            _tree("scripts")
         
         @property
         def commands(self):
