@@ -30,8 +30,8 @@ def _gen_completions(tool, config, indent=2):
             if len(dct) == 0:
                 return
             # create parents for this depth and update the reference dictionary for further processing
-            ref_dct, ref_cmds = {}, cmds
-            _expand = lambda k, cl, x=(): "|".join(tuple(c for c in cl if re.search(k, c) and c not in x))
+            ref_dct, ref_cmds = depths.get(depth+1, {}), cmds
+            _expand = lambda k, cl, x=(): "|".join(tuple(c for c in cl if re.match(k, c) and c not in x))
             depths.setdefault(depth+1, ref_dct)
             for p in parents:
                 ref_subdct = {}
@@ -45,7 +45,7 @@ def _gen_completions(tool, config, indent=2):
                     if k == '*':
                         continue
                     for cmd in ref_cmds.keys():
-                        if re.search(k, cmd):
+                        if re.match(k, cmd):
                             used.append(cmd)
                 dct = dict([(_expand(".*", ref_cmds, used), dct.pop('*'))] + list(dct.items()))
             # now parse keys and values recursively to populate the reference dictionary
@@ -55,8 +55,8 @@ def _gen_completions(tool, config, indent=2):
                 nk, nv = _expand(k, ref_cmds) or k.strip("_"), v
                 if isinstance(v, dict):
                     # case 1: v holds one key that is reflected in lower depths ; this means that it is not about
-                    #          selecting a the case from a subparser but simply the next argument
-                    #         E.g. {'test': {'test': "DO_SOMETHING"}} ;
+                    #          selecting a case from a subparser but simply the next argument
+                    #         E.g. {'_test_': {'test': "DO_SOMETHING"}} ;
                     if len(v) == 1 and f"_{k}_" == list(v.keys())[0]:
                         _dict2depth(v, ref_cmds, depth+1, parents)
                     # case 2: v holds one or more keys with case selections, meaning that a subparser is defined
@@ -78,7 +78,17 @@ def _gen_completions(tool, config, indent=2):
                 for case, complv in dct.items():
                     quoted_case = case.replace('|','"|"')
                     block += f"{indent*(offset+2)*' '}\"{quoted_case}\")\n"
-                    if isinstance(complv, dict) and len(complv) == 1 and case == list(complv.keys())[0]:
+                    if isinstance(complv, str) and complv.startswith("FILES:"):
+                        ind, tokens = indent * (offset+3) * " ", complv.split(":")[1:]
+                        fmts, var, opt = tokens[-1].split(","), "curr", ""
+                        if len(tokens) > 1:
+                            block += f"{ind}local root=\"{tokens[0]}\"\n"
+                            var, opt = "root", " -d"
+                        pat = f"{fmts[0]}" if len(fmts) == 1 else f"@({'|'.join(fmts)})"
+                        block += f"{ind}local IFS=$'\\n'\n" \
+                                 f"{ind}COMPREPLY+=($(compgen{opt} -o plusdirs -f -X '!*.{pat}' -- \"${var}\")) ;;\n"
+                        continue
+                    elif isinstance(complv, dict) and len(complv) == 1 and case == list(complv.keys())[0]:
                         complv = complv[list(complv.keys())[0]]
                     if isinstance(complv, dict):
                         _cases(complv, depth, argpos-1, case_offset+1, True)
@@ -118,6 +128,7 @@ def _gen_completions(tool, config, indent=2):
         _dict2depth(cfg, commands)
         _depth(depths, offset)
     # start computation here
+    # case (1) list of format [ condition, completions_dictionary_when_true, completions_dictionary_when_false ]
     if isinstance(config, list):
         cond, true, false = config
         true_cmd, false_cmd = [], []
@@ -129,16 +140,27 @@ def _gen_completions(tool, config, indent=2):
             false, false_cmd = false
         except TypeError:
             pass
-        loc = list(set(true.pop('_locals_', []) + false.pop('_locals_', [])))
+        loc = true.pop('_locals_', {})
         _gen_block(true, get_commands(tool, true_cmd, logger=logger), 1)
         true_block = block
+        true_init = ""
+        for var, val in loc.items():
+            true_init += f"{2*i}{var}={val}\n"
         block = ""
+        loc2 = false.pop('_locals_', {})
         _gen_block(false, get_commands(tool, false_cmd, logger=logger), 1, True)
-        block = f"{i}if [[ {cond} ]]; then\n{true_block}{i}else\n{block}{i}fi\n"
+        false_init = ""
+        for var, val in loc2.items():
+            false_init += f"{2*i}{var}={val}\n"
+        block = f"{i}if [[ {cond} ]]; then\n{true_init}{true_block}{i}else\n{false_init}{block}{i}fi\n"
+        loc.update(loc2)
+    # case (2) completions dictionary
     else:
-        loc = config.pop('_locals_', [])
+        loc = config.pop('_locals_', {})
         _gen_block(config, get_commands(tool, logger=logger))
-    for var in loc:
+        for var, val in loc.items():
+            init += f"{i}{var}={val}\n"
+    for var in loc.keys():
         locals_ += f" {var}"
     if locals_ != "":
         locals_ += "\n"
@@ -159,7 +181,7 @@ def compgen(configs, source, indent=2):
             completion_func = _gen_completions(f, config or {}, indent) or ""
             functions += completion_func + "\n"
             logger.debug(str(f) + ":\n" + completion_func)
-        completes += f"complete -F _{n}_completions {n}\n"
+        completes += f"complete -o filenames -o bashdefault -F _{n}_completions {n}\n"
     return f"#/usr/bin/env bash\n{functions}{completes}"
 
 

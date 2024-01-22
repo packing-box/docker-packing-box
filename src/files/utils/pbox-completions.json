@@ -5,25 +5,30 @@
     "list": null,
     "plot": {
       "(?:characteristic|features|infogain|labels|samples).*": "`list-datasets`"
-    }
+    },
+    "purge": "ALL `list-datasets`"
   },
   "executable": {
     "*": null
   },
   "experiment": [
     "-f \"$HOME/.packing-box/experiment.env\"",
-    [{"_locals_": ["exp"],
-      "edit": [
-      "exp=`cat $HOME/.packing-box/experiment.env | rev | cut -d/ -f1 | rev`",
-      "COMPREPLY=($(compgen -W \"`list-experiment-configs $exp`\" \"${COMP_WORDS[2]}\"))"
-     ],
-     "import": [
-      "local IFS=$'\\n'",
-      "COMPREPLY=($(compgen -o plusdirs -f -X '!*.yml' -- \"$curr\"))"
-     ],
-     "play": "`list-all-scenarios`"}, "_NAME = \"test\""],
+    [{"_locals_": {"exp": "`cat $HOME/.packing-box/experiment.env | rev | cut -d/ -f1 | rev`",
+                   "exp_path": "`cat $HOME/.packing-box/experiment.env`"},
+      "edit": ["COMPREPLY=($(compgen -W \"`list-experiment-configs $exp`\" \"${COMP_WORDS[2]}\"))"],
+     "import": {
+       "config": "FILES:yml",
+       "data": "FILES:json,txt",
+       "script": "FILES:py,sh"
+     },
+     "play": "`list-all-scenarios`",
+     "remove": {
+       "config": "FILES:$exp_path/conf/:yml",
+       "data": "FILES:$exp_path/data/:json,txt",
+       "script": "FILES:$exp_path/scripts/:py,sh"
+     }}, "_NAME = \"test\""],
     [{"compress|open": "`list-experiments`",
-      "purge": "all `list-experiments`"}, "_NAME = None"]
+      "purge": "ALL `list-experiments`"}, "_NAME = None"]
   ],
   "model": {
     "*": "`list-models`",
@@ -31,6 +36,7 @@
     "_preprocess|test_": {
       "preprocess|test": "`list-datasets`"
     },
+    "purge": "ALL `list-models`",
     "train": "`list-datasets`"
   },
   "packer": {
@@ -40,7 +46,10 @@
     "config": "`list-config-keys`",
     "list": "alterations analyzer config detector features packer unpacker",
     "setup": "analyzer detector packer unpacker",
-    "test": "alterations analyzer detector features packer unpacker"
+    "test": "alterations analyzer detector features packer unpacker",
+    "workspace": {
+      "edit|view": null
+    }
   },
   "unpacker": {
     "*": "`list-working-unpackers`"

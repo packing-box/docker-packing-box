@@ -2,9 +2,10 @@
 from pboxtools.utils import list_tools
 from tinyscript import re, sys
 from tinyscript.argreparse import ArgumentParser
-from tinyscript.helpers import get_parsers, CompositeKeyDict as ckdict, Path, PythonPath
+from tinyscript.helpers import get_parsers, PathBasedDict as pbdict, Path, PythonPath
 from tinyscript.parser import ProxyArgumentParser
 
+from pprint import pprint
 
 __all__ = ["get_commands"]
 
@@ -17,7 +18,7 @@ def get_commands(tool, cond="", category=None, logger=None):
         return _COMMANDS[tool][cond]
     if isinstance(tool, str):
         tool = Path(f"~/.opt/tools/{tool}", expand=True)
-    parent, child, ref_psr, cmds, rm = None, None, ('main', ), ckdict(_separator_="|"), []
+    parent, child, path, cmds, rm = None, None, (), pbdict(), []
     for parser in get_parsers(tool, cond=cond, logger=logger).values():
         if isinstance(parser, ArgumentParser):
             if parent == "main" and category is not None and getattr(parser, "category", None) != category:
@@ -30,21 +31,14 @@ def get_commands(tool, cond="", category=None, logger=None):
                 continue
             # depth increases
             if nparent == child:
-                cmds[child][nchild] = ckdict(_separator_="|")
-                cmds[child]['_parent'] = cmds
-                cmds = cmds[child]
-                ref_psr += (child, )
+                path += (nchild, )
             # depth does not change
-            elif nparent == parent or parent is None:
-                cmds[nchild] = ckdict(_separator_="|")
+            elif nparent == parent:
+                path = path[:-1] + (nchild, )
             # depth decreases
-            elif len(ref_psr) > 1 and nparent == ref_psr[-2]:
-                cmds = cmds.pop('_parent', cmds)
-                cmds[nchild] = ckdict(_separator_="|")
-                ref_psr = ref_psr[:-1]
-            # unexpected
-            else:
-                raise ValueError(f"Unexpected condition while state change ({parent},{child}) => ({nparent},{nchild})")
+            elif nparent != parent != nchild:
+                path = path[:-2] + (nchild, )
+            cmds["/".join(path)] = {}
             parent, child = nparent, nchild
     # cleanup between loading different tools
     ProxyArgumentParser.reset()
