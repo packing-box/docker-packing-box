@@ -209,6 +209,19 @@ function setprompt(){
 setprompt
 PROMPT_COMMAND+=setprompt
 
+# fix scripts in path for the current experiment
+function path-scripts() {
+  local EXPERIMENT=`cat $HOME/.packing-box/experiment.env 2>/dev/null`
+  if [[ -z "$EXPERIMENT" ]]; then
+    PATH=$(echo "$PATH" | sed -E 's/:[^:]*\/scripts$//')
+  else
+    if [[ ":$PATH:" != *":$EXPERIMENT/scripts:" ]]; then
+      PATH="$PATH:$EXPERIMENT/scripts"
+    fi
+  fi
+}
+export PROMPT_COMMAND+=";path-scripts"
+
 # enable autocommit in experiment
 function autocommit() {
   local AUTOCOMMIT=`cat $HOME/.packing-box/autocommit.env 2>/dev/null`
