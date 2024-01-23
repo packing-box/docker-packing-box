@@ -59,30 +59,29 @@ def _init_base():
                 exc = list(set(l))
             if not exe.exists():
                 if not silent:
-                    self.logger.warning("'%s' does not exist" % exe)
+                    self.logger.warning(f"'{exe}' does not exist")
                 return False
             if fmt not in self._formats_exp:
                 if not silent:
-                    self.logger.debug("does not handle %s executables" % fmt if fmt is not None else \
-                                      "does not handle '%s'" % exe.filetype)
+                    self.logger.debug(f"does not handle {fmt} executables" if fmt is not None else \
+                                      f"does not handle '{exe.filetype}'")
                 return False
             for p in exc:
                 if isinstance(p, dict):
                     disp, patt = list(p.items())[0]
                     if re.search(patt, exe.filetype):
                         if not silent:
-                            self.logger.debug("does not handle %s files" % disp)
+                            self.logger.debug(f"does not handle {disp} files")
                         return False
             if ext in [_ for _ in exc if not isinstance(_, dict)]:
                 if not silent:
-                    self.logger.debug("does not handle .%s files" % ext)
+                    self.logger.debug(f"does not handle .{ext} files")
                 return False
             return True
         
         def _gui(self, target, arch, local=False):
             """ Prepare GUI script. """
-            preamble = "PWD='`pwd`'\ncd '%s'\nEXE='%s'" % (target.dirname, target.filename) if local else \
-                       "EXE='%s'" % target
+            preamble = f"PWD='`pwd`'\ncd '{target.dirname}'\nEXE='{target.filename}'" if local else f"EXE='{target}'"
             postamble = ["", "\ncd '$PWD'"][local]
             script = (GUI_SCRIPT % {'arch': arch}).replace("{{preamble}}", preamble).replace("{{postamble}}", postamble)
             cmd = re.compile(r"^(.*?)(?:\s+\((\d*\.\d*|\d+)\)(?:|\s+\[x(\d+)\])?)?$")
@@ -95,27 +94,28 @@ def _init_base():
                                 "search|set_|type|(get|select)?window)", c):
                         m = re.match("click (\d{1,5}) (\d{1,5})$", c)
                         if m is not None:
-                            c = "mousemove %s %s click" % m.groups()
-                        c = "xdotool %s" % c
+                            x, y = m.groups()
+                            c = f"mousemove {x} {y} click"
+                        c = f"xdotool {c}"
                         if c.endswith(" click") or c == "click":
                             c += " 1"  # set to left-click
                     elif slp.match(c):
                         s, t = slp.match(c).groups()
-                        bs = [" --block-size=1%s" % s[0], ""][s == "B"]
-                        c = "sleep $(bc <<< \"`ls -l%s $DST | cut -d' ' -f5`*%s\")" % (bs, t)
+                        bs = [f" --block-size=1{s[0]}", ""][s == "B"]
+                        c = f"sleep $(bc <<< \"`ls -l{bs} $DST | cut -d' ' -f5`*{t}\")"
                     actions.append(c)
                     if delay:
-                        actions.append("sleep %s" % delay)
+                        actions.append(f"sleep {delay}")
             return script.replace("{{actions}}", "\n".join(actions))
         
         def _test(self, silent=False):
             """ Preamble to the .test(...) method for validation and log purpose. """
             if self.status in STATUS_DISABLED + ["not installed"]:
-                self.logger.warning("%s is %s" % (self.cname, self.status))
+                self.logger.warning(f"{self.cname} is {self.status}")
                 return False
             logging.setLogger(self.name)
             if not silent:
-                self.logger.info("Testing %s..." % self.cname)
+                self.logger.info(f"Testing {self.cname}...")
             return True
         
         def check(self, *formats, **kwargs):
@@ -128,7 +128,7 @@ def _init_base():
                     self.logger.debug("does not apply to the selected formats")
                 return False
             if not silent:
-                self.logger.debug("disabled (status: %s)" % self.status)
+                self.logger.debug(f"disabled (status: {self.status})")
             return False
         
         def help(self, extras=None):
@@ -171,7 +171,7 @@ def _init_base():
                         .replace("{{executable.stem}}", strf(executable.dirname.joinpath(executable.stem)))
             kw['silent'].extend(list(map(_repl, getattr(self, "silent", []))))
             output, self.__cwd = "", os.getcwd()
-            steps = getattr(self, "steps", ["%s %s%s" % (self.name.replace("_", "-"), extra_opt, _str(executable))])
+            steps = getattr(self, "steps", [f"{self.name.replace('_', '-')} {extra_opt}{_str(executable)}"])
             for step in map(self.__expand, steps):
                 if self.name in step:
                     i, opt = step.index(self.name), ""
@@ -195,7 +195,7 @@ def _init_base():
                     name, values = m.groups()
                     values = self._params.get(name, (values or "").split("|"))
                     for value in values:
-                        disp = "%s=%s" % (name, value)
+                        disp = f"{name}={value}"
                         if len(values) == 2 and "" in values:
                             disp = "" if value == "" else name
                         attempts.append((p_pat.sub(value, step), disp))
@@ -236,7 +236,7 @@ def _init_base():
                             return NOT_LABELLED
                     else:
                         if param:
-                            retval += "[%s]" % param
+                            retval += f"[{param}]"
                         break
             os.chdir(self.__cwd)
             r = output if use_output or getattr(self, "use_output", False) else retval
@@ -248,17 +248,17 @@ def _init_base():
             """ Sets the item up according to its install instructions. """
             logging.setLogger(self.name)
             if self.status in STATUS_DISABLED:
-                self.logger.info("Skipping %s..." % self.cname)
-                self.logger.debug("Status: %s ; this means that it won't be installed" % self.status)
+                self.logger.info(f"Skipping {self.cname}...")
+                self.logger.debug(f"Status: {self.status} ; this means that it won't be installed")
                 return
-            self.logger.info("Setting up %s..." % self.cname)
-            opt, tmp = Path("~/.opt/%ss" % self.type, expand=True), Path("/tmp/%ss" % self.type)
+            self.logger.info(f"Setting up {self.cname}...")
+            opt, tmp = Path(f"~/.opt/{self.type}s", expand=True), Path(f"/tmp/{self.type}s")
             obin, ubin = Path("~/.opt/bin", create=True, expand=True), Path("~/.local/bin", create=True, expand=True)
             result, rm, wget = None, True, False
             self.__cwd = os.getcwd()
             for cmd in self.install:
                 if isinstance(result, Path) and not result.exists():
-                    self.logger.critical("Last command's result does not exist (%s) ; current: %s" % (result, cmd))
+                    self.logger.critical(f"Last command's result does not exist ({result}) ; current: {cmd}")
                     return
                 kw = {'logger': self.logger, 'silent': getattr(self, "silent", [])}
                 name = cmd.pop('name', "")
@@ -275,18 +275,18 @@ def _init_base():
                     arg1, arg2 = arg, arg
                 # simple install through APT
                 if cmd == "apt":
-                    run("sudo apt-get -qqy install %s" % arg, **kw)
+                    run(f"sudo apt-get -qqy install {arg}", **kw)
                 # change to the given dir (starting from reference /tmp/[ITEM]s directory if no command was run before)
                 elif cmd == "cd":
                     result = (result or tmp).joinpath(arg)
                     if not result.exists():
-                        self.logger.debug("mkdir '%s'" % result)
+                        self.logger.debug(f"mkdir '{result}'")
                         result.mkdir()
-                    self.logger.debug("cd '%s'" % result)
+                    self.logger.debug(f"cd '{result}'")
                     os.chdir(str(result))
                 # add the executable flag on the target
                 elif cmd == "chmod":
-                    run("chmod +x '%s'" % result.joinpath(arg), **kw)
+                    run(f"chmod +x '{result.joinpath(arg)}'", **kw)
                 # copy a file from the previous location (or /tmp/[ITEM]s if not defined) to ~/.opt/bin, making the
                 #  destination file executable
                 elif cmd == "copy":
@@ -299,8 +299,8 @@ def _init_base():
                     # if ~/.local/bin/... exists, then save it to ~/.opt/bin/... to superseed it
                     if dst.is_samepath(ubin.joinpath(arg2)) and dst.exists():
                         dst = obin.joinpath(arg2)
-                    if run("cp %s'%s' '%s'" % (["", "-r "][src.is_dir()], src, dst), **kw)[-1] == 0 and dst.is_file():
-                        run("chmod +x '%s'" % dst, **kw)
+                    if run(f"cp {['', '-r '][src.is_dir()]}'{src}' '{dst}'", **kw)[-1] == 0 and dst.is_file():
+                        run(f"chmod +x '{dst}'", **kw)
                     if arg1 == self.name:
                         rm = False
                     result = dst if dst.is_dir() else dst.dirname
@@ -315,24 +315,24 @@ def _init_base():
                 elif cmd in ["git", "gitr"]:
                     result = (result or tmp).joinpath(Path(urlparse(arg).path).stem.lower() if arg1 == arg2 else arg2)
                     result.remove(False)
-                    run("git clone --quiet %s%s '%s'" % (["", "--recursive "][cmd == "gitr"], arg1, result), **kw)
+                    run(f"git clone --quiet {['', '--recursive '][cmd == 'gitr']}{arg1} '{result}'", **kw)
                 # go build the target
                 elif cmd == "go":
                     result = result if arg2 == arg else Path(arg2, expand=True)
                     cwd2 = os.getcwd()
                     os.chdir(str(result))
                     #result.joinpath("go.mod").remove(False)
-                    run("go mod init '%s'" % arg1,
+                    run(f"go mod init '{arg1}'",
                         silent=["already exists", "creating new go.mod", "add module requirements", "go mod tidy"])
-                    run("go build -o %s ." % self.name, silent=["downloading"])
+                    run(f"go build -o {self.name} .", silent=["downloading"])
                     os.chdir(cwd2)
                 # create a shell script to execute the given target with its intepreter/launcher and make it executable
                 elif cmd in ["java", "mono", "sh", "wine", "wine64"]:
                     r, txt, tgt = ubin.joinpath(self.name), "#!/bin/bash\n", (result or opt).joinpath(arg)
                     if cmd == "java":
-                        txt += "java -jar \"%s\" \"$@\"" % tgt
+                        txt += f"java -jar \"{tgt}\" \"$@\""
                     elif cmd == "mono":
-                        txt += "mono \"%s\" \"$@\"" % tgt
+                        txt += f"mono \"{tgt}\" \"$@\""
                     elif cmd == "sh":
                         txt += "\n".join(arg.split("\\n"))
                     elif cmd.startswith("wine"):
@@ -340,22 +340,21 @@ def _init_base():
                         if hasattr(self, "gui"):
                             txt = self._gui(tgt, arch)
                         else:
-                            txt += "WINEPREFIX=\"$HOME/.wine%(arch)s\" WINEARCH=win%(arch)s wine%(arch)s " \
-                                   "\"%(target)s\" \"$@\"" % {'arch': arch, 'target': tgt}
-                    self.logger.debug("echo -en '%s' > '%s'" % (txt, r))
+                            txt += f"WINEPREFIX=\"$HOME/.wine{arch}\" WINEARCH=win{arch} wine{arch} \"{target}\" \"$@\""
+                    self.logger.debug(f"echo -en '{txt}' > '{r}'")
                     try:
                         r.write_text(txt)
-                        run("chmod +x '%s'" % r, **kw)
+                        run(f"chmod +x '{r}'", **kw)
                     except PermissionError:
-                        self.logger.error("bash: %s: Permission denied" % r)
+                        self.logger.error(f"bash: {r}: Permission denied")
                     result = r
                 #  create a symbolink link in ~/.local/bin
                 elif cmd == "ln":
                     r = ubin.joinpath(self.name if arg1 == arg2 else arg2)
                     r.remove(False)
                     p = (result or tmp).joinpath(arg1)
-                    run("chmod +x '%s'" % p, **kw)
-                    run("ln -fs '%s' '%s'" % (p, r), **kw)
+                    run(f"chmod +x '{p}'", **kw)
+                    run(f"ln -fs '{p}' '{r}'", **kw)
                     result = r
                 # create a shell script to execute the given target from its source directory with its intepreter/
                 #  launcher and make it executable
@@ -365,18 +364,17 @@ def _init_base():
                         arg = self._gui(result.joinpath(arg), arch, True)
                     else:
                         arg1 = opt.joinpath(self.name) if arg == arg1 == arg2 else Path(arg1, expand=True)
-                        arg2 = "WINEPREFIX=\"$HOME/.wine%s\" WINEARCH=win%s wine \"%s\" \"$@\"" % (arch, arch, arg2) \
-                               if cmd.startswith("lwine") else "./%s" % Path(arg2).basename
-                        arg = "#!/bin/bash\nPWD=\"`pwd`\"\nif [[ \"$1\" = /* ]]; then TARGET=\"$1\"; else " \
-                              "TARGET=\"$PWD/$1\"; fi\ncd \"%s\"\nset -- \"$TARGET\" \"${@:2}\"\n%s" \
-                              "\ncd \"$PWD\"" % (arg1, arg2)
+                        arg2 = f"WINEPREFIX=\"$HOME/.wine{arch}\" WINEARCH=win{arch} wine \"{arg2}\" \"$@\"" \
+                               if cmd.startswith("lwine") else f"./{Path(arg2).basename}"
+                        arg = f"#!/bin/bash\nPWD=\"`pwd`\"\nif [[ \"$1\" = /* ]]; then TARGET=\"$1\"; else TARGET=" \
+                              f"\"$PWD/$1\"; fi\ncd \"{arg1}\"\nset -- \"$TARGET\" \"{'${@:2}'}\"\n{arg2}\ncd \"$PWD\""
                     result = ubin.joinpath(self.name)
-                    self.logger.debug("echo -en '%s' > '%s'" % (arg, result))
+                    self.logger.debug(f"echo -en '{arg}' > '{result}'")
                     try:
                         result.write_text(arg)
-                        run("chmod +x '%s'" % result, **kw)
+                        run(f"chmod +x '{result}'", **kw)
                     except PermissionError:
-                        self.logger.error("bash: %s: Permission denied" % result)
+                        self.logger.error(f"bash: {result}: Permission denied")
                 # compile a project with Make
                 elif cmd == "make":
                     if not result.is_dir():
@@ -384,7 +382,7 @@ def _init_base():
                         return
                     os.chdir(str(result))
                     files = [x.filename for x in result.listdir()]
-                    make = "make %s" % arg2 if arg2 != arg1 else "make"
+                    make = f"make {arg2}" if arg2 != arg1 else "make"
                     if "CMakeLists.txt" in files:
                         kw['silent'] += ["Checking out ", "Cloning into ", "Updating "]
                         if run("cmake .", **kw)[-1] == 0:
@@ -410,23 +408,23 @@ def _init_base():
                 elif cmd == "md":
                     result, cwd2 = (result or tmp).joinpath(arg), result
                     os.chdir(self.__cwd if self.__cwd != cwd2 else str(tmp))
-                    run("mv -f '%s' '%s'" % (cwd2, result), **kw)
+                    run(f"mv -f '{cwd2}' '{result}'", **kw)
                     os.chdir(str(result))
                 # simple install through PIP
                 elif cmd == "pip":
-                    run("pip3 -qq install --user --no-warn-script-location --ignore-installed --break-system-packages "
-                        "%s" % arg, **kw)
+                    run(f"pip3 -qq install --user --no-warn-script-location --ignore-installed --break-system-packages "
+                        f"{arg}", **kw)
                 # remove a given directory (then bypassing the default removal at the end of all commands)
                 elif cmd == "rm":
                     star = arg.endswith("*")
                     p = Path(arg[:-1] if star else arg).absolute()
                     if str(p) == os.getcwd():
                         self.__cwd = self.__cwd if self.__cwd is not None else p.parent
-                        self.logger.debug("cd '%s'" % self.__cwd)
+                        self.logger.debug(f"cd '{self.__cwd}'")
                         os.chdir(self.__cwd)
                     __sh = kw.pop('shell', None)
                     kw['shell'] = True
-                    run("rm -rf '%s'%s" % (p, ["", "*"][star]), **kw)
+                    run(f"rm -rf '{p}'{['', '*'][star]}", **kw)
                     if __sh is not None:
                         kw['shell'] = __sh
                     rm = False
@@ -442,37 +440,37 @@ def _init_base():
                         ext = result.extension
                         # when the archive comes from /tmp
                     if result is None:
-                        result = tmp.joinpath("%s%s" % (self.name, ext))
+                        result = tmp.joinpath(f"{self.name}{ext}")
                     # when the archive is obtained from /tmp, 'result' was still None and was thus just set ; we still
                     #  need to fix the extension
                     if ext == ".tar":
                         for e in ["br", "bz2", "bz2", "gz", "xz", "Z"]:
-                            if result.dirname.joinpath("%s.tar.%s" % (self.name, e)).exists():
+                            if result.dirname.joinpath(f"{self.name}.tar.{e}").exists():
                                 ext = ".tar." + e
-                                result = result.dirname.joinpath("%s%s" % (self.name, ext))
+                                result = result.dirname.joinpath(f"{self.name}{ext}")
                                 break
                     if result.extension == ext:
                         # decompress to the target folder but also to a temp folder if needed (for debugging purpose)
                         paths, first = [tmp.joinpath(arg1)], True
                         if kw.get('verbose', False):
-                            paths.append(TempPath(prefix="%s-setup-" % self.type, length=8))
+                            paths.append(TempPath(prefix=f"{self.type}-setup-", length=8))
                         # handle password with the second argument
                         pswd = ""
                         if arg2 != arg1:
-                            pswd = " -p'%s'" % arg2 if ext == ".7z" else \
-                                   " -P '%s'" % arg2 if ext == ".zip" else \
-                                   " p'%s'" % arg2 if ext == ".rar" else \
+                            pswd = f" -p'{arg2}'" if ext == ".7z" else \
+                                   f" -P '{arg2}'" if ext == ".zip" else \
+                                   f" p'{arg2}'" if ext == ".rar" else \
                                    ""
                         for d in paths:
                             run_func = run if first else run2
                             if ext == ".tar.bz2":
-                                run_func("bunzip2 -f '%s'" % result, **(kw if first else {}))
+                                run_func(f"bunzip2 -f '{result}'", **(kw if first else {}))
                                 ext = ".tar"  # switch extension to trigger 'tar x(v)f'
                                 result = result.dirname.joinpath(result.stem + ".tar")
-                            cmd = "7z x '%s'%s -o'%s' -y" % (result, pswd, d) if ext == ".7z" else \
-                                  "unzip%s -o '%s' -d '%s/'" % (pswd, result, d) if ext == ".zip" else \
-                                  "unrar x%s -y -u '%s' '%s/'" % (pswd, result, d) if ext == ".rar" else \
-                                  "tar xv%sf '%s' -C '%s'" % (["", "z"][ext == ".tar.gz"], result, d)
+                            cmd = f"7z x '{result}'{pswd} -o'{d}' -y" if ext == ".7z" else \
+                                  f"unzip{pswd} -o '{result}' -d '{d}/'" if ext == ".zip" else \
+                                  f"unrar x{pswd} -y -u '{result}' '{d}/'" if ext == ".rar" else \
+                                  f"tar xv{['', 'z'][ext == '.tar.gz']}f '{result}' -C '{d}'"
                             if ext not in [".7z", ".zip"]:
                                 d.mkdir(parents=True, exist_ok=True)
                             # log execution (run) the first time, not afterwards (run2)
@@ -517,13 +515,13 @@ def _init_base():
                             if result.exists():
                                 if dest.is_under(result):
                                     t = tmp.joinpath(self.name)
-                                    run("mv -f '%s' '%s'" % (dest, t), **kw)
+                                    run(f"mv -f '{dest}' '{t}'", **kw)
                                     dest = t
                                 else:
-                                    run("rm -rf '%s'" % result, **kw)
-                            run("mv -f '%s' '%s'" % (dest, result), **kw)
+                                    run(f"rm -rf '{result}'", **kw)
+                            run(f"mv -f '{dest}' '{result}'", **kw)
                     else:
-                        raise ValueError("%s is not a %s file" % (result, ext.lstrip(".").upper()))
+                        raise ValueError(f"{result} is not a {ext.lstrip('.').upper()} file")
                 # download a resource, possibly downloading 2-stage generated download links (in this case, the list is
                 #  handled by downloading the URL from the first element then matching the second element in the URL's
                 #  found in the downloaded Web page
@@ -532,7 +530,7 @@ def _init_base():
                     rc = 0
                     if isinstance(arg, list):
                         url = arg[0].replace("%%", "%")
-                        for line in run("wget -qO - %s" % url, **kw)[0].splitlines():
+                        for line in run(f"wget -qO - {url}", **kw)[0].splitlines():
                             line = line.decode()
                             m = re.search(r"href\s+=\s+(?P<q>[\"'])(.*)(?P=q)", line)
                             if m is not None:
@@ -542,7 +540,7 @@ def _init_base():
                                 url = arg[0]
                         if url != arg[0]:
                             result = tmp.joinpath(self.name + Path(urlparse(url).path).extension)
-                            run("wget -qO %s %s" % (result, url), **kw)[-1]
+                            run(f"wget -qO {result} {url}", **kw)[-1]
                     # single link
                     else:
                         single_arg = arg1 == arg2
@@ -556,8 +554,7 @@ def _init_base():
                                 tag, idx, pattern = re.match(regex, tag).groups()
                             except AttributeError:
                                 pass
-                            resp = json.loads(run("curl -Ls https://api.github.com/repos%s/releases/%s" % \
-                                                  (path, tag))[0])
+                            resp = json.loads(run(f"curl -Ls https://api.github.com/repos{path}/releases/{tag}")[0])
                             # case 1: https://github.com/username/repo:TAG{pattern} ; get file based on pattern
                             if pattern is not None:
                                 try:
@@ -578,24 +575,24 @@ def _init_base():
                                 if idx.isdigit():
                                     arg1 = resp['assets'][int(idx)]['browser_download_url']
                             if arg1 is None:
-                                raise ValueError("Bad tag for the release URL: %s" % tag)
+                                raise ValueError(f"Bad tag for the release URL: {tag}")
                         if url.netloc == "github.com" and tag != "":
                             url = urlparse(arg1)
                         result = tmp.joinpath(self.name + Path(url.path).extension if single_arg else arg2)
-                        run("wget -qO %s %s" % (result, arg1.replace("%%", "%")), **kw)[-1]
+                        run(f"wget -qO {result} {arg1.replace('%%', '%')}", **kw)[-1]
                     wget = True
             if self.__cwd != os.getcwd():
-                self.logger.debug("cd %s" % self.__cwd)
+                self.logger.debug(f"cd {self.__cwd}")
                 os.chdir(self.__cwd)
             target = tmp.joinpath(self.name)
             if rm and target.exists():
-                run("rm -rf %s" % target, **kw)
+                run(f"rm -rf {target}", **kw)
         
         def test(self, files=None, keep=False, **kw):
             """ Tests the item on some executable files. """
             if not self._test(kw.pop('silent', False)):
                 return
-            d = TempPath(prefix="%s-tests-" % self.type, length=8)
+            d = TempPath(prefix=f"{self.type}-tests-", length=8)
             for fmt in self._formats_exp:
                 hl = []
                 if files:
@@ -611,8 +608,8 @@ def _init_base():
                         continue
                     tmp = d.joinpath(exe.filename)
                     self.logger.debug(exe.filetype)
-                    run("cp %s %s" % (exe, tmp))
-                    run("chmod +x %s" % tmp)
+                    run(f"cp {exe} {tmp}")
+                    run(f"chmod +x {tmp}")
                     # use the verb corresponding to the item type by shortening it by 2 chars ; 'packer' => 'pack'
                     n = tmp.filename
                     label = getattr(self, self.type[:-2])(str(tmp))
@@ -621,11 +618,11 @@ def _init_base():
                         hl.append(h)
                     getattr(self.logger, "failure" if label == NOT_PACKED else \
                                          "warning" if label == NOT_LABELLED else "success")(n)
-                    self.logger.debug("Label: %s" % label)
+                    self.logger.debug(f"Label: {label}")
                 if len(l) > 1 and len(hl) == 1:
-                    self.logger.warning("Packing gave the same hash for all the tested files: %s" % hl[0])
+                    self.logger.warning(f"Packing gave the same hash for all the tested files: {hl[0]}")
             if not keep:
-                self.logger.debug("rm -f %s" % str(d))
+                self.logger.debug(f"rm -f {d}")
                 d.remove()
         
         @property
@@ -671,12 +668,12 @@ def _init_base():
                     item.cname,
                     ",".join(collapse_formats(*expand_formats(*item.formats))),
                     STATUS[item.status],
-                    ["", "<%s>" % item.source][item.source != ""],
+                    ["", f"<{item.source}>"][item.source != ""],
                 ])
             descr = {k: "/".join(sorted(v)) for k, v in descr.items()}
-            score = n if n == n_ok else "%d/%d" % (n_ok, n)
+            score = n if n == n_ok else f"{n_ok}/{n}"
             return ([] if n == 0 else \
-                    [Section("%ss (%s)" % (cls.__name__, score)), Table(items, column_headers=pheaders)]), descr
+                    [Section(f"{cls.__name__}s ({score})"), Table(items, column_headers=pheaders)]), descr
     return Base
 Base = lazy_object(_init_base)
 
