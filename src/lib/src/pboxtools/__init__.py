@@ -255,7 +255,7 @@ def run(name, exec_func=execute, parse_func=lambda x, **kw: x, stderr_func=lambd
     if a.version:
         v = DETECTORS[name].get('version')
         if v:
-            # accepted formats:
+            # supported formats:
             #  - module.submodules:variable ; e.g. peid.__info__:__version__
             p = v.split(":")
             if len(p) == 2:
@@ -267,17 +267,21 @@ def run(name, exec_func=execute, parse_func=lambda x, **kw: x, stderr_func=lambd
                         i += 1
                     v = getattr(m, p[1])
             else:
+                out = ""
                 #  - <output> => get the version from the output
                 if v == "<output>":
                     out, err = execute(name, version=True, exit=False, logger=a.logger)
                     out += err
                 #  - file path ; e.g. ~/.opt/detectors/detector_name/version.txt
-                elif isfile(v):
-                    with open(v) as f:
-                        out = f.read().strip()
-                v = re.search(r"\d{1,2}(?:\.\d+){1,3}", out).group()
+                else:
+                    v = v.replace("$OPT", expanduser(f"~/.opt/detectors")).replace("$BIN", expanduser("~/.opt/bin"))
+                    if isfile(v):
+                        with open(v) as f:
+                            out = f.read().strip()
+                m = re.search(r"\d{1,2}(?:\.\d+){1,3}", out)
+                v = m.group() if m else ""
             #  - if not the first or second format, consider a string
-            v = "%s %s" % (name, v.lstrip("v"))
+            v = ("%s %s" % (name, v.lstrip("v"))).rstrip()
             with suppress(KeyError):
                 v += " <%s>" % DETECTORS[name]['source']
             with suppress(KeyError):
