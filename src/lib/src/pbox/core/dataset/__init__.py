@@ -920,6 +920,7 @@ class Dataset(Entity):
         def _shorten(path):
             p = Path(path)
             for i, s in enumerate(src):
+                s = Path(s).absolute()
                 if p.is_under(s):
                     return i, str(p.absolute().relative_to(s))
             return -1, path
