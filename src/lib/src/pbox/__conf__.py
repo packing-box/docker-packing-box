@@ -47,7 +47,7 @@ _bl.__name__ = "boolean"
 
 
 def _cg(s, v):
-    if v not in ["emulated", "fast"]:
+    if v.lower() not in ["emulated", "fast"]:
         raise ValueError(f"bad CFG algorithm '{v}' ; shall be one of: emulated|fast")
     return v.capitalize()
 _cg.__name__ = "CFG extraction algorithm"

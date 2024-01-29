@@ -455,8 +455,8 @@ class Dataset(Entity):
             l.info(f"Searching for subfolders with samples to be ingested in the new dataset '{dataset.basename}'...")
         else:
             l.info(f"Searching for subfolders with samples to be ingested as distinct datasets...")
-        for sp in p.walk(filter_func=lambda x: x.is_dir() and all(not y.startswith(".") for y in x.parts[1:])):
-            if any(x in (exclude or []) for x in sp.parts[1:]):
+        for sp in p.walk(filter_func=lambda x: x.is_dir() and all(not y.startswith(".") for y in x.parts)):
+            if any(x in (exclude or []) for x in sp.parts):
                 l.debug(f"{sp.stem} was excluded by the user")
                 continue
             i, keep = 0, True
@@ -1047,9 +1047,16 @@ class Dataset(Entity):
             labels = Path(labels)
         if isinstance(labels, Path) and labels.is_file():
             with labels.open() as f:
-                labels = json.load(f)
+                if labels.extension == ".json":
+                    labels = json.load(f)
+                elif labels.extension == ".csv":
+                    data = pd.read_csv(f, sep=";")
+                    if 'hash' in data.columns and 'label' in data.columns:
+                        labels = {}
+                        for i in range(len(data)):
+                            labels[data.loc[i, "hash"]] = [data.loc[i, "label"]]
         if not isinstance(labels, dict):
-            raise ValueError("Bad labels ; not a dictionary or JSON file")
+            raise ValueError("Bad labels ; not a dictionary, a valid JSON file or a data CSV file")
         return {h: l or NOT_PACKED for h, l in labels.items()}
     
     #TODO: refactor (dates from pbox structure with 'common' and 'learning' subpackages, each containing respectively

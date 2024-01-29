@@ -83,7 +83,7 @@ def __init_scenario():
             pass
         
         def run(self, fail_stop=True, commit=True, experiment=None, quiet=False, **kwargs):
-            r = [Title(re.sub(r"[-_]", " ", self.name).title())]
+            l, r = Scenario.logger, [Title(re.sub(r"[-_]", " ", self.name).title())]
             if hasattr(self, "description"):
                 r += [Text(self.description)]
             obj = "The objective is to " + self.objective[0].lower() + self.objective[1:]
@@ -99,12 +99,12 @@ def __init_scenario():
                 if tool not in _TOOLS:
                     tool = config['workspace'].joinpath("scripts", tool)
                     if not tool.exists():
-                        raise ValueError(f"bad command ; should be one of {'|'.join(_TOOLS)} or a script from the "
-                                         f"'scripts' folder of the experiment")
+                        raise ValueError(f"bad command '{tool}' ; should be one of {'|'.join(_TOOLS)} or a script from"
+                                         f" the 'scripts' folder of the experiment")
                     if re.search(r"<.*?>", cmd):
                         raise ValueError(f"bad script command ; does not support inputs or state variables")
                 else:
-                    parser = get_parser(tool, logger=Scenario.logger, command=cmd)
+                    parser = get_parser(tool, logger=l, command=cmd)
                     args = parser.parse_args(namespace=args)
                     cmd = args._command
                     # STATE VARIABLES to be added to arguments namespace
@@ -141,7 +141,7 @@ def __init_scenario():
                             p.stdout.close()
                             retc = p.wait()
                             if retc != 0 and fail_stop:
-                                Scenario.logger.critical("Scenario stopped")
+                                l.critical("Scenario stopped")
                                 sys.exit(retc)
                             # STATE VARIABLES to be added to arguments namespace (based on tool's output)
                             if tool == "model" and hasattr(args, "command") and args.command == "train":
@@ -149,12 +149,12 @@ def __init_scenario():
                                     if b"Name: " in l:
                                         args.name = l.split(b"Name: ")[1].decode()
                         else:
-                            print(cmd)
+                            l.debug(cmd)
                             os.system(cmd)
                         if experiment is not None:
                             experiment.commit(cmd, force=True)
                 except KeyboardInterrupt:
-                    Scenario.logger.warning("Scenario interrupted")
+                    l.warning("Scenario interrupted")
                     sys.exit(0)
             print("")
         

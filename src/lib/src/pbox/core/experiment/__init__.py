@@ -100,7 +100,9 @@ def __init():
                 if _confirm(p_exp):
                     p_src.copy(p_exp)
             elif subcommand == "script":
-                p_exp = self.path.joinpath("scripts").joinpath(p_src.basename)
+                scripts = self.path.joinpath("scripts")
+                scripts.mkdir(parents=True, exist_ok=True)
+                p_exp = scripts.joinpath(p_src.basename)
                 if _confirm(p_exp):
                     p_src.copy(p_exp).chmod(0o744)
             else:

@@ -12,7 +12,8 @@ class Alteration(dict2):
     
     def __call__(self, executable, namespace, **kwargs):
         self._exe, l = executable, self._logger
-        l.debug(f"applying alterations to {executable.stem}%s..." % ["", f" ({self.loop} steps)"][self.loop > 1])
+        l.debug(f"applying alterations to {executable.stem}%s..." % \
+                ["", f" ({self.loop} steps)"][isinstance(self.loop, int) and self.loop > 1])
         # loop the specified number of times or accross sections or simply once if not specified
         # IMPORTANT NOTE: looping accross sections is done on a primary parsing of the executable, otherwise, a
         #                  generator of sections could change during iteration because of alterations such as adding a
@@ -38,7 +39,7 @@ class Alteration(dict2):
                     if not callable(f):
                         continue
                     f(parsed, l)
-            except:
+            except Exception as e:
                 # unexpected error, thrown exception and leave
                 if self.fail == "error":
                     raise
@@ -50,7 +51,7 @@ class Alteration(dict2):
                     break
                 # in this case, warn the user and stop
                 elif self.fail == "warn":
-                    l.warning()
+                    l.warning(str(e))
                     break
                 else:
                     raise ValueError("Bad 'fail' value (should be one of: continue|error|stop)")

@@ -48,7 +48,7 @@ def render(*elements, **kw):
                     if getattr(e, "borderless", True):
                         opt['box'] = SIMPLE_HEAD
                     table = RichTable(**opt)
-                    for i, col in enumerate(e.column_headers):
+                    for col in e.column_headers:
                         table.add_column(col, justify="center")
                     for row in e.data:
                         if not all(set(str(cell).strip()) == {"-"} for cell in row):

@@ -172,7 +172,6 @@ PEiD:
   install:
     - pip:  peid>=2.1.1
     - exec: rm -f $OPT/.userdb_txt.json $OPT/.userdb_asl_txt.json
-  maintained: false
   references:
     - https://www.aldeid.com/wiki/PEiD
     - www.softpedia.com/get/Programming/Packers-Crypters-Protectors/PEiD-updated.shtml

@@ -48,11 +48,11 @@ def _set_subparsers(parent, *items):
 
 
 if __name__ == '__main__':
-    items = ["alterations", "analyzer", "detector", "features", "packer", "unpacker"]
+    items = ["alterations", "analyzer", "detector", "features", "packer", "scenarios", "unpacker"]
     sparsers = parser.add_subparsers(dest="command", metavar="CMD", title="positional argument",
                                      help="command to be executed")
     # level 1 subparsers for cleaning up leftovers and configuring options of pbox
-    p = sparsers.add_parser("clean", help="cleanup temporary folders")
+    sparsers.add_parser("clean", help="cleanup temporary folders")
     p = sparsers.add_parser("config", help="set a config option")
     for section in config.sections():
         grp = p.add_argument_group("%s options" % section.rstrip("s"))
@@ -83,9 +83,9 @@ if __name__ == '__main__':
     p = sparsers.add_parser("workspace", help="inspect the workspace")
     # level 2 subparsers for actions against the workspace
     sp = p.add_subparsers(dest="subcommand", help="subcommand to be executed")
-    edt = sp.add_parser("edit", help="edit something from the workspace")
-    edt.add_argument("item", type=item_exists, help="item to be edited")
-    view = sp.add_parser("view", help="view the folders and subfolders tree of the workspace")
+    sp.add_parser("edit", help="edit something from the workspace") \
+      .add_argument("item", type=item_exists, help="item to be edited")
+    sp.add_parser("view", help="view the folders and subfolders tree of the workspace")
     # now, initialize arguments
     initialize(noargs_action="usage", ext_logging=True, autocomplete=True)
     configure_logging(args.verbose)

@@ -18,6 +18,7 @@ _WL_EXTRA_NODES = ("arg", "arguments", "keyword", "lambda")
 
 _fmt_name = lambda x: (x or "").lower().replace("_", "-")
 _sec_name = lambda s: getattr(s, "real_name", getattr(s, "name", s))
+_size     = lambda exe, ratio=.1, blocksize=512: round(int(exe['size'] * ratio) / blocksize + .5) * blocksize
 
 
 def _select(apply_func=None):
@@ -58,7 +59,7 @@ class dict2(dict):
     
     def __call__(self, data, silent=False, **kwargs):
         d = {k: getattr(random, k) for k in ["choice", "randbytes", "randint", "randrange", "randstr"]}
-        d.update({'apply': _apply, 'select': _select(), 'select_section_name': _select(_sec_name)})
+        d.update({'apply': _apply, 'select': _select(), 'select_section_name': _select(_sec_name), 'size': _size})
         d.update(_EVAL_NAMESPACE)
         d.update(data)
         kwargs.update(getattr(self, "parameters", {}))

@@ -15,7 +15,7 @@ def __init_pe():
         is_executable=_p(lambda s: s.characteristics & s.CHARACTERISTICS['MEM_EXECUTE'].value > 0),
         is_readable=_p(lambda s: s.characteristics & s.CHARACTERISTICS['MEM_READ'].value > 0),
         is_writable=_p(lambda s: s.characteristics & s.CHARACTERISTICS['MEM_WRITE'].value > 0),
-        rawdata_size=_p(lambda s: s.size),
+        raw_data_size=_p(lambda s: s.size),
         real_name="name",
         virtual_size="virtual_size",
         CHARACTERISTICS=sec_chars,
