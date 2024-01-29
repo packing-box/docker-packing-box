@@ -77,6 +77,9 @@ datasets/
 experiments*/
 /*.png
 /*.exe
+/*.xlsx
+/*.csv
+/*.bak
 
 # config files
 #src/conf/*.yml
