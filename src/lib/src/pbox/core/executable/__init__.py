@@ -1,5 +1,4 @@
 # -*- coding: UTF-8 -*-
-from bintropy import entropy
 from contextlib import suppress
 from datetime import datetime
 from tinyscript import hashlib, os, re, shutil
@@ -14,6 +13,8 @@ from .parsers import get_parser
 from .visualization import *
 from .visualization import __all__ as _viz
 from ...helpers import *
+
+lazy_load_module("bintropy")
 
 
 __all__ = ["is_exe", "Executable"] + _alter + _features + _viz
@@ -127,7 +128,7 @@ class Executable(Path):
         Alterations(self, alterations)
     
     def block_entropy(self, blocksize=0, ignore_half_block_zeros=False):
-        return entropy(self.read_bytes(), blocksize, ignore_half_block_zeros)
+        return bintropy.entropy(self.read_bytes(), blocksize, ignore_half_block_zeros)
     
     def copy(self, extension=False, overwrite=False):
         # NB: 'dest' is not instantiated with the Executable class as it does not exist yet
@@ -230,11 +231,11 @@ class Executable(Path):
     
     @cached_property
     def block_entropy_256B(self):
-        return entropy(self.read_bytes(), 256, True)[1]
+        return bintropy.entropy(self.read_bytes(), 256, True)[1]
     
     @cached_property
     def block_entropy_512B(self):
-        return entropy(self.read_bytes(), 512, True)[1]
+        return bintropy.entropy(self.read_bytes(), 512, True)[1]
     
     @cached_property
     def cfg(self):
@@ -263,7 +264,7 @@ class Executable(Path):
     
     @cached_property
     def entropy(self):
-        return entropy(self.read_bytes())
+        return bintropy.entropy(self.read_bytes())
     
     @cached_property
     def features(self):
@@ -307,7 +308,7 @@ class Executable(Path):
     @cached_property
     def parsed(self):
         if not hasattr(self, "_parsed"):
-            self.parse()  # this will use the default parser (lief)
+            self.parse()  # this will use the default parser configured in ~/.packing-box.conf
         return self._parsed
     
     @property

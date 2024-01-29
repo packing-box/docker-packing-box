@@ -1,5 +1,4 @@
 # -*- coding: UTF-8 -*-
-from pboxtools.utils import list_tools
 from tinyscript import re, sys
 from tinyscript.argreparse import ArgumentParser
 from tinyscript.helpers import get_parsers, PathBasedDict as pbdict, Path, PythonPath

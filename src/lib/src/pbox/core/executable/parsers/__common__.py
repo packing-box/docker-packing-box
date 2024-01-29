@@ -1,9 +1,10 @@
 # -*- coding: UTF-8 -*-
-from bintropy import entropy
 from tinyscript import functools
-from tinyscript.helpers import execute
+from tinyscript.helpers import execute, is_generator
 
 from ....helpers.data import get_data
+
+lazy_load_module("bintropy")
 
 
 __all__ = ["get_section_class", "supported_parsers", "AbstractParsedExecutable"]
@@ -17,7 +18,7 @@ def supported_parsers(*parsers):
         @functools.wraps(f)
         def _subwrapper(parsed, *args, **kwargs):
             if parsed.parser not in parsers:
-                raise ParserError("parser '%s' is not supported alteration '%s'" % f.__name__.lstrip("_"))
+                raise ParserError("parser '%s' is not supported for alteration '%s'" % f.__name__.lstrip("_"))
             return f(parsed, *args, **kwargs)
         return _subwrapper
     return _wrapper
@@ -57,7 +58,7 @@ class AbstractParsedExecutable(AbstractBase):
     
     def average_block_entropy_per_section(self, blocksize=256, ignore_half_block_zeros=True, overlay=True, raw=True):
         r, t = 0., 0
-        for e, w in [(entropy(rawbytes(s.content), blocksize, ignore_half_block_zeros),
+        for e, w in [(bintropy.entropy(rawbytes(s.content), blocksize, ignore_half_block_zeros),
                       len(rawbytes(s.content)) if raw else s.size) for s in self]:
             if e == .0 or e[1] in [.0, None]:
                 continue
@@ -68,7 +69,7 @@ class AbstractParsedExecutable(AbstractBase):
             o = getattr(getattr(self, "_parsed", self), "overlay", b"")
             c = rawbytes(o)
             w = len(c)
-            r += (entropy(c, blocksize, ignore_half_block_zeros)[1] or 0.) * w
+            r += (bintropy.entropy(c, blocksize, ignore_half_block_zeros)[1] or 0.) * w
             t += w
         return r / (t or 1)
     
@@ -117,6 +118,17 @@ class AbstractParsedExecutable(AbstractBase):
     def section_names(self, *sections):
         sections = sections[0] if len(sections) == 1 and isinstance(sections, (list, tuple)) else sections
         return [s.name for s in (sections or self)]
+    
+    @property
+    def _section_class(self):
+        try:
+            first = self.sections[0] if isinstance(self.sections, (list, tuple)) and len(self.sections) > 0 else \
+                    next(self.sections) if is_generator(self.sections) else None
+        except StopIteration:
+            first = None
+        if first is None:
+            raise ParserError("Could not determine original section class")
+        return type(first)
     
     @property
     def checksum(self):
@@ -193,7 +205,7 @@ def get_section_class(name, **mapping):
                 setattr(self, attr, value)
         
         def block_entropy(self, blocksize=256, ignore_half_block_zeros=True):
-            return entropy(rawbytes(self.content), blocksize, ignore_half_block_zeros)
+            return bintropy.entropy(rawbytes(self.content), blocksize, ignore_half_block_zeros)
         
         @property
         def block_entropy_256B(self):
@@ -205,7 +217,7 @@ def get_section_class(name, **mapping):
         
         @property
         def entropy(self):
-            return entropy(rawbytes(self.content))
+            return bintropy.entropy(rawbytes(self.content))
         
         @property
         def is_standard(self):

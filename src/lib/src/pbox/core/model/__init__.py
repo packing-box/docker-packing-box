@@ -13,8 +13,6 @@ from ..pipeline import *
 from ...helpers import *
 
 lazy_load_module("joblib")
-lazy_load_module("sklearn.feature_selection", alias="skfs")
-lazy_load_module("sklearn.model_selection", alias="skms")
 
 
 __all__ = ["DumpedModel", "Model"] + _algo + _metrics
@@ -28,8 +26,8 @@ class BaseModel(Entity):
     DEFAULTS = {
         '_features': {},
         '_metadata': {},
-        '_performance': pd.DataFrame(),
-        'pipeline': DebugPipeline(),
+        '_performance': lazy_object(lambda: pd.DataFrame()),
+        'pipeline': lazy_object(lambda: DebugPipeline()),
     }
     
     def __len__(self):
@@ -179,8 +177,9 @@ class BaseModel(Entity):
         else:
             return True
         # apply variance threshold of 0.0 to remove useless features and rectify the list of features
+        from sklearn.feature_selection import VarianceThreshold
         l.debug("> remove 0-variance features")
-        selector = skfs.VarianceThreshold()
+        selector = VarianceThreshold()
         selector.fit(self._data)
         self._data = self._data[self._data.columns[selector.get_support(indices=True)]]
         removed = [f for f in self._features.keys() if f not in self._data]
@@ -196,9 +195,10 @@ class BaseModel(Entity):
             self._train.data, self._train.target = self._data, self._target
             self._test.data, self._test.target = pd.DataFrame(), pd.DataFrame()
         else:  # use a default split of 80% training and 20% testing
+            from sklearn.model_selection import train_test_split
             tsize = kw.get('split_size', .2)
             self._train.data, self._test.data, self._train.target, self._test.target = \
-                skms.train_test_split(self._data, self._target, test_size=tsize, random_state=42, stratify=self._target)
+                train_test_split(self._data, self._target, test_size=tsize, random_state=42, stratify=self._target)
         #FIXME: from there, self._train.data has columns of types float64 and bool ;
         #        for MBKMeans, it gives "TypeError: No matching signature found"
         #pd.to_numeric(s)
@@ -516,12 +516,12 @@ class Model(BaseModel):
         # if a param_grid is input, perform cross-validation and select the best classifier
         _convert = lambda d: {k.split("__", 1)[1]: v for k, v in d.items()}
         if len(param_grid) > 0:
+            from sklearn.model_selection import GridSearchCV
             l.debug("> applying Grid Search (CV=%d)..." % cv)
             Pipeline.silent = True
             # as we use a pipeline, we need to rename all parameters to [estimator name]__[parameter]
             param_grid = {"%s__%s" % (self.pipeline.steps[-1][0], k): v for k, v in param_grid.items()}
-            grid = skms.GridSearchCV(self.pipeline.pipeline, param_grid=param_grid, cv=cv, scoring="accuracy",
-                                     n_jobs=n_jobs)
+            grid = GridSearchCV(self.pipeline.pipeline, param_grid=param_grid, cv=cv, scoring="accuracy", n_jobs=n_jobs)
             grid.fit(self._data, self._target.values.ravel())
             results = '\n'.join("  %0.3f (+/-%0.03f) for %r" % (m, s * 2, _convert(p)) \
                                 for m, s, p in zip(grid.cv_results_['mean_test_score'],

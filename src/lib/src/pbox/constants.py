@@ -1,6 +1,7 @@
 # -*- coding: UTF-8 -*-
 import builtins as bi
 from subprocess import check_output
+from tinyscript import re
 from tinyscript.helpers import slugify, Path
 
 
@@ -46,9 +47,9 @@ ps -eaf | grep -v grep | grep -E -e "/bin/bash.+bin/$NAME" -e ".+/$NAME\.exe\$" 
 sleep .1
 mv -f "$DST" "$SRC"{{postamble}}
 """
-bi.OS_COMMANDS = check_output("compgen -c", shell=True, executable="/bin/bash").splitlines()
-bi.ERR_PATTERN = r"^\x07?\s*(?:\-\s*)?(?:\[(?:ERR(?:OR)?|\!)\]|ERR(?:OR)?\:)\s*"
-bi.PARAM_PATTERN = r"{{([^\{\}]*?)(?:\[([^\{\[\]\}]*?)\])?}}"
+bi.OS_COMMANDS = lazy_object(lambda: check_output("compgen -c", shell=True, executable="/bin/bash").splitlines())
+bi.ERR_PATTERN = lazy_object(lambda: re.compile(r"^\x07?\s*(?:\-\s*)?(?:\[(?:ERR(?:OR)?|\!)\]|ERR(?:OR)?\:)\s*"))
+bi.PARAM_PATTERN = lazy_object(lambda: re.compile(r"{{([^\{\}]*?)(?:\[([^\{\[\]\}]*?)\])?}}"))
 bi.STATUS_DISABLED = ["broken", "commercial", "info", "useless"]
 bi.STATUS_ENABLED = lazy_object(lambda: [s for s in STATUS.keys() if s not in STATUS_DISABLED + ["not installed"]])
 

@@ -152,7 +152,7 @@ def _init_base():
         
         def run(self, executable, **kwargs):
             """ Customizable method for shaping the command line to run the item on an input executable. """
-            e_pat, p_pat, retval = re.compile(ERR_PATTERN), re.compile(PARAM_PATTERN), self.name
+            retval = self.name
             use_output = False
             verb = kwargs.get('verbose', False) and getattr(self, "verbose", False)
             bmark, binary, weak = kwargs.get('benchmark', False), kwargs.get('binary', False), kwargs.get('weak', False)
@@ -190,7 +190,7 @@ def _init_base():
                     step = step.replace("{{output}}", output)
                     use_output = True
                 # then, search for parameter patterns
-                m = p_pat.search(step)
+                m = PARAM_PATTERN.search(step)
                 if m:
                     name, values = m.groups()
                     values = self._params.get(name, (values or "").split("|"))
@@ -198,7 +198,7 @@ def _init_base():
                         disp = f"{name}={value}"
                         if len(values) == 2 and "" in values:
                             disp = "" if value == "" else name
-                        attempts.append((p_pat.sub(value, step), disp))
+                        attempts.append((PARAM_PATTERN.sub(value, step), disp))
                 # now, run attempts for this step in random order until one succeeds
                 random.shuffle(attempts)
                 attempts = attempts or [step]
@@ -220,8 +220,8 @@ def _init_base():
                         output, error, retc = None, str(e), 1
                     output = ensure_str(output or NOT_LABELLED).strip()
                     # filter out error lines from stdout
-                    outerr = "\n".join(e_pat.sub("", l) for l in output.splitlines() if e_pat.match(l))
-                    output = "\n".join(l for l in output.splitlines() if not e_pat.match(l) and l.strip() != "")
+                    outerr = "\n".join(ERR_PATTERN.sub("", l) for l in output.splitlines() if ERR_PATTERN.match(l))
+                    output = "\n".join(l for l in output.splitlines() if not ERR_PATTERN.match(l) and l.strip() != "")
                     # update error string obtained from stderr
                     self._error = "\n".join(l for l in error.splitlines() \
                                             if all(re.search(p, l) is None for p in kw.get('silent', [])))
