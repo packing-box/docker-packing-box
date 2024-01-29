@@ -84,7 +84,7 @@ teardown_file(){
 
 # ✓ purge
 @test "purge all models" {
-  run model purge all
+  run model purge ALL
   run model list
   refute_output --partial "$TEST_MD"
   assert_output --partial 'No model found'
