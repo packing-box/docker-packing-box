@@ -7,7 +7,7 @@ __all__ = [
    "get_pe_data", "valid_names",
     # modifiers
    "add_API_to_IAT", "add_lib_to_IAT", "add_section", "append_to_section", "move_entrypoint_to_new_section",
-   "move_entrypoint_to_slack_space", "rename_all_sections", "rename_section", "set_checksum",
+   "move_entrypoint_to_slack_space", "set_checksum",
 ]
 
 
@@ -86,8 +86,6 @@ def add_section(name, section_type=None, characteristics=None, data=b""):
         # for some reason, the above API raises a warning in LIEF:
         #  **[section name] content size is bigger than section's header size**
         # source: https://github.com/lief-project/LIEF/blob/master/src/PE/Builder.cpp
-        #from ..parsers import get_parser
-        #s = get_parser("lief").PE.Section(name=name)
         from ..parsers.lief.__common__ import lief
         s = lief.PE.Section(name=name)
         s.content = list(data)
@@ -98,7 +96,7 @@ def add_section(name, section_type=None, characteristics=None, data=b""):
     return _add_section
 
 
-def append_to_section(section, data):
+def append_to_section(name, data):
     """ Append bytes (either raw data or a function run with the target section's available size in the slack space as
          its single parameter) at the end of a section, in the slack space before the next section.
     """
@@ -107,10 +105,12 @@ def append_to_section(section, data):
         s = parsed.section(name, True)
         available_size = s.size - len(s.content)
         d = list(data(available_size)) if callable(data) else list(data)
-        if len(d) > available_size:
-            logger.warning("Warning: Data length is greater than the available space at the end of the section. The" \
-                           " slack space is limited to %d bytes, %d bytes of data were provided. Data will be " \
-                           "truncated to fit in the slack space." % (available_size, len(d)))
+        if available_size == 0:
+            logger.debug("{name}: This section has no slack space.")
+        elif len(d) > available_size:
+            logger.debug("{name}: Data length is greater than the available space at the end of the section. The" \
+                         f" slack space is limited to {available_size} bytes, {len(d)} bytes of data were provided." \
+                         " Data will be truncated to fit in the slack space.")
             d = d[:available_size]
         s.content = list(s.content) + d
     return _append_to_section
@@ -166,39 +166,6 @@ def move_entrypoint_to_slack_space(section_input, pre_data=b"", post_data_source
         s.virtual_size += add_size
         parsed.optional_header.addressof_entrypoint = new_entry
     return _move_entrypoint_to_slack_space
-
-
-def rename_all_sections(old_sections, new_sections):
-    """ Rename a given list of sections. """
-    modifiers = [rename_section(old, new) for old, new in zip(old_sections, new_sections)]
-    def _rename_all_sections(parsed, logger):
-        for m in modifiers:
-            try:
-                parser = m(parsed, logger)
-            except LookupError:
-                parser = None
-        return parser
-    return _rename_all_sections
-
-
-def rename_section(old_section, new_name, error=True):
-    """ Rename a given section. """
-    if error and old_section is None:
-        raise ValueError("Old section shall not be None")
-    if new_name is None:
-        raise ValueError("New section name shall not be None")
-    if len(new_name) > 8:
-        raise ValueError("Section name can't be longer than 8 characters (%s)" % new_name)
-    def _rename_section(parsed, logger):
-        try:
-            sec = parsed.section(old_section, original=True) if isinstance(old_section, str) else old_section
-        except ValueError:
-            if error:
-                raise
-            return
-        logger.debug("rename: %s -> %s" % (sec.name or "<empty>", new_name))
-        sec.name = new_name
-    return _rename_section
 
 
 def set_checksum(value):
