@@ -6,7 +6,7 @@ from tinyscript.report import *
 
 
 __banner__      = "packing-box"
-__version__     = "1.2.0"
+__version__     = "1.2.1"
 __description__ = "Display this help message or packer's help"
 
 
@@ -64,14 +64,21 @@ def overview(show=False, format=None, category=None, keep=None):
 
 if __name__ == '__main__':
     valid_categories = tuple(sorted(set(c for p in Packer.registry for c in getattr(p, "categories", [])))) + ("All", )
-    megs = [parser.add_mutually_exclusive_group() for i in range(4)]
-    megs[0].add_argument("-c", "--category", choices=valid_categories, help="filter on a category of packers")
-    megs[1].add_argument("-f", "--format", default="All", help="filter on a format of executables")
-    for i in range(4):
-        megs[i].add_argument("-i", "--item", help="get help for a particular detector, packer or unpacker")
-    megs[2].add_argument("-k", "--keep", choices=["detectors", "packers", "unpackers"],
-                         help="only keep detectors, packers or unpackers")
-    megs[3].add_argument("-s", "--show-all", action="store_true", help="show all packers, even those that are broken")
+    megs = [parser.add_mutually_exclusive_group() for _ in range(8)]
+    arg_c = megs[0].add_argument("-c", "--category", choices=valid_categories, help="filter on a category of packers")
+    megs[4].add_argument(arg_c)
+    arg_f = megs[1].add_argument("-f", "--format", default="All", help="filter on a format of executables")
+    megs[5].add_argument(arg_f)
+    arg_i = megs[0].add_argument("-i", "--item", help="get help for a particular detector, packer or unpacker")
+    for i in range(3): megs[1+i].add_argument(arg_i)
+    arg_k = megs[2].add_argument("-k", "--keep", choices=["detectors", "packers", "unpackers"],
+                                 help="only keep detectors, packers or unpackers")
+    megs[6].add_argument(arg_k)
+    arg_s = megs[3].add_argument("-s", "--show-all", action="store_true",
+                                 help="show all packers, even those that are broken")
+    megs[7].add_argument(arg_s)
+    arg_y = megs[4].add_argument("-y", "--yaml", action="store_true", help="include YAML definition")
+    for i in range(3): megs[5+i].add_argument(arg_y)
     initialize()
     configure_logging(args.verbose)
     if args.item is None:
@@ -82,6 +89,20 @@ if __name__ == '__main__':
             subcls = cls.get(args.item, error=False)
             if subcls:
                 render(subcls.help())
+                if args.yaml:
+                    print("")
+                    yaml, in_block = "\n", False
+                    with open(cls.source) as f:
+                        for l in f:
+                            if l.split(":")[0] == subcls.cname:
+                                in_block = True
+                            elif in_block and l.strip() == "":
+                                break
+                            if in_block:
+                                yaml += 2 * " " + l
+                    from rich.console import Console
+                    from rich.syntax import Syntax
+                    Console().print(Syntax(yaml, "yaml"))
                 break
         if subcls is None:
             logger.error("%s not found" % args.item)
