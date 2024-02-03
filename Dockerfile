@@ -171,7 +171,7 @@ RUN find /tmp/analyzers -type f -executable -exec mv {} $UOPT/bin/ \; \
 # install detectors (including wrapper scripts)
 COPY --chown=$USER $FILES/detectors/* /tmp/detectors/
 RUN find /tmp/detectors -type f -executable -exec mv {} $UOPT/bin/ \; \
- && find /tmp/detectors -type f -iname '*.txt' -exec mv {} $UOPT/bin/ \; \
+ && find /tmp/detectors -type f -iname '*.txt' -exec mv {} $UOPT/detectors/ \; \
  && $PBOX setup detector
 # install packers
 COPY --chown=$USER $FILES/packers/* /tmp/packers/
@@ -179,6 +179,10 @@ RUN $PBOX setup packer
 # install unpackers
 #COPY ${FILES}/unpackers/* /tmp/unpackers/  # leave this commented as long as $FILES/unpackers has no file
 RUN $PBOX setup unpacker
+# geenerate Bash completions
+COPY --chown=$USER $FILES/utils/_pbox-compgen $UOPT/utils/
+COPY --chown=$USER $FILES/utils/pbox-completions.json $UOPT/utils/
+RUN $UOPT/utils/_pbox-compgen $UOPT/utils/pbox-completions.json -f $HOME/.bash_completion
 # ----------------------------------------------------------------------------------------------------------------------
 RUN find $UOPT/bin -type f -exec chmod +x {} \;
 ENV UOPT=$UOPT
