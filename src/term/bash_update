@@ -55,6 +55,7 @@ pbox-update() {
     source $HOME/.bashrc
     find /mnt/share/src/files/detectors/ -type f \( ! -iname \"*\.*\" \) -exec cp -f {} $OPT/bin/ \;
     mv -f $OPT/bin/userdb*.txt $OPT/detectors/
+    rm -f $OPT/detectors/.userdb_txt.json ~/.local/lib/python3.11/site-packages/peid/db/.userdb_txt.json
     if [ ! "$*" = "-n" ] && [ ! "$*" = "--no-internet" ] && [ $ret -eq 0 ]; then
       printf "${CYA}Upgrading Pip...${RST}\n"
       pip -qq install --user --no-warn-script-location --break-system-packages --upgrade pip
