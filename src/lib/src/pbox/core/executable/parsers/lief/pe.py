@@ -7,8 +7,8 @@ __all__ = ["PE"]
 
 def __init_pe():
     _p = cached_property
-    sec_chars = {k: lief.PE.SECTION_CHARACTERISTICS.__entries[k][0] for k in lief.PE.SECTION_CHARACTERISTICS.__entries}
-    sec_types = {k: lief.PE.SECTION_TYPES.__entries[k][0] for k in lief.PE.SECTION_TYPES.__entries}
+    sec_chars = {k: v for k, _, v in getattr(lief.PE.Section.CHARACTERISTICS, "@entries").values()}
+    sec_types = {k: v for k, _, v in getattr(lief.PE.SECTION_TYPES, "@entries").values()}
     PESection = get_section_class("PESection",
         characteristics="characteristics",
         has_slack_space=_p(lambda s: s.size > s.virtual_size),
@@ -58,7 +58,7 @@ def __init_pe():
         
         @property
         def iat(self):
-            return self._parsed.data_directory(lief.PE.DATA_DIRECTORY.IMPORT_TABLE)
+            return self._parsed.data_directory(lief.PE.DataDirectory.TYPES.IMPORT_TABLE)
         
         @property
         def imported_dlls(self):

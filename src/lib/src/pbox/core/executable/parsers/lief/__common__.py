@@ -85,7 +85,8 @@ class Binary(AbstractParsedExecutable):
     def __new__(cls, path, *args, **kwargs):
         self = super().__new__(cls)
         self._parsed = lief.parse(str(path))
-        if self._parsed is not None and cls.__name__.upper() == self._parsed.format.name:
+        self.name = Path(path).basename
+        if self._parsed is not None and cls.__name__.upper() == self._parsed.format.__name__:
             return self
     
     def __getattr__(self, name):
@@ -98,6 +99,7 @@ class Binary(AbstractParsedExecutable):
     
     def build(self):
         builder = self._get_builder()
+        #FIXME: fails with NSPack and LIEF 0.13.0 => fixed with 0.14.0 ?
         builder.build()
         builder.write(self.name)
         with open(self.name, 'ab') as f:
