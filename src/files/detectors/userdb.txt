@@ -4,9 +4,10 @@
 ;  - PEiDTab
 ;  - ExeinfoPe
 ;  - PEV
-; Sanitized from signatures unrelated to packing, namely based on keywords:
-;  audio,graphics,format,file,driver,font,banner,compiler
-; 4774 signatures in list
+; Sanitized from signatures:
+; - unrelated to packing, namely based on keywords: audio,graphics,format,file,driver,font,banner,compiler
+; - yielding FP, discovered through detection results with the Packing Box on subsets of dataset-packed-pe (see https://github.com/packing-box)
+; 4771 signatures in list
 
 [Alienyze -> morfal]
 signature = 55 8B EC 81 EC 60 01 00 00 53 56 64 A1 30 00 00 00 89 85 70 FF FF FF 8B 8D 70 FF FF FF 8B 51 0C 89 55 AC 8B 45 AC 8B 48 0C 8B 51 28 89 55 CC C7 45 B0 00 00 00 00 C7 45 94 00 00 00 00 8B 45 B0 8B 4D CC 0F B7 14 41 85 D2 74 23 8B 45 B0 8B 4D CC 0F B7 14 41 83 FA 5C 75 09 8B 45 B0 83 C0 01 89 45 94 8B 4D B0 83 C1 01 89 4D B0 EB CF 8B 55 AC 8B 42 14 8B 08 89 4D AC 8B 55 AC 8B 02 89 85
@@ -1030,10 +1031,6 @@ ep_only = true
 
 [ASProtect v1.1 MTEc]
 signature = 33 C0 BE ?? ?? 8B D8 B9 ?? ?? BF ?? ?? BA ?? ?? 47 4A 74
-ep_only = true
-
-[ASProtect v1.2]
-signature = 68 01 ?? ?? ?? C3
 ep_only = true
 
 [ASProtect v1.2]
@@ -6897,10 +6894,6 @@ signature = 8B 44 24 04 23 05 ?? ?? ?? ?? 50 E8 ?? ?? ?? ?? 83 C4 04 FE 05 ?? ??
 ep_only = true
 
 [NeoLite v2.0]
-signature = E9 A6
-ep_only = true
-
-[NeoLite v2.0]
 signature = E9 ?? ?? ?? ?? ?? ?? ?? ?? 57 41 54 43 4F 4D ?? 43 2F 43 2B 2B 33 32 ?? 52 75
 ep_only = true
 
@@ -6910,10 +6903,6 @@ ep_only = true
 
 [NeoLite vx.x]
 signature = 9E 37 00 00 ?? ?? 48 ?? ?? ?? 6F 4C ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? 61
-ep_only = true
-
-[Neolite v2.0]
-signature = E9 A6 00 00 00
 ep_only = true
 
 [NetRun 3.10]
