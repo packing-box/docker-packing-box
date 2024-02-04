@@ -1,18 +1,19 @@
 #!/usr/bin/python3
 # -*- coding: UTF-8 -*-
+from bintropy.__init__ import SUBLABELS
 from pbox import *
 from tinyscript import *
 
 
 __script__      = "Executable manipulation tool"
-__version__     = "1.0.0"
+__version__     = "1.1.0"
 __doc__         = """
 This tool aims to manipulate a single executable.
 """
 __description__ = "Manipulate a single executable"
 __examples__ = [
     "alter rename_sections program.exe",
-    "parse lief program.exe",
+    "plot -d 300 -f jpg program.exe",
     "show program.exe",
     "visualize program.exe",
 ]
@@ -28,9 +29,16 @@ if __name__ == '__main__':
     add_argument(agroup, "alteration", "alterations-set", optional=True)
     feat = sparsers.add_parser("features", help="compute features of the target executable")
     add_argument(feat, "executable", "features-set")
+    plot = sparsers.add_parser("plot", help="plot the target executable")
+    add_argument(plot, "executable")
+    plot.add_argument("-d", "--dpi", default=200, type=int, help="output image resolution in DPI")
+    plot.add_argument("-f", "--format", choices=IMG_FORMATS, help="output image format")
+    plot.add_argument("-p", "--prefix", help="string to be prepended to the target filename")
+    plot.add_argument("-s", "--sublabel", choices=list(SUBLABELS.keys()), help="label to be added under the filename")
     add_argument(sparsers.add_parser("show", help="show information about the target executable"), "executable")
     initialize(noargs_action="usage")
     configure_logging(args.verbose)
+    args.logger = logger
     # now execute
     if args.command == "visualize":
         pass  #TODO
