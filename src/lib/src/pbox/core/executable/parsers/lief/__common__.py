@@ -1,5 +1,4 @@
 # -*- coding: UTF-8 -*-
-from tinyscript import functools, os
 from tinyscript.helpers import Path
 
 from ..__common__ import *
@@ -40,32 +39,8 @@ lazy_load_object("_LIEF2CS_ARCH", __init_LIEF2CS_ARCH)
 
 
 def __init_lief(lief):
-    errors = config['lief_errors']
-    # define a decorator that handle LIEF errors setting
-    def _handle_errors(f):
-        @functools.wraps(f)
-        def _wrapper(*args, **kwargs):
-            if not errors:
-                # capture the stderr messages from LIEF
-                tmp_fd, null_fd = os.dup(2), os.open(os.devnull, os.O_RDWR)
-                os.dup2(null_fd, 2)
-            r = f(*args, **kwargs)
-            if not errors:
-                # restore stderr
-                os.dup2(tmp_fd, 2)
-                os.close(null_fd)
-            return r
-        return _wrapper
-    # redefine parsing function to throw an error when the binary could not be parsed
-    def _lief_parse(target, *args, **kwargs):
-        target = Path(target, expand=True)
-        if not target.exists():
-            raise OSError("'%s' does not exist" % target)
-        binary = _handle_errors(lief._parse)(str(target))
-        if binary is None:
-            raise OSError("'%s' has an unknown format")
-        return binary
-    lief._parse, lief.parse = lief.parse, _lief_parse
+    lief.logging.enable() if config['lief_logging'] else lief.logging.disable()
+    #lief._parse, lief.parse = lief.parse, _lief_parse
     # monkey-patch header-related classes ; this allows following calls (given that a parsed object from the Executable
     #  abstraction has this __getitem__ method too):
     #   exe.parsed['header']['signature']
@@ -85,7 +60,6 @@ class Binary(AbstractParsedExecutable):
     def __new__(cls, path, *args, **kwargs):
         self = super().__new__(cls)
         self._parsed = lief.parse(str(path))
-        self.name = Path(path).basename
         if self._parsed is not None and cls.__name__.upper() == self._parsed.format.__name__:
             return self
     
@@ -98,11 +72,12 @@ class Binary(AbstractParsedExecutable):
             raise
     
     def build(self):
+        p = str(self.path)
         builder = self._get_builder()
         #FIXME: fails with NSPack and LIEF 0.13.0 => fixed with 0.14.0 ?
         builder.build()
-        builder.write(self.name)
-        with open(self.name, 'ab') as f:
+        builder.write(p)
+        with open(p, 'ab') as f:
             f.write(bytes(self.overlay))
     
     def disassemble(self, offset=None, n=32, mnemonic=False):

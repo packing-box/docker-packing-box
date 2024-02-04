@@ -122,17 +122,16 @@ def move_entrypoint_to_new_section(name, section_type=None, characteristics=None
     """
     @supported_parsers("lief")
     def _move_entrypoint_to_new_section(parsed, logger):
-        address_bitsize = [64, 32]["32" in parsed.path.format]
         old_entry = parsed.entrypoint + 0x10000
         #  push current_entrypoint
         #  ret
-        entrypoint_data = [0x68] + list(old_entry.to_bytes(address_bitsize // 8, "little")) + [0xc3]
+        entrypoint_data = [0x68] + list(old_entry.to_bytes([4, 8][parsed.path.format[-2:] == "64"], "little")) + [0xc3]
         # other possibility:
         #  mov eax current_entrypoint
         #  jmp eax
         #  entrypoint_data = [0xb8] + list(old_entry.to_bytes(4, 'little')) + [0xff, 0xe0]
-        full_data = list(pre_data) + entrypoint_data + list(post_data)
-        add_section(name, section_type or parsed.SECTION_TYPES['TEXT'], characteristics, full_data)(parsed, logger)
+        add_section(name, section_type or parsed.SECTION_TYPES['TEXT'], characteristics,
+                    list(pre_data) + entrypoint_data + list(post_data))(parsed, logger)
         parsed.optional_header.addressof_entrypoint = parsed.get_section(name).virtual_address + len(pre_data)
     return _move_entrypoint_to_new_section
 
@@ -148,7 +147,7 @@ def move_entrypoint_to_slack_space(section_input, pre_data=b"", post_data_source
         old_entry = parsed.entrypoint + 0x10000
         #  push current_entrypoint
         #  ret
-        entrypoint_data = [0x68] + list(old_entry.to_bytes(address_bitsize//8, 'little')) + [0xc3]
+        entrypoint_data = [0x68] + list(old_entry.to_bytes([4, 8][parsed.path.format[-2:] == "64"], 'little')) + [0xc3]
         # other possibility:
         #  mov eax current_entrypoint
         #  jmp eax

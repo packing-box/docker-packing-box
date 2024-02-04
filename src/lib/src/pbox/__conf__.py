@@ -103,7 +103,7 @@ bi.config = Config("packing-box",
         'definitions': {k: opt_tuple(k) for k in \
              ['algorithms', 'alterations', 'analyzers', 'detectors', 'features', 'packers', 'scenarios', 'unpackers']},
         'logging': {
-            'lief_errors': ("false", "BOOL", "display LIEF parsing errors", _bl),
+            'lief_logging': ("false", "BOOL", "display LIEF logging messages", _bl),
             'wine_errors': ("false", "BOOL", "display Wine errors", _bl),
         },
         'others': {

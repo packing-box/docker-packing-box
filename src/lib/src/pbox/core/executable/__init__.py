@@ -125,7 +125,7 @@ class Executable(Path):
                 pass
     
     def alter(self, *alterations, **kwargs):
-        Alterations(self, alterations)
+        Alterations(self, alterations or None)
     
     def block_entropy(self, blocksize=0, ignore_half_block_zeros=False):
         return bintropy.entropy(self.read_bytes(), blocksize, ignore_half_block_zeros)
@@ -173,15 +173,16 @@ class Executable(Path):
             self._parsed.real_section_names  # trigger computation of real names
         return self._parsed
     
-    def plot(self, format=None, prefix="", dpi=200, sublabel="size-ep-ent", **kw):
+    def plot(self, format=None, prefix="", dpi=200, sublabel="size-ep-ent", **kwargs):
         from bintropy import plot
-        fn = prefix + Path(self.realpath).basename
+        fn = (prefix or "") + Path(self.realpath).basename
         if hasattr(self, "_dataset"):
             fn = Path(self._dataset.basename, "samples", fn)
-        plot(self, img_name=figure_path(fn, format=format), labels=[self.label], sublabel=sublabel,
-             format=format or config['format'], dpi=dpi, target=fn, **kw)
+        path = figure_path(fn, format=format)
+        kwargs.get('logger', null_logger).info(f"Saving to {path}...")
+        plot(self, img_name=path, labels=[self.label], sublabel=sublabel, dpi=dpi, target=fn)
     
-    def show(self, base_info=True, sections=True, features=False, **kw):
+    def show(self, base_info=True, sections=True, features=False, **kwargs):
         ds, r = hasattr(self, "_dataset"), []
         if base_info:
             l = [f"**Hash**:          {self.hash}",

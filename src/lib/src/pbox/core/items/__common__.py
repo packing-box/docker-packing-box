@@ -590,8 +590,10 @@ def _init_base():
         
         def test(self, files=None, keep=False, **kw):
             """ Tests the item on some executable files. """
+            # execute a self-test to check that item 'self' is enabled
             if not self._test(kw.pop('silent', False)):
                 return
+            # then handle input files and test 'self' on them
             d = TempPath(prefix=f"{self.type}-tests-", length=8)
             for fmt in self._formats_exp:
                 hl = []

@@ -737,15 +737,15 @@ class Dataset(Entity):
         self.__limit = limit if limit > 0 else len(self)
         self.__per_format = per_format
         if len(self) > 0:
-            c = List(["**#Executables**: %d" % self._metadata['executables'],
-                      "**Format(s)**:    %s" % ", ".join(self._metadata['formats']),
-                      "**Packer(s)**:    %s" % (", ".join(get_counts(self._metadata).keys()) or "-"),
-                      "**Size**:         %s" % human_readable_size(self.path.size),
-                      "**Labelled**:     %.2f%%" % self.labelling])
+            c = List([f"**#Executables**: {self._metadata['executables']}",
+                      f"**Format(s)**:    {', '.join(self._metadata['formats'])}",
+                      f"**Packer(s)**:    {', '.join(get_counts(self._metadata).keys()) or '-'}",
+                      f"**Size**:         {human_readable_size(self.path.size)}",
+                      f"**Labelled**:     {self.labelling:.2f}%"])
             if len(self._alterations) > 0:
-                c._data.append("**Altered**:      %d%%" % (int(round(100 * self._metadata['altered'], 0))))
-                c._data.append("**Alterations**:  %s" % ", ".join(self._alterations.keys()))
-            c._data.append("**With files**:   %s" % ["no", "yes"][self._files])
+                c._data.append(f"**Altered**:      {int(round(100 * self._metadata['altered'], 0)):.2f}%")
+                c._data.append(f"**Alterations**:  {', '.join(self._alterations.keys())}")
+            c._data.append(f"**With files**:   {['no','yes'][self._files]}")
             r = [Section("Dataset characteristics"), c]
             r.extend(self.overview)
             render(*r)
@@ -961,7 +961,7 @@ class Dataset(Entity):
                 continue
             # per-size-range statitics
             data1.setdefault(fmt, [])
-            percent = lambda x, y: "%.2f" % (100 * (float(x) / y)) if y > 0 else 0
+            percent = lambda x, y: f"{100 * (float(x) / y):.2f}" if y > 0 else 0
             for c in CAT:
                 # 0:   category
                 # 1,2: count and percentage of not labelled

@@ -31,8 +31,9 @@ lazy_load_object("plt", __init_plt)
 
 def figure_path(filename, format=None):
     # fix the extension if not specified
-    if Path(filename).extension[1:] not in IMG_FORMATS:
-        filename = f"{filename}.{format or config['format']}"
+    p = Path(filename)
+    if p.extension[1:] not in IMG_FORMATS:
+        filename = f"{p.stem}.{format or config['format']}"
     # at this point, 'filename' is either a string with eventual separators for subfolders if the figure is to be sorted
     #  in the scope of an experiment
     try:
@@ -54,7 +55,6 @@ def save_figure(f):
          function ; put it in the "figures" subfolder of the current experiment's folder if relevant. """
     @functools.wraps(f)
     def _wrapper(*a, **kw):
-        import matplotlib.pyplot as plt
         l = getattr(a[0], "logger", null_logger)
         l.info("Preparing plot data...")
         try:

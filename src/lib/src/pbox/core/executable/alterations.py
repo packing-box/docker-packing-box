@@ -25,6 +25,7 @@ class Alteration(dict2):
             l.warning("Bad 'loop' value (should be positive integer or 'sections')")
             return
         for i in iterator:
+            l.debug(f"starting iteration #{i}...")
             parsed = executable.parse(self.parser)
             namespace.update({'binary': parsed, executable.group.lower(): parsed})
             if self.loop == "sections":
@@ -48,6 +49,7 @@ class Alteration(dict2):
                     continue
                 # in this situation, it is known that the loop will fail at some point, no exception trace is needed
                 elif self.fail == "stop":
+                    l.debug(str(e))
                     break
                 # in this case, warn the user and stop
                 elif self.fail == "warn":
@@ -55,7 +57,7 @@ class Alteration(dict2):
                     break
                 else:
                     raise ValueError("Bad 'fail' value (should be one of: continue|error|stop)")
-            l.debug(f"rebuilding binary (build config: {parsed._build_config})")
+            l.debug(f"rebuilding binary... (build config: {parsed._build_config})")
             parsed.build()
     
     # default values on purpose not set via self.setdefault(...)
