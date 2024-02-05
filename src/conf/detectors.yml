@@ -237,7 +237,7 @@ REMINDer:
   formats:
     - All
   install:
-    - pip: reminder-detector
+    - pip: reminder-detector>=1.2.0
   multiclass: false
   references:
     - https://ieeexplore.ieee.org/document/5404211
