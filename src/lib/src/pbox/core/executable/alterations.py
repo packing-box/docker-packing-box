@@ -38,7 +38,7 @@ class Alteration(dict2):
             if not a:
                 raise ExecutableBuildError(f"{parsed.path}: build failed")
             elif b == a:
-                l.warning(f"{parsed.path}: unchanged after build")
+                raise ExecutableBuildError(f"{parsed.path}: unchanged after build")
             return a
         # start iterating over 'iterator'
         built = False
@@ -70,7 +70,7 @@ class Alteration(dict2):
                     continue
                 # in this situation, it is known that the loop will fail at some point, no exception trace is needed
                 elif self.fail == "stop":
-                    l.debug(f"> finished in {n} iterations")
+                    l.debug(f"> finished in {n} iteration{['','s'][n>1]}")
                     break
                 # in this case, warn the user and stop
                 elif self.fail == "warn":
@@ -106,7 +106,6 @@ class Alteration(dict2):
     def parser(self):
         try:
             p = self._exe.shortgroup
-            delattr(self, "_exe")
         except AttributeError:
             p = "default"
         return self.get('parser', config[f'{p}_parser'])
