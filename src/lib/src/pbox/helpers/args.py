@@ -3,8 +3,17 @@ from tinyscript import functools
 from tinyscript.helpers.data.types import file_exists, folder_does_not_exist, folder_exists, json_config, pos_int
 
 
-__all__ = ["add_argument", "characteristic_identifier", "expand_parameters", "item_exists", "legend_location",
-           "percentage", "scenario_identifier", "set_yaml", "yaml_file"]
+__all__ = ["add_argument", "characteristic_identifier", "expand_parameters", "figure_options", "item_exists",
+           "legend_location", "percentage", "scenario_identifier", "set_yaml", "yaml_file"]
+
+
+def _fix_args(f):
+    @functools.wraps(f)
+    def _wrapper(self, value=None):
+        if value is None:
+            value = self
+        return f(self, value)
+    return _wrapper
 
 
 def add_argument(parser, *names, **kwargs):
@@ -39,7 +48,7 @@ def add_argument(parser, *names, **kwargs):
             parser.add_argument("name2", type=folder_does_not_exist, help="new name of the dataset")
         elif name == "executable":
             if kwargs.get('single', False):
-                parser.add_argument("executable", help="executagle file", **params)
+                parser.add_argument("executable", help="executable file", **params)
             else:
                 parser.add_argument("executable", help="executable or folder containing executables or dataset or data"
                                                        " CSV file", **params)
@@ -61,8 +70,6 @@ def add_argument(parser, *names, **kwargs):
                                     help="select specific label (keeps order)")
                 parser.add_argument("-m", "--max-not-matching", type=pos_int,
                                     help="maximum number of labels not matching")
-        elif name == "format":
-            parser.add_argument("-f", "--format", default="png", choices=IMG_FORMATS, help="output image file format")
         elif name == "ignore-labels":
             parser.add_argument("--ignore-labels", action="store_true",
                                 help="while computing metrics, only consider those not requiring labels")
@@ -161,6 +168,20 @@ def feature_identifier(name):
     if name not in Features.names():
         raise ValueError("Not a valid feature")
     return name
+
+
+def figure_options(parser):
+    group = parser.add_argument_group("figure options", before="extra arguments")
+    for option, params in config._defaults['visualization'].items():
+        kw = {}
+        if params[1] != "BOOL":
+            kw['metavar'] = params[1]
+            if len(params) > 3:
+                kw['type'] = _fix_args(params[3])
+        else:
+            kw['action'] = "store_true"
+        group.add_argument(f"--{option.replace('_', '-')}", default=config[option], help=params[2], **kw)
+    return group
 
 
 def item_exists(string):

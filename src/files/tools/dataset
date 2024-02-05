@@ -135,22 +135,27 @@ if __name__ == '__main__':
                            note="by 'characteristic', it is meant either executable metadata or feature")
     add_argument(plot_char, "reduction-algorithm", "binary", "ncomponents", "perplexity")
     plot_feat = pcmds.add_parser("features", help="distribution of one or multiple features (bar chart)")
-    add_argument(plot_feat, "dsname", "feature", "format", "multiclass")
+    add_argument(plot_feat, "dsname", "feature", "multiclass")
+    figure_options(plot_feat)
     plot_featcomp = pcmds.add_parser("features-compare", help="compare feature difference with other datasets")
-    add_argument(plot_featcomp, "dsname", "feature", "aggregate", "datasets", "format", "max-features",
+    add_argument(plot_featcomp, "dsname", "feature", "aggregate", "datasets", "max-features",
                  max_feats_with="largest difference")
+    figure_options(plot_featcomp)
     plot_ig = pcmds.add_parser("infogain", help="sorted distribution of information gains for the selected features "
                                                 "(bar chart)")
-    add_argument(plot_ig, "dsname", "feature", "format", "multiclass", "max-features",
-                 max_feats_with="highest information gain")
+    add_argument(plot_ig, "dsname", "feature", "multiclass", "max-features", max_feats_with="highest information gain")
+    figure_options(plot_ig)
     plot_igcomp = pcmds.add_parser("infogain-compare", help="compare information gain difference between this dataset "
                                                             "and others")
-    add_argument(plot_igcomp, "dsname", "feature", "aggregate", "datasets", "format", "multiclass", "max-features",
+    add_argument(plot_igcomp, "dsname", "feature", "aggregate", "datasets", "multiclass", "max-features",
                  max_feats_with="highest information gain")
+    figure_options(plot_igcomp)
     plot_lab = pcmds.add_parser("labels", help="distribution of labels in the dataset (pie chart)")
-    add_argument(plot_lab, "dsname", "format")
+    add_argument(plot_lab, "dsname")
+    figure_options(plot_lab)
     plot_samp = pcmds.add_parser("samples", help="plot each executable from the target dataset")
-    add_argument(plot_samp, "dsname", "format")
+    add_argument(plot_samp, "dsname")
+    figure_options(plot_samp)
     plot_samp.add_argument("-n", type=ts.pos_int, help="plot only N samples")
     add_argument(plot_samp, "query")
     preproc = cmds.add_parser("preprocess", category="read", help="preprocess the input dataset given preprocessors")

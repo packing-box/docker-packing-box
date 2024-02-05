@@ -2,7 +2,7 @@
 import builtins as bi
 from functools import cached_property
 from tinyscript import hashlib, logging
-from tinyscript.helpers import classproperty, positive_int, slugify, Path
+from tinyscript.helpers import classproperty, positive_int, set_exception, slugify, Path
 from warnings import filterwarnings, simplefilter
 
 from .constants import *
@@ -20,6 +20,7 @@ bi.cached_property = cached_property
 bi.classproperty = classproperty
 bi.configure_logging = configure_logging
 bi.null_logger = logging.nullLogger
+bi.set_exception = set_exception
 
 
 _it = lambda s, v: positive_int(v)
@@ -68,6 +69,15 @@ def _rp(s, v):
 _rp.__name__ = "path"
 
 
+def _sty(s, v):
+    import matplotlib.pyplot as plt
+    l = plt.style.available + ["default"]
+    if v not in l:
+        raise ValueError(f"invalid pyplot style '{v}' ; shall be one of: {'|'.join(l)}")
+    return v
+_sty.__name__ = "pyplot style"
+
+
 def _vh(s, v):
     if v not in hashlib.algorithms_available:
         raise ValueError(f"'{v}' is not a valid hash algorithm")
@@ -93,7 +103,7 @@ bi.config = Config("packing-box",
             'workspace':     (PBOX_HOME, "PATH", "path to the workspace", _np, ["experiment"]),
             'experiments':   ("/mnt/share/experiments", "PATH", "path to the experiments folder", _np),
             'backup_copies': ("3", "COPIES", "keep N backups of datasets ; for commands that trigger backups", _it),
-            'exec_timeout':  ("10", "SECONDS", "execution timeout of items (detectors, packers, ...)", _it),
+            'exec_timeout':  ("20", "SECONDS", "execution timeout of items (detectors, packers, ...)", _it),
         },
         'cfg': {
             'angr_engine':       ("pcode", "ENGINE", "set the engine for CFG extraction by Angr", _ae),
@@ -120,12 +130,13 @@ bi.config = Config("packing-box",
         },
         'visualization': {
             'bbox_inches':     ("tight", "BBOX", "bbox in inches for saving the figure"),
+            #FIXME: enforce list of valid colormaps
             'colormap':        ("jet", "CMAP", "name of matplotlib.colors.Colormap to apply to plots"),
-            'dark_mode':       ("false", "BOOL", "enable dark mode", _bl),
             'dpi':             ("200", "DPI", "figures' dots per inch", _it),
             'font_family':     ("serif", "FAMILY", "font family for every text"),
+            'font_size':       ("10", "SIZE", "base font size", _it),
             'format':          ("png", "FORMAT", "image format for saving figures", _fmt),
-            'title_font_size': ("16", "SIZE", "font size for plot titles", _it),
+            'style':           ("default", "STYLE", "name of the PyPlot style to apply to plots", _sty),
         },
     },
     # envvars

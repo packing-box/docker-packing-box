@@ -6,43 +6,43 @@ from tinyscript import *
 
 
 __script__      = "Executable manipulation tool"
-__version__     = "1.1.0"
+__version__     = "1.2.0"
 __doc__         = """
 This tool aims to manipulate a single executable.
 """
 __description__ = "Manipulate a single executable"
 __examples__ = [
     "alter rename_sections program.exe",
-    "plot -d 300 -f jpg program.exe",
+    "plot --dpi 300 --format jpg program.exe",
     "show program.exe",
-    "visualize program.exe",
 ]
 
 
-#TODO: visualize, disassemble, [readelf|readpe|readmo], fingerprint
+#TODO: disassemble, [readelf|readpe|readmo], fingerprint
 if __name__ == '__main__':
     sparsers = parser.add_subparsers(dest="command", metavar="CMD", title="positional argument",
                                      help="command to be executed")
     alter = sparsers.add_parser("alter", help="alter the target executable with the given alteration")
-    add_argument(alter, "executable")
+    add_argument(alter, "executable", single=True)
     agroup = alter.add_mutually_exclusive_group()
     add_argument(agroup, "alteration", "alterations-set", optional=True)
+    diff = sparsers.add_parser("diff", help="represent differences between two target executables")
+    add_argument(diff, "executable", single=True)
+    diff.add_argument("executable2", help="another executable file")
     feat = sparsers.add_parser("features", help="compute features of the target executable")
-    add_argument(feat, "executable", "features-set")
+    add_argument(feat, "executable", "features-set", single=True)
     plot = sparsers.add_parser("plot", help="plot the target executable")
-    add_argument(plot, "executable")
-    plot.add_argument("-d", "--dpi", default=200, type=int, help="output image resolution in DPI")
-    plot.add_argument("-f", "--format", choices=IMG_FORMATS, help="output image format")
+    add_argument(plot, "executable", single=True)
     plot.add_argument("-p", "--prefix", help="string to be prepended to the target filename")
-    plot.add_argument("-s", "--sublabel", choices=list(SUBLABELS.keys()), help="label to be added under the filename")
+    l = list(SUBLABELS.keys())
+    plot.add_argument("-s", "--sublabel", default=l[-1], choices=l, help="label to be added under the filename")
+    figure_options(plot)
     add_argument(sparsers.add_parser("show", help="show information about the target executable"), "executable")
     initialize(noargs_action="usage")
     configure_logging(args.verbose)
     args.logger = logger
     # now execute
-    if args.command == "visualize":
-        pass  #TODO
-    elif args.command == "features":
+    if args.command == "features":
         Features.source = args.features_set
         Executable(args.executable).show(False, False, True)
     else:
