@@ -21,6 +21,19 @@ _sec_name = lambda s: getattr(s, "real_name", getattr(s, "name", s))
 _size     = lambda exe, ratio=.1, blocksize=512: round(int(exe['size'] * ratio) / blocksize + .5) * blocksize
 
 
+def _randbytes(n, unique=True):
+    if not unique:
+        return random.randbytes(n)
+    if n > 256:
+        raise ValueError("Cannot produce more than 256 distinct bytes")
+    s, alphabet = b"", bytearray([i for i in range(256)])
+    for i in range(n):
+        c = random.choice(alphabet)
+        s += bytes([c])
+        alphabet.remove(c)
+    return s
+
+
 def _select(apply_func=None):
     def _wrapper(lst=(), random_lst=(), inclusions=(), exclusions=()):
         """ Helper for selecting the first argument of a list given inclusions or exclusions, then choosing randomly
@@ -55,11 +68,12 @@ class dict2(dict):
         self.__dict__ = self
         dict2._logger = logger
         if self.result == UNDEF_RESULT:
-            raise ValueError("%s: 'result' shall be defined" % self.name)
+            raise ValueError(f"{self.name}: 'result' shall be defined")
     
     def __call__(self, data, silent=False, **kwargs):
-        d = {k: getattr(random, k) for k in ["choice", "randbytes", "randint", "randrange", "randstr"]}
-        d.update({'apply': _apply, 'select': _select(), 'select_section_name': _select(_sec_name), 'size': _size})
+        d = {k: getattr(random, k) for k in ["choice", "randint", "randrange", "randstr"]}
+        d.update({'apply': _apply, 'randbytes': _randbytes, 'select': _select(),
+                  'select_section_name': _select(_sec_name), 'size': _size})
         d.update(_EVAL_NAMESPACE)
         d.update(data)
         kwargs.update(getattr(self, "parameters", {}))
@@ -72,25 +86,26 @@ class dict2(dict):
                     return r
             except NameError as e:
                 if not silent:
-                    dict2._logger.debug("'%s' is either not computed yet or mistaken" % str(e).split("'")[1])
+                    name = str(e).split("'")[1]
+                    dict2._logger.debug(f"'{name}' is either not computed yet or mistaken")
                 raise
             except Exception as e:
                 if not silent:
-                    dict2._logger.warning("Bad expression: %s" % expr)
+                    dict2._logger.warning(f"Bad expression: {expr}")
                     dict2._logger.exception(e)
                     w = get_terminal_size()[0]
-                    dict2._logger.debug("Variables:\n- %s" % "\n- ".join(string.shorten("%s(%s)=%s" % \
-                                        (k, type(v).__name__, v), w - 2) for k, v in d.items()))
+                    dict2._logger.debug("Variables:\n- %s" % \
+                        "\n- ".join(string.shorten(f"{k}({type(v).__name__})={v}", w - 2) for k, v in d.items()))
                 raise
             try:
                 return r(**kwargs)
             except Exception as e:
                 if not silent:
-                    dict2._logger.warning("Bad function: %s" % result)
+                    dict2._logger.warning(f"Bad function: {result}")
                     dict2._logger.error(str(e))
         # now execute expression(s) ; support for multiple expressions must be explicitely enabled for the class
         if not getattr(self.__class__, "_multi_expr", False) and isinstance(self.result, (list, tuple)):
-            raise ValueError("List of expressions is not supported for the result of %s" % self.__class__.__name__)
+            raise ValueError(f"List of expressions is not supported for the result of {self.__class__.__name__}")
         retv = [_exec(result) for result in (self.result if isinstance(self.result, (list, tuple)) else [self.result])]
         return retv[0] if len(retv) == 1 else tuple(retv)
 
@@ -134,12 +149,12 @@ class MetaBase(type):
         from tinyscript.helpers import execute_and_log as run
         from .formats import expand_formats
         from ..core.executable import Executable
-        d = TempPath(prefix="%s-tests-" % self.__name__.lower(), length=8)
+        d = TempPath(prefix=f"{self.__name__.lower()}-tests-", length=8)
         self.__disp = []
         self()  # force registry computation
         for fmt in expand_formats("All"):
             if fmt not in self.registry.keys():
-                self.logger.warning("no %s defined yet for '%s'" % (self.__name__.lower().rstrip("s"), fmt))
+                self.logger.warning(f"no {self.__name__.lower().rstrip('s')} defined yet for '{fmt}'")
                 continue
             l = [f for f in files if Executable(f).format in self._formats_exp] if files else TEST_FILES.get(fmt, [])
             if len(l) == 0:
@@ -149,19 +164,19 @@ class MetaBase(type):
                 exe = Executable(exe, expand=True)
                 tmp = d.joinpath(exe.filename)
                 self.logger.debug(exe.filetype)
-                run("cp %s %s" % (exe, tmp))
+                run(f"cp {exe} {tmp}")
                 n = tmp.filename
                 try:
                     self(Executable(tmp))
                     self.logger.success(n)
                 except Exception as e:
                     if isinstance(e, KeyError) and exe.format is None:
-                        self.logger.error("unknown format (%s)" % exe.filetype)
+                        self.logger.error(f"unknown format ({exe.filetype})")
                         continue
                     self.logger.failure(n)
                     self.logger.exception(e)
         if not keep:
-            self.logger.debug("rm -f %s" % str(d))
+            self.logger.debug(f"rm -f {d}")
             d.remove()
 
 
@@ -180,7 +195,7 @@ def _init_metaitem():
             # this masks some attributes for child classes (e.g. Packer.registry can be accessed, but when the registry
             #  of child classes is computed, the child classes, e.g. UPX, won't be able to get UPX.registry)
             if name in ["get", "iteritems", "mro", "registry"] and self._instantiable:
-                raise AttributeError("'%s' object has no attribute '%s'" % (self.__name__, name))
+                raise AttributeError(f"'{self.__name__}' object has no attribute '{name}'")
             return super(MetaItem, self).__getattribute__(name)
         
         @property
@@ -203,7 +218,7 @@ def _init_metaitem():
         
         @source.setter
         def source(self, path):
-            cfg_key, l = '%ss' % self.__name__.lower(), self.logger
+            cfg_key, l = f"{self.__name__.lower()}s", self.logger
             # case 1: self is a parent class among Analyzer, Detector, ... ;
             #          then 'source' means the source path for loading child classes
             try:
@@ -239,12 +254,12 @@ def _init_metaitem():
             # reset the registry
             self.registry = []
             if not p.exists():
-                l.warning("'%s' does not exist ; set back to default" % p)
+                l.warning(f"'{p}' does not exist ; set back to default")
                 p, func = config.DEFAULTS['definitions'][cfg_key]
                 p = func(p)
             # start parsing items of the target class
             _cache, cnt = {}, {'tot': 0, 'var': 0}
-            l.debug("loading %s from %s..." % (cfg_key, p))
+            l.debug(f"loading {cfg_key} from {p}...")
             for item, data in load_yaml_config(p, ("base", "install", "steps", "variants")):
                 # ensure the related item is available in module's globals()
                 #  NB: the item may already be in globals in some cases like pbox.items.packer.Ezuri
@@ -265,7 +280,7 @@ def _init_metaitem():
                         base, bcls = m.groups()
                         base, bcls = base.capitalize(), bcls or item
                         if base == self.__name__ and bcls in [None, item]:
-                            raise ValueError("%s cannot point to itself" % item)
+                            raise ValueError(f"{item} cannot point to itself")
                         if base not in _cache.keys():
                             _cache[base] = dict(load_yaml_config(base.lower() + "s"))
                         for k, v in _cache[base].get(bcls, {}).items():
@@ -274,7 +289,7 @@ def _init_metaitem():
                                 continue
                             setattr(i, "_" + k if k == "source" else k, v)
                     else:
-                        raise ValueError("'base' set to '%s' of %s discarded (bad format)" % (base, item))
+                        raise ValueError(f"'base' set to '{base}' of {item} discarded (bad format)")
                 # check for variants ; the goal is to copy the current item class and to adapt the fields from the
                 #  variants to the new classes (note that on the contrary of base, a variant inherits the 'status'
                 #  parameter)
@@ -297,7 +312,8 @@ def _init_metaitem():
                     _setattr(vi, vdata)
                     self.registry.append(vi())
                     cnt['var'] += 1
-            l.debug("%d %s loaded%s" % (cnt['tot'], cfg_key, ["", " (%d variants)" % cnt['var']][cnt['var'] > 0]))
+            varcnt = ["", f" ({cnt['var']} variants)"][cnt['var'] > 0]
+            l.debug(f"{cnt['tot']} {cfg_key} loaded{varcnt}")
     return MetaItem
 lazy_load_object("MetaItem", _init_metaitem)
 
@@ -319,17 +335,17 @@ def _init_item():
             """ Prevents Item from being instantiated. """
             if cls._instantiable:
                 return object.__new__(cls, *args, **kwargs)
-            raise NotInstantiable("%s cannot be instantiated directly" % cls.__name__)
+            raise NotInstantiable(f"{cls.__name__} cannot be instantiated directly")
         
         def __getattribute__(self, name):
             # this masks some attributes for child instances in the same way as for child classes
             if name in ["get", "iteritems", "mro", "registry"] and self._instantiable:
-                raise AttributeError("'%s' object has no attribute '%s'" % (self.__class__.__name__, name))
+                raise AttributeError(f"'{self.__class__.__name__}' object has no attribute '{name}'")
             return super(Item, self).__getattribute__(name)
         
         def __repr__(self):
             """ Custom string representation for an item. """
-            return "<%s %s at 0x%x>" % (self.__class__.__name__, self.type, id(self))
+            return f"<{self.__class__.__name__} {self.type} at 0x{id(self):02x}>"
         
         def help(self):
             """ Returns a help message in Markdown format. """
@@ -352,7 +368,7 @@ def _init_item():
                 if i.name == (item.name if isinstance(item, Item) else _fmt_name(item)):
                     return i
             if error:
-                raise ValueError("'%s' is not defined" % item)
+                raise ValueError(f"'{item}' is not defined")
         
         @classmethod
         def iteritems(cls):
@@ -386,7 +402,7 @@ def load_yaml_config(cfg, no_defaults=(), parse_defaults=True, test_only=False):
             for params in [v for v in config.values()]:
                 for default, value in defaults.items():
                     if default in no_defaults:
-                        raise ValueError("default value for parameter '%s' is not allowed" % default)
+                        raise ValueError(f"default value for parameter '{default}' is not allowed")
                     if isinstance(value, dict):
                         # example advanced defaults configuration:
                         #   defaults:
@@ -397,8 +413,8 @@ def load_yaml_config(cfg, no_defaults=(), parse_defaults=True, test_only=False):
                         #       value: false
                         value.pop('comment', None)
                         if set(value.keys()) != {'match', 'value'}:
-                            raise ValueError("Bad configuration for default '%s' ; should be a dictionary with 'value'"
-                                             " and 'match' (format: list) as its keys" % default)
+                            raise ValueError(f"Bad configuration for default '{default}' ; should be a dictionary with"
+                                             " 'value' and 'match' (format: list) as its keys")
                         v = value['value']
                         for pattern in value['match']:
                             for name2 in config.keys():
