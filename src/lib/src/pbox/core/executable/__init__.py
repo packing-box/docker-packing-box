@@ -173,14 +173,17 @@ class Executable(Path):
             self._parsed.real_section_names  # trigger computation of real names
         return self._parsed
     
-    def plot(self, format=None, prefix="", dpi=200, sublabel="size-ep-ent", **kwargs):
-        from bintropy import plot
+    def plot(self, prefix="", sublabel="size-ep-ent", **kwargs):
         fn = (prefix or "") + Path(self.realpath).basename
         if hasattr(self, "_dataset"):
             fn = Path(self._dataset.basename, "samples", fn)
-        path = figure_path(fn, format=format)
+        path = figure_path(fn, **kwargs)
         kwargs.get('logger', null_logger).info(f"Saving to {path}...")
-        plot(self, img_name=path, labels=[self.label], sublabel=sublabel, dpi=dpi, target=fn)
+        path = path.dirname.joinpath(path.stem)
+        kw_plot = {k: kwargs.get(k, config[k]) for k in config._defaults['visualization'].keys()}
+        kw_plot['img_format'] = kw_plot.pop('format', config['format'])
+        from bintropy import plot
+        plot(self, img_name=path, labels=[self.label], sublabel=sublabel, target=fn, **kw_plot)
     
     def show(self, base_info=True, sections=True, features=False, **kwargs):
         ds, r = hasattr(self, "_dataset"), []

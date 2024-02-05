@@ -168,5 +168,7 @@ teardown_file(){
 # ✗ alter
 @test "alter $TEST_DS1" {
   skip  #TODO
-  run dataset alter 
+  run dataset alter "$TEST_DS1"
+  run dataset show "$TEST_DS1"
+  assert_output --partial 'Altered:\s+100.00%'
 }

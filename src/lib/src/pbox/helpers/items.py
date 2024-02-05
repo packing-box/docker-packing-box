@@ -81,7 +81,7 @@ class dict2(dict):
                     w = get_terminal_size()[0]
                     dict2._logger.debug("Variables:\n- %s" % "\n- ".join(string.shorten("%s(%s)=%s" % \
                                         (k, type(v).__name__, v), w - 2) for k, v in d.items()))
-                return
+                raise
             try:
                 return r(**kwargs)
             except Exception as e:

@@ -1,6 +1,6 @@
 # -*- coding: UTF-8 -*-
 from tinyscript import functools
-from tinyscript.helpers import execute, is_generator
+from tinyscript.helpers import ensure_str, execute, is_generator
 
 from ....helpers.data import get_data
 
@@ -154,7 +154,7 @@ class AbstractParsedExecutable(AbstractBase):
         if self.path.group != "PE":
             raise AttributeError("'%s' object has no attribute 'real_section_names'" % self.__class__.__name__)
         if not hasattr(self, "_real_section_names"):
-            names = [s.name for s in self]
+            names = [ensure_str(s.name) for s in self]
             from re import match
             if all(match(r"/\d+$", n) is None for n in names):
                 self._real_section_names = {}

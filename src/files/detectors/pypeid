@@ -6,7 +6,7 @@ from pypeid import PEiDScanner
 
 @catch_exception
 def execute(name, **kwargs):
-    r = PEiDScanner().scan_file(kwargs['path'])
+    r = PEiDScanner(kwargs['logger']).scan_file(kwargs['path'])
     kwargs['logger'].debug("\n" + pformat(r, indent=4))
     return r['PEiD'] + [[], ["unknown"]][r['Packed'] == "yes"]
 

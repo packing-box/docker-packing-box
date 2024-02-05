@@ -81,7 +81,7 @@ def _rename_section(old_section, new_name, error=True):
             if error:
                 raise
             return
-        logger.debug("rename: %s -> %s" % (sec.name or "<empty>", new_name))
+        logger.debug(">> rename: %s -> %s" % (sec.name or "<empty>", new_name))
         sec.name = new_name
     return _rename_section
 

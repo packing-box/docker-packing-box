@@ -2,14 +2,14 @@
 __all__ = ["progress_bar", "render"]
 
 
-def progress_bar(unit="samples", silent=False, **kwargs):
+def progress_bar(unit="samples", target=None, silent=False, **kwargs):
     from rich.progress import BarColumn, MofNCompleteColumn, Progress, TextColumn, TimeElapsedColumn, \
                               TimeRemainingColumn
     class CustomProgress(Progress):
         def track(self, sequence, *args, **kwargs):
             for value in (sequence if silent else super(CustomProgress, self).track(sequence, *args, **kwargs)):
                 yield value
-    return CustomProgress(
+    elements = [
         TextColumn("[progress.percentage]{task.percentage:>3.0f}%"),
         BarColumn(),
         MofNCompleteColumn(),
@@ -18,8 +18,10 @@ def progress_bar(unit="samples", silent=False, **kwargs):
         TimeElapsedColumn(),
         TextColumn("•"),
         TimeRemainingColumn(),
-        **kwargs,
-    )
+    ]
+    if target:
+        elements += [TextColumn("•"), TextColumn(target, style="progress.download")]
+    return CustomProgress(*elements, **kwargs)
 
 
 def render(*elements, **kw):

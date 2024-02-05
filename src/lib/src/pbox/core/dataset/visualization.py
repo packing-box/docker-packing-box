@@ -324,7 +324,8 @@ def _labels_pie_chart(dataset, **kw):
     plt.title("Distribution of labels for dataset %s" % dataset.name, pad=10, fontweight="bold")
     # - draw a first pie with white labels on the wedges
     plt.pie([c[k] for k in classes], colors=cmap, startangle=180, radius=.8,
-            autopct=lambda p: "{:.1f}%\n({:.0f})".format(p, p/100*tot), textprops={'color': "white", 'fontsize': 8})
+            autopct=lambda p: "{:.1f}%\n({:.0f})".format(p, p/100*tot),
+            textprops={'color': "white", 'fontsize': "small"})
     # - draw a second pie, transparent, just to use black labels
     for wedge in plt.pie([c[k] for k in classes], labels=labels, labeldistance=1, startangle=180)[0]:
         wedge.set_alpha(0.)
@@ -333,7 +334,6 @@ def _labels_pie_chart(dataset, **kw):
 
 @save_figure
 def _samples_individual_visualization(dataset, query=None, n=0, **kw):
-    from bintropy import plot
     if not dataset._files:
         dataset.logger.warning("Plotting individual samples only works for datasets with files")
         return

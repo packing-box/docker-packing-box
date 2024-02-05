@@ -165,7 +165,7 @@ class Dataset(Entity):
         """ Convenience function for computing the self._data pandas.DataFrame containing the feature values. """
         if self._files:
             self.logger.info("Computing features...")
-            with progress_bar() as p:
+            with progress_bar(target=self.basename) as p:
                 for exe in p.track(self):
                     self[exe.basename] = (self._compute_features(exe), True)  # True: force updating the row
     
@@ -314,7 +314,7 @@ class Dataset(Entity):
             limit = int(round(len(self)*p, 0))
         elif query is not None:
             l.info("Altering the selected records of the dataset...")
-        for e in filter_data_iter(df, query, limit, logger=self.logger):
+        for e in filter_data_iter(df, query, limit, logger=self.logger, target=self.basename):
             exe = Executable(dataset=self, hash=e.hash)
             exe.chmod(0o600)
             for m in alterations.Alterations(exe)[:]:
@@ -386,7 +386,7 @@ class Dataset(Entity):
             l.info(f"Exporting {n} packed executables from {self.basename} to '{dst}'...")
             if 0 < n < len(lst):
                 random.shuffle(lst)
-            with progress_bar("packed samples") as p:
+            with progress_bar("packed samples", target=self.basename) as p:
                 for exe in enumerate(lst[:n]):
                     fn = f"{exe.label}_{Path(exe.realpath).filename}"
                     if fn in tmp:
@@ -485,7 +485,7 @@ class Dataset(Entity):
                 if not Dataset.confirm_overwrite(dataset, overwrite):
                     l.warning(f"Ingestion aborted ('{dataset.basename}' already exists)")
                     continue
-            l.info(f"Ingesting subfolder '{sp.stem}' into {name}...")
+            l.debug(f"ingesting subfolder '{sp.stem}' into {name}...")
             dataset.update(sp, labels=labels, detect=detect, do_not_backup=True, **kw)
     
     @backup
@@ -518,7 +518,7 @@ class Dataset(Entity):
         n1 = self._metadata.get('executables', 0)
         CBAD, CGOOD = n // 3, n // 3
         i, cbad, cgood = 0, {p: CBAD for p in packers}, {p: CGOOD for p in packers}
-        with progress_bar() as progress:
+        with progress_bar(target=self.basename) as progress:
             pbar = progress.add_task("", total=None if n <= 0 else n)
             for exe in self._walk(n <= 0):
                 label = short_label = NOT_PACKED
@@ -630,7 +630,7 @@ class Dataset(Entity):
         # (3) merging datasets of the same type
         # add rows from the input dataset
         l_info(f"Merging rows from {ds2_name} into {self.basename}...")
-        with progress_bar(silent=silent) as p:
+        with progress_bar(target=self.basename, silent=silent) as p:
             for r in p.track(ds2):
                 self[Executable(hash=r.hash, dataset=ds2, dataset2=[None, self][files])] = r._row._asdict()
         # as the previous operation does not update formats and features, do it manually
@@ -689,7 +689,7 @@ class Dataset(Entity):
     def remove(self, query=None, **kw):
         """ Remove executables from the dataset given multiple criteria. """
         self.logger.debug(f"removing files from {self.basename} based on query '{query}'...")
-        for e in filter_data_iter(self._data, query, logger=self.logger):
+        for e in filter_data_iter(self._data, query, logger=self.logger, target=self.basename):
             del self[e.hash]
         self._save()
     
@@ -724,7 +724,7 @@ class Dataset(Entity):
         self.logger.debug(f"selecting a subset of {self.basename} based on query '{query}'...")
         ds2 = self.__class__(name2)
         ds2._metadata['sources'] = []
-        for e in filter_data_iter(self._data, query, limit, logger=self.logger):
+        for e in filter_data_iter(self._data, query, limit, logger=self.logger, target=self.basename):
             for s in self._metadata['sources']:
                 if Path(e.realpath).is_under(Path(s, expand=True)) and s not in ds2._metadata['sources']:
                     ds2._metadata['sources'].append(s)
@@ -802,7 +802,7 @@ class Dataset(Entity):
                 files = self._walk(True, {'All': source_dir}, silent)
                 total = sum(1 for _ in self._walk(True, {'All': source_dir}, True))
             found = False
-            with progress_bar() as p:
+            with progress_bar(target=self.basename) as p:
                 for exe in p.track(files, total=total):
                     if exe.format not in self._metadata['formats']:
                         self._metadata['formats'].append(exe.format)
@@ -812,7 +812,7 @@ class Dataset(Entity):
                 l.warning("No executable found")
         # case (2) empty source directory, but labels were provided and are to be applied
         else:
-            with progress_bar() as p:
+            with progress_bar(target=self.basename) as p:
                 for exe in p.track(self):
                     _update(exe)
         self._save()
@@ -828,7 +828,7 @@ class Dataset(Entity):
             return -1, path
         # prepare the table of records
         d, h = [], ["Hash", "Path", "Size", "Creation", "Modification", "Label"]
-        for e in filter_data_iter(self._data, query, logger=self.logger):
+        for e in filter_data_iter(self._data, query, logger=self.logger, target=self.basename):
             i, p = _shorten(e.realpath)
             if i >= 0:
                 p = f"[{i}]/{p}"

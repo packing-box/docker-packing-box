@@ -27,7 +27,7 @@ def filter_data(df, query=None, **kw):
         l.info("Possible values:\n%s" % "".join("- %s\n" % n for n in df.columns))
 
 
-def filter_data_iter(df, query=None, limit=0, sample=True, progress=True, transient=False, **kw):
+def filter_data_iter(df, query=None, limit=0, sample=True, progress=True, target=None, transient=False, **kw):
     """ Generator for the filtered data from an input Pandas DataFrame based on a given query. """
     from .rendering import progress_bar
     df = filter_data(df, query, **kw)
@@ -39,7 +39,7 @@ def filter_data_iter(df, query=None, limit=0, sample=True, progress=True, transi
         df = df.sample(n=limit)
     i, generator = 0, filter_data(df, query, silent=True, **kw).itertuples()
     if progress:
-        with progress_bar(transient=transient) as p:
+        with progress_bar(target=target, transient=transient) as p:
             task = p.add_task("", total=limit)
             for row in generator:
                 yield row
