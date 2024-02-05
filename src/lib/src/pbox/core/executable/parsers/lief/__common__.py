@@ -71,6 +71,9 @@ class Binary(AbstractParsedExecutable):
                 return getattr(self._parsed, name)
             raise
     
+    def _get_builder(self):
+        raise NotImplementedError  # to be implemented per binary format
+    
     def build(self):
         p = str(self.path)
         builder = self._get_builder()
@@ -79,6 +82,7 @@ class Binary(AbstractParsedExecutable):
         builder.write(p)
         with open(p, 'ab') as f:
             f.write(bytes(self.overlay))
+        return builder.get_build()
     
     def disassemble(self, offset=None, n=32, mnemonic=False):
         from capstone import Cs, CS_MODE_LITTLE_ENDIAN as CS_MODE_LE
@@ -96,7 +100,25 @@ class Binary(AbstractParsedExecutable):
 
 
 class BuildConfig(dict):
-    def toggle(self, **kwargs):
-        for name, boolean in kwargs.items():
-            self[name] = self.get(name, True) & boolean
+    def __init__(self, *keys, **kwargs):
+        self.__keys = [k for k in keys if isinstance(k, str)]
+        if len(self.__keys) == 0:
+            raise ValueError("Empty build configuration dictionary")
+        self.update(**kwargs)
+    
+    def __getitem__(self, name):
+        if name not in self.__keys:
+            raise KeyNotAllowedError(name)
+        return super(BuildConfig, self).get(name, False)
+    
+    def __setitem__(self, name, value):
+        if name not in self.__keys:
+            raise KeyNotAllowedError(name)
+        if not isinstance(value, bool):
+            raise ValueError("Value shall be a boolean")
+        super(BuildConfig, self).__setitem__(name, value)
+    
+    def update(self, **kwargs):
+        for k, v in kwargs.items():
+            self[k] = v
 

@@ -43,19 +43,19 @@ def add_API_to_IAT(*args):
         raise ValueError("Library and API names shall be provided")
     @supported_parsers("lief")
     def _add_API_to_IAT(parsed, logger):
-        logger.debug(" > selected API import: %s - %s" % (lib_name, api))
+        logger.debug(f">> selected API import: {lib_name} - {api}")
         # Some packers create the IAT at runtime. It is sometimes in an empty section, which has offset 0. In this case,
         #  the header is overwritten by the patching operation. So, in this case, we don't patch at all.
         patch_imports = not parsed.iat.has_section or parsed.iat.section.offset != 0
         for library in parsed.imports:
             if library.name.lower() == lib_name.lower():
-                logger.debug("adding API import...")
+                logger.debug(">> adding API import...")
                 library.add_entry(api)
-                parsed._build_config.toggle(imports=True, patch_imports=patch_imports)
+                parsed._build_config.update(imports=True, patch_imports=patch_imports)
                 return
         add_lib_to_IAT(lib_name)(parsed, logger)
         parsed.get_import(lib_name).add_entry(api)
-        parsed._build_config.toggle(imports=True, patch_imports=patch_imports)
+        parsed._build_config.update(imports=True, patch_imports=patch_imports)
     return _add_API_to_IAT
 
 
@@ -63,9 +63,9 @@ def add_lib_to_IAT(library):
     """ Add a library to the IAT. """
     @supported_parsers("lief")
     def _add_lib_to_IAT(parsed, logger):
-        logger.debug("adding library...")
+        logger.debug(">> adding library...")
         parsed.add_library(library)
-        parsed._build_config.toggle(imports=True)
+        parsed._build_config['imports'] = True
     return _add_lib_to_IAT
 
 
@@ -92,7 +92,7 @@ def add_section(name, section_type=None, characteristics=None, data=b""):
         s.characteristics = characteristics or parsed.SECTION_CHARACTERISTICS['MEM_READ'] | \
                                                parsed.SECTION_CHARACTERISTICS['MEM_EXECUTE']
         parsed.add_section(s, section_type or parsed.SECTION_TYPES['UNKNOWN'])
-        parsed._build_config.toggle(overlay=True)
+        parsed._build_config['overlay'] = True
     return _add_section
 
 
@@ -106,9 +106,9 @@ def append_to_section(name, data):
         available_size = s.size - len(s.content)
         d = list(data(available_size)) if callable(data) else list(data)
         if available_size == 0:
-            logger.debug("{name}: This section has no slack space.")
+            logger.debug(">> {name}: This section has no slack space.")
         elif len(d) > available_size:
-            logger.debug("{name}: Data length is greater than the available space at the end of the section. The" \
+            logger.debug(">> {name}: Data length is greater than the available space at the end of the section. The" \
                          f" slack space is limited to {available_size} bytes, {len(d)} bytes of data were provided." \
                          " Data will be truncated to fit in the slack space.")
             d = d[:available_size]
