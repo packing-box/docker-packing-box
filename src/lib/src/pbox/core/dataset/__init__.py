@@ -1064,18 +1064,23 @@ class Dataset(Entity):
     #       Dataset and FilelessDataset)
     @staticmethod
     def summarize(show=False, hide_files=False, check_func=None):
-        datasets, headers = [], ["Name", "#Executables", "Size"] + [["Files"], []][hide_files] + ["Formats", "Packers"]
+        metadata, altered = {}, False
         for dset in Path(config['datasets']).listdir(check_func or Dataset.check):
             with dset.joinpath("metadata.json").open() as meta:
-                metadata = json.load(meta)
+                metadata[dset.basename] = d = json.load(meta)
+                d['size'] = human_readable_size(dset.size)
+                d['files'] = dset.joinpath("files").exists()
+                if 'altered' in d:
+                    altered = True
+        datasets, headers = [], ["Name", "#Executables"] + [[], ["Altered"]][altered] + ["Size"] + \
+                                [["Files"], []][hide_files] + ["Formats", "Packers"]
+        for name, meta in metadata.items():
+            alt_perc = [[], [[f"0.00%", f"{100*meta['altered']:.02f}%"]['altered' in meta]]][altered]
             try:
-                row = [
-                    dset.basename,
-                    str(metadata['executables']),
-                    human_readable_size(dset.size),
-                ] + [[["no", "yes"][dset.joinpath("files").exists()]], []][hide_files] + [
-                    ",".join(sorted(metadata['formats'])),
-                    shorten_str(",".join("%s{%d}" % i for i in sorted(get_counts(metadata).items(),
+                row = [name, str(meta['executables'])] + alt_perc + [meta['size']] + \
+                    [[["no", "yes"][meta['files']]], []][hide_files] + [
+                    ",".join(sorted(meta['formats'])),
+                    shorten_str(",".join("%s{%d}" % i for i in sorted(get_counts(meta).items(),
                                                                       key=lambda x: (-x[1], x[0])))),
                 ]
             except Exception as err:
@@ -1083,11 +1088,8 @@ class Dataset(Entity):
                 if show:
                     if headers[-1] != "Reason":
                         headers.append("Reason")
-                    row = [
-                        dset.basename,
-                        str(metadata.get('executables', colored("?", "red"))),
-                        human_readable_size(dset.size),
-                    ] + [[["no", "yes"][dset.joinpath("files").exists()]], []][hide_files] + [
+                    row = [name, str(meta.get('executables', colored("?", "red")))] + alt_perc + \
+                        [meta['size']] + [[["no", "yes"][meta['files']]], []][hide_files] + [
                         colored("?", "red"), colored("?", "red"),
                         colored(f"{err.__class__.__name__}: {err}", "red")
                     ]
