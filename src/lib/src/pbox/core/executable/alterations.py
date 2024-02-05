@@ -3,6 +3,8 @@ from tinyscript import logging
 
 from ...helpers import dict2, expand_formats, get_data, get_format_group, load_yaml_config, MetaBase
 
+set_exception("ExecutableBuildError", "RuntimeError")
+
 
 __all__ = ["Alterations"]
 
@@ -24,10 +26,27 @@ class Alteration(dict2):
         if iterator is None:
             l.warning("Bad 'loop' value (should be positive integer or 'sections')")
             return
-        for i in iterator:
-            l.debug(f"starting iteration #{i}...")
-            parsed = executable.parse(self.parser)
-            namespace.update({'binary': parsed, executable.group.lower(): parsed})
+        if self.build not in ["incremental", "once"]:
+            l.warning("Bad 'build' value (should be 'incremental' or 'once') ; set to default ('once')")
+            self.build = "once"
+        with self._exe.open('rb') as f:
+            before = [_ for _ in f.read()]
+        # incremental build function
+        def _build(p, b):
+            l.debug(f"> rebuilding binary (build config: {parsed._build_config})...")
+            a = p.build()
+            if not a:
+                raise ExecutableBuildError(f"{parsed.path}: build failed")
+            elif b == a:
+                l.warning(f"{parsed.path}: unchanged after build")
+            return a
+        # start iterating over 'iterator'
+        built = False
+        for n, i in enumerate(iterator):
+            l.debug(f"> starting iteration #{n+1}...")
+            if n == 0 or self.build == "incremental":
+                parsed = executable.parse(self.parser)
+                namespace.update({'binary': parsed, executable.group.lower(): parsed})
             if self.loop == "sections":
                 namespace['section'] = i
             try:
@@ -46,24 +65,33 @@ class Alteration(dict2):
                     raise
                 # in this case, the error is not known, exception shall be thrown and next iterations shall be tried
                 elif self.fail == "continue":
+                    l.debug(f"{self._exe}")
+                    l.exception(e)
                     continue
                 # in this situation, it is known that the loop will fail at some point, no exception trace is needed
                 elif self.fail == "stop":
-                    l.debug(str(e))
+                    l.debug(f"> finished in {n} iterations")
                     break
                 # in this case, warn the user and stop
                 elif self.fail == "warn":
-                    l.warning(str(e))
+                    l.warning(f"{self._exe}: {e} ({e.__class__.__name__})")
                     break
                 else:
                     raise ValueError("Bad 'fail' value (should be one of: continue|error|stop)")
-            l.debug(f"rebuilding binary... (build config: {parsed._build_config})")
-            parsed.build()
+            if self.build == "incremental":
+                before = _build(parsed, before)
+                built = True
+        if not built:
+            _build(parsed, before)
     
     # default values on purpose not set via self.setdefault(...)
     @cached_property
     def apply(self):
         return self.get('apply', False)
+    
+    @cached_property
+    def build(self):
+        return self.get('build', "once")
     
     @cached_property
     def fail(self):
@@ -81,7 +109,7 @@ class Alteration(dict2):
             delattr(self, "_exe")
         except AttributeError:
             p = "default"
-        return self.get('parser', config['%s_parser' % p])
+        return self.get('parser', config[f'{p}_parser'])
 
 
 class Alterations(list, metaclass=MetaBase):
