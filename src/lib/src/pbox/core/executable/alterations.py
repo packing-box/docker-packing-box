@@ -13,7 +13,7 @@ class Alteration(dict2):
     _multi_expr = True
     
     def __call__(self, executable, namespace, **kwargs):
-        self._exe, l = executable, self._logger
+        self._exe, parsed, l = executable, executable.parse(self.parser), self._logger
         l.debug(f"applying alterations to {executable.stem}%s..." % \
                 ["", f" ({self.loop} steps)"][isinstance(self.loop, int) and self.loop > 1])
         # loop the specified number of times or accross sections or simply once if not specified
@@ -21,8 +21,7 @@ class Alteration(dict2):
         #                  generator of sections could change during iteration because of alterations such as adding a
         #                  new section ; this should be considered when designing an alteration
         iterator = range(self.loop) if isinstance(self.loop, int) else \
-                   list(executable.parse(self.parser).__iter__()) if self.loop == "sections" else \
-                   None  # invalid 'loop' value
+                   list(parsed.__iter__()) if self.loop == "sections" else None  # invalid 'loop' value
         if iterator is None:
             l.warning("Bad 'loop' value (should be positive integer or 'sections')")
             return
@@ -32,20 +31,24 @@ class Alteration(dict2):
         with self._exe.open('rb') as f:
             before = [_ for _ in f.read()]
         # incremental build function
-        def _build(p, b):
+        def _build(p, b, n=1):
             l.debug(f"> rebuilding binary (build config: {parsed._build_config})...")
-            a = p.build()
+            a, _log = p.build(), getattr(l, {'error': "error", 'warn': "warning"}.get(self.fail, "debug"))
             if not a:
-                raise ExecutableBuildError(f"{parsed.path}: build failed")
+                _log(f"{parsed.path}: build failed")
             elif b == a:
-                raise ExecutableBuildError(f"{parsed.path}: unchanged after build")
+                _log(f"{parsed.path}: unchanged after build")
+            try:
+                p = executable.parse(self.parser)
+            except UnknownFormatError:
+                l.warning(f"{self._exe}: corrupted (unknown format{['', ' after alteration'][n > 0]})")
+                return
             return a
         # start iterating over 'iterator'
         built = False
         for n, i in enumerate(iterator):
             l.debug(f"> starting iteration #{n+1}...")
             if n == 0 or self.build == "incremental":
-                parsed = executable.parse(self.parser)
                 namespace.update({'binary': parsed, executable.group.lower(): parsed})
             if self.loop == "sections":
                 namespace['section'] = i
@@ -79,7 +82,7 @@ class Alteration(dict2):
                 else:
                     raise ValueError("Bad 'fail' value (should be one of: continue|error|stop)")
             if self.build == "incremental":
-                before = _build(parsed, before)
+                parsed, before = _build(parsed, before, n)
                 built = True
         if not built:
             _build(parsed, before)

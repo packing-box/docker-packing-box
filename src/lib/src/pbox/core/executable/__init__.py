@@ -55,6 +55,11 @@ class Executable(Path):
             with suppress(AttributeError, IndexError):
                 d, meta_fields = ds1._data[ds1._data.hash == h].iloc[0].to_dict(), Executable.FIELDS + ["hash", "label"]
                 for a in meta_fields:
+                    # in some cases, we may instantiate an executable coming from a dataset and pointing on an altered
+                    #  sample that has been corrupted ; then it is necessary to recompute the filetype (aka signature)
+                    #  and the format attributes
+                    if a in ["format", "signature"]:
+                        continue
                     setattr(exe, a, d[a])
                 f = {a: v for a, v in d.items() if a not in fields if str(v) != "nan"}
                 # if features could be retrieved, set the 'data' attribute (i.e. if already computed as it is part of a
@@ -101,6 +106,8 @@ class Executable(Path):
             self = super(Executable, cls).__new__(cls, dest, **kwargs)
             _setattrs(self, e.hash)
             for f in fields:
+                if f in ["format", "signature"]:
+                    continue
                 setattr(self, f, getattr(e, f))
             return self
         # case (4) dataset-bound by hash (when ds2 is None)
@@ -272,7 +279,7 @@ class Executable(Path):
     
     @cached_property
     def features(self):
-        Features(None)  # lazily populate Features.registry at first instantiation
+        Features()  # lazily populate Features.registry at first instantiation
         if self.format is not None:
             return {n: f.description for n, f in Features.registry[self.format].items()}
     
@@ -329,7 +336,7 @@ class Executable(Path):
     def shortgroup(self):
         return get_format_group(self.format, True)
     
-    @cached_property
+    @property
     def signature(self):
         return self.filetype
     
