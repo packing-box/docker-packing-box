@@ -84,4 +84,8 @@ experiments*/
 # config files
 #src/conf/*.yml
 
+# tests
 tests/.bats/bats*
+
+# cache files
+.userdb_txt.json
