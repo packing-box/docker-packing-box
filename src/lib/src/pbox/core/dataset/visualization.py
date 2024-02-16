@@ -178,7 +178,7 @@ def _features_comparison_heatmap(dataset, datasets=None, feature=None, max_featu
     l = dataset.logger
     datasets_feats = {dataset.basename: dataset._data.copy()}
     for ds in (datasets or []):
-        datasets_feats[ds.basename] = d._data.copy()
+        datasets_feats[ds.basename] = ds._data.copy()
     feature = select_features(dataset, feature or "*")
     df = pd.concat(datasets_feats.values(), keys=datasets_feats.keys(), names=['experiment', 'hash'])[feature] \
          .astype('float')

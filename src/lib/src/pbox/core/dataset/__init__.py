@@ -131,6 +131,8 @@ class Dataset(Entity):
             # get metadata values from the input dictionary
             for k, v in data.items():
                 if k in Executable.FIELDS:
+                    if k in ["format", "signature"]:
+                        continue
                     setattr(e, k, v)
             # then ensure we compute the remaining values
             for k in ['hash'] + Executable.FIELDS:
@@ -173,7 +175,13 @@ class Dataset(Entity):
         """ Compute the features for a single Executable instance. """
         exe = Executable(hash=exe.basename, dataset=self)
         d = self[exe.basename, True]  # retrieve executable's record as a dictionary
-        d.update(exe.data)  # be sure to include the features
+        try:
+            d.update(exe.data)  # be sure to include the features
+        except Exception as e:
+            from logging import DEBUG
+            self.logger.warning(f"{exe}: could not compute features ({e})")
+            if self.logger.level <= DEBUG:
+                self.logger.exception(e)
         if not hasattr(self, "_features"):
             self._features = {}
             self._features.update(exe.features)
@@ -284,10 +292,8 @@ class Dataset(Entity):
             l.warning("Alterations work only if files are available")
             return
         if new_name is not None:
-            ds = Dataset(new_name)
             self._copy(new_name, overwrite=kw.get('overwrite'))
-            ds._copy(self.path)
-            ds.alter(packed_only=packed_only, percentage=percentage, query=query, **kw)
+            Dataset(new_name).alter(packed_only=packed_only, percentage=percentage, query=query, **kw)
             return
         limit = 0
         # filter out already altered samples first
@@ -317,6 +323,7 @@ class Dataset(Entity):
         for e in filter_data_iter(df, query, limit, logger=self.logger, target=self.basename):
             exe = Executable(dataset=self, hash=e.hash)
             exe.chmod(0o600)
+            # apply alterations and collect names for those that succeeded in Alterations(list)
             for m in alterations.Alterations(exe)[:]:
                 self._alterations.setdefault(m, [])
                 self._alterations[m].append(e.hash)
@@ -743,7 +750,7 @@ class Dataset(Entity):
                       f"**Size**:         {human_readable_size(self.path.size)}",
                       f"**Labelled**:     {self.labelling:.2f}%"])
             if len(self._alterations) > 0:
-                c._data.append(f"**Altered**:      {int(round(100 * self._metadata['altered'], 0)):.2f}%")
+                c._data.append(f"**Altered**:      {int(round(100 * self._metadata.get('altered', 0), 0)):.2f}%")
                 c._data.append(f"**Alterations**:  {', '.join(self._alterations.keys())}")
             c._data.append(f"**With files**:   {['no','yes'][self._files]}")
             r = [Section("Dataset characteristics"), c]
@@ -1075,7 +1082,7 @@ class Dataset(Entity):
         datasets, headers = [], ["Name", "#Executables"] + [[], ["Altered"]][altered] + ["Size"] + \
                                 [["Files"], []][hide_files] + ["Formats", "Packers"]
         for name, meta in metadata.items():
-            alt_perc = [[], [[f"0.00%", f"{100*meta['altered']:.02f}%"]['altered' in meta]]][altered]
+            alt_perc = [[], [[f"-", f"{100*meta.get('altered', 0):.02f}%"]['altered' in meta]]][altered]
             try:
                 row = [name, str(meta['executables'])] + alt_perc + [meta['size']] + \
                     [[["no", "yes"][meta['files']]], []][hide_files] + [
@@ -1121,9 +1128,19 @@ class FilelessDataset(Dataset):
         _, table = Dataset.summarize(show, hide_files)
         _, table2 = Dataset.summarize(show, hide_files, FilelessDataset.check)
         t, t2 = [] if table is None else table.data, [] if table2 is None else table2.data
+        h, h2 = [] if table is None else table.column_headers, [] if table2 is None else table2.column_headers
+        idx, longest_h, shortest_h = [], max([h, h2], key=len), min([h, h2], key=len)
+        maxl = len(longest_h)
+        for i, x in enumerate(longest_h):
+            if len(shortest_h) <= i-len(idx) or shortest_h[i-len(idx)] != x:
+                idx.append(i)
         datasets = sorted(t + t2, key=lambda x: x[0])
+        for row in datasets:
+            if len(row) < maxl:
+                for i in idx:
+                    row.insert(i, "-")
         if len(datasets) > 0:
-            table = Table(datasets, column_headers=(table or table2).column_headers)
+            table = Table(datasets, column_headers=max([h, h2], key=len))
             return [Section(f"Datasets ({len(table.data)})"), table]
         return None, None
 
