@@ -240,7 +240,9 @@ def __init():
                     print("")
                     for l in subprocess.run(["tree", p], check=True, capture_output=True).stdout.splitlines()[1:-1]:
                         print(l.decode())
-            cfg = [[f.stem, "\n".join(wrap(", ".join(getattr(utils, f'list_all_{f.stem}')(return_list=True))))] \
+            cfg = [[f.stem, "\n".join(wrap(", ".join(getattr(utils, f'list_all_{f.stem}', \
+                                                     lambda r, s: utils.list_configfile_keys(f, r, s)) \
+                                                     (True, not f.stem.startswith("alteration")))))] \
                    for f in self.path.joinpath("conf").listdir() if f.extension == ".yml"]
             if len(cfg) > 0:
                 render(Section(f"Configurations ({len(cfg)})"), Table(cfg, column_headers=["Name", "Entries"]))

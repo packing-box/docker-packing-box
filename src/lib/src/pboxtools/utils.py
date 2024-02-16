@@ -22,8 +22,9 @@ MDFILES  = ["dump.joblib", "features.json", "metadata.json", "performance.csv"]
 _fmt_name = lambda x: (x or "").lower().replace("_", "-")
 
 
-def __output(l, ret=False):
-    l.sort()
+def __output(l, ret=False, sort=True):
+    if sort:
+        l.sort()
     if ret:
         return l
     if len(l) > 0:
@@ -52,7 +53,7 @@ def __parse_config():
 
 def _configfile(cfgfile):
     def _wrapper(f):
-        def _subwrapper(return_list=False):
+        def _subwrapper(return_list=False, sort=True):
             """ Decorator for listing something from the current workspace """
             cfg, parts = __parse_config(), ("conf", f"{cfgfile}.yml")
             path = join(cfg['experiment'] or cfg['workspace'], *parts)
@@ -65,14 +66,14 @@ def _configfile(cfgfile):
                     yaml_str = "\n".join(l for l in fp.readlines() if len(l.split(":")) > 1 and \
                                                                   not re.match(r"\!{1,2}", l.split(":", 1)[1].lstrip()))
                 cfg.update(yaml.safe_load(yaml_str.replace("!!python", "")) or {})
-            return __output(f(cfg), return_list)
+            return __output(f(cfg), return_list, sort)
         return _subwrapper
     return _wrapper
 
 
 def _workspace(folder):
     def _wrapper(f):
-        def _subwrapper(return_list=False):
+        def _subwrapper(return_list=False, sort=True):
             """ Decorator for listing something from the current workspace """
             cfg = __parse_config()
             root, l = join(cfg['experiment'] or cfg['workspace'], folder), []
@@ -81,7 +82,7 @@ def _workspace(folder):
             for fp in listdir(root):
                 if f(join(root, fp)):
                     l.append(fp)
-            return __output(l, return_list)
+            return __output(l, return_list, sort)
         return _subwrapper
     return _wrapper
 
@@ -115,12 +116,17 @@ def list_all_algorithms(cfg):
     return sorted(list(set(_fmt_name(x) for x in l if x != "defaults")))
 
 
-def list_config_keys():
+def list_config_keys(return_list=False, sort=True):
     import pbox
-    l = ["--" + opt.replace("_", "-") for opt, _ in config.items()]
-    if len(l) > 0:
-        print(" ".join(l))
-    return 0
+    return __output(["--" + opt.replace("_", "-") for opt, _ in config.items()], return_list, sort)
+
+
+def list_configfile_keys(cfgfile, return_list=False, sort=True):
+    with open(str(cfgfile)) as fp:
+        yaml_str = "\n".join(l for l in fp.readlines() if len(l.split(":")) > 1 and \
+                                                          not re.match(r"\!{1,2}", l.split(":", 1)[1].lstrip()))
+    cfg = yaml.safe_load(yaml_str.replace("!!python", "")) or {}
+    return __output(list(cfg.keys()), return_list, sort)
 
 
 @_workspace("datasets")
@@ -144,7 +150,7 @@ def list_models(md):
     return isdir(md) and all(isfile(join(md, fn)) for fn in MDFILES)
 
 
-def list_experiment_configs(return_list=False):
+def list_experiment_configs(return_list=False, sort=True):
     """ Main function for listing available config file in an experiment """
     parser = argparse.ArgumentParser()
     parser.add_argument("experiment")
@@ -154,10 +160,10 @@ def list_experiment_configs(return_list=False):
     l = [splitext(f)[0] for f in listdir(root)]
     if exists(join(xp, "commands.rc")):
         l.append("commands")
-    return __output(l, return_list)
+    return __output(l, return_list, sort)
 
 
-def list_experiments(return_list=False):
+def list_experiments(return_list=False, sort=True):
     """ Main function for listing experiments from the current workspace """
     root, l = __parse_config()['experiments'], []
     for f in listdir(root):
@@ -166,10 +172,10 @@ def list_experiments(return_list=False):
            not any(fn not in EXPFILES for fn in listdir(xp)) and \
            not any(fn not in CONFIGS for fn in listdir(join(xp, "conf"))):
             l.append(f)
-    return __output(l, return_list)
+    return __output(l, return_list, sort)
 
 
-def list_tools(return_list=False):
+def list_tools(return_list=False, sort=True):
     """ Main function for listing tools """
-    return __output([f for f in listdir(expanduser("~/.opt/tools")) if f not in ["?", "startup"]], return_list)
+    return __output([f for f in listdir(expanduser("~/.opt/tools")) if f not in ["?", "startup"]], return_list, sort)
 
