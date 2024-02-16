@@ -164,6 +164,14 @@ You may also like these:
 - [REMINDer](https://github.com/packing-box/reminder): Packing detector using a simple heuristic (inspired from [this paper](https://ieeexplore.ieee.org/document/5404211)).
 
 
+## :books: Related Readings
+
+- arXiv - [Experimental Toolkit for Manipulating Executable Packing](https://arxiv.org/abs/2302.09286)
+- Black Hat Arsenal EU 2022 - [Packing-Box: Playing with Executable Packing](https://raw.githubusercontent.com/packing-box/docker-packing-box/main/docs/material/bheu22-packingbox.pdf)
+- Black Hat Arsenal EU 2023 - [Packing-Box: Breaking Detectors & Visualizing Packing](https://raw.githubusercontent.com/packing-box/docker-packing-box/main/docs/material/bheu23-packingbox.pdf)
+- Medium Blog Post - [Unpacking the Potential of "Packing Box"](https://medium.com/@elniak/unpacking-the-potential-of-packing-box-dfd765609233)
+
+
 ## :clap:  Supporters
 
 [![Stargazers repo roster for @packing-box/docker-packing-box](https://reporoster.com/stars/dark/packing-box/docker-packing-box)](https://github.com/packing-box/docker-packing-box/stargazers)
