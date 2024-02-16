@@ -1,12 +1,16 @@
 # -*- coding: UTF-8 -*-
 from tinyscript import functools, re
+from tinyscript.helpers import set_exception
 
 
 __all__ = ["aggregate_formats", "collapse_formats", "expand_formats", "format_shortname", "get_format_group",
            "ExeFormatDict"]
 
 
-format_shortname = lambda s: re.sub(r"([-_\.])", "", s.lower())
+set_exception("UnknownFormatError", "ValueError")
+
+
+format_shortname = lambda s, r="": re.sub(r"([-_\.])", r, (s or "").lower())
 
 
 class ExeFormatDict(dict):
@@ -30,12 +34,12 @@ class ExeFormatDict(dict):
     def __delitem__(self, name):
         depth = 0 if name == "All" else 1 if name in FORMATS.keys() else 2 if name in self.__all else -1
         if depth == -1:
-            raise ValueError("Unhandled key '%s'" % name)
+            raise UnknownFormatError(f"Unhandled key '{name}'")
         del self.__get(depth)[name]
 
     def __getitem__(self, name):
         if name not in self.__all:
-            raise ValueError("Bad executable format")
+            raise UnknownFormatError("Bad executable format")
         r = self.__get(0)['All']
         fcls = [k for k in self.__get(1).keys() if name in FORMATS[k]]
         if len(fcls) > 0:
@@ -49,7 +53,7 @@ class ExeFormatDict(dict):
             name, update = name
         depth = 0 if name == "All" else 1 if name in FORMATS.keys() else 2 if name in self.__all else -1
         if depth == -1:
-            raise ValueError("Unhandled key '%s'" % name)
+            raise UnknownFormatError(f"Unhandled key '{name}'")
         if update:
             self.__get(depth)[name].update(value)
         else:
@@ -74,7 +78,11 @@ def collapse_formats(*formats, **kw):
     # also support list input argument
     if len(formats) == 1 and isinstance(formats[0], (tuple, list)):
         formats = formats[0]
-    selected = [x for x in formats]
+    selected = [x for x in formats if x is not None]
+    # may occur if 'selected' only contains None, meaning that the list of formats provided was built from samples that
+    #  are not valid executables
+    if len(selected) == 0:
+        return []
     groups = [k for k in FORMATS.keys() if k != "All"]
     for f in groups:
         # if a complete group of formats (PE, ELF, Mach-O) is included, only keep the entire group
@@ -112,10 +120,12 @@ def expand_formats(*formats, **kw):
 @functools.lru_cache(maxsize=None)
 def get_format_group(exe_format, short=False):
     """ Get the parent formats group from the given executable format. """
+    if exe_format is None:
+        raise UnknownFormatError("Unknown format")
     if exe_format in list(FORMATS.keys())[1:]:
         return format_shortname(exe_format) if short else exe_format
     for fgroup, formats in list(FORMATS.items())[1:]:  # NB: exclude index 0 as it is "All"
         if exe_format in formats:
             return format_shortname(fgroup) if short else fgroup
-    raise ValueError("Cannot find the group for executable format '%s'" % exe_format)
+    raise UnknownFormatError(f"Cannot find the group for executable format '{exe_format}'")
 

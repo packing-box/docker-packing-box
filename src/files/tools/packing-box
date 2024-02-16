@@ -18,6 +18,7 @@ __examples__ = [
     "setup packer",
     "setup detector peid",
     "setup analyzer gettyp",
+    "show alterations",
     "test packer upx ezuri midgetpack",
     "test -b unpacker upx",
     "workspace view",
@@ -69,7 +70,7 @@ if __name__ == '__main__':
                              help=help)
     # level 1 subparser for listing items
     p = sparsers.add_parser("list", help="list something")
-    p.add_argument("type", type=ts.str_matches(r"^(%s)$" % "|".join(sorted([["%ss?" % i, i][i in \
+    p.add_argument("type", type=ts.str_matches(r"^(%s)$" % "|".join(sorted([[f"{i}s?", i][i in \
                    ["alterations", "features"]] for i in items] + ["config"]))), help="list items of the selected type")
     p.add_argument("-a", "--all", action="store_true", help="show all items, even those that are disabled")
     p.add_argument("-c", "--config", metavar="YAML", type=ts.file_exists, help="YAML definition")

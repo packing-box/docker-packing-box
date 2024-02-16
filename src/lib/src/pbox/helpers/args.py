@@ -74,7 +74,8 @@ def add_argument(parser, *names, **kwargs):
             parser.add_argument("--ignore-labels", action="store_true",
                                 help="while computing metrics, only consider those not requiring labels")
         elif name == "labels":
-            parser.add_argument("-l", "--labels", type=json_config, help="set labels from a JSON file")
+            parser.add_argument("-l", "--labels", type=file_exists,
+                                help="set labels from a JSON file or a CSV data file")
         elif name == "max-features":
             parser.add_argument("-n", "--max-features", default=0, type=pos_int,
                                 help=f"plot n features with {kwargs['max_feats_with']}", note="0 means no limit")

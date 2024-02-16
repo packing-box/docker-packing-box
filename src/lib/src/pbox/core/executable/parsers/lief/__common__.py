@@ -40,7 +40,6 @@ lazy_load_object("_LIEF2CS_ARCH", __init_LIEF2CS_ARCH)
 
 def __init_lief(lief):
     lief.logging.enable() if config['lief_logging'] else lief.logging.disable()
-    #lief._parse, lief.parse = lief.parse, _lief_parse
     # monkey-patch header-related classes ; this allows following calls (given that a parsed object from the Executable
     #  abstraction has this __getitem__ method too):
     #   exe.parsed['header']['signature']

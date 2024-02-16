@@ -4,6 +4,8 @@ from tinyscript import inspect, logging, random, re, string
 from tinyscript.helpers import get_terminal_size, is_file, is_folder, is_iterable, set_exception, Path, TempPath
 from tinyscript.helpers.expressions import WL_NODES
 
+from .formats import format_shortname
+
 lazy_load_module("yaml")
 set_exception("NotInstantiable", "TypeError")
 
@@ -16,7 +18,7 @@ _EVAL_NAMESPACE = {k: getattr(builtins, k) for k in ["abs", "divmod", "float", "
 _WL_EXTRA_NODES = ("arg", "arguments", "keyword", "lambda")
 
 
-_fmt_name = lambda x: (x or "").lower().replace("_", "-")
+_repeatn  = lambda s, n: (s * (n // len(s) + 1))[:n]
 _sec_name = lambda s: getattr(s, "real_name", getattr(s, "name", s))
 _size     = lambda exe, ratio=.1, blocksize=512: round(int(exe['size'] * ratio) / blocksize + .5) * blocksize
 
@@ -72,7 +74,7 @@ class dict2(dict):
     
     def __call__(self, data, silent=False, **kwargs):
         d = {k: getattr(random, k) for k in ["choice", "randint", "randrange", "randstr"]}
-        d.update({'apply': _apply, 'randbytes': _randbytes, 'select': _select(),
+        d.update({'apply': _apply, 'randbytes': _randbytes, 'repeatn': _repeatn, 'select': _select(),
                   'select_section_name': _select(_sec_name), 'size': _size})
         d.update(_EVAL_NAMESPACE)
         d.update(data)
@@ -328,7 +330,7 @@ def _init_item():
         def __init__(self, **kwargs):
             cls = self.__class__
             self.cname = cls.__name__
-            self.name = _fmt_name(cls.__name__)
+            self.name = format_shortname(cls.__name__, "-")
             self.type = cls.__base__.__name__.lower()
         
         def __new__(cls, *args, **kwargs):
@@ -365,7 +367,7 @@ def _init_item():
         def get(cls, item, error=True):
             """ Simple class method for returning the class of an item based on its name (case-insensitive). """
             for i in cls.registry:
-                if i.name == (item.name if isinstance(item, Item) else _fmt_name(item)):
+                if i.name == (item.name if isinstance(item, Item) else format_shortname(item, "-")):
                     return i
             if error:
                 raise ValueError(f"'{item}' is not defined")

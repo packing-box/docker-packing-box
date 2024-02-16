@@ -6,7 +6,7 @@ from argparse import ArgumentParser, RawTextHelpFormatter
 from ast import literal_eval
 from contextlib import suppress
 from itertools import product
-from os.path import abspath, exists, expanduser, isfile
+from os.path import abspath, exists, expanduser as expuser, isfile
 from pprint import pformat
 from shlex import split
 from subprocess import call, Popen, PIPE
@@ -94,18 +94,16 @@ def execute(name, **kwargs):
                 spec += " " + a.option_strings[0] + " " + str(x)
         elif v is not None:
             spec += " " + a.option_strings[0] + " " + str(v)
-    cmd = DETECTORS[name].get('command', "%s/%s {path}" % (expanduser("~/.local/bin"), name.lower()))
-    exe, opt = cmd.replace("$OPT", expanduser("~/.opt/detectors")).replace("$BIN", expanduser("~/.opt/bin")) \
-                  .split(" ", 1)
-    cmd = (exe + "%s " + opt) % spec
-    cmd = re.sub("'?\{path\}'?", "'{path}'", cmd)  # this allows to handle input path with whitespaces
+    cmd = DETECTORS[name].get('command', f"{expuser('~/.local/bin')}/{name.lower()} {{path}}")
+    exe, opt = cmd.replace("$OPT", expuser("~/.opt/detectors")).replace("$BIN", expuser("~/.opt/bin")).split(" ", 1)
+    cmd = re.sub("'?\{path\}'?", "'{path}'", f"{exe}{spec} {opt}")  # this allows to handle input path with whitespaces
     kwargs['logger'].debug("Command format: " + cmd)
     if kwargs.get('version', False):
         if kwargs.get('exit', True):
             call([cmd.split()[0], "--version"])
             exit(0)
         else:
-            cmd = "%s --version" % cmd.split()[0]
+            cmd = f"{cmd.split()[0]} --version"
     shell = ">" in cmd
     # prepare the command line and run the tool
     cmd = cmd.format(**kwargs)
@@ -128,7 +126,7 @@ def normalize(*lines, **kwargs):
         b = False
         for packer, details in PACKERS.items():
             # compose the name-based pattern and append the list of aliases
-            patterns = ["(?i)(?:[^a-z]|^)%s(?:[^a-z]|$)" % packer.replace("_", "(?:[ -_]|)")] + \
+            patterns = ["(?i)(?:[^a-z]|^)%s(?:[^a-z]|$)" % packer.replace("_", "(?:[ -_\x00]|)")] + \
                        details.get('aliases', [])
             # use the line as is but also a sanitized version
             strings  = [l, re.sub(r"(\'s|\s|\(|\)|\(\-\)|\[\-\])", "", l)]
@@ -150,7 +148,7 @@ def normalize(*lines, **kwargs):
         return NOT_PACKED
     vmax = max(d.values())
     m = [k for k, v in d.items() if v == vmax]
-    kwargs['logger'].debug("Matches: %s\n" % d)
+    kwargs['logger'].debug(f"Matches: {d}\n")
     # trivial when no candidate ; consider unknown count
     if len(m) == 0:
         if unknown > 0:
@@ -230,7 +228,7 @@ def run(name, exec_func=execute, parse_func=lambda x, **kw: x, stderr_func=lambd
     for opt in spec_opt:
         n = opt.dest
         try:
-            a.orig_args[n] = expanduser(getattr(a, n))
+            a.orig_args[n] = expuser(getattr(a, n))
         except TypeError:
             a.orig_args[n] = getattr(a, n)
         delattr(a, n)
@@ -245,11 +243,11 @@ def run(name, exec_func=execute, parse_func=lambda x, **kw: x, stderr_func=lambd
         exit(1)
     # load related dictionaries
     DETECTORS_FILE = a.detectors_file
-    with open(expanduser(DETECTORS_FILE)) as f:
+    with open(expuser(DETECTORS_FILE)) as f:
         DETECTORS = safe_load(f.read())
     if normalize_output:
         PACKERS_FILE = a.packers_file
-        with open(expanduser(PACKERS_FILE)) as f:
+        with open(expuser(PACKERS_FILE)) as f:
             PACKERS = safe_load(f.read())
     # handle version display
     if a.version:
@@ -274,21 +272,21 @@ def run(name, exec_func=execute, parse_func=lambda x, **kw: x, stderr_func=lambd
                     out += err
                 #  - file path ; e.g. ~/.opt/detectors/detector_name/version.txt
                 else:
-                    v = v.replace("$OPT", expanduser(f"~/.opt/detectors")).replace("$BIN", expanduser("~/.opt/bin"))
+                    v = v.replace("$OPT", expuser(f"~/.opt/detectors")).replace("$BIN", expuser("~/.opt/bin"))
                     if isfile(v):
                         with open(v) as f:
                             out = f.read().strip()
                 m = re.search(r"\d{1,2}(?:\.\d+){1,3}", out)
                 v = m.group() if m else ""
             #  - if not the first or second format, consider a string
-            v = ("%s %s" % (name, v.lstrip("v"))).rstrip()
+            v = f"{name} {v.lstrip('v')}".rstrip()
             with suppress(KeyError):
-                v += " <%s>" % DETECTORS[name]['source']
+                v += f" <{DETECTORS[name]['source']}>"
             with suppress(KeyError):
-                v += " by " + DETECTORS[name]['author']
+                v += f" by {DETECTORS[name]['author']}"
             with suppress(KeyError):
                 l = DETECTORS[name]['license']
-                v += "\nLicensed under %s (https://choosealicense.com/licenses/%s)" % (LICENSES[l], l)
+                v += f"\nLicensed under {LICENSES[l]} (https://choosealicense.com/licenses/{l})"
             print(v)
             exit(0)
         exec_func(name, version=True, data=DETECTORS[name], logger=a.logger)

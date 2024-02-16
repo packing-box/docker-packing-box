@@ -18,7 +18,7 @@ def supported_parsers(*parsers):
         @functools.wraps(f)
         def _subwrapper(parsed, *args, **kwargs):
             if parsed.parser not in parsers:
-                raise ParserError("parser '%s' is not supported for alteration '%s'" % f.__name__.lstrip("_"))
+                raise ParserError(f"parser '{parsed.parser}' not supported for alteration '{f.__name__.lstrip('_')}'")
             return f(parsed, *args, **kwargs)
         return _subwrapper
     return _wrapper
@@ -33,8 +33,8 @@ class AbstractBase:
         raise KeyNotAllowedError(name)
     
     def __repr__(self):
-        name = "" if not hasattr(self, "name") else " (%s)" % self.name
-        return "<%s%s object at 0x%x>" % (self.__class__.__name__, name, id(self))
+        name = "" if not hasattr(self, "name") else f" ({self.name})"
+        return f"<{self.__class__.__name__}{name} object at 0x{id(self):02x}>"
 
 
 class AbstractParsedExecutable(AbstractBase):
@@ -87,26 +87,27 @@ class AbstractParsedExecutable(AbstractBase):
         self.build()
     
     def section(self, section, original=False):
-        if isinstance(section, str):
+        if isinstance(section, (bytes, str)):
+            section = ensure_str(section)
             if original:
                 for s1, s2 in zip(self, self.sections):
-                    if s1.name == section:
+                    if ensure_str(s1.name) == section:
                         return s2                    
             else:
                 for s in self:
                     real_name = getattr(self, "real_section_names", {}).get(s.name, s.name)
-                    if s.name == section or real_name == section:
+                    if ensure_str(s.name) == section or ensure_str(real_name) == section:
                         if hasattr(s, "real_name"):
                             s.real_name = real_name
                         return s
-            raise ValueError("no section named '%s'" % section)
+            raise ValueError(f"no section named '{section}'")
         elif isinstance(section, AbstractBase):
             if original:
                 for s1, s2 in zip(self, self.sections):
-                    if s1.name == section.name:
+                    if ensure_str(s1.name) == ensure_str(section.name):
                         return s2
                 # should not happen ; this would mean that the input section does not come from the current executable
-                raise ValueError("no section named '%s'" % section.name)
+                raise ValueError(f"no section named '{section.name}'")
             else:
                 if hasattr(section, "real_name"):
                     section.real_name = self.real_section_names.get(section.name, section.name)
@@ -152,7 +153,7 @@ class AbstractParsedExecutable(AbstractBase):
         """ This only applies to PE as section names are limited to 8 characters for image files ; when using longer
              names, they are mapped into a string table that 'objdump' can read to recover the real section names. """
         if self.path.group != "PE":
-            raise AttributeError("'%s' object has no attribute 'real_section_names'" % self.__class__.__name__)
+            raise AttributeError(f"'{self.__class__.__name__}' object has no attribute 'real_section_names'")
         if not hasattr(self, "_real_section_names"):
             names = [ensure_str(s.name) for s in self]
             from re import match

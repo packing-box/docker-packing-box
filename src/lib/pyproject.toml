@@ -48,6 +48,7 @@ dependencies = [
   "pypcode",
   "rich",
   "scikit-learn>=1.3.2",
+  "seaborn",
   "tinyscript>=1.30.6",
   "weka",
 ]
