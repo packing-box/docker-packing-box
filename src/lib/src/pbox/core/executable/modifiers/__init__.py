@@ -72,8 +72,6 @@ def _rename_section(old_section, new_name, error=True):
         raise ValueError("Old section shall not be None")
     if new_name is None:
         raise ValueError("New section name shall not be None")
-    if len(new_name) > 8:
-        raise ValueError("Section name can't be longer than 8 characters (%s)" % new_name)
     def _rename_section(parsed, logger):
         try:
             sec = parsed.section(old_section, original=True) if isinstance(old_section, str) else old_section

@@ -1,4 +1,6 @@
 # -*- coding: UTF-8 -*-
+from tinyscript import ensure_str
+
 from ..parsers import *
 
 
@@ -102,17 +104,50 @@ def append_to_section(name, data):
     """
     @supported_parsers("lief")
     def _append_to_section(parsed, logger):
-        s = parsed.section(name, True)
-        available_size = s.size - len(s.content)
+        section = parsed.section(name, True)
+        l, fa = len(section.content), parsed.optional_header.file_alignment
+        available_size = max(0, section.virtual_size - l)
         d = list(data(available_size)) if callable(data) else list(data)
+        logger.debug(f"section: {section.name} - content: {l} - raw size: {section.size} - virtual size: "
+                     f"{section.virtual_size} - file alignment: {fa}")
         if available_size == 0:
-            logger.debug(">> {name}: This section has no slack space.")
+            logger.debug(f">> {section.name}: no available space")
         elif len(d) > available_size:
-            logger.debug(">> {name}: Data length is greater than the available space at the end of the section. The" \
-                         f" slack space is limited to {available_size} bytes, {len(d)} bytes of data were provided." \
-                         " Data will be truncated to fit in the slack space.")
+            logger.debug(f">> {section.name}: truncating data ({len(d)} bytes) to {available_size} bytes")
             d = d[:available_size]
-        s.content = list(s.content) + d
+        # when section's data and raw size are zero, LIEF fails to append data to the target section, hence in this case
+        #  we completely recreate the sections
+        if l == section.size == 0:
+            # save sections data
+            sections, sections_data, l = sorted(list(parsed.sections), key=lambda s: s.virtual_address), [], len(d)
+            for s in sections:
+                sections_data.append({'name': ensure_str(s.name),
+                                      'virtual_address': s.virtual_address,
+                                      'char': s.characteristics,
+                                      'content': list(d) if s == section else list(s.content),
+                                      'size': l + [(fa - l % fa), 0][l % fa == 0] if s == section else s.size,
+                                      'virtual_size': s.virtual_size,
+                                      'modified': s == section})
+            # remove all sections
+            for s in sections:
+                parsed.remove(s)
+            # then recreate them with the updated section
+            for sd in sections_data:
+                new_sec = parsed.add_section(type(section)(content=sd['content'] + [0] * (-len(sd['content']) % fa),
+                                                           name=sd['name'], characteristics=sd['char']))
+                for k, v in sd.items():
+                    if k in ["name", "char", "modified"]:
+                        if k == "modified" and v:
+                            section = new_sec
+                        continue
+                    setattr(new_sec, k, v)
+            logger.debug(f"section: {new_sec.name} - content: {len(d)} - new raw size: {new_sec.size}")
+        # classical case where section's data or raw size is not zero ; normally append data to the end of the section
+        else:
+            section.content = list(section.content) + d
+            l = len(section.content)
+            section.size = l + [(fa - l % fa), 0][l % fa == 0]
+            logger.debug(f"section: {section.name} - content: {l} - new raw size: {section.size}")
     return _append_to_section
 
 
