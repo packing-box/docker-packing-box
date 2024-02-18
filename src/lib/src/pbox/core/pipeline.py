@@ -40,9 +40,9 @@ def make_pipeline(pipeline, preprocessors, logger=null_logger):
             try:
                 p, params = p
             except ValueError:
-                logger.error("Bad preprocessor format: %s" % p)
+                logger.error(f"Bad preprocessor format: {p}")
                 raise
-            m = "%s with %s" % (p.__name__, ", ".join("{}={}".format(*i) for i in params.items()))
+            m = f"{p.__name__} with {', '.join('{}={}'.format(*i) for i in params.items())}"
         else:
             m = p.__name__
         pipeline.append((m, p(**params)))
@@ -69,7 +69,7 @@ def __init_pl():
             NB: verbosity is controlled via the logger, therefore we output None so that it is not natively displayed. """
             if not getattr(Pipeline, "silent", False):
                 name, _ = self.steps[step_idx]
-                logger.info("[%d/%d] %s" % (step_idx + 1, len(self.steps), name))
+                logger.info(f"[{step_idx+1}/{len(self.steps)}] {name}")
         Pipeline._log_message = _log_message
         
         def append(self, step):

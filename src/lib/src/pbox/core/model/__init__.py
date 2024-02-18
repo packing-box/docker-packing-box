@@ -37,12 +37,12 @@ class BaseModel(Entity):
     def _metrics(self, data, prediction, target=None, proba=None, metrics="classification", proctime=None,
                  ignore_labels=False):
         """ Metrics computation method. """
-        l, mfunc = self.logger, "%s_metrics" % metrics
+        l, mfunc = self.logger, f"{metrics}_metrics"
         if mfunc not in globals():
-            l.error("Bad metrics type '%s'" % metrics)
+            l.error(f"Bad metrics type '{metrics}'")
             return
         m = globals()[mfunc]
-        l.debug("Computing %s metrics..." % metrics)
+        l.debug(f"Computing {metrics} metrics...")
         df2np = lambda df: df.to_numpy() if isinstance(df, pd.DataFrame) else df
         fix = lambda v: df2np(v) if getattr(df2np(v), "ndim", 1) == 1 else df2np(v).transpose()[0]
         values, headers = m(data, fix(prediction), y_true=fix(target), y_proba=fix(proba), proctime=proctime,
@@ -69,7 +69,7 @@ class BaseModel(Entity):
         #  i.e. when preparing data for the train() method
         if not data_only:
             if not getattr(ds, "is_valid", lambda: False)():
-                l.error("%s is not a valid input dataset" % dataset)
+                l.error(f"{dataset} is not a valid input dataset")
                 return False
             # copy relevant information from the input dataset (which is the reference one for the trained model)
             l.debug("Preparing dataset...")
@@ -88,10 +88,10 @@ class BaseModel(Entity):
                 except ValueError:
                     pass
             if not ds.exists():
-                l.error("Bad input dataset (%s)" % ds)
+                l.error(f"Bad input dataset ({ds})")
                 return False
         self._dataset = ds
-        l.info("%s dataset:  %s" % (kw.get('ds_type', ["Reference", "Test"][data_only]), ds))
+        l.info(f"{kw.get('ds_type', ['Reference','Test'][data_only])} dataset:  {ds}")
         self._data, self._target = pd.DataFrame(), pd.DataFrame(columns=["label"])
         Features.boolean_only = self.algorithm.boolean
         # start input dataset parsing
@@ -214,7 +214,7 @@ class BaseModel(Entity):
         if not self._prepare(**kw):
             return
         cls = self._algorithm = Algorithm.get(self._metadata['algorithm']['name'])
-        l.debug("Testing %s on %s..." % (self.name, ds))
+        l.debug(f"Testing {self.name} on {ds}...")
         prediction, dt = benchmark(self.pipeline.predict)(self._data)
         try:
             proba, dt2 = benchmark(self.pipeline.predict_proba)(self._data)
@@ -232,7 +232,7 @@ class BaseModel(Entity):
             for header in [[], ["Model"]][self.__class__ is DumpedModel] + ["Dataset"] + h:
                 if header not in self._performance.columns:
                     self._performance[header] = np.nan
-            render(Table([m], column_headers=h, title="%s metrics" % metric.capitalize() if len(metrics) > 0 else None))
+            render(Table([m], column_headers=h, title=f"{metric.capitalize()} metrics" if len(metrics) > 0 else None))
             if len(self._data) > 0:
                 row = {'Model': self.name} if self.__class__ is DumpedModel else {}
                 row['Dataset'] = str(ds) + ["", "(unlabelled)"][ignore_labels]
@@ -276,10 +276,10 @@ class Model(BaseModel):
         self.__read_only = False
         if not Model.check(self.path):  # NB: self.path is a property computed based on self.name
             return
-        self.logger.debug("loading model %s..." % self.path)
+        self.logger.debug(f"loading model {self.path}...")
         for n in ["dump", "features", "metadata", "performance"]:
             p = self.path.joinpath(n + (".joblib" if n == "dump" else ".csv" if n == "performance" else ".json"))
-            self.logger.debug("> loading %s..." % p.basename)
+            self.logger.debug(f"> loading {p.basename}...")
             if n == "dump":
                 self.pipeline.pipeline = joblib.load(str(p))
                 self.__read_only = True
@@ -299,11 +299,11 @@ class Model(BaseModel):
             l.warning("This model already exists !")
             return
         self.path.mkdir(exist_ok=True)
-        l.debug("%s model %s..." % (["Saving", "Updating"][self.__read_only], str(self.path)))
+        l.debug(f"{['Saving','Updating'][self.__read_only]} model {self.path}...")
         if not self.__read_only:
             for n in ["dump", "features", "metadata"]:
                 p = self.path.joinpath(n + (".joblib" if n == "dump" else ".json"))
-                l.debug("> saving %s..." % str(p))
+                l.debug(f"> saving {p}...")
                 if n == "dump":
                     joblib.dump(self.pipeline.pipeline, str(p))
                 else:
@@ -312,7 +312,7 @@ class Model(BaseModel):
                 p.chmod(0o444)
             self.__read_only = True
         p = self.path.joinpath("performance.csv")
-        l.debug("> saving %s..." % str(p))
+        l.debug(f"> saving {p}...")
         self._performance.to_csv(str(p), sep=";", index=False, header=True, float_format=FLOAT_FORMAT)
     
     def browse(self, executable=None, query=None, **kw):
@@ -324,7 +324,7 @@ class Model(BaseModel):
         kw['data_only'], kw['dataset'] = True, ds
         if not self._prepare(ds_type="Target", **kw):
             return
-        l.debug("Applying predictions with %s on %s..." % (self.name, ds))
+        l.debug(f"Applying predictions with {self.name} on {ds}...")
         pred = self.pipeline.predict(self._data)
         try:
             data = Dataset.load(ds)._data
@@ -335,7 +335,7 @@ class Model(BaseModel):
                 del data[f]
             except KeyError:
                 continue
-            l.debug("> dropped feature: %s" % f)
+            l.debug(f"> dropped feature: {f}")
         # if the prediction relates to a cluster, name it accordingly
         k = 'cluster' if 'n_clusters' in self.algorithm.parameters or \
                       any('n_clusters' in d for d in self.algorithm.parameters.values()) else 'prediction'
@@ -377,8 +377,8 @@ class Model(BaseModel):
                     data.append(row)
             perf = pd.concat([perf, pd.DataFrame.from_records(data)])
         if len(perf) == 0:
-            l.warning("No model selected" if dataset is None else "%s not found for the given model" % \
-                      [dataset[0], "Datasets"][len(dataset) > 1])
+            l.warning("No model selected" if dataset is None else \
+                      f"{[dataset[0],'Datasets'][len(dataset) > 1]} not found for the given model")
             return
         # display performance data
         h = list(perf.columns)
@@ -426,19 +426,19 @@ class Model(BaseModel):
         params = a['parameters'].keys()
         l = max(map(len, params))
         params = [("{: <%s} = {}" % l).format(*p) for p in sorted(a['parameters'].items(), key=lambda x: x[0])]
-        c = List(["**Path**:          %s" % self.path,
-                  "**Size**:          %s" % human_readable_size(self.path.joinpath("dump.joblib").size),
-                  "**Algorithm**:     %s (%s)" % (a['description'], a['name']),
-                  "**Multiclass**:    %s" % "NY"[a['multiclass']]] + fi_str + \
+        c = List([f"**Path**:          {self.path}",
+                  f"**Size**:          {human_readable_size(self.path.joinpath('dump.joblib').size)}",
+                  f"**Algorithm**:     {a['description']} ({a['name']})",
+                  f"**Multiclass**:    {'NY'[a['multiclass']]}"] + fi_str + \
                  ["**Preprocessors**: \n\n\t- %s\n\n" % "\n\t- ".join(a['preprocessors']),
                   "**Parameters**: \n\n\t- %s\n\n" % "\n\t- ".join(params)])
         render(Section("Model characteristics"), c)
         ds_path = config['datasets'].joinpath(ds['name'])
-        c = List(["**Path**:         %s" % ds_path,
-                  "**Size**:         %s" % human_readable_size(ds_path.size),
-                  "**#Executables**: %d" % ds['executables'],
-                  "**Formats**:      %s" % ", ".join(ds['formats']),
-                  "**Packers**:      %s" % ", ".join(get_counts(ds).keys())])
+        c = List([f"**Path**:         {ds_path}",
+                  f"**Size**:         {human_readable_size(ds_path.size)}",
+                  f"**#Executables**: {ds['executables']}",
+                  f"**Formats**:      {', '.join(ds['formats'])}",
+                  f"**Packers**:      {', '.join(get_counts(ds).keys())}"])
         render(Section("Reference dataset"), c)
     
     def train(self, algorithm=None, cv=5, n_jobs=None, param=None, reset=False, ignore_labels=False, **kw):
@@ -449,7 +449,7 @@ class Model(BaseModel):
         try:
             cls = self._algorithm = Algorithm.get(algorithm)
         except KeyError:
-            l.error("%s not available" % algorithm)
+            l.error(f"{algorithm} not available")
             return
         kw['preprocessor'] = kw.get('preprocessor') or getattr(cls, "preprocessors", [])
         algo = cls.__class__.__name__
@@ -460,34 +460,33 @@ class Model(BaseModel):
         self._metadata['algorithm']['preprocessors'] = kw['preprocessor']
         # check that, if the algorithm is supervised, it has full labels
         if cls.labelling == "full" and ds.labelling < 1.:
-            l.error("'%s' won't work with a dataset that is not fully labelled" % algo)
+            l.error(f"'algo' won't work with a dataset that is not fully labelled")
             return
         # check that, if the algorithm is semi-supervised, it is not labelled at all ; if so, stop here (should be
         #  unsupervised, that is, cls.labelling == "none")
         if cls.labelling == "partial" and ds.labelling == 0.:
-            l.error("'%s' won't work with a dataset that is not labelled" % algo)
+            l.error(f"'{algo}' won't work with a dataset that is not labelled")
             return
-        l.info("Selected algorithm: %s" % cls.description)
+        l.info(f"Selected algorithm: {cls.description}")
         if n_jobs > n_cpu:
-            l.warning("Maximum n_jobs is %d" % n_cpu)
+            l.warning(f"Maximum n_jobs is {n_cpu}")
             n_jobs = n_cpu
         # prepare the dataset first, as we need to know the number of features for setting model's name
         if not self._prepare(**kw):
             return
         if self.name is None:
             c = sorted(collapse_formats(*ds._metadata['formats']))
-            self.name = "%s_%s_%d_%s_f%d" % (ds.path.stem, "-".join(map(lambda x: x.lower(), c)).replace(".", ""),
-                                             ds._metadata['executables'],
-                                             algo.lower().replace(".", ""), len(self._features))
+            self.name = f"{ds.path.stem}_{'-'.join(map(lambda x: x.lower(), c)).replace('.','')}_" \
+                        f"{ds._metadata['executables']}_{algo.lower().replace('.','')}_f{len(self._features)}"
         if reset:
             self.path.remove(error=False)
         self._load()
         if self.__read_only:
             l.warning("Cannot retrain a model")
-            l.warning("You can remove it first with the following command: model purge %s" % self.name)
+            l.warning(f"You can remove it first with the following command: model purge {self.name}")
             return
         if not getattr(cls, "multiclass", True) and multiclass:
-            l.error("'%s' does not support multiclass" % algo)
+            l.error(f"'{algo}' does not support multiclass")
             return
         # get classifer and parameters
         params = cls.parameters.get('static', cls.parameters if cls.labelling == "none" else None)
@@ -496,7 +495,7 @@ class Model(BaseModel):
             params['feature_names'] = sorted(self._features.keys())
         param_grid = {k: list(v) if isinstance(v, range) else v for k, v in cls.parameters.get('cv', {}).items()}
         if cls.labelling == "none" and len(param_grid) > 0:
-            l.error("'%s' does not support grid search (while CV parameters are specified)" % algo)
+            l.error(f"'{algo}' does not support grid search (while CV parameters are specified)")
             return
         # apply user-defined parameters
         for n, v in param.items():
@@ -510,20 +509,20 @@ class Model(BaseModel):
         if params.get('n_clusters') == "auto":
             params['n_clusters'] = n = 2 if ds.labelling == .0 or not multiclass or ignore_labels else \
                                    len(set(l for l in self._metadata['dataset']['counts'].keys() if l != NOT_LABELLED))
-            l.debug("> parameter n_clusters=\"auto\" set to %d%s" % (n, [" based on labels", ""][ignore_labels]))
+            l.debug(f"> parameter n_clusters=\"auto\" set to {n}{[' based on labels',''][ignore_labels]}")
         l.info("Training model...")
         self.pipeline.append((cls.description, cls.base(**params)))
         # if a param_grid is input, perform cross-validation and select the best classifier
         _convert = lambda d: {k.split("__", 1)[1]: v for k, v in d.items()}
         if len(param_grid) > 0:
             from sklearn.model_selection import GridSearchCV
-            l.debug("> applying Grid Search (CV=%d)..." % cv)
+            l.debug(f"> applying Grid Search (CV={cv})...")
             Pipeline.silent = True
             # as we use a pipeline, we need to rename all parameters to [estimator name]__[parameter]
-            param_grid = {"%s__%s" % (self.pipeline.steps[-1][0], k): v for k, v in param_grid.items()}
+            param_grid = {f"{self.pipeline.steps[-1][0]}__{k}": v for k, v in param_grid.items()}
             grid = GridSearchCV(self.pipeline.pipeline, param_grid=param_grid, cv=cv, scoring="accuracy", n_jobs=n_jobs)
             grid.fit(self._data, self._target.values.ravel())
-            results = '\n'.join("  %0.3f (+/-%0.03f) for %r" % (m, s * 2, _convert(p)) \
+            results = '\n'.join(f"  {m:0.3f} (+/-{s*2:0.03f}) for {_convert(p)}" \
                                 for m, s, p in zip(grid.cv_results_['mean_test_score'],
                                                    grid.cv_results_['std_test_score'],
                                                    grid.cv_results_['params']))
@@ -555,7 +554,7 @@ class Model(BaseModel):
             except (AttributeError, KeyError):  # some algorithms do not support .predict_proba(...)
                 self._test.predict_proba = None
         metrics = cls.metrics if isinstance(cls.metrics, (list, tuple)) else [cls.metrics]
-        render(Section("Name: %s" % self.name))
+        render(Section(f"Name: {self.name}"))
         print("\n")
         for metric in metrics:
             d, h = [], []
@@ -570,9 +569,9 @@ class Model(BaseModel):
                     d.append([dset.capitalize()] + m)
                     h = ["."] + h
             if len(h) > 0:
-                t = "%s metrics" % metric.capitalize() if len(metrics) > 0 else None
+                t = f"{metric.capitalize()} metrics" if len(metrics) > 0 else None
                 render(Table(d, column_headers=h, title=t))
-        l.info("Parameters:\n- %s" % "\n- ".join("%s = %s" % p for p in params.items()))
+        l.info("Parameters:\n- %s" % "\n- ".join(f"{p} = {v}" for p, v in params.items()))
         self._metadata['algorithm']['parameters'] = params
         self._save()
     
@@ -586,7 +585,7 @@ class Model(BaseModel):
         viz_dict = _VISUALIZATIONS.get(a['name'], {})
         viz_func = viz_dict.get(["text", "image"][export])
         if viz_func is None:
-            self.logger.warning("Visualization not available for this algorithm%s" % [" in text mode", ""][export])
+            self.logger.warning(f"Visualization not available for this algorithm{[' in text mode',''][export]}")
             return
         params = {'algo_name' : a['name'], 'algo_params': a['parameters'],
                   'feature_names': sorted(self._features.keys()), 'logger': self.logger}
@@ -622,7 +621,7 @@ class Model(BaseModel):
         """ List all the models from the given path or all available algorithms. """
         if algorithms:
             d = [(a.name, a.description) for a in Algorithm.registry]
-            r = [Section("Algorithms (%d)" % len(d)), Table(d, column_headers=["Name", "Description"])]
+            r = [Section(f"Algorithms ({len(d)})"), Table(d, column_headers=["Name", "Description"])]
         else:
             d = []
             for model in cls.iteritems(False):
@@ -636,13 +635,13 @@ class Model(BaseModel):
                     ds['name'],
                     str(ds['executables']),
                     ",".join(sorted(ds['formats'])),
-                    shorten_str(",".join("%s{%d}" % i for i in sorted(get_counts(ds).items(),
-                                                                      key=lambda x: (-x[1], x[0])))),
+                    shorten_str(",".join(f"{n}{{{c}}}" for n, c in sorted(get_counts(ds).items(),
+                                                                          key=lambda x: (-x[1], x[0])))),
                 ])
             if len(d) == 0:
-                cls.logger.warning("No model found in the workspace (%s)" % config['models'])
+                cls.logger.warning(f"No model found in the workspace ({config['models']})")
                 return
-            r = [Section("Models (%d)" % len(d)),
+            r = [Section(f"Models ({len(d)})"),
                  Table(d, column_headers=["Name", "Algorithm", "Description", "Dataset", "Size", "Formats", "Packers"])]
         render(*r)
 
@@ -667,7 +666,7 @@ class DumpedModel(BaseModel):
             pass
     
     def _save(self):
-        self.logger.debug("> saving metrics to %s..." % str(self.__p))
+        self.logger.debug(f"> saving metrics to {self.__p}...")
         p = self._performance
         k = p.columns
         p = p.loc[p.round(3).drop_duplicates(subset=k[:-1]).index]

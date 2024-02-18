@@ -37,7 +37,7 @@ class Feature(dict2):
             delattr(self, "_exe")
         except AttributeError:
             p = "default"
-        return self.get('parser', config['%s_parser' % p])
+        return self.get('parser', config[f'{p}_parser'])
 
 
 class Features(dict, metaclass=MetaBase):
@@ -54,7 +54,7 @@ class Features(dict, metaclass=MetaBase):
         if ft.registry is None:
             src = ft.source  # WARNING! this line must appear BEFORE ft.registry={} because the first time that the
                              #           source attribute is called, it is initialized and the registry is reset to None
-            l.debug("loading features from %s..." % src)
+            l.debug(f"loading features from {src}...")
             ft.registry = {}
             # important note: the 'keep' parameter is not considered here as some features may be required for computing
             #                  others but not kept in the final data, hence required in the registry yet
@@ -67,7 +67,7 @@ class Features(dict, metaclass=MetaBase):
                     expr = r.get(fmt)
                     if expr is not None:
                         if len(values) > 0:
-                            if not all(isinstance(x, (list, tuple)) or is_generator(x) for x in values):
+                            if not all(isinstance(x, (dict, list, tuple)) or is_generator(x) for x in values):
                                 values = [values]
                             f = []
                             for val in itertools.product(*values):
@@ -99,7 +99,7 @@ class Features(dict, metaclass=MetaBase):
                             for subfmt in expand_formats(fmt):
                                 ft.registry.setdefault(subfmt, {})
                                 ft.registry[subfmt][feat.name] = feat
-            l.debug("%d features loaded" % len(Features.names()))
+            l.debug(f"{len(Features.names())} features loaded")
         if exe is not None and exe.format in ft.registry:
             from .extractors import Extractors
             self._rawdata = Extractors(exe)
@@ -149,7 +149,7 @@ class Features(dict, metaclass=MetaBase):
                                 todo.appendleft(reg[name2])
                             counts.setdefault(name2, 0)
                     if counts.get(n, 0) > 10:
-                        raise ValueError("Too much iterations of '%s'" % n)
+                        raise ValueError(f"Too much iterations of '{n}'")
                 except ValueError:  # occurs when FobiddenNodeError is thrown
                     continue
             # once converged, ensure that we did not leave a feature that should not be kept

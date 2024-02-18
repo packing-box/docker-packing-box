@@ -36,7 +36,7 @@ def __init():
                 self._bad = True
                 return NOT_LABELLED
             # if unpacking succeeded, we can return packer's label
-            self.logger.debug("%s unpacked using %s" % (exe.filename, label))
+            self.logger.debug(f"{exe.filename} unpacked using {label}")
             return label
     # ensure it initializes only once (otherwise, this loops forever)
     if not __initialized:

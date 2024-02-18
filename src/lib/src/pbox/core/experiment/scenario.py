@@ -26,7 +26,7 @@ def __init_metascenario():
             # this masks some attributes for child classes (e.g. Scenario.registry can be accessed, but when the
             #  registry of child classes is computed, the child classes, e.g. RF, won't be able to access RF.registry)
             if name in ["get", "iteritems", "mro", "registry"] and self._instantiable:
-                raise AttributeError("'%s' object has no attribute '%s'" % (self.__name__, name))
+                raise AttributeError(f"'{self.__name__}' object has no attribute '{name}'")
             return super(MetaScenario, self).__getattribute__(name)
         
         @property
@@ -75,7 +75,7 @@ def __init_scenario():
         def __getattribute__(self, name):
             # this masks some attributes for child instances in the same way as for child classes
             if name in ["get", "iteritems", "mro", "registry"] and self._instantiable:
-                raise AttributeError("'%s' object has no attribute '%s'" % (self.__class__.__name__, name))
+                raise AttributeError(f"'{self.__class__.__name__}' object has no attribute '{name}'")
             return super(Scenario, self).__getattribute__(name)
         
         def _compose_readme(self):

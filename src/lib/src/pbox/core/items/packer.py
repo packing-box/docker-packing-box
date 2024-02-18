@@ -57,7 +57,7 @@ def __init():
             #             settings shall be fine-tuned BEFORE making datasets ; "unmanaged" errors should thus not occur
             if self._error:
                 err = self._error.replace(str(exe) + ": ", "").replace(self.name + ": ", "").strip()
-                self.logger.debug("not packed (%s)" % err)
+                self.logger.debug(f"not packed ({err})")
                 return NOT_PACKED
             # if packed file's hash was not changed then change packer's state to "BAD" ; this will trigger a count at
             #  the dataset level and disable the packer if it triggers too many failures
@@ -70,7 +70,7 @@ def __init():
             elif any(getattr(exe, a, None) == v for a, v in getattr(self, "failure", {}).items()):
                 for a, v in self.failure.items():
                     if getattr(exe, a, None) == v:
-                        self.logger.debug("not packed (failure condition met: %s=%s)" % (a, str(v)))
+                        self.logger.debug(f"not packed (failure condition met: {a}={v})")
                 self._bad = True
                 return NOT_LABELLED
             # it may occur that a packer modifies the format after packing, e.g. GZEXE on /usr/bin/fc-list (the new
@@ -93,7 +93,7 @@ def __init():
             """ Customizable method for shaping the command line to run the packer on an input executable. """
             # inspect steps and set custom parameters for non-standard packers
             p_pat = re.compile(re.sub(r"\)\?\}\}$", ")}}", PARAM_PATTERN.pattern))
-            for step in getattr(self, "steps", ["%s %s" % (self.name, executable)]):
+            for step in getattr(self, "steps", [f"{self.name} {executable}"]):
                 if "{{password}}" in step and 'password' not in self._params:
                     self._params['password'] = [random.randstr()]
                 for name, value in p_pat.findall(step):
@@ -125,12 +125,10 @@ def __init_ezuri():
             P = subprocess.PIPE
             p = subprocess.Popen(["ezuri"], stdout=P, stderr=P, stdin=P)
             executable = Executable(executable)
-            self.logger.debug("inputs: src/dst=%s, procname=%s" % (executable, executable.stem))
-            out, err = p.communicate(("%(e)s\n%(e)s\n%(n)s\n%(k)s\n%(iv)s\n" % {
-                'e': executable, 'n': executable.stem,
-                'k': "" if Ezuri.key is None else Ezuri.key,
-                'iv': "" if Ezuri.iv is None else Ezuri.iv,
-            }).encode())
+            self.logger.debug(f"inputs: src/dst={executable}, procname={executable.stem}")
+            out, err = p.communicate((f"{executable}\n{executable}\n{executable.stem}\n"
+                                      f"{'' if Ezuri.key is None else Ezuri.key}\n"
+                                      f"{'' if Ezuri.iv is None else Ezuri.iv}\n").encode())
             for l in out.splitlines():
                 l = ensure_str(l)
                 if not l.startswith("[?] "):
@@ -142,7 +140,7 @@ def __init_ezuri():
             if err:
                 self.logger.error(ensure_str(err.strip()))
                 self._error = True
-            return "%s[key:%s;iv:%s]" % (self.name, Ezuri.key, Ezuri.iv)
+            return f"{self.name}[key:{Ezuri.key};iv:{Ezuri.iv}]"
     return Ezuri
 Ezuri = lazy_object(__init_ezuri)
 

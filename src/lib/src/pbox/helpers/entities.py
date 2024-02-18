@@ -62,7 +62,7 @@ class Entity:
     def __repr__(self):
         """ Custom entity's string representation. """
         t = " ".join(re.findall(r'[A-Z](?:[a-z]+|[A-Z]*(?=[A-Z]|$))', self.__class__.__name__)).lower()
-        return "<%s %s at 0x%x>" % (self.name, t, id(self))
+        return f"<{self.name} {t} at 0x{id(self):02x}>"
     
     def __str__(self):
         """ Custom entity's string. """
@@ -327,5 +327,5 @@ class Entity:
     
     @classproperty
     def names(cls):
-        return [p.basename for p in Path(config['%ss' % cls.__name__.lower()]).listdir(cls.check)]
+        return [p.basename for p in Path(config[f'{cls.__name__.lower()}s']).listdir(cls.check)]
 

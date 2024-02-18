@@ -70,7 +70,7 @@ def data_to_temp_file(data, prefix="temp"):
 
 def edit_file(path, csv_sep=";", text=False, **kw):
     """" Edit a target file with visidata. """
-    cmd = "%s %s" % (os.getenv('EDITOR'), path) if text else "vd %s --csv-delimiter \"%s\"" % (path, csv_sep)
+    cmd = f"{os.getenv('EDITOR')} {path}" if text else f"vd {path} --csv-delimiter \"{csv_sep}\""
     l = kw.pop('logger', None)
     if l:
         l.debug(cmd)
@@ -124,7 +124,7 @@ def file_or_folder_or_dataset(method):
                     if i.joinpath("files").is_dir() and not i.joinpath("features.json").exists():
                        
                         if not kwargs['silent']:
-                            self.logger.debug("input is Dataset from %s" % config['datasets'])
+                            self.logger.debug(f"input is Dataset from {config['datasets']}")
                         data = pd.read_csv(str(i.joinpath("data.csv")), sep=";")
                         l = {exe.hash: exe.label for exe in data.itertuples()}
                         dataset = i.basename
@@ -151,7 +151,7 @@ def file_or_folder_or_dataset(method):
         for i, exe in enumerate(e):
             exe = Executable(exe)
             if exe.format is None:  # format is not in the executable SIGNATURES of pbox.core.executable
-                self.logger.debug("'%s' is not a valid executable" % exe)
+                self.logger.debug(f"'{exe}' is not a valid executable")
                 continue
             kwargs['dslen'] = len(e)
             # this is useful for a decorated method that handles the difference between the computed and actual labels

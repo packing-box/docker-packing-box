@@ -21,7 +21,7 @@ def __init_metaalgo():
             # this masks some attributes for child classes (e.g. Algorithm.registry can be accessed, but when the
             #  registry of child classes is computed, the child classes, e.g. RF, won't be able to access RF.registry)
             if name in ["get", "iteritems", "mro", "registry"] and self._instantiable:
-                raise AttributeError("'%s' object has no attribute '%s'" % (self.__name__, name))
+                raise AttributeError(f"'{self.__name__}' object has no attribute '{name}'")
             return super(MetaAlgorithm, self).__getattribute__(name)
         
         @property
@@ -44,7 +44,7 @@ def __init_metaalgo():
             # start parsing items of cls
             for category, items in load_yaml_config(p, parse_defaults=False):
                 if category not in ["Semi-Supervised", "Supervised", "Unsupervised"]:
-                    raise ValueError("bad learning algorithm category (%s)" % category)
+                    raise ValueError(f"bad learning algorithm category ({category})")
                 dflts = items.pop('defaults', {})
                 dflts.setdefault('boolean', False)
                 dflts.setdefault('multiclass', True)
@@ -83,7 +83,7 @@ def __init_algo():
         def __getattribute__(self, name):
             # this masks some attributes for child instances in the same way as for child classes
             if name in ["get", "iteritems", "mro", "registry"] and self._instantiable:
-                raise AttributeError("'%s' object has no attribute '%s'" % (self.__class__.__name__, name))
+                raise AttributeError(f"'{self.__class__.__name__}' object has no attribute '{name}'")
             return super(Algorithm, self).__getattribute__(name)
         
         def is_weka(self):

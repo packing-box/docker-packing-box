@@ -42,7 +42,7 @@ def to_arff(name="undefined"):
             Path(p.dirname, create=True)
             with p.open('w') as arff:
                 arff.write(("@RELATION \"{rel}\"\n\n{attr}\n@ATTRIBUTE {c: <%d} {cls}\n\n@DATA\n{data}" % mlen)
-                           .format(rel=name, attr="\n".join(a), data=d, c="class", cls="{%s}" % ",".join(self.labels)))
+                           .format(rel=name, attr="\n".join(a), data=d, c="class", cls=f"{{{','.join(self.labels)}}}"))
             r = f(self, *args, **kwargs)
             if destination is None:
                 p.remove()
@@ -95,7 +95,7 @@ class WekaClassifier(Classifier):
 for classifier in WEKA_CLASSIFIERS:
     name = classifier.split(".")[-1]
     if name not in globals():
-        exec("class %s(WekaClassifier): _weka_base = \"%s\"" % (name, classifier))
+        exec(f"class {name}(WekaClassifier): _weka_base = \"{classifier}\"")
     else:
         break  # already initialized
     

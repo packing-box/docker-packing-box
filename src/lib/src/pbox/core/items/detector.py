@@ -14,7 +14,7 @@ def decide(results, **kwargs):
     l, t = kwargs['n_detectors'], THRESHOLDS.get(kwargs.get('threshold'), 0)
     t = t(l) if isinstance(t, type(lambda: 0)) else t
     if not 0 <= t <= l:
-        raise ValueError("Bad threshold value %.2f, not in [0, %d]" % (t, l))
+        raise ValueError(f"Bad threshold value {t:.2f}, not in [0, {l}]")
     vmax = max(results.values())  # best count
     # if the voting heuristic provides a threshold that no label could satisfy, then the superdetector cannot decide
     if vmax < t:
@@ -71,7 +71,7 @@ def __init():
                     return False
                 if d_mc and not i_mc:
                     warn = not d_vote and not kwargs['debug']
-                    (l.warning if warn else l.debug)("%sdoes not support multiclass" % ["", "%s " % self.cname][warn])
+                    (l.warning if warn else l.debug)(f"{['', self.cname + ' '][warn]}does not support multiclass")
                     return False
                 return True
             return False
@@ -155,7 +155,7 @@ def __init():
                 label2 = list(self.detect(executable, **kwargs))[0][1]
             except TypeError:  # NoneType ; when executable has a format not supported by the detector being tested
                 if not kwargs.get('verbose', False):
-                    l.warning("'%s' has a format not supported by %s" % (executable, self.cname))
+                    l.warning(f"'{executable}' has a format not supported by {self.cname}")
                 return
             if multiclass:
                 if label2 == NOT_PACKED:

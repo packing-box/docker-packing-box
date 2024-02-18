@@ -139,8 +139,8 @@ def __init():
                         break
             if hist_last_line == "" or hist_last_line == rc_last_line:
                 getattr(l, ["warning", "debug"][silent])("Nothing to commit")
-            elif force or confirm("Do you really want to commit this command: %s ?" % hist_last_line):
-                l.debug("writing command '%s' to commands.rc..." % hist_last_line)
+            elif force or confirm(f"Do you really want to commit this command: {hist_last_line} ?"):
+                l.debug(f"writing command '{hist_last_line}' to commands.rc...")
                 with rc.open('a') as f:
                     f.write(hist_last_line)
         
@@ -148,7 +148,7 @@ def __init():
             """ Compress the experiment by converting all datasets to fileless datasets. """
             l, done = Experiment.logger, False
             for dset in Path(config['datasets']).listdir(Dataset.check):
-                l.info("Dataset: %s" % dset)
+                l.info(f"Dataset: {dset}")
                 Dataset.load(dset).convert()
                 done = True
             if not done:
@@ -169,14 +169,14 @@ def __init():
                 p_main, p_exp = config[conf], self.path.joinpath("conf").joinpath(conf + ".yml")
                 self._import("config", p_main, error=True)
                 if p_exp.is_file():
-                    l.debug("editing experiment's %s configuration..." % conf)
+                    l.debug(f"editing experiment's {conf} configuration...")
                     edit_file(p_exp, text=True, logger=l)
                 elif p_exp.is_dir():
                     choices = [p.stem for p in p_exp.listdir(lambda x: x.extension == ".yml")]
                     stem = user_input(choices=choices, default=choices[0], required=True)
                     edit_file(p_exp.joinpath(stem + ".yml"), text=True, logger=l)
             except KeyError:
-                l.debug("editing experiment's %s..." % p.basename)
+                l.debug(f"editing experiment's {p.basename}...")
                 edit_file(p, text=True, logger=l)
         
         def open(self, **kw):
@@ -277,9 +277,9 @@ def __init():
                 cfg = [f.stem for f in exp.path.joinpath("conf").listdir(Path.is_file) if f.extension == ".yml"]
                 data.append([folder.basename, Dataset.count(), Model.count(), ", ".join(cfg)])
             if len(data) > 0:
-                render(*[Section("Experiments (%d)" % len(data)), Table(data, column_headers=headers)])
+                render(*[Section(f"Experiments ({len(data)})"), Table(data, column_headers=headers)])
             else:
-                cls.logger.warning("No experiment found in the workspace (%s)" % config['experiments'])
+                cls.logger.warning(f"No experiment found in the workspace ({config['experiments']})")
         
         @classmethod
         def validate(cls, folder, strict=False, empty=False, **kw):

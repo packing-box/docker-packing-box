@@ -53,7 +53,7 @@ class Config:
     def __delitem__(self, option):
         """ Delete an item taking enviornment variables registered in .env files too. """
         if option in self.sections():
-            raise ValueError("input name '%s' matches a section" % option)
+            raise ValueError(f"input name '{option}' matches a section")
         if option in self._envars:
             PBOX_HOME.joinpath(option + ".env").remove(False)
         for s in map(self.__config.__getitem__, self.__config.sections()):
@@ -104,7 +104,7 @@ class Config:
         if name in [x for y in self._defaults.values() for x in y.keys()] or name in SPECIAL_INPUTS or \
            not re.match(self._naming, name.basename if isinstance(name, Path) else str(name)):
             if raise_error:
-                raise ValueError("Bad input name (%s)" % name)
+                raise ValueError(f"Bad input name ({name})")
             else:
                 return False
         return name if raise_error else True
@@ -138,7 +138,7 @@ class Config:
                    [sections] if not isinstance(sections, list) else sections
         for s in sections:
             if s not in self.sections():
-                raise ValueError("Bad section name '%s'" % s)
+                raise ValueError(f"Bad section name '{s}'")
         # first, check for a hidden option (that cannot be set by the user)
         h = self._hidden
         if option in h:
@@ -227,7 +227,7 @@ class Config:
         for s in self.itersections():
             r.append(Section(s.name.capitalize()))
             mlen = max(map(len, s.keys()))
-            r.append(List(list(map(lambda opt: "%s = %s" % (opt.ljust(mlen), self[opt]), s.keys()))))
+            r.append(List(list(map(lambda opt: f"{opt.ljust(mlen)} = {self[opt]}", s.keys()))))
         render(*r)
     
     def save(self):

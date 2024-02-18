@@ -68,7 +68,7 @@ def _features_bar_chart(dataset, feature=None, multiclass=False, scaler=None, **
     scaler = scaler or MinMaxScaler
     # data preparation
     feature = select_features(dataset, feature)
-    l.info("Counting values for feature%s %s..." % (["", "s"][len(feature) > 1], ", ".join(feature)))
+    l.info(f"Counting values for feature{['', 's'][len(feature) > 1]} {', '.join(feature)}...")
     #FIXME: for continuous values, convert to ranges to limit chart's height
     # start counting, keeping 'Not packed' counts separate (to prevent it from being sorted with others)
     counts_np, counts, labels, data = {}, {}, [], pd.DataFrame()
@@ -93,13 +93,13 @@ def _features_bar_chart(dataset, feature=None, multiclass=False, scaler=None, **
     # compute variance and covariance (if multiple features)
     cov_matrix = empirical_covariance(data)
     if len(feature) > 1:
-        var = "Variances:\n- " + "\n- ".join("%s: %.03f" % (f, cov_matrix[i][i]) for i, f in enumerate(feature))
+        var = "Variances:\n- " + "\n- ".join(f"{f}: {cov_matrix[i][i]:.03f}" for i, f in enumerate(feature))
         covar = "Covariances:\n"
         for i in range(len(cov_matrix)):
             for j in range(i + 1, len(cov_matrix)):
-                covar += "- %s / %s: %.03f\n" % (feature[i], feature[j], cov_matrix[i][j])
+                covar += f"- {feature[i]} / {feature[j]}: {cov_matrix[i][j]:.03f}\n"
     else:
-        var = "Variance: %.03f" % cov_matrix[0][0]
+        var = f"Variance: {cov_matrix[0][0]:.03f}"
     # be sure to have values for every label (it was indeed not seen if 0, so set the default value)
     for v, d in counts.items():
         if multiclass:
@@ -134,10 +134,10 @@ def _features_bar_chart(dataset, feature=None, multiclass=False, scaler=None, **
     l.debug("plotting...")
     try:
         title = dataset._features[feature[0]] if len(feature) == 1 else \
-                "\n".join(textwrap.wrap("combination of %s" % ", ".join(dataset._features[f] for f in feature), 60))
-        title = title[0].upper() + title[1:] + " for dataset %s" % dataset.name
+                "\n".join(textwrap.wrap(f"combination of {', '.join(dataset._features[f] for f in feature)}", 60))
+        title = title[0].upper() + title[1:] + f" for dataset {dataset.name}"
     except KeyError as e:
-        l.error("Feature '%s' does not exist in the target dataset." % e.args[0])
+        l.error(f"Feature '{e.args[0]}' does not exist in the target dataset.")
         l.warning("This may occur when this feature was renamed in pbox.learning.features with a newer version.")
         return
     # compute percentages
@@ -152,7 +152,7 @@ def _features_bar_chart(dataset, feature=None, multiclass=False, scaler=None, **
     labels = list(counts[next(iter(counts))].keys())
     # display plot
     plur = ["", "s"][len(feature) > 1]
-    x_label, y_label = "Samples [%%] for the selected feature%s" % plur, "Feature%s values" % plur
+    x_label, y_label = f"Samples [%] for the selected feature{plur}", f"Feature{plur} values"
     yticks = [str(k[0]) if isinstance(k, (tuple, list)) and len(k) == 1 else str(k) \
               for k in counts.keys()]
     plt.figure(figsize=(8, (len(title.splitlines()) * 24 + 11 * len(counts) + 120) / 80))
@@ -203,11 +203,11 @@ def _features_comparison_heatmap(dataset, datasets=None, feature=None, max_featu
     order = sorted(sorted(pivoted_rank.columns, key=lambda x: abs(pivoted_rank[x]).mean())[-max_features:],
                    key=lambda x: pivoted_rank[x].mean())[::-1]
     ticks = [-3, 0 , 3]
-    label = "Feature value difference from %s" % dataset.basename
-    title = "Feature value comparison with %s" % dataset.basename
+    label = f"Feature value difference from {dataset.basename}"
+    title = f"Feature value comparison with {dataset.basename}"
     plt.figure(figsize=(1.2*len(pivoted_rank.index) + 3 , round(0.25*max_features + 2.2)), dpi=200)
 
-    annotations = pivoted[order].applymap(lambda x: "%.2f"%x if abs(x) < 1000 else "%.1e"%x).values.T
+    annotations = pivoted[order].applymap(lambda x: f"{x:.2f}" if abs(x) < 1000 else f"{x:.1e}").values.T
     ax = seaborn.heatmap(data=pivoted_rank[order].values.T, annot=annotations, fmt='s', cmap='vlag', linewidth=.5,
                          xticklabels=pivoted_rank.index, yticklabels=order, vmin=ticks[0], vmax=ticks[2],
                          cbar_kws = {'location':'right', 'ticks': ticks, 'label':label}, linecolor='black')
@@ -242,7 +242,7 @@ def _information_gain_bar_chart(dataset, feature=None, max_features=None, multic
     # plot
     plt.figure(figsize=(10, round(0.25*max_features + 2.2)), dpi=200)
     plt.barh(*zip(*[(feature[x], info[x]) for x in order]), height=.5)
-    plt.title("Mutual information for dataset %s" % dataset.name)
+    plt.title(f"Mutual information for dataset {dataset.name}")
     plt.ylabel('Features')
     plt.xlabel('Mutual information')
     plt.yticks(rotation='horizontal')
@@ -280,8 +280,8 @@ def _information_gain_comparison_heatmap(dataset, datasets=None, feature=None, m
     order = sorted(sorted(df.columns, key=lambda x: abs(df[x]).mean())[-max_features:],
                    key=lambda x: df[x].mean())[::-1]
     ticks = [-1, 0 , 1]
-    label = "Information gain difference from %s" % dataset.basename
-    title = "Information gain comparison with %s" % dataset.basename
+    label = f"Information gain difference from {dataset.basename}"
+    title = f"Information gain comparison with {dataset.basename}"
     plt.figure(figsize=(1.2*len(df.index) + 3 , round(0.25*max_features + 2.2)), dpi=200)
     annotations = df[order].applymap(lambda x: "%.2f"%x if abs(x) < 1000 else "%.1e"%x).values.T
     ax = seaborn.heatmap(data=df[order].values.T, annot=annotations, fmt='s', xticklabels=df.index, yticklabels=order,
@@ -315,13 +315,13 @@ def _labels_pie_chart(dataset, **kw):
     classes += [k for k in dataset._metadata['counts'] if k not in [NOT_LABELLED, NOT_PACKED]]
     cmap += [list(COLORMAP.keys())[i % len(COLORMAP)] for i in range(len(classes) - n)]
     tot = sum(c.values())
-    perc = {k: "%.1f%%" % (100 * v / tot) for k, v in c.items()}
+    perc = {k: f"{100*v/tot:.1f}%" for k, v in c.items()}
     labels = [packer.Packer.get(k).cname.replace("_", " ") if i >= n else \
               {NOT_LABELLED: "Not labelled", NOT_PACKED: "Not packed"}[k] for i, k in enumerate(classes)]
     # plot
     l.debug("plotting figure...")
     plt.figure(figsize=(8, 4))
-    plt.title("Distribution of labels for dataset %s" % dataset.name, pad=10, fontweight="bold")
+    plt.title(f"Distribution of labels for dataset {dataset.name}", pad=10, fontweight="bold")
     # - draw a first pie with white labels on the wedges
     plt.pie([c[k] for k in classes], colors=cmap, startangle=180, radius=.8,
             autopct=lambda p: "{:.1f}%\n({:.0f})".format(p, p/100*tot),

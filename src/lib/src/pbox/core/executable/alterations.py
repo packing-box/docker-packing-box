@@ -14,8 +14,8 @@ class Alteration(dict2):
     
     def __call__(self, executable, namespace, **kwargs):
         self._exe, parsed, l = executable, executable.parse(self.parser), self._logger
-        l.debug(f"applying alterations to {executable.stem}%s..." % \
-                ["", f" ({self.loop} steps)"][isinstance(self.loop, int) and self.loop > 1])
+        l.debug(f"applying alterations to {executable.stem}" \
+                f"{['', f' ({self.loop} steps)'][isinstance(self.loop, int) and self.loop > 1]}...")
         # loop the specified number of times or accross sections or simply once if not specified
         # IMPORTANT NOTE: looping accross sections is done on a primary parsing of the executable, otherwise, a
         #                  generator of sections could change during iteration because of alterations such as adding a

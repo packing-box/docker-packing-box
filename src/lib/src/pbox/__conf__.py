@@ -85,8 +85,8 @@ def _vh(s, v):
 _vh.__name__ = "hash algorithm"
 
 
-opt_tuple = lambda k: ("conf/%s.yml" % k, "PATH", "path to %s YAML definition" % k, _rp, ["workspace", PBOX_HOME], True)
-psr_tuple = lambda f: (None, "PARSER", "name of the module for parsing %s executables" % f, _st, "default_parser")
+opt_tuple = lambda k: (f"conf/{k}.yml", "PATH", f"path to {k} YAML definition", _rp, ["workspace", PBOX_HOME], True)
+psr_tuple = lambda f: (None, "PARSER", f"name of the module for parsing {f} executables", _st, "default_parser")
 
 
 for sf in ["conf", "data", "datasets", "models"]:

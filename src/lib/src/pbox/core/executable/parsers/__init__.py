@@ -19,9 +19,9 @@ def get_parser(parser, exe_format):
     try:
         m = import_module("." + parser, "pbox.core.executable.parsers")
     except ImportError:
-        raise ImportError("no parsing module named '%s'" % parser)
+        raise ImportError(f"no parsing module named '{parser}'")
     try:
         return getattr(m, exe_format, getattr(m, get_format_group(exe_format)))
     except AttributeError:
-        raise ValueError("no parser available for format '%s'" % exe_format)
+        raise ValueError(f"no parser available for format '{exe_format}'")
 

@@ -158,7 +158,7 @@ class Dataset(Entity):
                 l.debug(f"updating {e.hash}...")
                 df.loc[df['hash'] == e.hash, d.keys()] = d.values()
             else:
-                l.debug("discarding %s%s..." % (e.hash, ["", " (already in dataset)"][lbl == d['label']]))
+                l.debug(f"discarding {e.hash}{['', ' (already in dataset)'][lbl == d['label']]}...")
         else:
             l.debug(f"adding {e.hash}...")
             self._data = pd.concat([df, pd.DataFrame.from_records([d])], ignore_index=True)
@@ -199,7 +199,7 @@ class Dataset(Entity):
             self.path.mkdir(exist_ok=True)
         try:
             if len(self) > 0:
-                l.debug("loading dataset '%s'..." % self.basename)
+                l.debug(f"loading dataset '{self.basename}'...")
         except AttributeError:  # self._data does not exist yet
             pass
         if self._files:
@@ -285,7 +285,7 @@ class Dataset(Entity):
                 yield exe
     
     @backup
-    def alter(self, new_name=None, packed_only=False, percentage=1., query=None, **kw):
+    def alter(self, new_name=None, packed_only=False, percentage=1., query=None, alteration=None, **kw):
         """ Alter executables with some given alterations. """
         l = self.logger
         if not self._files:
@@ -293,7 +293,7 @@ class Dataset(Entity):
             return
         if new_name is not None:
             self._copy(new_name, overwrite=kw.get('overwrite'))
-            Dataset(new_name).alter(packed_only=packed_only, percentage=percentage, query=query, **kw)
+            Dataset(new_name).alter(None, packed_only, percentage, query, alteration, **kw)
             return
         limit = 0
         # filter out already altered samples first
@@ -324,9 +324,9 @@ class Dataset(Entity):
             exe = Executable(dataset=self, hash=e.hash)
             exe.chmod(0o600)
             # apply alterations and collect names for those that succeeded in Alterations(list)
-            for m in alterations.Alterations(exe)[:]:
-                self._alterations.setdefault(m, [])
-                self._alterations[m].append(e.hash)
+            for a in alterations.Alterations(exe, alteration)[:]:
+                self._alterations.setdefault(a, [])
+                self._alterations[a].append(e.hash)
             exe.chmod(0o400)
         self._metadata['altered'] = sum(1 for x in set(h for hl in self._alterations.values() for h in hl)) / len(self)
         self.__change = True
@@ -514,10 +514,9 @@ class Dataset(Entity):
             if all(f not in expand_formats(fmt) for f in self._formats_exp):
                 continue
             sources.extend(src)
-        l.info("Source directories: %s" % ",".join(map(str, set(sources))))
-        l.info("Considered formats: %s" % ",".join(self.formats))  # this updates self._formats_exp
-        l.info("Selected packers:   %s" % ",".join(["All"] if packer is None else \
-                                                   [p.__class__.__name__ for p in packer]))
+        l.info(f"Source directories: {','.join(map(str, set(sources)))}")
+        l.info(f"Considered formats: {','.join(self.formats)}")  # this updates self._formats_exp
+        l.info(f"Selected packers:   {','.join(['All'] if packer is None else [p.__class__.__name__ for p in packer])}")
         self._metadata['sources'] = list(set(map(str, self._metadata.get('sources', []) + sources)))
         if n == 0:
             n = len(list(self._walk(n <= 0, silent=True)))
@@ -907,7 +906,7 @@ class Dataset(Entity):
     def name(self):
         """ Get the name of the dataset composed with its list of formats. """
         fmt, p = getattr(self, "formats", []), self.path.basename
-        return "%s(%s)" % (p, ",".join(sorted(collapse_formats(*fmt)))) if len(fmt) > 0 else self.path.basename
+        return f"{p}({','.join(sorted(collapse_formats(*fmt)))})" if len(fmt) > 0 else self.path.basename
     
     @property
     def overview(self):
@@ -1087,8 +1086,8 @@ class Dataset(Entity):
                 row = [name, str(meta['executables'])] + alt_perc + [meta['size']] + \
                     [[["no", "yes"][meta['files']]], []][hide_files] + [
                     ",".join(sorted(meta['formats'])),
-                    shorten_str(",".join("%s{%d}" % i for i in sorted(get_counts(meta).items(),
-                                                                      key=lambda x: (-x[1], x[0])))),
+                    shorten_str(",".join(f"{n}{{{c}}}" for n, c in sorted(get_counts(meta).items(),
+                                                                          key=lambda x: (-x[1], x[0])))),
                 ]
             except Exception as err:
                 row = None

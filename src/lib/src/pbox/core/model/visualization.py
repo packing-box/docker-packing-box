@@ -79,7 +79,7 @@ def image_rf(classifier, width=5, fontsize=10, **params):
     params['filled'] = True
     for i in range(n):
         sktree.plot_tree(classifier.estimators_[i], ax=axes[i], **params)
-        axes[i].set_title("Estimator: %d" % i, fontsize=fontsize)
+        axes[i].set_title(f"Estimator: {i}", fontsize=fontsize)
     return f"{classifier.model.basename}_random-forest"
 
 
@@ -224,7 +224,7 @@ def text_dt(classifier, **params):
 def text_rf(classifier, **params):
     s = ""
     for i in range(len(classifier.estimators_)):
-        s += "\nEstimator: %d\n" % i
+        s += f"\nEstimator: {i}\n"
         s += sktree.export_text(classifier.estimators_[i], **params)
     return s
 

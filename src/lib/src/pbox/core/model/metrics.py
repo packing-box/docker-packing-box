@@ -29,8 +29,8 @@ def _convert_output(f):
         l, pt = kw.get('logger', null_logger), kw.get('proctime')
         kw['proctime'] = pt is not None
         if all(x == LABELS_BACK_CONV[NOT_LABELLED] for x in yp):
-            l.warning("No prediction (returned values mean 'not labelled'), hence no %s metric" % \
-                      f.__name__.split("_")[0])
+            l.warning("No prediction (returned values mean 'not labelled'), hence no " \
+                      f"{f.__name__.split('_')[0]} metric")
             return
         r = f(X, yp, *a, **kw)
         if isinstance(r, (list, tuple)):
@@ -96,10 +96,10 @@ def _map_values_to_integers(*arrays, **kwargs):
         if binary and i == 0:
             continue
         tn, fp, fn, tp = matrix.ravel()
-        l.debug("> %sTN: %d ; TP: %d ; FN: %d ; FP: %d" % (["[%d] " % i, ""][binary], tn, tp, fn, fp))
+        l.debug(f"> {[f'[{i}] ',''][binary]}TN: {tn} ; TP: {tp} ; FN: {fn} ; FP: {fp}")
     for i, y in enumerate(out_arrays[:2]):
         n = min(_N_LAB, len(y))
-        l.debug("> %d first %s labels: %s%s" % (n, ["true", "predicted"][i], ["     ", ""][i], str(y[:n])))
+        l.debug(f"> {n} first {['true','predicted'][i]} labels: {['     ',''][i]}{y[:n]}")
     return out_arrays
 
 
@@ -108,7 +108,7 @@ def _skip_if_labels_ignored(f):
     def _wrapper(*a, **kw):
         l, ignore = kw.get('logger', null_logger), kw.get('ignore_labels', False)
         if ignore:
-            l.debug("> labels ignored, skipping %s metrics..." % f.__name__.split("_")[0])
+            l.debug(f"> labels ignored, skipping {f.__name__.split('_')[0]} metrics...")
             return
         return f(*a, **kw)
     return _wrapper
@@ -140,7 +140,7 @@ def metric_headers(metrics, **kw):
     try:
         category = METRIC_DISPLAY[metrics]
     except KeyError:
-        raise ValueError("Bad metrics category ; should be one of: %s" % "|".join(_METRIC_CATEGORIES))
+        raise ValueError(f"Bad metrics category ; should be one of: {'|'.join(_METRIC_CATEGORIES)}")
     for name, func in category.items():
         selection[name] = METRIC_DISPLAY.get(func, func)
     patterns = kw.get('include')

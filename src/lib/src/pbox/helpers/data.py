@@ -19,7 +19,7 @@ def filter_data(df, query=None, **kw):
             l.warning("No data selected")
         return r
     except (AttributeError, KeyError) as e:
-        l.error("Invalid query syntax ; %s" % e)
+        l.error(f"Invalid query syntax ; {e}")
     except SyntaxError:
         l.error("Invalid query syntax ; please checkout Pandas' documentation for more information")
     except pd.errors.UndefinedVariableError as e:

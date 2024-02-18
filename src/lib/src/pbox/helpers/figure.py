@@ -88,8 +88,8 @@ def save_figure(f):
             if img is None:
                 continue
             img = figure_path(img, format=kw.get('format'))
-            l.info("Saving to %s..." % img)
+            l.info(f"Saving to {img}...")
             plt.savefig(img, **kw_plot)
-            l.debug("> saved to %s..." % img)
+            l.debug(f"> saved to {img}...")
     return _wrapper
 
