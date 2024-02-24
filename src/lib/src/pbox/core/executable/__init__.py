@@ -1,7 +1,7 @@
 # -*- coding: UTF-8 -*-
 from contextlib import suppress
 from datetime import datetime
-from tinyscript import hashlib, os, re, shutil
+from tinyscript import functools, hashlib, os, re, shutil
 from tinyscript.helpers import human_readable_size, Path, TempPath
 from tinyscript.report import *
 
@@ -42,18 +42,16 @@ class Executable(Path):
     (5) dataset-bound, with a new destination dataset
          kwargs: hash, dataset, dataset2
     """
-    FIELDS = ["realpath", "format", "signature", "size", "ctime", "mtime"]
-    
     def __new__(cls, *parts, **kwargs):
         h, ds1, ds2 = kwargs.pop('hash', None), kwargs.pop('dataset', None), kwargs.pop('dataset2', None)
-        fields, kwargs['expand'], e = ["hash", "label"] + Executable.FIELDS, True, parts[0] if len(parts) == 1 else None
+        fields, kwargs['expand'], e = ["hash", "label"] + EXE_METADATA, True, parts[0] if len(parts) == 1 else None
         def _setattrs(exe, hash):
             exe._dataset = ds1
             exe._destination = ds1.path.joinpath("files", hash or exe.hash)
             # AttributeError: this occurs when the dataset is still empty, therefore holding no 'hash' column
             # IndexError:     this occurs when the executable did not exist in the dataset yet
             with suppress(AttributeError, IndexError):
-                d, meta_fields = ds1._data[ds1._data.hash == h].iloc[0].to_dict(), Executable.FIELDS + ["hash", "label"]
+                d, meta_fields = ds1._data[ds1._data.hash == hash].iloc[0].to_dict(), EXE_METADATA + ["hash", "label"]
                 for a in meta_fields:
                     # in some cases, we may instantiate an executable coming from a dataset and pointing on an altered
                     #  sample that has been corrupted ; then it is necessary to recompute the filetype (aka signature)
@@ -133,9 +131,11 @@ class Executable(Path):
     
     def alter(self, *alterations, **kwargs):
         Alterations(self, alterations or None)
+        self._reset()
     
-    def block_entropy(self, blocksize=0, ignore_half_block_zeros=False):
-        return bintropy.entropy(self.read_bytes(), blocksize, ignore_half_block_zeros)
+    @functools.lru_cache
+    def block_entropy(self, blocksize=0, ignore_half_block_zeros=False, ignore_half_block_same_byte=True):
+        return bintropy.entropy(self.read_bytes(), blocksize, ignore_half_block_zeros, ignore_half_block_same_byte)
     
     def copy(self, extension=False, overwrite=False):
         # NB: 'dest' is not instantiated with the Executable class as it does not exist yet
@@ -164,11 +164,11 @@ class Executable(Path):
                     found = True
                     break
             if not found:
-                raise ValueError("Modifier '%s' does not exist" % modifier)
+                raise ValueError(f"Modifier '{modifier}' does not exist")
         self.parsed.modify(modifier, **kwargs)
     
     def parse(self, parser=None, reset=True):
-        parser = parser or config['%s_parser' % self.shortgroup]
+        parser = parser or config[f'{self.shortgroup}_parser']
         if reset:  # this forces recomputing the cached properties 'parsed', 'hash', 'size', ...
             self._reset()
         elif hasattr(self, "_parsed") and self._parsed.parser == parser:
@@ -202,7 +202,7 @@ class Executable(Path):
                  f"**Entry point**:   0x{self.parsed.entrypoint:02X} ({self.parsed.entrypoint_section.name})",
                  f"**Size**:          {human_readable_size(self.size)}",
                  f"**Entropy**:       {self.entropy}",
-                 f"**Block entropy**: {self.block_entropy_256B}"]
+                 f"**Block entropy**: {self.block_entropy(256)}"]
             if ds:
                 l += [f"**Label**:         {self.label}"]
             r += [Section("Base Information"), List(l)]
@@ -224,7 +224,7 @@ class Executable(Path):
                 if i == 0:
                     h.extend(["Entropy", "Block entropy (256B)"])
                 row.append(f"{sec.entropy:.5f}" if sec.size > 0 else "-")
-                row.append("-" if sec.size == 0 or sec.block_entropy_256B is None else f"{sec.block_entropy_256B:.5f}")
+                row.append("-" if sec.size == 0 or sec.block_entropy(256) is None else f"{sec.block_entropy(256):.5f}")
                 if i == 0:
                     h.append("Standard")
                 row.append(f"{'NY'[sec.is_standard]}")
@@ -239,14 +239,6 @@ class Executable(Path):
     @property
     def bin_label(self):
         return READABLE_LABELS(self.label, True)
-    
-    @cached_property
-    def block_entropy_256B(self):
-        return bintropy.entropy(self.read_bytes(), 256, True)[1]
-    
-    @cached_property
-    def block_entropy_512B(self):
-        return bintropy.entropy(self.read_bytes(), 512, True)[1]
     
     @cached_property
     def cfg(self):
@@ -271,7 +263,7 @@ class Executable(Path):
             return self._destination
         if hasattr(self, "_dataset") and self.hash is not None:
             return (self._dataset.files if self._dataset._files else TempPath()).joinpath(self.hash)
-        raise ValueError("Could not compute destination path for '%s'" % self)
+        raise ValueError(f"Could not compute destination path for '{self}'")
     
     @cached_property
     def entropy(self):
@@ -310,7 +302,7 @@ class Executable(Path):
     
     @property
     def metadata(self):
-        return {n: getattr(self, n) for n in Executable.FIELDS}
+        return {n: getattr(self, n) for n in EXE_METADATA}
     
     @cached_property
     def mtime(self):

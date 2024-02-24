@@ -397,7 +397,7 @@ class Model(BaseModel):
             return
         ds = Dataset.load(kw['dataset'])
         result = pd.DataFrame()
-        for col in ["hash"] + Executable.FIELDS:
+        for col in ["hash"] + EXE_METADATA:
             result[col] = ds._data[col]
         df = pd.DataFrame(self.pipeline.preprocess(self._data), columns=self._data.columns)
         for col in self._data.columns:

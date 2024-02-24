@@ -130,12 +130,12 @@ class Dataset(Entity):
             d = data
             # get metadata values from the input dictionary
             for k, v in data.items():
-                if k in Executable.FIELDS:
+                if k in EXE_METADATA:
                     if k in ["format", "signature"]:
                         continue
                     setattr(e, k, v)
             # then ensure we compute the remaining values
-            for k in ['hash'] + Executable.FIELDS:
+            for k in ['hash'] + EXE_METADATA:
                 if k not in d:
                     d[k] = getattr(e, k)
         # case (2) 'label' is the label value
@@ -248,7 +248,7 @@ class Dataset(Entity):
         for n in ["alterations", "data", "metadata"] + [["features"], []][self._files]:
             if n == "data":
                 self._data = self._data.sort_values("hash")
-                fields = ["hash"] + Executable.FIELDS + ["label"]
+                fields = ["hash"] + EXE_METADATA + ["label"]
                 fnames = [h for h in self._data.columns if h not in fields + ["Index"]]
                 c = fields[:-1] + fnames + [fields[-1]]
                 self._data.to_csv(str(self.path.joinpath("data.csv")), sep=";", columns=c, index=False, header=True)
@@ -320,7 +320,7 @@ class Dataset(Entity):
             limit = int(round(len(self)*p, 0))
         elif query is not None:
             l.info("Altering the selected records of the dataset...")
-        for e in filter_data_iter(df, query, limit, logger=self.logger, target=self.basename):
+        for e in filter_data_iter(df, query, limit=limit, logger=self.logger, target=self.basename):
             exe = Executable(dataset=self, hash=e.hash)
             exe.chmod(0o600)
             # apply alterations and collect names for those that succeeded in Alterations(list)
@@ -404,7 +404,7 @@ class Dataset(Entity):
             return
         if self._files:
             self._compute_all_features()
-        fields = ["hash"] + Executable.FIELDS
+        fields = ["hash"] + EXE_METADATA
         fnames = [h for h in self._data.columns if h not in fields + ["label", "Index"]]
         c = fields[:-1] + fnames + ["label"]
         d = self._data[c].values.tolist()
@@ -670,7 +670,7 @@ class Dataset(Entity):
         """ Preprocess dataset given selected features and preprocessors and display it with visidata for review. """
         self._compute_all_features()
         result = pd.DataFrame()
-        for col in ["hash"] + Executable.FIELDS:
+        for col in ["hash"] + EXE_METADATA:
             result[col] = self._data[col]
         fnames = sorted(self._features.keys())
         data = self._data[fnames]
@@ -730,12 +730,14 @@ class Dataset(Entity):
         self.logger.debug(f"selecting a subset of {self.basename} based on query '{query}'...")
         ds2 = self.__class__(name2)
         ds2._metadata['sources'] = []
-        for e in filter_data_iter(self._data, query, limit, logger=self.logger, target=self.basename):
+        for e in filter_data_iter(self._data, query, limit=limit, logger=self.logger, target=self.basename):
             for s in self._metadata['sources']:
                 if Path(e.realpath).is_under(Path(s, expand=True)) and s not in ds2._metadata['sources']:
                     ds2._metadata['sources'].append(s)
                     break
             ds2[Executable(dataset=self, dataset2=ds2, hash=e.hash)] = self[e.hash, True]
+        if hasattr(self, "_features") and len(self._features) > 0:
+            ds2._features = {k: v for k, v in self._features.items()}
         ds2._save()
     
     def show(self, limit=10, per_format=False, **kw):

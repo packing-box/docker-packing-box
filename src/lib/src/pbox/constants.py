@@ -106,6 +106,7 @@ bi.DEFAULT_SECTION_SLOTS = ["name", "size", "offset", "content", "virtual_addres
 
 # executable
 bi.DATA_EXTENSIONS = [".json", ".txt"]
+bi.EXE_METADATA = ["realpath", "format", "signature", "size", "ctime", "mtime"]
 bi.FORMATS = {
     'All':    ["ELF", "Mach-O", "MSDOS", "PE"],
     'ELF':    ["ELF32", "ELF64"],

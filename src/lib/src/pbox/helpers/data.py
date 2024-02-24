@@ -1,23 +1,20 @@
 # -*- coding: UTF-8 -*-
-from tinyscript import functools, json
+from tinyscript import functools, json, re
 from tinyscript.helpers import is_function
 
 from .utils import np, pd
 
 
-__all__ = ["filter_data", "filter_data_iter", "get_data", "pd", "reduce_data"]
+__all__ = ["filter_data", "filter_data_iter", "filter_features", "get_data", "pd", "reduce_data"]
 
 
-def filter_data(df, query=None, **kw):
+def filter_data(df, query=None, feature=None, **kw):
     """ Fitler an input Pandas DataFrame based on a given query. """
-    i, l = -1, kw.get('logger', null_logger)
-    if query is None or query.lower() == "all":
-        return df
+    r, l = None, kw.get('logger', null_logger)
     try:
-        r = df.query(query)
+        r = df if query is None or query.lower() == "all" else df.query(query)
         if len(r) == 0 and not kw.get('silent', False):
             l.warning("No data selected")
-        return r
     except (AttributeError, KeyError) as e:
         l.error(f"Invalid query syntax ; {e}")
     except SyntaxError:
@@ -25,19 +22,24 @@ def filter_data(df, query=None, **kw):
     except pd.errors.UndefinedVariableError as e:
         l.error(e)
         l.info("Possible values:\n%s" % "".join("- %s\n" % n for n in df.columns))
+    if r is not None:
+        if feature:
+            r = r[["hash"] + EXE_METADATA + feature + ["label"]]
+        return r
 
 
-def filter_data_iter(df, query=None, limit=0, sample=True, progress=True, target=None, transient=False, **kw):
+def filter_data_iter(df, query=None, feature=None, limit=0, sample=True, progress=True, target=None, transient=False,
+                     **kw):
     """ Generator for the filtered data from an input Pandas DataFrame based on a given query. """
     from .rendering import progress_bar
-    df = filter_data(df, query, **kw)
+    df = filter_data(df, query, feature, **kw)
     if df is None:
         return
     n = len(df.index)
     limit = n if limit <= 0 else min(n, limit)
     if sample and limit < n:
         df = df.sample(n=limit)
-    i, generator = 0, filter_data(df, query, silent=True, **kw).itertuples()
+    i, generator = 0, filter_data(df, query, feature, silent=True, **kw).itertuples()
     if progress:
         with progress_bar(target=target, transient=transient) as p:
             task = p.add_task("", total=limit)
@@ -53,6 +55,28 @@ def filter_data_iter(df, query=None, limit=0, sample=True, progress=True, target
             i += 1
             if i >= limit > 0:
                 break
+
+
+def filter_features(dataset, feature=None):
+    """ Handle features selection based on a simple wildcard. """
+    if not hasattr(dataset, "_features"):
+        dataset._compute_all_features()
+    if feature is None or feature == []:
+        feature = list(dataset._features.keys())
+    # data preparation
+    if not isinstance(feature, (tuple, list)):
+        feature = [feature]
+    nfeature = []
+    for pattern in feature:
+        # handle wildcard for bulk-selecting features
+        if "*" in pattern:
+            regex = re.compile(pattern.replace("*", ".*"))
+            for f in dataset._features.keys():
+                if regex.search(f):
+                    nfeature.append(f)
+        else:
+            nfeature.append(pattern)
+    return sorted(nfeature)
 
 
 @functools.lru_cache

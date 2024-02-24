@@ -1,5 +1,5 @@
 # -*- coding: UTF-8 -*-
-from tinyscript import functools
+from tinyscript import functools, re
 from tinyscript.helpers.data.types import file_exists, folder_does_not_exist, folder_exists, json_config, pos_int
 
 
@@ -25,9 +25,8 @@ def add_argument(parser, *names, **kwargs):
             parser.add_argument("-a", "--aggregate", help="pattern to aggregate some of the features together",
                                 default="byte_[0-9]+_after_ep")
         elif name == "alteration":
-            a = ("-a", "--alteration", ) if opt else ("alteration", )
-            kw = {'action': "extend", 'nargs': "*", 'type': alteration_identifier, 'help': "alteration identifiers"}
-            parser.add_argument(*a, **kw)
+            parser.add_argument("-A", "--alteration", action="extend", nargs="*", type=alteration_identifier,
+                                help="alteration identifiers")
         elif name == "alterations-set":
             parser.add_argument("-a", "--alterations-set", metavar="YAML", default=str(config['alterations']),
                                 type=file_exists, help="alterations set's YAML definition")
@@ -166,7 +165,12 @@ def experiment_exists(force=False):
 def feature_identifier(name):
     from pbox.core.executable import Features
     Features(None)
-    if name not in Features.names():
+    names = Features.names()
+    if name not in names:
+        regex = re.compile(name.replace(".*", "*").replace("*", ".*"))
+        for n in names:
+            if regex.search(n):
+                return name
         raise ValueError("Not a valid feature")
     return name
 
