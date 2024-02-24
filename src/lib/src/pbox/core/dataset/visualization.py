@@ -13,6 +13,7 @@ lazy_load_module("textwrap")
 @save_figure
 def _characteristic_scatter_plot(dataset, characteristic=None, multiclass=True, **kwargs):
     """ Plot a scatter plot of dataset's reduced data, highlighting the selected characteristic. """
+    from ...helpers.figure import plt  # report to get the actual object (cfr lazy loading)
     X, prefix = dataset._data, "bin_" if characteristic == "label" and not multiclass else ""
     if not multiclass:
         X['label'] = X.label.map(LABELS_BACK_CONV).fillna(1).astype('int')
@@ -63,11 +64,12 @@ def _features_bar_chart(dataset, feature=None, multiclass=False, scaler=None, **
     if feature is None:
         l.warning("No feature provided, stopping.")
         return  # no feature to handle
+    from ...helpers.figure import plt  # report to get the actual object (cfr lazy loading)
     from sklearn.covariance import empirical_covariance
     from sklearn.preprocessing import MinMaxScaler
     scaler = scaler or MinMaxScaler
     # data preparation
-    feature = select_features(dataset, feature)
+    feature = filter_features(dataset, feature)
     l.info(f"Counting values for feature{['', 's'][len(feature) > 1]} {', '.join(feature)}...")
     #FIXME: for continuous values, convert to ranges to limit chart's height
     # start counting, keeping 'Not packed' counts separate (to prevent it from being sorted with others)
@@ -155,16 +157,17 @@ def _features_bar_chart(dataset, feature=None, multiclass=False, scaler=None, **
     x_label, y_label = f"Samples [%] for the selected feature{plur}", f"Feature{plur} values"
     yticks = [str(k[0]) if isinstance(k, (tuple, list)) and len(k) == 1 else str(k) \
               for k in counts.keys()]
-    plt.figure(figsize=(8, (len(title.splitlines()) * 24 + 11 * len(counts) + 120) / 80))
-    plt.title(title, pad=20, fontweight="bold")
-    plt.xlabel(x_label, fontdict={'size': 10})
-    plt.ylabel(y_label, fontdict={'size': 10})
+    plt.rcParams['font.family'] = ["serif"]
+    plt.figure(figsize=(6, (len(title.splitlines()) * 24 + 11 * len(counts) + 120) / 80))
+    plt.title(title, pad=20, fontweight="bold", fontsize=16)
+    plt.xlabel(x_label, fontdict={'size': 14})
+    plt.ylabel(y_label, fontdict={'size': 14})
     starts = [0 for i in range(len(values[0]))]
     for p, lb ,c, v in zip(percentages, labels, cmap, values):
         b = plt.barh(yticks, p, label=lb, color=c, left=starts)
         starts = [x + y for x, y in zip(starts, p)]
         plt.bar_label(b, labels=["" if x == 0 else x for x in v], label_type="center", color="white")
-    plt.yticks(**({'family': "monospace", 'fontsize': 8} if vtype is hex else {'fontsize': 9}))
+    plt.yticks(**({'family': "serif", 'fontsize': 14} if vtype is hex else {'fontsize': 14}))
     plt.legend()
     return f"{dataset.basename}/features/{['', 'combo-'][len(feature) > 1]}{feature[0]}"
 
@@ -174,12 +177,13 @@ def _features_comparison_heatmap(dataset, datasets=None, feature=None, max_featu
                                  aggregate="byte_[0-9]+_after_ep", **kw):
     """ Plot a heatmap with the diffferences of feature values between a reference dataset (Dataset instance) and the
          given list of datasets (by name). """
+    from ...helpers.figure import plt  # report to get the actual object (cfr lazy loading)
     from sklearn.preprocessing import StandardScaler
     l = dataset.logger
     datasets_feats = {dataset.basename: dataset._data.copy()}
     for ds in (datasets or []):
         datasets_feats[ds.basename] = ds._data.copy()
-    feature = select_features(dataset, feature or "*")
+    feature = filter_features(dataset, feature or "*")
     df = pd.concat(datasets_feats.values(), keys=datasets_feats.keys(), names=['experiment', 'hash'])[feature] \
          .astype('float')
     scaler_v = StandardScaler().fit(df.loc[dataset.basename][feature])
@@ -206,7 +210,6 @@ def _features_comparison_heatmap(dataset, datasets=None, feature=None, max_featu
     label = f"Feature value difference from {dataset.basename}"
     title = f"Feature value comparison with {dataset.basename}"
     plt.figure(figsize=(1.2*len(pivoted_rank.index) + 3 , round(0.25*max_features + 2.2)), dpi=200)
-
     annotations = pivoted[order].applymap(lambda x: f"{x:.2f}" if abs(x) < 1000 else f"{x:.1e}").values.T
     ax = seaborn.heatmap(data=pivoted_rank[order].values.T, annot=annotations, fmt='s', cmap='vlag', linewidth=.5,
                          xticklabels=pivoted_rank.index, yticklabels=order, vmin=ticks[0], vmax=ticks[2],
@@ -222,9 +225,10 @@ def _features_comparison_heatmap(dataset, datasets=None, feature=None, max_featu
 @save_figure
 def _information_gain_bar_chart(dataset, feature=None, max_features=None, multiclass=False, **kw):
     """ Plot a bar chart of the information gain of features in descending order. """
+    from ...helpers.figure import plt  # report to get the actual object (cfr lazy loading)
     from sklearn.feature_selection import mutual_info_classif as mic
     l = dataset.logger
-    feature = select_features(dataset, feature)
+    feature = filter_features(dataset, feature)
     feats = dataset._data.copy()
     feats = feats.set_index("hash")
     feats = feats[feats['label'] != NOT_LABELLED] # skip not-labelled samples
@@ -256,47 +260,63 @@ def _information_gain_comparison_heatmap(dataset, datasets=None, feature=None, m
                                          aggregate="byte_[0-9]+_after_ep", **kw):
     """ Plot a heatmap with the diffferences of information gain between a reference dataset (Dataset instance) and the
          given list of datasets (by name). """
+    #FIXME: remove temp coode [START]
+    import matplotlib
+    #Create the style of the font 
+    font = {'family' : 'serif',
+            'weight' : 'normal',
+            'size'   : 10}         
+    matplotlib.rc('font', **font) #set the font style created
+    #FIXME: remove temp coode [END]
+    from ...helpers.figure import plt  # report to get the actual object (cfr lazy loading)
     from sklearn.feature_selection import mutual_info_classif as mic
+    from sklearn.impute import SimpleImputer
     l = dataset.logger
     datasets_feats = {dataset.basename: dataset._data.copy()}
     for ds in (datasets or []):
-        datasets_feats[ds.name] = d._data.copy()
-    feature = select_features(dataset, feature or "*")
+        datasets_feats[ds.name] = ds._data.copy()
+    feature = filter_features(dataset, feature or "*")
     df = pd.concat(datasets_feats.values(), keys=datasets_feats.keys(), names=['experiment', 'hash'])
     df = df[df['label'] != NOT_LABELLED]
-    fct = lambda x: pd.Series(mic(x[feature].astype('float'), x['label']), index=feature) if multiclass else \
-          lambda x: pd.Series(mic(x[feature].astype('float'), x['label'] == NOT_PACKED), index=feature)
-    df = df.groupby('experiment').apply(fct)
-    df = df - df.loc[dataset.basename]
+    df = filter_data(df, feature=feature)
+    #fct = [lambda x: pd.Series(mic(x[feature].astype('float'), x['label'] == NOT_PACKED), index=feature),
+    #       lambda x: pd.Series(mic(x[feature].astype('float'), x['label']), index=feature)][multiclass]
+    df[feature] = SimpleImputer(missing_values=np.nan, strategy="mean").fit_transform(df[feature])
+    df = df.groupby('experiment').apply(lambda x: pd.Series(mic(x[feature].astype('float'), x['label'], random_state=42), index=feature))
+    df = (df - df.loc[dataset.basename]).apply(abs)
     df = df.drop(index=dataset.basename)
     if max_features in [None, 0] or max_features > len(feature):
         max_features = len(feature)
     if aggregate is not None:
-        to_group = list(df.columns.str.extract("(" + aggregate + ")",expand=False).dropna())
+        to_group = list(df.columns.str.extract("(" + aggregate + ")", expand=False).dropna())
         df[aggregate + "_mean"] = df[to_group].mean(axis=1)
         df = df.drop(to_group, axis=1)
         if max_features > df.shape[1]:
             max_features = df.shape[1]
-    order = sorted(sorted(df.columns, key=lambda x: abs(df[x]).mean())[-max_features:],
+    order = sorted(sorted(df.columns, key=lambda x: df[x].mean())[-max_features:],
                    key=lambda x: df[x].mean())[::-1]
-    ticks = [-1, 0 , 1]
-    label = f"Information gain difference from {dataset.basename}"
-    title = f"Information gain comparison with {dataset.basename}"
-    plt.figure(figsize=(1.2*len(df.index) + 3 , round(0.25*max_features + 2.2)), dpi=200)
+    # normalize per column
+    df[order] = df[order].div(df[order].max(axis=0), axis=1)
+    label = f"Normalized IG difference from reference dataset"
+    title = f"Information Gain comparison with reference dataset {dataset.basename}"
+    plt.figure(figsize=(1.2*len(df.index) + 3, round(0.25 * max_features + 2.2)), dpi=200)
     annotations = df[order].applymap(lambda x: "%.2f"%x if abs(x) < 1000 else "%.1e"%x).values.T
-    ax = seaborn.heatmap(data=df[order].values.T, annot=annotations, fmt='s', xticklabels=df.index, yticklabels=order,
-                         cmap="vlag", cbar_kws = {'location':'right', 'ticks': ticks, 'label':label},
-                         vmin=ticks[0],vmax = ticks[2], linewidth=.5, linecolor='black')
+    ax = seaborn.heatmap(data=df[order].values.T, annot=annotations, fmt="s", xticklabels=df.index, yticklabels=order,
+                         cmap="YlOrBr", linewidth=0, cbar_kws={'location': 'right', 'ticks': [0,1], 'label': label},
+                         vmin=0, vmax=1)
     ax.xaxis.tick_top()
-    plt.xticks(rotation=90)
-    plt.title(title)
+    plt.title(title, fontfamily="serif", fontsize=16, fontweight="bold", pad=14)
+    plt.xticks(fontsize=12)
+    plt.yticks(fontsize=10)
     plt.tight_layout()
+    dataset._temp_df = df
     return f"{dataset.basename}/infogain-compare/{'-'.join(datasets_feats)}"
 
 
 @save_figure
 def _labels_pie_chart(dataset, **kw):
     """ Describe the dataset with a pie chart. """
+    from ...helpers.figure import plt  # report to get the actual object (cfr lazy loading)
     l = dataset.logger
     # data preparation
     l.debug("collecting label counts...")
@@ -337,7 +357,7 @@ def _samples_individual_visualization(dataset, query=None, n=0, **kw):
     if not dataset._files:
         dataset.logger.warning("Plotting individual samples only works for datasets with files")
         return
-    for e in filter_data_iter(dataset._data, query, n or 0, logger=dataset.logger):
+    for e in filter_data_iter(dataset._data, query, limit=n or 0, logger=dataset.logger):
         exe = Executable(dataset=dataset, hash=e.hash)
         dataset.logger.info(f"Plotting {exe.basename} ({Path(exe.realpath).basename})...")
         yield exe.plot(**kw)

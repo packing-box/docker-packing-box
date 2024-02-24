@@ -33,7 +33,7 @@ def __config_plt(**kwargs):
     else:
         import matplotlib.pyplot as plt
         plt.rcParams['figure.dpi'] = config['dpi']
-        plt.rcParams['font.family'] = config['font_family']
+        plt.rcParams['font.family'] = [config['font_family']]
         plt.rcParams['font.size'] = tfs = config['font_size']
         plt.rcParams['xtick.labelsize'] = plt.rcParams['ytick.labelsize'] = tfs - 2
         plt.rcParams['figure.titleweight'] = "bold"
@@ -88,6 +88,10 @@ def save_figure(f):
             if img is None:
                 continue
             img = figure_path(img, format=kw.get('format'))
+            #from code import interact
+            #ns = {k: v for k, v in globals().items()}
+            #ns.update(locals())
+            #interact(local=ns)
             l.info(f"Saving to {img}...")
             plt.savefig(img, **kw_plot)
             l.debug(f"> saved to {img}...")

@@ -10,7 +10,7 @@ lazy_load_module("yaml")
 set_exception("NotInstantiable", "TypeError")
 
 
-__all__ = ["dict2", "load_yaml_config", "select_features", "Item", "MetaBase", "MetaItem"]
+__all__ = ["dict2", "load_yaml_config", "Item", "MetaBase", "MetaItem"]
 
 _EVAL_NAMESPACE = {k: getattr(builtins, k) for k in ["abs", "divmod", "float", "hash", "hex", "id", "int", "len",
                                                      "list", "max", "min", "next", "oct", "ord", "pow", "range",
@@ -74,8 +74,8 @@ class dict2(dict):
     
     def __call__(self, data, silent=False, **kwargs):
         d = {k: getattr(random, k) for k in ["choice", "randint", "randrange", "randstr"]}
-        d.update({'apply': _apply, 'randbytes': _randbytes, 'repeatn': _repeatn, 'select': _select(),
-                  'select_section_name': _select(_sec_name), 'size': _size})
+        d.update({'apply': _apply, 'printable': string.printable, 'randbytes': _randbytes, 'repeatn': _repeatn,
+                  'select': _select(), 'select_section_name': _select(_sec_name), 'size': _size})
         d.update(_EVAL_NAMESPACE)
         d.update(data)
         kwargs.update(getattr(self, "parameters", {}))
@@ -460,26 +460,4 @@ def load_yaml_config(cfg, no_defaults=(), parse_defaults=True, test_only=False):
     # collect properties that are applicable for all the other features
     for name, params in _set(d).items():
         yield name, params
-
-
-def select_features(dataset, feature=None):
-    """ Handle features selection based on a simple wildcard. """
-    if not hasattr(dataset, "_features"):
-        dataset._compute_all_features()
-    if feature is None or feature == []:
-        feature = list(dataset._features.keys())
-    # data preparation
-    if not isinstance(feature, (tuple, list)):
-        feature = [feature]
-    nfeature = []
-    for pattern in feature:
-        # handle wildcard for bulk-selecting features
-        if "*" in pattern:
-            regex = re.compile(pattern.replace("*", ".*"))
-            for f in dataset._features.keys():
-                if regex.search(f):
-                    nfeature.append(f)
-        else:
-            nfeature.append(pattern)
-    return sorted(nfeature)
 
