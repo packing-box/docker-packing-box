@@ -10,7 +10,8 @@ lazy_load_module("bintropy")
 __all__ = ["get_section_class", "supported_parsers", "AbstractParsedExecutable"]
 
 
-rawbytes = lambda s: bytes(getattr(s, "tobytes", lambda: s)())
+_rb = lambda s: bytes(getattr(s, "tobytes", lambda: s)())
+_rn = lambda s: ensure_str(getattr(s, "real_name", s.name)).split("\0")[0]
 
 
 def supported_parsers(*parsers):
@@ -58,8 +59,8 @@ class AbstractParsedExecutable(AbstractBase):
     
     def average_block_entropy_per_section(self, blocksize=256, ignore_half_block_zeros=True, overlay=True, raw=True):
         r, t = 0., 0
-        for e, w in [(bintropy.entropy(rawbytes(s.content), blocksize, ignore_half_block_zeros),
-                      len(rawbytes(s.content)) if raw else s.size) for s in self]:
+        for e, w in [(bintropy.entropy(_rb(s.content), blocksize, ignore_half_block_zeros),
+                      len(_rb(s.content)) if raw else s.size) for s in self]:
             if e == .0 or e[1] in [.0, None]:
                 continue
             r += e[1] * w
@@ -67,14 +68,22 @@ class AbstractParsedExecutable(AbstractBase):
         if overlay:
             # get overlay, first from the eventually-defined attribute "_parsed", otherwise from the current instance
             o = getattr(getattr(self, "_parsed", self), "overlay", b"")
-            c = rawbytes(o)
+            c = _rb(o)
             w = len(c)
             r += (bintropy.entropy(c, blocksize, ignore_half_block_zeros)[1] or 0.) * w
             t += w
         return r / (t or 1)
     
-    def block_entropy_per_section(self, blocksize=256, ignore_half_block_zeros=True):
-        return {getattr(s, "real_name", s.name): s.block_entropy(blocksize, ignore_half_block_zeros) for s in self}
+    def average_entropy(self, *sections):
+        #TODO
+        pass
+    
+    def block_entropy(self, blocksize=256, ignore_half_block_zeros=False, ignore_half_block_same_byte=True):
+        return bintropy.entropy(_rb(self.code), blocksize, ignore_half_block_zeros, ignore_half_block_same_byte)
+    
+    def block_entropy_per_section(self, blocksize=256, ignore_half_block_zeros=True, ignore_half_block_same_byte=True):
+        return {getattr(s, "real_name", s.name): s.block_entropy(blocksize, ignore_half_block_zeros,
+                                                                 ignore_half_block_same_byte) for s in self}
     
     def build(self, **kw):
         raise NotImplementedError("build")
@@ -88,19 +97,19 @@ class AbstractParsedExecutable(AbstractBase):
     
     def section(self, section, original=False):
         if isinstance(section, (bytes, str)):
-            section = ensure_str(section)
+            name = ensure_str(section)
             if original:
                 for s1, s2 in zip(self, self.sections):
-                    if ensure_str(s1.name) == section:
+                    if ensure_str(s1.name) == name:
                         return s2                    
             else:
                 for s in self:
                     real_name = getattr(self, "real_section_names", {}).get(s.name, s.name)
-                    if ensure_str(s.name) == section or ensure_str(real_name) == section:
+                    if ensure_str(s.name) == name or ensure_str(real_name) == name:
                         if hasattr(s, "real_name"):
                             s.real_name = real_name
                         return s
-            raise ValueError(f"no section named '{section}'")
+            raise ValueError(f"no section named '{name}'")
         elif isinstance(section, AbstractBase):
             if original:
                 for s1, s2 in zip(self, self.sections):
@@ -141,12 +150,17 @@ class AbstractParsedExecutable(AbstractBase):
     
     @property
     def empty_name_sections(self):
-        return [s for s in self if getattr(s, "real_name", s.name) == ""]
+        return [s for s in self if _rn(s) == ""]
+    
+    @property
+    def known_packer_sections(self):
+        d = get_data(self.path.format)['COMMON_PACKER_SECTION_NAMES']
+        return [s for s in self if _rn(s) in d]
     
     @property
     def non_standard_sections(self):
         d = [""] + get_data(self.path.format)['STANDARD_SECTION_NAMES']
-        return [s for s in self if getattr(s, "real_name", s.name) not in d]
+        return [s for s in self if _rn(s) not in d]
     
     @property
     def real_section_names(self):
@@ -172,7 +186,7 @@ class AbstractParsedExecutable(AbstractBase):
     @property
     def standard_sections(self):
         d = [""] + get_data(self.path.format)['STANDARD_SECTION_NAMES']
-        return [s for s in self if getattr(s, "real_name", s.name) in d]
+        return [s for s in self if _rn(s) in d]
 
 
 def get_section_class(name, **mapping):
@@ -205,8 +219,8 @@ def get_section_class(name, **mapping):
                     value = tmp
                 setattr(self, attr, value)
         
-        def block_entropy(self, blocksize=256, ignore_half_block_zeros=True):
-            return bintropy.entropy(rawbytes(self.content), blocksize, ignore_half_block_zeros)
+        def block_entropy(self, blocksize=256, ignore_half_block_zeros=False, ignore_half_block_same_byte=True):
+            return bintropy.entropy(_rb(self.content), blocksize, ignore_half_block_zeros, ignore_half_block_same_byte)
         
         @property
         def block_entropy_256B(self):
@@ -218,7 +232,7 @@ def get_section_class(name, **mapping):
         
         @property
         def entropy(self):
-            return bintropy.entropy(rawbytes(self.content))
+            return bintropy.entropy(_rb(self.content))
         
         @property
         def is_standard(self):
