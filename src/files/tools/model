@@ -18,7 +18,7 @@ __description__ = "Train Machine Learning models"
 __examples__    = [
     "list",
     "preprocess [model_name] my-dataset",
-    "train my-dataset -a mnb",
+    "train my-dataset -A mnb",
     "show [model_name]",
 ]
 
@@ -43,8 +43,10 @@ if __name__ == '__main__':
     listm = sparsers.add_parser("list", category="read", help="list all the models from the workspace")
     listm.add_argument("--algorithms", action="store_true", help="show available algorithms instead of models")
     preproc = sparsers.add_parser("preprocess", category="read", help="preprocess features and visualize the result")
-    add_argument(preproc, "mdname", "executable", "features-set", nargs="?", note="similar to 'dataset browse', except "
-                                                      "that it requires a model to apply its preprocessors in addition")
+    add_argument(preproc, "mdname")
+    add_argument(preproc, "executable", nargs="?", note="similar to 'dataset browse', except that it requires a model "
+                                                        "to apply its preprocessors in addition")
+    add_argument(preproc, "features-set")
     add_argument(sparsers.add_parser("purge", category="create/modify/delete",
                                      help="purge the selected model"), "mdname", force=True)
     rename = add_argument(sparsers.add_parser("rename", category="create/modify/delete",
@@ -57,12 +59,12 @@ if __name__ == '__main__':
                       note="required when using input CSV data instead of a Dataset (no effect otherwise)")
     train = sparsers.add_parser("train", category="create/modify/delete", help="train a model on the given dataset")
     train.add_argument("dataset", type=Dataset.load, help="dataset for training the model")
-    train.add_argument("-a", "--algorithm", choices=[a.name for a in Algorithm.registry], default="dt", metavar="ALGO",
+    train.add_argument("-a", "--algorithms-set", metavar="YAML", type=ts.file_exists, default=config['algorithms'],
+                       help="algorithms set's YAML definition")
+    train.add_argument("-A", "--algorithm", choices=[a.name for a in Algorithm.registry], default="dt", metavar="ALGO",
                        help="machine learning algorithm to be used\n- %s\n * supports Grid Search cross-validation\n" %\
                             "\n- ".join("%s: %s%s" % (a.name.ljust(8), a.description, ["", "*"][a.parameters.get('cv') \
                             is not None]) for a in Algorithm.registry))
-    train.add_argument("--algorithms-set", metavar="YAML", type=ts.file_exists, default=config['algorithms'],
-                       help="algorithms set's YAML definition")
     add_argument(train, "features-set")
     train.add_argument("-m", "--multiclass", action="store_true", help="train the model using multiple label classes")
     train.add_argument("-r", "--reset", action="store_true", help="reset the model before (re)training")

@@ -14,16 +14,14 @@ __examples__    = [
     "upx /tmp/cscript.exe",
     "petite samples/",
     "hxor-packer dataset-test-upx",
+    "nspack program.exe -a custom-alteration.yml -A rename_sections",
 ]
 
 
 if __name__ == '__main__':
     parser.add_argument("packer", type=Packer.get, help="selected packer")
     parser.add_argument("executable", help="executable or folder containing executables")
-    parser.add_argument("-a", "--alterations-set", metavar="YAML", default=str(config['alterations']),
-                        type=ts.file_exists, help="alterations set's YAML definition")
-    parser.add_argument("-A", "--alteration", choices=Alterations.names(), action="extend", nargs="*",
-                        metavar="ALTERATION", help="alteration to be applied to the target executable(s)")
+    add_argument(parser, "alterations-set", "alteration")
     parser.add_argument("-p", "--prefix", help="string to be prepended to the filename")
     initialize(noargs_action="usage", multi_level_debug=True)
     configure_logging(args.verbose, ("INFO", "DEBUG", "DETAIL"))

@@ -6,7 +6,7 @@ from tinyscript import *
 
 
 __script__      = "Executable manipulation tool"
-__version__     = "1.2.0"
+__version__     = "1.2.1"
 __doc__         = """
 This tool aims to manipulate a single executable.
 """
@@ -24,8 +24,7 @@ if __name__ == '__main__':
                                      help="command to be executed")
     alter = sparsers.add_parser("alter", help="alter the target executable with the given alteration")
     add_argument(alter, "executable", single=True)
-    agroup = alter.add_mutually_exclusive_group()
-    add_argument(agroup, "alteration", "alterations-set", optional=True)
+    add_argument(alter, "alterations-set", "alteration")
     diff = sparsers.add_parser("diff", help="represent differences between two target executables")
     add_argument(diff, "executable", single=True)
     diff.add_argument("executable2", help="another executable file")

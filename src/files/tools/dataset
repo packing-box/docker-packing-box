@@ -5,7 +5,7 @@ from tinyscript import *
 
 
 __script__       = "Dataset manipulation tool"
-__version__      = "2.6.6"
+__version__      = "2.6.7"
 __contributors__ = [
     {'author': "Romain Jennes", 'reason': "added dataset alterations and adversarial learning capabilities"},
 ]
@@ -56,8 +56,7 @@ if __name__ == '__main__':
                                  help="command to be executed")
     alter = add_argument(cmds.add_parser("alter", category="create/modify/delete",
                                          help="alter the target dataset with a set of transformations"), "dsname")
-    alter.add_argument("-a", "--alterations-set", metavar="YAML", default=str(config['alterations']),
-                       type=ts.file_exists, help="alterations set's YAML definition")
+    add_argument(alter, "alterations-set", "alteration")
     alter.add_argument("-n", "--new-name", help="name for the new altered dataset",
                        note="if None, the original dataset is altered")
     agroup = alter.add_mutually_exclusive_group()
