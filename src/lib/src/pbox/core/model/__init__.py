@@ -441,7 +441,7 @@ class Model(BaseModel):
                   f"**Packers**:      {', '.join(get_counts(ds).keys())}"])
         render(Section("Reference dataset"), c)
     
-    def train(self, algorithm=None, cv=5, n_jobs=None, param=None, reset=False, ignore_labels=False, **kw):
+    def train(self, algorithm=None, cv=5, n_jobs=None, param=None, reset=False, ignore_labels=False, select_features=False, select_param=None, **kw):
         """ Training method handling cross-validation. """
         import multiprocessing as mp
         n_jobs = n_jobs or mp.cpu_count() // 2
@@ -510,6 +510,32 @@ class Model(BaseModel):
             params['n_clusters'] = n = 2 if ds.labelling == .0 or not multiclass or ignore_labels else \
                                    len(set(l for l in self._metadata['dataset']['counts'].keys() if l != NOT_LABELLED))
             l.debug(f"> parameter n_clusters=\"auto\" set to {n}{[' based on labels',''][ignore_labels]}")
+        # use recursive feature elimination with cross-validation to select optimal features
+        if select_features:
+            l.info("Finding optimal feature set...")
+            # apply user-defined parameters
+            select_params = {'cv': cv, 'n_jobs': n_jobs}
+            if select_param:
+                for sp in select_param[0]:
+                    n, v = sp.split('=')
+                    select_params[str(n)] = int(v) if v.isdigit() else v
+            from sklearn.feature_selection import RFECV
+            feature_selector = RFECV(estimator=cls.base(**params), **select_params)
+            feature_selector.fit(self._data, self._target.values.ravel())
+            self._data = self._data[self._data.columns[feature_selector.get_support(indices=True)]]
+            removed = [f for f in self._features.keys() if f not in self._data]
+            if len(removed) > 0:
+                self._metadata['dataset']['dropped-features'] = removed
+                best_feat = [(i, n) for i, n in sorted(zip(feature_selector.ranking_, self._features.keys())) if i == 1]
+                ll, nf = max(map(len, [x[1] for x in best_feat])), len(str(len(best_feat)))
+                best_feat = [("{: <%s}: {}" % (ll + nf - len(str(i+1)))) \
+                .format(p[1], self._features[p[1]]) for i, p in enumerate(best_feat)]
+                fi_str = ["**Optimal features**:      %d (selected from %d features)\n\n\t1. %s\n\n" % \
+                (len(best_feat), len(self._features), "\n\n\t1. ".join(best_feat))]
+                render(List(fi_str))
+                self._features = {k: v for k, v in self._features.items() if k in self._data.columns}
+                self._train.data = self._train.data[self._data.columns]
+                self._test.data = self._test.data[self._data.columns]
         l.info("Training model...")
         self.pipeline.append((cls.description, cls.base(**params)))
         # if a param_grid is input, perform cross-validation and select the best classifier

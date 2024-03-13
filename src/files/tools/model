@@ -72,8 +72,10 @@ if __name__ == '__main__':
     train.add_argument("--feature", action="extend", nargs="*", help="list of features to be selected")
     add_argument(train, "ignore-labels")
     train.add_argument("--n-jobs", help="number of jobs to be run in parallel")
+    train.add_argument("-s", "--select-features", action="store_true", help="use recursive feature elimination with cross-validation to select optimal features before model training")
     train.add_argument("-p", "--param", nargs="*", help="comma-separated list of parameters for the algorithm",
                        note="fixing a parameter with this option disables it from the cross-validation")
+    train.add_argument("-sp", "--select-param", nargs="*",type=lambda x: x.split(","), help="comma-separated list of parameters for the feature selection algorithm")
     visualize = add_argument(sparsers.add_parser("visualize", category="read", help="visualize the model"), "mdname")
     visualize.add_argument("-e", "--export", action="store_true", help="export to PNG")
     visualize.add_argument("-o", "--output-dir", metavar="DIR", default=".", help="output directory")
