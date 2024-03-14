@@ -47,6 +47,7 @@ if __name__ == '__main__':
     add_argument(preproc, "executable", nargs="?", note="similar to 'dataset browse', except that it requires a model "
                                                         "to apply its preprocessors in addition")
     add_argument(preproc, "features-set")
+    add_argument(preproc, "mi-select")
     add_argument(sparsers.add_parser("purge", category="create/modify/delete",
                                      help="purge the selected model"), "mdname", force=True)
     rename = add_argument(sparsers.add_parser("rename", category="create/modify/delete",
@@ -76,6 +77,7 @@ if __name__ == '__main__':
     train.add_argument("-p", "--param", nargs="*", help="comma-separated list of parameters for the algorithm",
                        note="fixing a parameter with this option disables it from the cross-validation")
     train.add_argument("-sp", "--select-param", nargs="*",type=lambda x: x.split(","), help="comma-separated list of parameters for the feature selection algorithm")
+    add_argument(train, "mi-select")
     visualize = add_argument(sparsers.add_parser("visualize", category="read", help="visualize the model"), "mdname")
     visualize.add_argument("-e", "--export", action="store_true", help="export to PNG")
     visualize.add_argument("-o", "--output-dir", metavar="DIR", default=".", help="output directory")

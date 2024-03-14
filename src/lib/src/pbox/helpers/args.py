@@ -82,6 +82,9 @@ def add_argument(parser, *names, **kwargs):
             a = ("-n", "--name", ) if opt else ("name", )
             kw = {'type': model_exists(kwargs.get('force', False)), 'help': kwargs.get('help', "name of the model")}
             parser.add_argument(*a, **kw)
+        elif name == "mi-select":
+            parser.add_argument("-mi", "--mi-select", action="store_true", help="apply mutual information feature selection",
+                                note="use mi_kbest kwarg to set the threshold. If mi_kbest >=1, the mi_kbest best features will be kept. If within (0.0, 1.0), the mi_kbest percent of features will be kept.")
         elif name == "multiclass":
             parser.add_argument("-m", "--multiclass", action="store_true", help="process features using true labels",
                                 note="if False, means binary classification (1:True/0:False/-1:Unlabelled)")

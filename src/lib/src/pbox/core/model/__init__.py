@@ -50,7 +50,7 @@ class BaseModel(Entity):
         return [f(v) for v, f in zip(values, headers.values())], list(headers.keys())
     
     def _prepare(self, dataset=None, preprocessor=None, multiclass=False, labels=None, feature=None, data_only=False,
-                 unlabelled=False, **kw):
+                 unlabelled=False, mi_select=False, **kw):
         """ Prepare the Model instance based on the given Dataset/FilelessDataset/CSV/other instance.
         NB: after preparation,
              (1) input data is prepared (NOT preprocessed yet as this is part of the pipeline), according to 4 use cases
@@ -187,7 +187,23 @@ class BaseModel(Entity):
         if len(removed) > 0:
             self.logger.debug("> features removed:\n- %s" % "\n- ".join(sorted(removed)))
             self._metadata['dataset']['dropped-features'] = removed
-        # prepare for training and testing sets
+        if mi_select:
+            from sklearn.feature_selection import SelectKBest, mutual_info_classif
+            l.debug("> apply mutual information feature selection")
+            mi_kbest = kw.pop('mi_kbest', .5)
+            if mi_kbest >= 1:
+                k = int(mi_kbest)
+            elif mi_kbest > 0 and mi_kbest < 1:
+                k = int(len(self._data.columns) * mi_kbest)
+            selector = SelectKBest(score_func=mutual_info_classif, k=k)
+            selector.fit(self._data, self._target)
+            selected_features = self._data.columns[selector.get_support(indices=True)]
+            removed = [f for f in self._features.keys() if f not in selected_features]
+            self._data = self._data[selected_features]
+            self._features = {k: v for k, v in self._features.items() if k in selected_features}
+            if len(removed) > 0:
+                self.logger.debug("> features removed:\n- %s" % "\n- ".join(sorted(removed)))
+                self._metadata['dataset']['dropped-features'] = removed
         class Dummy: pass
         self._train, self._test = Dummy(), Dummy()
         ds.logger.debug("> split data and target vectors to train and test subsets")
