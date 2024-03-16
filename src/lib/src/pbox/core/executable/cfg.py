@@ -817,7 +817,7 @@ class FeatureExtractionFunctions:
         while queue:
             node = queue.pop(0)
             visited.add(node)
-            num_successors, num_predecessors = SupportingFunctions.get_num_neighbors(node, include_cut_edges)
+            num_successors, num_predecessors = SupportingFunctions.get_num_neighbors(node, include_cut_edges=include_cut_edges)
             all_degrees_out.append(num_successors)
             all_degrees_in.append(num_predecessors)
             for successor in node.successors:
@@ -833,7 +833,6 @@ class FeatureExtractionFunctions:
         
         Args:
             cfg: a CFG object
-            root_node: a CFG node extracted by Angr
         KwArgs:
             include_cut_edges: whether to include the stored information about edges that got cut
         Returns:
@@ -851,12 +850,32 @@ class FeatureExtractionFunctions:
             while queue:
                 node = queue.pop(0)
                 visited.add(node)
-                num_successors, num_predecessors = SupportingFunctions.get_num_neighbors(node, include_cut_edges, graph=subgraph)
+                num_successors, num_predecessors = SupportingFunctions.get_num_neighbors(node, include_cut_edges=include_cut_edges, graph=subgraph)
                 all_degrees_out.append(num_successors)
                 all_degrees_in.append(num_predecessors)
                 for successor in subgraph.successors(node):
                     if successor not in visited:
                         queue.append(successor)
+        avg_degrees_out = sum(all_degrees_out) / len(all_degrees_out)
+        avg_degrees_in = sum(all_degrees_in) / len(all_degrees_in)
+        return avg_degrees_out, avg_degrees_in
+    
+    @staticmethod    
+    def get_cfg_structure_features_all_nodes(cfg):
+        """Extracts features based on cfg structure, taking all extracted nodes into account.
+        
+        Args:
+            cfg: a CFG object
+        Returns:
+            avg_degrees_out: the average number of successors of all extracted nodes
+            avg_degrees_in: the average number of predecessors of all extracted nodes
+        """
+        all_degrees_out = []
+        all_degrees_in = []
+        for node in cfg.model.nodes():
+            num_successors, num_predecessors = SupportingFunctions.get_num_neighbors(node, include_cut_edges=True)
+            all_degrees_out.append(num_successors)
+            all_degrees_in.append(num_predecessors)
         avg_degrees_out = sum(all_degrees_out) / len(all_degrees_out)
         avg_degrees_in = sum(all_degrees_in) / len(all_degrees_in)
         return avg_degrees_out, avg_degrees_in
@@ -886,7 +905,7 @@ class FeatureExtractionFunctions:
         while queue and len(approx_signature) < len_approx:
             current = queue.pop(0)
             visited.add(current)
-            num_successors, num_predecessors = SupportingFunctions.get_num_neighbors(current, include_cut_edges)
+            num_successors, num_predecessors = SupportingFunctions.get_num_neighbors(current, include_cut_edges=include_cut_edges)
             num_predecessors = min(num_predecessors, 63)
             feature = (num_successors << 6) | num_predecessors
             approx_signature.append(feature)
@@ -933,7 +952,7 @@ class FeatureExtractionFunctions:
         while queue:
             current = queue.pop(0)
             visited.add(current)
-            num_successors, num_predecessors = SupportingFunctions.get_num_neighbors(current, include_cut_edges)
+            num_successors, num_predecessors = SupportingFunctions.get_num_neighbors(current, include_cut_edges=include_cut_edges)
             num_predecessors = min(num_predecessors, 63)
             feature = (num_successors << 6) | num_predecessors
             approx_signature.append(feature)

@@ -106,9 +106,9 @@ bi.config = Config("packing-box",
             'exec_timeout':  ("20", "SECONDS", "execution timeout of items (detectors, packers, ...)", _it),
         },
         'cfg': {
-            'angr_engine':       ("pcode", "ENGINE", "set the engine for CFG extraction by Angr", _ae),
-            'extract_algorithm': ("fast", "ALGO", "CFG extraction algorithm", _cg),
-            'extract_timeout':   ("20", "SECONDS", "execution timeout for computing CFG of an executable", _it),
+            'angr_engine':       ("default", "ENGINE", "set the engine for CFG extraction by Angr", _ae),
+            'extract_algorithm': ("emulated", "ALGO", "CFG extraction algorithm", _cg),
+            'extract_timeout':   ("15", "SECONDS", "execution timeout for computing CFG of an executable", _it),
         },
         'definitions': {k: opt_tuple(k) for k in \
              ['algorithms', 'alterations', 'analyzers', 'detectors', 'features', 'packers', 'scenarios', 'unpackers']},
