@@ -29,6 +29,6 @@ if __name__ == "__main__":
     parser.add_argument("-o", "--output", type=valid_image, default="output.png",
                         help="destination image (BMP, JPG or PNG)")
     initialize()
-    logger.info("Making bytes histogram of %s to %s..." % (args.input, args.output))
-    ts.execute_and_log("xvfb-run ~/.opt/utils/bytehist_orig -n -s %s %s" % (args.output, args.input))
+    logger.info(f"Making bytes histogram of {args.input} to {args.output}...")
+    ts.execute_and_log(f"xvfb-run ~/.opt/utils/bytehist_orig -n -s {args.output} {args.input}")
 
