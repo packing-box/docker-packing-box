@@ -71,7 +71,7 @@ if __name__ == '__main__':
     train.add_argument("--cv", default=5, type=ts.pos_int, help="number of Cross-Validation folds")
     train.add_argument("--feature", action="extend", nargs="*", help="list of features to be selected")
     add_argument(train, "ignore-labels")
-    train.add_argument("--n-jobs", help="number of jobs to be run in parallel")
+    train.add_argument("--n-jobs", type=lambda x: ts.pos_int(x, False), help="number of jobs to be run in parallel")
     train.add_argument("-p", "--param", nargs="*", help="comma-separated list of parameters for the algorithm",
                        note="fixing a parameter with this option disables it from the cross-validation")
     visualize = add_argument(sparsers.add_parser("visualize", category="read", help="visualize the model"), "mdname")
