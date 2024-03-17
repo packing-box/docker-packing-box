@@ -218,14 +218,14 @@ def image_clustering(classifier, **params):
 
 
 def text_dt(classifier, **params):
-    return sktree.export_text(classifier, **params)
+    return sktree.export_text(classifier, **filter_args(params, sktree.export_text))
 
 
 def text_rf(classifier, **params):
     s = ""
     for i in range(len(classifier.estimators_)):
         s += f"\nEstimator: {i}\n"
-        s += sktree.export_text(classifier.estimators_[i], **params)
+        s += sktree.export_text(classifier.estimators_[i], **filter_args(params, sktree.export_text))
     return s
 
 
