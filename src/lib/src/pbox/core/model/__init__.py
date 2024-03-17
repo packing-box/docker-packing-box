@@ -460,7 +460,7 @@ class Model(BaseModel):
     def train(self, algorithm=None, cv=5, n_jobs=None, param=None, reset=False, ignore_labels=False, select_features=False, select_param=None, **kw):
         """ Training method handling cross-validation. """
         import multiprocessing as mp
-        n_jobs = n_jobs or mp.cpu_count() // 2
+        n_jobs = int(n_jobs or mp.cpu_count() // 2)
         l, n_cpu, ds, multiclass = self.logger, mp.cpu_count(), kw['dataset'], kw.get('multiclass', False)
         try:
             cls = self._algorithm = Algorithm.get(algorithm)

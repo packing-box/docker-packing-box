@@ -1,10 +1,10 @@
 # -*- coding: UTF-8 -*-
-from tinyscript import functools, re
+from tinyscript import functools, inspect, re
 from tinyscript.helpers.data.types import file_exists, folder_does_not_exist, folder_exists, json_config, pos_int
 
 
-__all__ = ["add_argument", "characteristic_identifier", "expand_parameters", "figure_options", "item_exists",
-           "legend_location", "percentage", "scenario_identifier", "set_yaml", "yaml_file"]
+__all__ = ["add_argument", "characteristic_identifier", "expand_parameters", "figure_options", "filter_args",
+           "item_exists", "legend_location", "percentage", "scenario_identifier", "set_yaml", "yaml_file"]
 
 
 def _fix_args(f):
@@ -190,6 +190,11 @@ def figure_options(parser):
             kw['action'] = "store_true"
         group.add_argument(f"--{option.replace('_', '-')}", default=config[option], help=params[2], **kw)
     return group
+
+
+def filter_args(params, target):
+    valid = list(inspect.signature(target).parameters)
+    return {k: v for k, v in params.items() if k in valid}
 
 
 def item_exists(string):

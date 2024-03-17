@@ -68,12 +68,15 @@
 .idlsym
 .impdata
 .import
+.isoapis  # i.e. present in iertutil.dll
 .itext
 .loadcfg  # SafeSEH (Safe Structured Exception Handling) and Control Flow Guard (CFG) information (found via ChatGPT)
 .mddat  # Managed Device Driver data (found via ChatGPT)
+.mrdata  # i.e. present in imagehlp.dll or ntdll.dll
 .ndata
 .orpc
 .pdata
+.proxy  # i.e. present in combase.dll
 .rdata
 .rdata1  # (found via ChatGPT)
 .reloc
