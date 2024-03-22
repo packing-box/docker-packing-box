@@ -600,44 +600,19 @@ class SupportingFunctions:
         return overlapping_nodes
 
     @staticmethod    
-    def get_insn_tuples(cfg, graph=None):
-        """Gets all tuples of (opcode mnemonic, operand string) of all nodes in the subgraph downwards connected to the (sub_)root_node
+    def get_insn_tuples(cfg):
+        """Gets all tuples of (opcode mnemonic, operand string) of all extracted nodes, avoiding duplicate counts by using the get_signature supporting function
           
         Args:
             cfg: a CFG object
-        KwArgs:
-            insn_tuples: a list of tuples with string representations of the opcodes and operands of all nodes in the subgraph downwards connected to the (sub_)root_node
         """
-        root_node = SupportingFunctions.ensure_acyclic(cfg, graph)
         insn_tuples = []
-        queue = [root_node]
         visited = set()
-        while queue:
-            node = queue.pop(0)
-            visited.add(node)
+        for node in cfg.model.nodes():
+            signature = SupportingFunctions.get_signature(node)
+            if signature in visited: continue
+            visited.add(signature)
             if node.byte_string and not all(byte == 0 for byte in node.byte_string) and node.block: insn_tuples.extend([(i.mnemonic, i.op_str) for i in node.block.disassembly.insns])
-            if graph:
-                successors = graph.successors(node)
-            else:
-                successors = node.successors
-            for successor in successors:
-                if successor not in visited:
-                    queue.append(successor)
-        return insn_tuples
-
-    @staticmethod    
-    def get_insn_tuples_subgraphs(cfg):
-        """Gets all tuples of (opcode mnemonic, operand string) of all nodes in the subgraph downwards connected to the (sub_)root_node of each subgraph in subgraphs. Except when the cfg was extracted with the CFGFast algorithm. In that case, the numer of insn_tuples can be huge, so only the ones for the root_subgraph will be computed.
-        
-        Args:
-            cfg: a CFG object
-        Returns:
-            insn_tuples: a list of tuples with string representations of the opcodes and operands of all nodes in the subgraph downwards connected to the (sub_)root_node of each subgraph in subgraphs
-        """
-        SupportingFunctions.set_subgraphs(cfg)
-        insn_tuples = []
-        for subgraph in cfg.subgraphs:
-            insn_tuples.extend(SupportingFunctions.get_insn_tuples(cfg, graph=subgraph))
         return insn_tuples
 
 
@@ -1046,7 +1021,7 @@ class FeatureExtractionFunctions:
             ratio_register_type_counts_over_num_instructions: a list of ratios of (number of occurences of a set of predefined register types in the operand strings of the instructions in the nodes in all subgraphs) / (total number extracted instructions)
         """
         jump_mnemonics = {"call", "jmp", "bnd jmp", "je", "jne", "jz", "jnz", "ja", "jae", "jb", "jbe", "jl", "jle", "jg", "jge", "jo", "jno", "js", "jns", "jp", "jnp", "jecxz", "jrcxz", "jmpf", "jmpq", "jmpw"}
-        insn_tuples = SupportingFunctions.get_insn_tuples_subgraphs(cfg)
+        insn_tuples = SupportingFunctions.get_insn_tuples(cfg)
         num_jump_insns = num_indirect_jump_insns = 0
         for insn_tuple in insn_tuples:
             if insn_tuple[0] in jump_mnemonics:
