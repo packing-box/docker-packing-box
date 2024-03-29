@@ -157,14 +157,14 @@ def move_entrypoint_to_new_section(name, section_type=None, characteristics=None
     """
     @supported_parsers("lief")
     def _move_entrypoint_to_new_section(parsed, logger):
-        old_entry = parsed.entrypoint + 0x10000
+        original_entrypoint = parsed.optional_header.addressof_entrypoint + parsed.optional_header.imagebase
         #  push current_entrypoint
         #  ret
-        entrypoint_data = [0x68] + list(old_entry.to_bytes([4, 8][parsed.path.format[-2:] == "64"], "little")) + [0xc3]
+        entrypoint_data = [0x68] + list(original_entrypoint.to_bytes([4, 8][parsed.path.format[-2:] == "64"], "little")) + [0xc3]
         # other possibility:
         #  mov eax current_entrypoint
         #  jmp eax
-        #  entrypoint_data = [0xb8] + list(old_entry.to_bytes(4, 'little')) + [0xff, 0xe0]
+        #  entrypoint_data = [0xb8] + list(original_entrypoint.to_bytes(4, 'little')) + [0xff, 0xe0]
         add_section(name, section_type or parsed.SECTION_TYPES['TEXT'], characteristics,
                     list(pre_data) + entrypoint_data + list(post_data))(parsed, logger)
         parsed.optional_header.addressof_entrypoint = parsed.get_section(name).virtual_address + len(pre_data)
@@ -179,14 +179,14 @@ def move_entrypoint_to_slack_space(section_input, pre_data=b"", post_data_source
         if parsed.optional_header.section_alignment % parsed.optional_header.file_alignment != 0:
             raise ValueError("SectionAlignment is not a multiple of FileAlignment (file integrity cannot be assured)")
         address_bitsize = [64, 32]["32" in parsed.path.format]
-        old_entry = parsed.entrypoint + 0x10000
+        original_entrypoint = parsed.optional_header.addressof_entrypoint + parsed.optional_header.imagebase
         #  push current_entrypoint
         #  ret
-        entrypoint_data = [0x68] + list(old_entry.to_bytes([4, 8][parsed.path.format[-2:] == "64"], 'little')) + [0xc3]
+        entrypoint_data = [0x68] + list(original_entrypoint.to_bytes([4, 8][parsed.path.format[-2:] == "64"], 'little')) + [0xc3]
         # other possibility:
         #  mov eax current_entrypoint
         #  jmp eax
-        #  entrypoint_data = [0xb8] + list(old_entry.to_bytes(4, 'little')) + [0xff, 0xe0]
+        #  entrypoint_data = [0xb8] + list(original_entrypoint.to_bytes(4, 'little')) + [0xff, 0xe0]
         d = list(pre_data) + entrypoint_data
         if callable(post_data_source):
             full_data = lambda l: d + list(post_data_source(l - len(d)))
