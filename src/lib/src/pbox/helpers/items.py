@@ -18,6 +18,7 @@ _EVAL_NAMESPACE = {k: getattr(builtins, k) for k in ["abs", "divmod", "float", "
 _WL_EXTRA_NODES = ("arg", "arguments", "keyword", "lambda")
 
 
+_concatn  = lambda l, n: reduce(lambda a, b: a[:n]+b[:n], l, stop=lambda x: len(x) > n)
 _repeatn  = lambda s, n: (s * (n // len(s) + 1))[:n]
 _sec_name = lambda s: getattr(s, "real_name", getattr(s, "name", s))
 _size     = lambda exe, ratio=.1, blocksize=512: round(int(exe['size'] * ratio) / blocksize + .5) * blocksize
@@ -74,8 +75,8 @@ class dict2(dict):
     
     def __call__(self, data, silent=False, **kwargs):
         d = {k: getattr(random, k) for k in ["choice", "randint", "randrange", "randstr"]}
-        d.update({'apply': _apply, 'printable': string.printable, 'randbytes': _randbytes, 'repeatn': _repeatn,
-                  'select': _select(), 'select_section_name': _select(_sec_name), 'size': _size})
+        d.update({'apply': _apply, 'concatn': _concatn, 'printable': string.printable, 'randbytes': _randbytes,
+                  'repeatn': _repeatn, 'select': _select(), 'select_section_name': _select(_sec_name), 'size': _size})
         d.update(_EVAL_NAMESPACE)
         d.update(data)
         kwargs.update(getattr(self, "parameters", {}))
