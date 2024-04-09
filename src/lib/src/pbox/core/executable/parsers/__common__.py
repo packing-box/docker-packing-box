@@ -3,6 +3,7 @@ from tinyscript import functools
 from tinyscript.helpers import ensure_str, execute, is_generator
 
 from ....helpers.data import get_data
+from ....helpers.mixins import *
 
 lazy_load_module("bintropy")
 
@@ -25,27 +26,14 @@ def supported_parsers(*parsers):
     return _wrapper
 
 
-class AbstractBase:
-    # this allows to call e.g. section['name'] instead of section.name (blocked in eval2(...) when evaluating
-    #  expressions from YAML configurations)
-    def __getitem__(self, name):
-        if not name.startswith("_"):
-            return getattr(self, name)
-        raise KeyNotAllowedError(name)
-    
-    def __repr__(self):
-        name = "" if not hasattr(self, "name") else f" ({self.name})"
-        return f"<{self.__class__.__name__}{name} object at 0x{id(self):02x}>"
-
-
-class AbstractParsedExecutable(AbstractBase):
+class AbstractParsedExecutable(CustomReprMixin, GetItemMixin):
     def __getitem__(self, name):
         try:
             v = super().__getitem__(name)
             if name.lower().endswith("header") and not hasattr(v, "__getitem__"):
                 # if not done yet, patch Header class with a getitem method too (e.g. for getting exe['header']['...'])
                 try:
-                    setattr(v, "__getitem__", AbstractBase.__getitem__.__get__(v, v.__class__))
+                    setattr(v, "__getitem__", GetItemMixin.__getitem__.__get__(v, v.__class__))
                 except AttributeError:
                     pass
         except AttributeError:
@@ -110,7 +98,7 @@ class AbstractParsedExecutable(AbstractBase):
                             s.real_name = real_name
                         return s
             raise ValueError(f"no section named '{name}'")
-        elif isinstance(section, AbstractBase):
+        elif isinstance(section, GetItemMixin):
             if original:
                 for s1, s2 in zip(self, self.sections):
                     if ensure_str(s1.name) == ensure_str(section.name):
@@ -195,7 +183,7 @@ def get_section_class(name, **mapping):
         if attr not in slots:
             slots.append(attr)
     
-    class AbstractSection(AbstractBase):
+    class AbstractSection(CustomReprMixin, GetItemMixin):
         """ Abstract representation of a binary's section.
         
         NB: Simple namespace to hold section information. Referencing a lief.PE.Section directly is dangerous, because

@@ -243,11 +243,7 @@ class Executable(Path):
     @cached_property
     def cfg(self):
         from .cfg import CFG
-        cfg = CFG(self)
-        # found_node_at_ep = cfg.model.get_any_node(cfg.model.project.entry) is not None
-        # n_nodes = len(cfg.model.graph.nodes())
-        cfg.compute()
-        return cfg
+        return CFG(self)
     
     @cached_property
     def ctime(self):

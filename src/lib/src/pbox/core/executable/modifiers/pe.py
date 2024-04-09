@@ -157,14 +157,14 @@ def move_entrypoint_to_new_section(name, section_type=None, characteristics=None
     """
     @supported_parsers("lief")
     def _move_entrypoint_to_new_section(parsed, logger):
-        original_entrypoint = parsed.optional_header.addressof_entrypoint + parsed.optional_header.imagebase
+        ep_bytes = list(parsed.entrypoint.to_bytes([4, 8][parsed.path.format[-2:] == "64"], "little"))
         #  push current_entrypoint
         #  ret
-        entrypoint_data = [0x68] + list(original_entrypoint.to_bytes([4, 8][parsed.path.format[-2:] == "64"], "little")) + [0xc3]
+        entrypoint_data = [0x68] + ep_bytes + [0xc3]
         # other possibility:
         #  mov eax current_entrypoint
         #  jmp eax
-        #  entrypoint_data = [0xb8] + list(original_entrypoint.to_bytes(4, 'little')) + [0xff, 0xe0]
+        #  entrypoint_data = [0xb8] + ep_bytes + [0xff, 0xe0]
         add_section(name, section_type or parsed.SECTION_TYPES['TEXT'], characteristics,
                     list(pre_data) + entrypoint_data + list(post_data))(parsed, logger)
         parsed.optional_header.addressof_entrypoint = parsed.get_section(name).virtual_address + len(pre_data)
