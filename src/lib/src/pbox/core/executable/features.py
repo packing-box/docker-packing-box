@@ -80,7 +80,7 @@ class Features(dict, metaclass=MetaBase):
                                     l.error(f"value:      {val}")
                                     raise
                                 try:
-                                    n = name % val
+                                    n = name % (val.lower() if isinstance(val, str) else val)
                                 except TypeError:
                                     l.error(f"name:  {name}")
                                     l.error(f"value: {val}")

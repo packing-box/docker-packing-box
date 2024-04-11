@@ -1,7 +1,7 @@
 # -*- coding: UTF-8 -*-
 import builtins as bi
 from subprocess import check_output
-from tinyscript import re
+from tinyscript import re, sys
 from tinyscript.helpers import slugify, Path
 
 
@@ -102,6 +102,7 @@ bi.STATUS   = lazy_object(__init({
 
 # binary parsing
 bi.DEFAULT_SECTION_SLOTS = ["name", "size", "offset", "content", "virtual_address"]
+bi.RECURSION_LIMIT = sys.getrecursionlimit()
 
 
 # executable
@@ -166,6 +167,17 @@ bi.TEST_FILES = {
         "~/.wine64/drive_c/windows/system32/msscript.ocx",
         "~/.wine64/drive_c/windows/system32/msadp32.acm",
     ],
+}
+bi.X86_64_INSTRUCTIONS = {
+    "Return value":              {"rax", "eax", "ax", "ah", "al"},
+    "General-Purpose Registers": {"rbx", "rcx", "rdx", "ebx", "ecx", "edx", "bx", "bh", "bl", "cx", "ch", "cl", "dx",
+                                  "dh", "dl"},
+    "Segment Registers":         {"cs", "ds", "es", "fs", "gs", "ss"},
+    "Function arguments":        {"rsi", "rdi", "esi", "edi"},
+    "Stack Registers":           {"rbp", "rsp", "ebp", "esp"},
+    "Instruction Pointer":       {"rip", "eip"},
+    "Flags Register":            {"rflags", "eflags"},
+    "Floating-Point Registers":  set("xmm{}".format(i) for i in range(16))
 }
 
 
