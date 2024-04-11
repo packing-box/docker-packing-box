@@ -50,7 +50,7 @@ class BaseModel(Entity):
         return [f(v) for v, f in zip(values, headers.values())], list(headers.keys())
     
     def _prepare(self, dataset=None, preprocessor=None, multiclass=False, labels=None, feature=None, data_only=False,
-                 unlabelled=False, mi_select=False, **kw):
+                 unlabelled=False, mi_select=False, mi_kbest=None, **kw):
         """ Prepare the Model instance based on the given Dataset/FilelessDataset/CSV/other instance.
         NB: after preparation,
              (1) input data is prepared (NOT preprocessed yet as this is part of the pipeline), according to 4 use cases
@@ -190,7 +190,6 @@ class BaseModel(Entity):
         if mi_select:
             from sklearn.feature_selection import SelectKBest, mutual_info_classif
             l.debug("> apply mutual information feature selection")
-            mi_kbest = kw.pop('mi_kbest', .5)
             if mi_kbest >= 1:
                 k = int(mi_kbest)
             elif mi_kbest > 0 and mi_kbest < 1:
