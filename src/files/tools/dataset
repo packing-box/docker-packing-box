@@ -184,8 +184,7 @@ if __name__ == '__main__':
     add_argument(ugroup, "detect")
     update.add_argument("-f", "--formats", type=ts.values_list, default="All", help="list of formats to be considered")
     add_argument(ugroup, "labels")
-    update.add_argument("-n", "--number", dest="n", type=ts.pos_int, default=0,
-                        help="number of executables for the output dataset", note="0 means all")
+    add_argument(update, "number", dest="n")
     update.add_argument("-r", "--refresh", action="store_true", help="refresh labels of already existing executables")
     update.add_argument("-s", "--source-dir", action="extend", nargs="*", type=lambda p: ts.Path(p, expand=True),
                         help="executables source directory to be included")
