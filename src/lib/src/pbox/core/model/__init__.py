@@ -456,7 +456,7 @@ class Model(BaseModel):
                   f"**Packers**:      {', '.join(get_counts(ds).keys())}"])
         render(Section("Reference dataset"), c)
     
-    def train(self, algorithm=None, cv=5, n_jobs=None, param=None, reset=False, ignore_labels=False, select_features=False, select_param=None, **kw):
+    def train(self, algorithm=None, cv=5, n_jobs=None, param=None, reset=False, ignore_labels=False, wrapper_select=False, select_param=None, **kw):
         """ Training method handling cross-validation. """
         import multiprocessing as mp
         n_jobs = int(n_jobs or mp.cpu_count() // 2)
@@ -526,7 +526,7 @@ class Model(BaseModel):
                                    len(set(l for l in self._metadata['dataset']['counts'].keys() if l != NOT_LABELLED))
             l.debug(f"> parameter n_clusters=\"auto\" set to {n}{[' based on labels',''][ignore_labels]}")
         # use recursive feature elimination with cross-validation to select optimal features
-        if select_features:
+        if wrapper_select:
             l.info("Finding optimal feature set...")
             # apply user-defined parameters
             select_params = {'cv': cv, 'n_jobs': n_jobs}
