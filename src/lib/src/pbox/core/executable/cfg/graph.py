@@ -72,6 +72,7 @@ def neighbors(self, node=None):
 ncg.Graph.neighbors = neighbors
 
 
+@functools.lru_cache
 def ngrams(self, n, length=None, across_nodes=True):
     """ Gets a list of ngrams. """
     ngrams = []
