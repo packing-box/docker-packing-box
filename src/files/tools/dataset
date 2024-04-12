@@ -183,7 +183,8 @@ if __name__ == '__main__':
     ugroup = update.add_mutually_exclusive_group()
     add_argument(ugroup, "detect")
     update.add_argument("-f", "--formats", type=ts.values_list, default="All", help="list of formats to be considered")
-    add_argument(ugroup, "labels", "number", dest="n")
+    add_argument(ugroup, "labels")
+    add_argument(update, "number", dest="n")
     update.add_argument("-r", "--refresh", action="store_true", help="refresh labels of already existing executables")
     update.add_argument("-s", "--source-dir", action="extend", nargs="*", type=lambda p: ts.Path(p, expand=True),
                         help="executables source directory to be included")
