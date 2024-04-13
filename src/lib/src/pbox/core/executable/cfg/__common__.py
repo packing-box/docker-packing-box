@@ -5,6 +5,8 @@ from tinyscript.helpers import Capture, Timeout, TimeoutError
 from ....helpers.mixins import *
 
 
+__all__ = ["CFG"]
+
 _DEFAULT_EXCLUDE = set()
 
 
@@ -53,10 +55,13 @@ class CFG(GetItemMixin, ResetCachedPropertiesMixin):
             self._reset()
             for node in self.model.graph.nodes():
                 if node.size:
-                    node.byte_string = (tuple(insn.mnemonic for insn in node.block.disassembly.insns) \
+                    try:
+                        node.byte_string = (tuple(insn.mnemonic for insn in node.block.disassembly.insns) \
                                         if config['opcode_mnemonics'] else bytes(insn.bytes[0] \
                                         for insn in node.block.disassembly.insns)) if config['only_opcodes'] \
                                        else node.block.bytes
+                    except KeyError:
+                        pass
             self.model.graph.root_node = self.root_node = self.model.get_any_node(self.model.project.entry) or \
                                                           next(_ for _ in self.model.nodes())
             self.model.graph._acyclic = False
@@ -107,7 +112,7 @@ class CFG(GetItemMixin, ResetCachedPropertiesMixin):
         """ Compute and return the CFG. """
         try:
             next(_ for _ in self.model.graph.nodes())
-        except StopIteration:
+        except (AttributeError, StopIteration):
             self.compute()
         return self.model.graph
     
