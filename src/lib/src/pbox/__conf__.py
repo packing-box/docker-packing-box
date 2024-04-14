@@ -31,8 +31,8 @@ _ws = lambda s, v: Path(s['workspace'].joinpath(v), create=True, expand=True).ab
 
 
 def _ae(s, v):
-    if v not in ["default", "pcode", "vex"]:
-        raise ValueError(f"bad Angr engine '{v}' ; shall be one of: default|pcode|vex")
+    if v not in ANGR_ENGINES:
+        raise ValueError(f"bad Angr engine '{v}' ; shall be one of: {'|'.join(ANGR_ENGINES)}")
     return v
 _ae.__name__ = "Angr engine"
 
@@ -48,8 +48,8 @@ _bl.__name__ = "boolean"
 
 
 def _cg(s, v):
-    if v.lower() not in ["emulated", "fast"]:
-        raise ValueError(f"bad CFG algorithm '{v}' ; shall be one of: emulated|fast")
+    if v.lower() not in CFG_ALGORITHMS:
+        raise ValueError(f"bad CFG algorithm '{v}' ; shall be one of: {'|'.join(CFG_ALGORITHMS)}")
     return v.capitalize()
 _cg.__name__ = "CFG extraction algorithm"
 
@@ -138,7 +138,7 @@ bi.config = Config("packing-box",
             'bbox_inches':     ("tight", "BBOX", "bbox in inches for saving the figure"),
             #FIXME: enforce list of valid colormaps
             'colormap':        ("jet", "CMAP", "name of matplotlib.colors.Colormap to apply to plots"),
-            'dpi':             ("200", "DPI", "figures' dots per inch", _it),
+            'dpi':             ("300", "DPI", "figures' dots per inch", _it),
             'font_family':     ("serif", "FAMILY", "font family for every text"),
             'font_size':       ("10", "SIZE", "base font size", _it),
             'format':          ("png", "FORMAT", "image format for saving figures", _fmt),

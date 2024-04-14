@@ -5,6 +5,8 @@ from tinyscript.helpers import Capture, Timeout, TimeoutError
 from ....helpers.mixins import *
 
 
+__all__ = ["CFG"]
+
 _DEFAULT_EXCLUDE = set()
 
 
@@ -27,15 +29,24 @@ lazy_load_module("angr", postload=__init_angr)
 
 
 class CFG(GetItemMixin, ResetCachedPropertiesMixin):
+    engines = {k: getattr(angr.engines, "UberEngine" if k in ["default", "vex"] else f"UberEngine{k.capitalize()}") \
+               for k in ANGR_ENGINES}
     logger = logging.getLogger("executable.cfg")
     
     def __init__(self, target, engine=None, **kw):
-        self.__target, self.engine = str(target), engine
+        self.__target = str(target)
+        try:
+            self.__project = angr.Project(self.__target, load_options={'auto_load_libs': False},
+                                          engine=self.engines[engine or config['angr_engine']])
+            self.model = self.__project.kb.cfgs.new_model(f"{self.__target}")
+        except Exception as e:
+            self.__project = self.model = None
+            self.logger.exception(e)
     
     def compute(self, algorithm=None, timeout=None, **kw):
         l = self.__class__.logger
         if self.__project is None:
-            l.error(f"{self.__target}: CFG project not created ; please set the engine")
+            l.error(f"{self.__target}: CFG project not created")
             return
         from time import perf_counter
         t = perf_counter()
@@ -68,7 +79,7 @@ class CFG(GetItemMixin, ResetCachedPropertiesMixin):
             node = queue.pop(0)
             yield node
             visited.add(node.signature)
-            for successor in node.successors:
+            for successor in self.graph.successors(node):
                 s = successor.signature
                 if s in exclude or s in visited:
                     continue
@@ -82,32 +93,44 @@ class CFG(GetItemMixin, ResetCachedPropertiesMixin):
                 for i in node.block.disassembly.insns:
                     yield i.mnemonic, i.op_str
     
+    @staticmethod
+    def to_acyclic(graph, root_node=None):
+        agraph, visited, stack = graph.__class__(), set(), [(None, root_node or graph.root_node)]
+        while stack:
+            predecessor, node = stack.pop()
+            if node in visited:
+                agraph.remove_edge(predecessor, node)
+                if config['store_loop_cut_info']:
+                    if predecessor.irsb and predecessor.irsb[1]:
+                        predecessor.irsb[1].append(node.byte_string)
+                    elif predecessor.irsb:
+                        predecessor.irsb[1] = [node.byte_string]
+                    else:
+                        predecessor.irsb = [0, [node.byte_string]]
+                    if node.irsb:
+                        node.irsb[0] += 1
+                    else:
+                        node.irsb = [1, []]
+            else:
+                visited.add(node)
+                agraph.add_node(node)
+                for successor in graph.successors(node):
+                    agraph.add_edge(node, successor)
+                    stack.append((node, successor))
+        agraph._acyclic = True
+        agraph.root_node = root_node or graph.root_node
+        return agraph
+    
     @property
     def edges(self):
         return self.graph.edges
-    
-    @property
-    def engine(self):
-        return self.__engine
-    
-    @engine.setter
-    def engine(self, name=None):
-        name = name or config['angr_engine']
-        cls = "UberEngine" if name in ["default", "vex"] else f"UberEngine{name.capitalize()}"
-        try:
-            self.__engine = getattr(angr.engines, cls)
-            self.__project = angr.Project(self.__target, load_options={'auto_load_libs': False}, engine=self.__engine)
-            self.model = self.__project.kb.cfgs.new_model(f"{self.__target}")
-        except Exception as e:
-            self.__engine = self.__project = None
-            self.logger.exception(e)
     
     @property
     def graph(self):
         """ Compute and return the CFG. """
         try:
             next(_ for _ in self.model.graph.nodes())
-        except StopIteration:
+        except (AttributeError, StopIteration):
             self.compute()
         return self.model.graph
     
@@ -128,31 +151,7 @@ class CFG(GetItemMixin, ResetCachedPropertiesMixin):
     @cached_property
     def acyclic_graph(self):
         """ Compute and return the acyclic version of the CFG. """
-        agraph, visited, stack = self.graph.__class__(), set(), [(None, self.graph.root_node)]
-        while stack:
-            predecessor, node = stack.pop()
-            if node in visited:
-                if config['store_loop_cut_info']:
-                    if predecessor.irsb and predecessor.irsb[1]:
-                        predecessor.irsb[1].append(node.byte_string)
-                    elif predecessor.irsb:
-                        predecessor.irsb[1] = [node.byte_string]
-                    else:
-                        predecessor.irsb = [0, [node.byte_string]]
-                    if node.irsb:
-                        node.irsb[0] += 1
-                    else:
-                        node.irsb = [1, []]
-            else:
-                visited.add(node)
-                agraph.add_node(node)
-                for successor in node.successors:
-                    if successor not in visited:
-                        agraph.add_edge(node, successor)
-                    stack.append((node, successor))
-        agraph._acyclic = False
-        agraph.root_node = self.graph.root_node
-        return agraph
+        return self.__class__.to_acyclic(self.graph)
     
     @cached_property
     def imported_apis(self):
@@ -172,20 +171,20 @@ class CFG(GetItemMixin, ResetCachedPropertiesMixin):
         # start collecting subgraphs
         exclude = {node.signature for node in self.iternodes()} if config['exclude_duplicate_sigs'] else set()
         subgraphs, root_subgraph = [], list(self.iternodes())
-        subgraphs.append(_graph2subgraph(self.acyclic_graph, root_subgraph))
-        remaining_nodes = self.acyclic_graph.filter_nodes(self.nodes, root_subgraph)
+        subgraphs.append(self.__class__.to_acyclic(_graph2subgraph(self.graph, root_subgraph)))
+        remaining_nodes = self.graph.filter_nodes(self.nodes, root_subgraph)
         while remaining_nodes:
             for best_next_node in remaining_nodes:
                 if not best_next_node.predecessors:
                     break
-            sub_root_node = self.acyclic_graph.find_root(best_next_node, exclude)
+            sub_root_node = self.graph.find_root(best_next_node, exclude)
             if sub_root_node.name == "PathTerminator":
-                remaining_nodes = self.acyclic_graph.filter_nodes(remaining_nodes, [sub_root_node])
+                remaining_nodes = self.graph.filter_nodes(remaining_nodes, [sub_root_node])
                 continue
             subgraph = list(self.iternodes(sub_root_node, exclude))
-            subgraphs.append(_graph2subgraph(self.acyclic_graph, subgraph))
+            subgraphs.append(self.__class__.to_acyclic(_graph2subgraph(self.graph, subgraph)))
             if config['exclude_duplicate_sigs']:
                 exclude.update(node_signature(node) for node in subgraph)
-            remaining_nodes = self.acyclic_graph.filter_nodes(remaining_nodes, subgraph)
+            remaining_nodes = self.graph.filter_nodes(remaining_nodes, subgraph)
         return subgraphs
 
