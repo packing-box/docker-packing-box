@@ -66,9 +66,9 @@ class CFG(GetItemMixin, ResetCachedPropertiesMixin):
                 if node.size:
                     try:
                         node.byte_string = (tuple(insn.mnemonic for insn in node.block.disassembly.insns) \
-                                        if config['opcode_mnemonics'] else bytes(insn.bytes[0] \
-                                        for insn in node.block.disassembly.insns)) if config['only_opcodes'] \
-                                       else node.block.bytes
+                                            if config['opcode_mnemonics'] else bytes(insn.bytes[0] \
+                                            for insn in node.block.disassembly.insns)) if config['only_opcodes'] \
+                                           else node.block.bytes
                     except KeyError:
                         pass
             self.model.graph.root_node = self.root_node = self.model.get_any_node(self.model.project.entry) or \

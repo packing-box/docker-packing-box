@@ -79,13 +79,11 @@ ncg.Graph.iter_nodes = iter_nodes
 def neighbors(self, node=None):
     """ Get the number of successors and predecessors of a targeted node. """
     ns, np = len(list(self.successors(node))), len(list(self.predecessors(node)))
-    print("-", ns, np)
     if config['include_cut_edges'] and node.irsb:
         if node.irsb[1]:
             ns += len(node.irsb[1])
         if node.irsb[0]:
             np += node.irsb[0]
-    print(ns, np)
     return ns, np
 ncg.Graph.neighbors = neighbors
 
@@ -140,33 +138,34 @@ ncg.Graph.ngrams = ngrams
 def signature(self, length, exact=True):
     set_depth(self)
     signature, queue, visited = [], [self.root_node], set()
-    if exact and not self.root_node.soot_block['idx']:
-        i = 1
+    self.root_node.soot_block['idx'] = i = 1
+    if exact:
         while queue and i < length:
             node = queue.pop(0)
             visited.add(node)
-            for successor in sorted(node.successors, key=lambda n: -n.soot_block['depth']):
+            for successor in sorted(self.successors(node), key=lambda n: -n.soot_block['depth']):
                 if successor not in visited:
                     successor.soot_block['idx'] = i = i+1
                     queue.append(successor)
-        queue, visited = [self.root_node], set()
-    self.root_node.soot_block['idx'] = i = 1
-    while queue and len(signature) < length:
-        node = queue.pop(0)
-        visited.add(node)
-        if exact:
-            for successor in sorted(self.successors(node), key=lambda n: -n.soot_block['depth']):
+        queue = [self.root_node]
+        while queue and len(signature) < length:
+            node = queue.pop(0)
+            for j, successor in sorted(self.successors(node), key=lambda n: -n.soot_block['depth']):
                 signature.append(successor.soot_block['idx'])
                 queue.append(successor)
-        else:
-            # 'approximate' signature
-            # Reference: https://ieeexplore.ieee.org/document/8170793
-            ns, np = node.neighbors
-            signature.append((ns << 6) | min(np, 63))
-            for successor in sorted(self.successors(node), key=lambda n: -n.soot_block['depth']):
-                if successor not in visited:
-                    successor.soot_block['idx'] = i = i+1
-                    queue.append(successor)
+            for _ in range(1-j):
+                signature.append(0)
+    else:
+        node = queue.pop(0)
+        visited.add(node)
+        # 'approximate' signature
+        # Reference: https://ieeexplore.ieee.org/document/8170793
+        ns, np = self.neighbors(node)
+        signature.append((ns << 6) | min(np, 63))
+        for successor in sorted(self.successors(node), key=lambda n: -n.soot_block['depth']):
+            if successor not in visited:
+                successor.soot_block['idx'] = i = i+1
+                queue.append(successor)
     return zeropad(length, default=0)(signature)
 ncg.Graph.signature = signature
 
