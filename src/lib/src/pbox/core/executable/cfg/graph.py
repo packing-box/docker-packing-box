@@ -49,7 +49,7 @@ def find_root(self, node, exclude=_DEFAULT_EXCLUDE):
     visited, sub_root_node, already_checked_nodes = set(), node, [node]
     while self.predecessors(sub_root_node):
         s1 = sub_root_node.signature
-        sub_root_node = sub_root_node.predecessors[0]
+        sub_root_node = list(self.predecessors(sub_root_node))[0]
         s2 = sub_root_node.signature
         if s1 == s2 or s2 in visited or s2 in exclude:
             break
