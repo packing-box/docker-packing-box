@@ -150,7 +150,7 @@ def signature(self, length, exact=True):
         queue = [self.root_node]
         while queue and len(signature) < length:
             node = queue.pop(0)
-            for j, successor in sorted(self.successors(node), key=lambda n: -n.soot_block['depth']):
+            for j, successor in enumerate(sorted(self.successors(node), key=lambda n: -n.soot_block['depth'])):
                 signature.append(successor.soot_block['idx'])
                 queue.append(successor)
             for _ in range(1-j):
