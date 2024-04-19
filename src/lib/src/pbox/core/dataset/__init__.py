@@ -163,13 +163,20 @@ class Dataset(Entity):
             l.debug(f"adding {e.hash}...")
             self._data = pd.concat([df, pd.DataFrame.from_records([d])], ignore_index=True)
     
-    def _compute_all_features(self):
+    def _compute_all_features(self, n_jobs=None):
         """ Convenience function for computing the self._data pandas.DataFrame containing the feature values. """
         if self._files:
             self.logger.info("Computing features...")
-            with progress_bar(target=self.basename) as p:
-                for exe in p.track(self):
-                    self[exe.basename] = (self._compute_features(exe), True)  # True: force updating the row
+            import multiprocessing as mp
+            n_jobs = int(n_jobs or mp.cpu_count() // 2)
+            n_cpu = mp.cpu_count()
+            if n_jobs > n_cpu:
+                self.logger.warning(f"Maximum n_jobs is {n_cpu}")
+                n_jobs = n_cpu
+            with mp.Pool(processes=n_jobs) as pool:
+                with progress_bar(target=self.basename) as p:
+                    for basename, features in p.track(pool.imap_unordered(self._compute_features_worker, self), total=len(self)):
+                        self[basename] = (features, True)  # True: force updating the row
     
     def _compute_features(self, exe):
         """ Compute the features for a single Executable instance. """
@@ -186,6 +193,9 @@ class Dataset(Entity):
             self._features = {}
             self._features.update(exe.features)
         return d
+    
+    def _compute_features_worker(self, exe):
+        return (exe.basename, self._compute_features(exe))
     
     def _load(self):
         """ Load dataset's associated files or create them. """
@@ -334,7 +344,7 @@ class Dataset(Entity):
     
     def browse(self, query=None, no_feature=False, **kw):
         if not no_feature:
-            self._compute_all_features()
+            self._compute_all_features(kw.get('n_jobs', None))
         with data_to_temp_file(filter_data(self._data, query, logger=self.logger), prefix="dataset-browsing-") as tmp:
             edit_file(tmp, logger=self.logger)
     
@@ -355,7 +365,7 @@ class Dataset(Entity):
         s1 = self.path.size
         l_info(f"Size of dataset:     {human_readable_size(s1)}")
         self.path.joinpath("features.json").write_text("{}")
-        self._compute_all_features()
+        self._compute_all_features(kw.get('n_jobs', None))
         self._files = False
         l.debug("removing files...")
         self.files.remove(error=False)
@@ -403,7 +413,7 @@ class Dataset(Entity):
                     tmp.append(fn)
             return
         if self._files:
-            self._compute_all_features()
+            self._compute_all_features(kw.get('n_jobs', None))
         fields = ["hash"] + EXE_METADATA
         fnames = [h for h in self._data.columns if h not in fields + ["label", "Index"]]
         c = fields[:-1] + fnames + ["label"]
@@ -660,15 +670,15 @@ class Dataset(Entity):
         # ensure input dataset(s) have their features computed before plotting
         from .visualization import _PLOTS
         if self._files and subcommand not in ["labels", "samples"]:
-            self._compute_all_features()
+            self._compute_all_features(kw.get('n_jobs', None))
         if 'datasets' in kw:
             kw['datasets'] = [Dataset.load(ds) for ds in (kw['datasets'] or [])]
-            [ds._compute_all_features() for ds in kw['datasets'] if ds._files]
+            [ds._compute_all_features(kw.get('n_jobs', None)) for ds in kw['datasets'] if ds._files]
         _PLOTS[subcommand](self, **kw)
     
     def preprocess(self, query=None, preprocessor=None, **kw):
         """ Preprocess dataset given selected features and preprocessors and display it with visidata for review. """
-        self._compute_all_features()
+        self._compute_all_features(kw.get('n_jobs', None))
         result = pd.DataFrame()
         for col in ["hash"] + EXE_METADATA:
             result[col] = self._data[col]
