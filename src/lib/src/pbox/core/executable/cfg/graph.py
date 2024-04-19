@@ -187,7 +187,11 @@ def set_depth(graph):
         node.soot_block = {'depth': node.size + max_successor_depth, 'idx': None}
         niter -= 1
         return node.soot_block['depth']
-    return (getattr(graph.root_node, "soot_block") or {}).get('depth') or _set_depth(graph.root_node, RECURSION_LIMIT)
+    root_depth = (getattr(graph.root_node, "soot_block") or {}).get('depth') or _set_depth(graph.root_node, RECURSION_LIMIT)
+    for node in graph.nodes:
+        if node.soot_block is None:
+            node.soot_block = {'depth': -1, 'idx': None}
+    return root_depth
 
 
 def valid_sub_root_node(sub_root_node, already_checked_nodes):
