@@ -80,11 +80,14 @@ class CFG(GetItemMixin, ResetCachedPropertiesMixin):
         queue, visited = [root_node or self.graph.root_node], set()
         while queue:
             node = queue.pop(0)
+            sig = node.signature
+            if sig in exclude or sig in visited:
+                continue
             yield node
-            visited.add(node.signature)
+            visited.add(sig)
             for successor in self.graph.successors(node):
-                s = successor.signature
-                if s in exclude or s in visited:
+                sig = successor.signature
+                if sig in exclude or sig in visited:
                     continue
                 queue.append(successor)
     
