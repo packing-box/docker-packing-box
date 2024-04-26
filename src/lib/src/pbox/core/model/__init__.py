@@ -50,7 +50,7 @@ class BaseModel(Entity):
         return [f(v) for v, f in zip(values, headers.values())], list(headers.keys())
     
     def _prepare(self, dataset=None, preprocessor=None, multiclass=False, labels=None, feature=None, data_only=False,
-                 unlabelled=False, **kw):
+                 unlabelled=False, mi_select=False, mi_kbest=None, **kw):
         """ Prepare the Model instance based on the given Dataset/FilelessDataset/CSV/other instance.
         NB: after preparation,
              (1) input data is prepared (NOT preprocessed yet as this is part of the pipeline), according to 4 use cases
@@ -187,7 +187,22 @@ class BaseModel(Entity):
         if len(removed) > 0:
             self.logger.debug("> features removed:\n- %s" % "\n- ".join(sorted(removed)))
             self._metadata['dataset']['dropped-features'] = removed
-        # prepare for training and testing sets
+        if mi_select:
+            from sklearn.feature_selection import SelectKBest, mutual_info_classif
+            l.debug("> apply mutual information feature selection")
+            if mi_kbest >= 1:
+                k = int(mi_kbest)
+            elif mi_kbest > 0 and mi_kbest < 1:
+                k = int(len(self._data.columns) * mi_kbest)
+            selector = SelectKBest(score_func=mutual_info_classif, k=k)
+            selector.fit(self._data, self._target)
+            selected_features = self._data.columns[selector.get_support(indices=True)]
+            removed = [f for f in self._features.keys() if f not in selected_features]
+            self._data = self._data[selected_features]
+            self._features = {k: v for k, v in self._features.items() if k in selected_features}
+            if len(removed) > 0:
+                self.logger.debug("> features removed:\n- %s" % "\n- ".join(sorted(removed)))
+                self._metadata['dataset']['dropped-features'] = removed
         class Dummy: pass
         self._train, self._test = Dummy(), Dummy()
         ds.logger.debug("> split data and target vectors to train and test subsets")
@@ -441,7 +456,7 @@ class Model(BaseModel):
                   f"**Packers**:      {', '.join(get_counts(ds).keys())}"])
         render(Section("Reference dataset"), c)
     
-    def train(self, algorithm=None, cv=5, n_jobs=None, param=None, reset=False, ignore_labels=False, **kw):
+    def train(self, algorithm=None, cv=5, n_jobs=None, param=None, reset=False, ignore_labels=False, wrapper_select=False, select_param=None, **kw):
         """ Training method handling cross-validation. """
         import multiprocessing as mp
         n_jobs = int(n_jobs or mp.cpu_count() // 2)
@@ -510,6 +525,32 @@ class Model(BaseModel):
             params['n_clusters'] = n = 2 if ds.labelling == .0 or not multiclass or ignore_labels else \
                                    len(set(l for l in self._metadata['dataset']['counts'].keys() if l != NOT_LABELLED))
             l.debug(f"> parameter n_clusters=\"auto\" set to {n}{[' based on labels',''][ignore_labels]}")
+        # use recursive feature elimination with cross-validation to select optimal features
+        if wrapper_select:
+            l.info("Finding optimal feature set...")
+            # apply user-defined parameters
+            select_params = {'cv': cv, 'n_jobs': n_jobs}
+            if select_param:
+                for sp in select_param[0]:
+                    n, v = sp.split('=')
+                    select_params[str(n)] = int(v) if v.isdigit() else v
+            from sklearn.feature_selection import RFECV
+            feature_selector = RFECV(estimator=cls.base(**params), **select_params)
+            feature_selector.fit(self._data, self._target.values.ravel())
+            self._data = self._data[self._data.columns[feature_selector.get_support(indices=True)]]
+            removed = [f for f in self._features.keys() if f not in self._data]
+            if len(removed) > 0:
+                self._metadata['dataset']['dropped-features'] = removed
+                best_feat = [(i, n) for i, n in sorted(zip(feature_selector.ranking_, self._features.keys())) if i == 1]
+                ll, nf = max(map(len, [x[1] for x in best_feat])), len(str(len(best_feat)))
+                best_feat = [("{: <%s}: {}" % (ll + nf - len(str(i+1)))) \
+                .format(p[1], self._features[p[1]]) for i, p in enumerate(best_feat)]
+                fi_str = ["**Optimal features**:      %d (selected from %d features)\n\n\t1. %s\n\n" % \
+                (len(best_feat), len(self._features), "\n\n\t1. ".join(best_feat))]
+                render(List(fi_str))
+                self._features = {k: v for k, v in self._features.items() if k in self._data.columns}
+                self._train.data = self._train.data[self._data.columns]
+                self._test.data = self._test.data[self._data.columns]
         l.info("Training model...")
         self.pipeline.append((cls.description, cls.base(**params)))
         # if a param_grid is input, perform cross-validation and select the best classifier

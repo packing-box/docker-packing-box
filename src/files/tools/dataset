@@ -175,6 +175,7 @@ if __name__ == '__main__':
                         note="this removes all backups")
     select = cmds.add_parser("select", category="create/modify/delete", help="select a subset of the dataset")
     add_argument(select, "dsname", "dsname2", "number", "query")
+    select.add_argument("-s", "--split", action="store_true", help="split original dataset by removing the selected samples from the original")
     show = add_argument(cmds.add_parser("show", category="read", help="get an overview of the dataset"), "dsname")
     show.add_argument("-l", "--limit", default=10, type=int, help="number of executables to be displayed per format")
     show.add_argument("--per-format", action="store_true", help="display statistics per format")
@@ -183,7 +184,8 @@ if __name__ == '__main__':
     ugroup = update.add_mutually_exclusive_group()
     add_argument(ugroup, "detect")
     update.add_argument("-f", "--formats", type=ts.values_list, default="All", help="list of formats to be considered")
-    add_argument(ugroup, "labels", "number", dest="n")
+    add_argument(ugroup, "labels")
+    add_argument(update, "number", dest="n")
     update.add_argument("-r", "--refresh", action="store_true", help="refresh labels of already existing executables")
     update.add_argument("-s", "--source-dir", action="extend", nargs="*", type=lambda p: ts.Path(p, expand=True),
                         help="executables source directory to be included")

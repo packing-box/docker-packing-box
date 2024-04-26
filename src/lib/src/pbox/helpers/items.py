@@ -1,8 +1,9 @@
 # -*- coding: UTF-8 -*-
 import builtins
 from tinyscript import inspect, logging, random, re, string
-from tinyscript.helpers import get_terminal_size, is_file, is_folder, is_iterable, set_exception, Path, TempPath
+from tinyscript.helpers import get_terminal_size, is_file, is_folder, is_iterable, set_exception, zeropad
 from tinyscript.helpers.expressions import WL_NODES
+from tinyscript.helpers.path import Path, TempPath
 
 from .formats import format_shortname
 
@@ -76,7 +77,8 @@ class dict2(dict):
     def __call__(self, data, silent=False, **kwargs):
         d = {k: getattr(random, k) for k in ["choice", "randint", "randrange", "randstr"]}
         d.update({'apply': _apply, 'concatn': _concatn, 'printable': string.printable, 'randbytes': _randbytes,
-                  'repeatn': _repeatn, 'select': _select(), 'select_section_name': _select(_sec_name), 'size': _size})
+                  'repeatn': _repeatn, 'select': _select(), 'select_section_name': _select(_sec_name), 'size': _size,
+                  'zeropad': zeropad})
         d.update(_EVAL_NAMESPACE)
         d.update(data)
         kwargs.update(getattr(self, "parameters", {}))

@@ -10,7 +10,7 @@ ARG PBWS=$HOME/.packing-box
 ARG PBOX=$UOPT/tools/packing-box
 ARG FILES=src/files
 # start creating the box
-FROM ubuntu:rolling AS base
+FROM ubuntu:latest AS base
 MAINTAINER Alexandre DHondt <alexandre.dhondt@gmail.com>
 LABEL version="2.0.0"
 LABEL source="https://github.com/dhondta/packing-box"
@@ -111,7 +111,8 @@ RUN pip3 install --user --no-warn-script-location --ignore-installed --break-sys
         capstone meson poetry thefuck tinyscript tldr \
  && pip3 install --user --no-warn-script-location --ignore-installed --break-system-packages \
         angr capa pandas pydl8.5 scikit-learn weka \
- && rm -f /home/user/.local/lib/python3.11/site-packages/unicorn \
+ && rm -f /home/user/.local/lib/python3.11/site-packages/unicorn/lib \
+ && pip3 uninstall -y --break-system-packages unicorn \
  && pip3 install --user --no-warn-script-location --ignore-installed --break-system-packages unicorn
 # initialize Go
 RUN go mod init pbox &

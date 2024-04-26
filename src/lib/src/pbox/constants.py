@@ -106,6 +106,8 @@ bi.RECURSION_LIMIT = sys.getrecursionlimit()
 
 
 # executable
+bi.ANGR_ENGINES = ["default", "pcode", "vex"]
+bi.CFG_ALGORITHMS = ["emulated", "fast"]
 bi.DATA_EXTENSIONS = [".json", ".txt"]
 bi.EXE_METADATA = ["realpath", "format", "signature", "size", "ctime", "mtime"]
 bi.FORMATS = {

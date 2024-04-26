@@ -3,6 +3,8 @@ import networkx.classes.graph as ncg
 from tinyscript import functools
 from tinyscript.helpers import zeropad
 
+from ....helpers.figure import plt
+
 
 _DEFAULT_EXCLUDE = set()
 
@@ -17,6 +19,17 @@ def __getitem__(self, name):
 ncg.Graph.__getitem__ = __getitem__
 
 
+def draw(self, **kw):
+    import networkx as nx
+    pos = nx.spring_layout(self)
+    nx.draw_networkx_nodes(self, pos, node_color="blue", node_size=12)
+    ekw = {'arrows': True, 'arrowsize': 4} if isinstance(self, nx.classes.digraph.DiGraph) else {}
+    nx.draw_networkx_edges(self, pos, edgelist=self.edges, edge_color="black", node_size=12, **ekw)
+    plt.savefig("graph.png", **{k: kw.get(k, config[k]) for k in ["bbox_inches", "dpi", "format"]})
+    plt.clf()
+ncg.Graph.draw = draw
+
+
 @staticmethod
 def filter_nodes(nodes, exclude):
     exclude = [node.signature for node in exclude]    
@@ -24,8 +37,7 @@ def filter_nodes(nodes, exclude):
 ncg.Graph.filter_nodes = filter_nodes
 
 
-@staticmethod
-def find_root(node, exclude=_DEFAULT_EXCLUDE):
+def find_root(self, node, exclude=_DEFAULT_EXCLUDE):
     """ Get the best candidate for a (sub_)root_node by traversing the graph upward, ensuring the input node is still
          part of the subgraph extracted from the returned (sub_)root_node.
     
@@ -35,14 +47,15 @@ def find_root(node, exclude=_DEFAULT_EXCLUDE):
                      still part of the subgraph extracted from the returned (sub_)root_node
     """
     visited, sub_root_node, already_checked_nodes = set(), node, [node]
-    while sub_root_node.predecessors:
-        s1, s2 = sub_root_node.signature, sub_root_node.predecessors[0].signature
+    while self.predecessors(sub_root_node):
+        s1 = sub_root_node.signature
+        sub_root_node = list(self.predecessors(sub_root_node))[0]
+        s2 = sub_root_node.signature
         if s1 == s2 or s2 in visited or s2 in exclude:
             break
-        valid, already_checked_nodes = valid_sub_root_node(sub_root_node.predecessors[0], already_checked_nodes)
+        valid, already_checked_nodes = valid_sub_root_node(sub_root_node, already_checked_nodes)
         if not valid:
             break
-        sub_root_node = sub_root_node.predecessors[0]
         visited.add(s1)
     return sub_root_node
 ncg.Graph.find_root = find_root
@@ -63,17 +76,22 @@ def iter_nodes(self, exclude=_DEFAULT_EXCLUDE):
 ncg.Graph.iter_nodes = iter_nodes
 
 
-def neighbors(self, node=None):
+def num_neighbors(self, node=None):
     """ Get the number of successors and predecessors of a targeted node. """
     ns, np = len(list(self.successors(node))), len(list(self.predecessors(node)))
     if config['include_cut_edges'] and node.irsb:
-        ns += len(node.irsb[1]) if node.irsb[1] else node.irsb[0] or 0
+        if node.irsb[1]:
+            ns += len(node.irsb[1])
+        if node.irsb[0]:
+            np += node.irsb[0]
     return ns, np
-ncg.Graph.neighbors = neighbors
+ncg.Graph.num_neighbors = num_neighbors
 
 
+@functools.lru_cache
 def ngrams(self, n, length=None, across_nodes=True):
     """ Gets a list of ngrams. """
+    #FIXME: in some cases, not enough ngrams to reach 'length' => shall pad with '-1'
     ngrams = []
     _extend = lambda bs: ngrams.extend([bs[i:i+n] for i in range(len(bs) - n + 1)])
     _fmt = lambda bs, pb: (type(bs)() if pb is None else pb) + bs
@@ -121,23 +139,33 @@ def signature(self, length, exact=True):
     set_depth(self)
     signature, queue, visited = [], [self.root_node], set()
     self.root_node.soot_block['idx'] = i = 1
-    while queue and len(signature) < length:
-        node = queue.pop(0)
-        visited.add(node)
-        if exact:
-            for successor in sorted(node.successors, key=lambda n: -n.soot_block['depth']):
+    if exact:
+        while queue and i < length:
+            node = queue.pop(0)
+            visited.add(node)
+            for successor in sorted(self.successors(node), key=lambda n: -n.soot_block['depth']):
+                if successor not in visited:
+                    successor.soot_block['idx'] = i = i+1
+                    queue.append(successor)
+        queue = [self.root_node]
+        while queue and len(signature) < length:
+            node = queue.pop(0)
+            for j, successor in enumerate(sorted(self.successors(node), key=lambda n: -n.soot_block['depth'])):
                 signature.append(successor.soot_block['idx'])
                 queue.append(successor)
-            for _ in range(2-len(node.successors)):
+            for _ in range(1-j):
                 signature.append(0)
-        else:
+    else:
+        while queue and len(signature) < length:
+            node = queue.pop(0)
+            visited.add(node)
             # 'approximate' signature
             # Reference: https://ieeexplore.ieee.org/document/8170793
-            ns, np = node.neighbors
+            ns, np = self.num_neighbors(node)
             signature.append((ns << 6) | min(np, 63))
-            for successor in sorted(node.successors, key=lambda n: -n.soot_block['depth']):
+            for successor in sorted(self.successors(node), key=lambda n: -n.soot_block['depth']):
                 if successor not in visited:
-                    self.root_node.soot_block['idx'] = i = i+1
+                    successor.soot_block['idx'] = i = i+1
                     queue.append(successor)
     return zeropad(length, default=0)(signature)
 ncg.Graph.signature = signature
@@ -146,18 +174,24 @@ ncg.Graph.signature = signature
 # ---------------------------------------------- LOCALLY USED FUNCTIONS ------------------------------------------------
 def set_depth(graph):
     """ Set the depth parameter for each node in the input graph downwards connected to the (sub_)root_node. """
-    def _set_depth(node, limit, niter):
+    niter = config['depth_max_iterations']
+    def _set_depth(node, limit):
+        nonlocal niter
         if niter <= 0 or limit <= 50:
             return 0
         if not node.size:
             node.size = 0
         max_successor_depth = 0
-        for successor in node.successors:
-            max_successor_depth = max(max_successor_depth, _set_depth(successor, limit-1, niter-1))
+        for successor in graph.successors(node):
+            max_successor_depth = max(max_successor_depth, _set_depth(successor, limit-1))
         node.soot_block = {'depth': node.size + max_successor_depth, 'idx': None}
+        niter -= 1
         return node.soot_block['depth']
-    return (getattr(graph.root_node, "soot_block") or {}).get('depth') or \
-           _set_depth(graph.root_node, RECURSION_LIMIT, config['depth_max_iterations'])
+    root_depth = (getattr(graph.root_node, "soot_block") or {}).get('depth') or _set_depth(graph.root_node, RECURSION_LIMIT)
+    for node in graph.nodes:
+        if node.soot_block is None:
+            node.soot_block = {'depth': -1, 'idx': None}
+    return root_depth
 
 
 def valid_sub_root_node(sub_root_node, already_checked_nodes):

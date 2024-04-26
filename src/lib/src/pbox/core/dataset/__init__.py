@@ -725,7 +725,7 @@ class Dataset(Entity):
         if init:  # if reverting to initial state, continue reverting
             self.revert(init=True)
     
-    def select(self, name2=None, query=None, limit=0, **kw):
+    def select(self, name2=None, query=None, limit=0, split=None, **kw):
         """ Select a subset from the current dataset based on multiple criteria. """
         self.logger.debug(f"selecting a subset of {self.basename} based on query '{query}'...")
         ds2 = self.__class__(name2)
@@ -736,6 +736,9 @@ class Dataset(Entity):
                     ds2._metadata['sources'].append(s)
                     break
             ds2[Executable(dataset=self, dataset2=ds2, hash=e.hash)] = self[e.hash, True]
+            if split:
+                del self[e.hash]
+        self._save()
         if hasattr(self, "_features") and len(self._features) > 0:
             ds2._features = {k: v for k, v in self._features.items()}
         ds2._save()
