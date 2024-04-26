@@ -155,78 +155,35 @@ def move_entrypoint_to_new_section(name, section_type=None, characteristics=None
     """ Set the entrypoint (EP) to a new section added to the binary that contains code to jump back to the original EP.
         The new section contains *pre_data*, then the code to jump back to the original EP, and finally *post_data*.
     """
-    @supported_parsers("lief")
+    def _get_trampoline_code(oep_or_offset):
+        return [
+            0xE9,  # jmp original_entrypoint
+            *list(oep_or_offset.to_bytes(4, "little", signed=True)),
+        ]
+
+    @supported_parsers("lief") # 'parsed' is a lief.PE.Binary
     def _move_entrypoint_to_new_section(parsed, logger):
+        logger.debug(f">> moving entrypoint to new section: {name}")
+        print(f">> moving entrypoint to new section: {name}")
+        original_entrypoint = parsed.optional_header.addressof_entrypoint # + parsed.optional_header.imagebase
+        #is_64bits = parsed.path.format[-2:] == "64" # PE64
         
-        # Get the original entry point
-        original_entrypoint = parsed.optional_header.addressof_entrypoint #+ parsed.optional_header.imagebase
-        
-        # Check if the architecture is 64 bits
-        #is_64bits = parsed.optional_header.magic == parsed.PE.MAGIC_PE32_PLUS # lief.PE.PE_TYPE.PE32_PLUS
-        is_64bits = parsed.path.format[-2:] == "64"
+        entrypoint_data = []
 
+        # ---- Add trampoline code ----
+        entrypoint_data += _get_trampoline_code(original_entrypoint)
 
-        # ============ Trampoline ================
-        # ASLR aware trampoline code
-        if is_64bits:
-            # 64-bit
-            # ========== Full code =============
-            # mov rbx, gs:[0x60h]               # Get the PEB (ProcessEnvironmentBlock)
-            # mov rdi, [rbx+0x10h]              # Get image base address at offset 0x10
-            # mov rbx, original_entrypoint
-            # add rbx, rdi
-            # jmp rbx
-            # =================================
-
-            entrypoint_data = [
-                0x65, 0x48, 0x8B, 0x1C, 0x25, 0x60, 0x00, 0x00, 0x00,  # mov rbx, gs:[0x60h]
-                0x48, 0x8B, 0x7B, 0x10,  # mov rdi, [rbx+0x10h]
-                # Here, RDI contains the ImageBaseAddress
-                *pre_trampoline_bytes,  # Insert pre_trampoline_bytes here (it should use RDI as the base address)
-
-                0x48, 0xBB,  # mov rbx, original_entrypoint
-                0x48, 0x01, 0xFB,  # add rbx, rdi
-                
-                0x53, 0xC3  # push rbx; ret
-                #0xFF, 0xE3  # ==OR== jmp rbx
-            ]
-            
-            # === OLD ===
-            #entrypoint_data = [0x48, 0xb8] + list(original_entrypoint.to_bytes(8, "little")) # mov rax, original_entrypoint
-            #entrypoint_data += [0x50] # push rax
-            #entrypoint_data += [0xc3] # ret
-            # === === ===
-
-        else:
-            # 32-bit
-            
-            # ==== Full code ====
-            # mov ebx, fs:[0x30]
-            # mov eax, [ebx+8]
-            # add eax, original_entrypoint
-            # push eax; ret
-            # ===================
-
-            entrypoint_data = [
-                0x64, 0x8B, 0x1D, 0x30, 0x00, 0x00, 0x00,   # mov ebx, fs:[0x30]
-                0x8B, 0x7B, 0x08,                           # mov edi, [ebx+8]
-                # Here, EDI contains the ImageBaseAddress
-                *pre_trampoline_bytes,# Insert pre_trampoline_bytes here (it should use EDI as the base address)
-
-                0xB8, *list(original_entrypoint.to_bytes(4, "little")), # mov eax, original_entrypoint
-                0x01, 0xF8,                                 # add eax, edi
-                0x50, 0xC3                                  # push eax; ret
-                #0xFF, 0xE0                                 # OR jmp eax
-            ]
-
-            # === OLD ===
-            #new_section_entry.content = [0x68] + list(original_entrypoint.to_bytes(4, "little"))  + [0xc3] # PUSH original_entrypoint; RET
-            # === === ===
-    
-        
+        # ---- Create the new section ----
         add_section(name, section_type or parsed.SECTION_TYPES['TEXT'], characteristics,
                     list(pre_data) + entrypoint_data + list(post_data))(parsed, logger)
-        parsed.optional_header.addressof_entrypoint = parsed.get_section(name).virtual_address + len(pre_data)
+        
+        # ---- Update the content and trampoline offset ---- (do it after to know the address of the new section)
+        created_section = parsed.section(name)
+        offset = original_entrypoint - (created_section.virtual_address + len(pre_data) + len(entrypoint_data))
+        created_section.content = list(pre_data) + _get_trampoline_code(offset) + list(post_data)
+        
+        # ---- Update the entrypoint ----
+        parsed.optional_header.addressof_entrypoint = created_section.virtual_address + len(pre_data)
     return _move_entrypoint_to_new_section
 
 
