@@ -3,6 +3,7 @@
 # +--------------------------------------------------------------------------------------------------------------------+
 # define global arguments
 ARG USER=user
+ARG GROUP=pbox
 ARG HOME=/home/$USER
 ARG UBIN=$HOME/.local/bin
 ARG UOPT=$HOME/.opt
@@ -10,11 +11,12 @@ ARG PBWS=$HOME/.packing-box
 ARG PBOX=$UOPT/tools/packing-box
 ARG FILES=src/files
 # start creating the box
-FROM ubuntu:latest AS base
+FROM ubuntu:rolling AS base
 MAINTAINER Alexandre DHondt <alexandre.dhondt@gmail.com>
 LABEL version="2.0.0"
 LABEL source="https://github.com/dhondta/packing-box"
 ARG USER
+ARG GROUP
 ARG HOME
 ARG UBIN
 ENV DEBCONF_NOWARNINGS yes \
@@ -33,7 +35,8 @@ RUN echo "debconf debconf/frontend select Noninteractive" | debconf-set-selectio
  && apt-get -y autoremove \
  && apt-get autoclean
 # add a non-privileged account
-RUN useradd -g 1000 -ms /bin/bash $USER \
+RUN groupadd $GROUP \
+ && useradd -g $GROUP -ms /bin/bash $USER \
  && apt-get install -y sudo \
  && echo $USER ALL=\(root\) NOPASSWD:ALL > /etc/sudoers.d/$USER \
  && chmod 0440 /etc/sudoers.d/$USER

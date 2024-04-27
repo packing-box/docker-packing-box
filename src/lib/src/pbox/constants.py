@@ -6,6 +6,10 @@ from tinyscript.helpers import slugify, Path
 
 
 # basic framework constants
+def __init__cpu_count():
+    import multiprocessing as mp
+    return mp.cpu_count()
+bi.CPU_COUNT = lazy_object(__init__cpu_count)
 bi.LOG_FORMATS = ["%(asctime)s [%(levelname)s] %(message)s", "%(asctime)s [%(levelname)-8s] %(name)-18s %(message)s"]
 bi.PACKING_BOX_SOURCES = {
     'ELF': ["/usr/bin", "/usr/sbin"],
