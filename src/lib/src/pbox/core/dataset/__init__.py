@@ -429,8 +429,9 @@ class Dataset(Entity):
             raise ValueError(f"Unknown target format ({format})")
     
     @backup
-    def fix(self, **kw):
+    def fix(self, labels=None, detect=False, **kw):
         """ Make dataset's structure and files match. """
+        labels = Dataset.labels_from_file(labels)
         self.logger.debug("dropping duplicates...")
         self._data = self._data.drop_duplicates()
         if self._files:
@@ -444,12 +445,18 @@ class Dataset(Entity):
             h = exe.hash
             if exe.format is None:
                 del self[h]
-            elif self._files and not self.files.joinpath(h).exists():
-                del self[h]
+            elif self._files:
+                if not self.files.joinpath(h).exists():
+                    del self[h]
+                elif exe.label == NOT_LABELLED:
+                    if h in labels:
+                        self[exe] = (labels[h], True)
+                    elif detect:
+                        self[exe] = (Detector.detect(exe), True)
         self._save()
     
-    def ingest(self, folder, labels=None, rename_func=slugify, detect=False, min_samples=0, max_samples=0, merge=False,
-               prefix="", exclude=None, overwrite=None, **kw):
+    def ingest(self, folder, rename_func=slugify, min_samples=0, max_samples=0, merge=False, prefix="", exclude=None,
+               overwrite=None, **kw):
         """ Ingest every subfolder of a target folder to make it a dataset provided a dictionary of labels. """
         l, p = self.logger, Path(folder)
         name = prefix + rename_func(p.stem)
@@ -493,7 +500,7 @@ class Dataset(Entity):
                     l.warning(f"Ingestion aborted ('{dataset.basename}' already exists)")
                     continue
             l.debug(f"ingesting subfolder '{sp.stem}' into {name}...")
-            dataset.update(sp, labels=labels, detect=detect, do_not_backup=True, **kw)
+            dataset.update(sp, do_not_backup=True, **kw)
     
     @backup
     def make(self, n=0, formats=["All"], balance=False, packer=None, pack_all=False, **kw):

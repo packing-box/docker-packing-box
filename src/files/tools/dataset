@@ -5,7 +5,7 @@ from tinyscript import *
 
 
 __script__       = "Dataset manipulation tool"
-__version__      = "2.6.7"
+__version__      = "2.6.8"
 __contributors__ = [
     {'author': "Romain Jennes", 'reason': "added dataset alterations and adversarial learning capabilities"},
 ]
@@ -86,13 +86,11 @@ if __name__ == '__main__':
                          help="number of packed samples to be exported")
     fix = add_argument(cmds.add_parser("fix", category="create/modify/delete", help="fix a corrupted dataset"),
                        "dsname")
-    fgroup = fix.add_mutually_exclusive_group()
-    add_argument(fgroup, "detect", "labels")
+    add_argument(fix, "detect", "labels")
     ingest = cmds.add_parser("ingest", category="create/modify/delete",
                              help="ingest samples from a folder into new dataset(s)")
     ingest.add_argument("folder", type=ts.folder_exists, help="target folder with subfolders containing samples")
-    igroup = ingest.add_mutually_exclusive_group()
-    add_argument(igroup, "detect", "labels")
+    add_argument(ingest, "detect", "labels")
     ingest.add_argument("--merge", action="store_true", help="merge all subfolders into a single dataset")
     ingest.add_argument("-m", "--min-samples", type=ts.pos_int, default=100,
                         help="minimum of samples to be found in subfolders for being kept")
@@ -181,10 +179,9 @@ if __name__ == '__main__':
     show.add_argument("--per-format", action="store_true", help="display statistics per format")
     update = cmds.add_parser("update", category="create/modify/delete", help="update a dataset with new executables")
     add_argument(update, "dsname", force=True)
-    ugroup = update.add_mutually_exclusive_group()
-    add_argument(ugroup, "detect")
+    add_argument(update, "detect")
     update.add_argument("-f", "--formats", type=ts.values_list, default="All", help="list of formats to be considered")
-    add_argument(ugroup, "labels")
+    add_argument(update, "labels")
     add_argument(update, "number", dest="n")
     update.add_argument("-r", "--refresh", action="store_true", help="refresh labels of already existing executables")
     update.add_argument("-s", "--source-dir", action="extend", nargs="*", type=lambda p: ts.Path(p, expand=True),
