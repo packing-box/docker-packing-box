@@ -95,8 +95,6 @@ for item in ["alterations", "features", "scenarios"]:
                                                             data.get('keep' if item == "features" else 'apply', True)]))
     f2.__doc__ = " List enabled %s available in the current workspace. " % item
     globals()['list_enabled_%s' % item] = f2
-
-
 for item in ["analyzers", "detectors", "packers", "unpackers"]:
     f1 = _configfile(item)(lambda cfg: sorted(list(_fmt_name(x) for x in cfg.keys() if x != "defaults")))
     f1.__doc__ = " List all %s available in the current workspace. " % item
@@ -126,7 +124,12 @@ def list_configfile_keys(cfgfile, return_list=False, sort=True):
         yaml_str = "\n".join(l for l in fp.readlines() if len(l.split(":")) > 1 and \
                                                           not re.match(r"\!{1,2}", l.split(":", 1)[1].lstrip()))
     cfg = yaml.safe_load(yaml_str.replace("!!python", "")) or {}
-    return __output(list(cfg.keys()), return_list, sort)
+    for v in cfg.values():
+        v.setdefault('order', 0)
+    def_order = max(cfg.values(), key=lambda x: x['order'])['order'] + 1
+    l = [f"{k}{['', ' (%d)' % v['order']][v['order'] > 0]}" \
+         for k, v in sorted(cfg.items(), key=lambda x: x[1]['order'] or def_order)]
+    return __output(l, return_list, sort)
 
 
 @_workspace("datasets")
