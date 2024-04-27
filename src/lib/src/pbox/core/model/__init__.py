@@ -50,7 +50,7 @@ class BaseModel(Entity):
         return [f(v) for v, f in zip(values, headers.values())], list(headers.keys())
     
     def _prepare(self, dataset=None, preprocessor=None, multiclass=False, labels=None, feature=None, data_only=False,
-                 unlabelled=False, mi_select=False, mi_kbest=None, **kw):
+                 unlabelled=False, mi_select=False, mi_kbest=None, true_class=None, **kw):
         """ Prepare the Model instance based on the given Dataset/FilelessDataset/CSV/other instance.
         NB: after preparation,
              (1) input data is prepared (NOT preprocessed yet as this is part of the pipeline), according to 4 use cases
@@ -168,7 +168,8 @@ class BaseModel(Entity):
         self._data, self._target = self._data.fillna(-1), self._target.fillna(NOT_LABELLED)
         # convert to binary class
         if not multiclass:
-            self._target = self._target.map(lambda x: LABELS_BACK_CONV.get(x, 1)).astype('int')
+            self._target = (self._target['label'] == true_class).astype('int') if true_class else \
+                           self._target.map(lambda x: LABELS_BACK_CONV.get(x, 1)).astype('int')
         # create the pipeline if it does not exist (i.e. while training)
         if not data_only:
             l.info("Making pipeline...")

@@ -68,8 +68,10 @@ if __name__ == '__main__':
                             "\n- ".join("%s: %s%s" % (a.name.ljust(8), a.description, ["", "*"][a.parameters.get('cv') \
                             is not None]) for a in Algorithm.registry))
     add_argument(train, "features-set")
-    train.add_argument("-m", "--multiclass", action="store_true", help="train the model using multiple label classes")
+    tgroup = train.add_mutually_exclusive_group()
+    tgroup.add_argument("-m", "--multiclass", action="store_true", help="train the model using multiple label classes")
     train.add_argument("-r", "--reset", action="store_true", help="reset the model before (re)training")
+    tgroup.add_argument("-T", "--true-class", help="class to be considered as True")
     train.add_argument("--cv", default=5, type=ts.pos_int, help="number of Cross-Validation folds")
     train.add_argument("--feature", action="extend", nargs="*", help="list of features to be selected")
     add_argument(train, "ignore-labels")
