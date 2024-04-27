@@ -19,7 +19,7 @@ def __init_angr():
             logging.getLogger(l).setLevel([logging.WARNING, logging.DEBUG][_LOG_CONFIG[0]])
     from cle.backends.pe.regions import PESection
     try:
-        code.insert_line(PESection.__init__, "from tinyscript.helpers import ensure_str", 0)
+        code.insert_line(PESection.__init__, 0, "from tinyscript.helpers import ensure_str")
         code.replace(PESection.__init__, "pe_section.Name.decode()", "ensure_str(pe_section.Name)")
     except:
         pass
