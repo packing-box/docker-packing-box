@@ -90,7 +90,7 @@ class Alteration(dict2):
     # default values on purpose not set via self.setdefault(...)
     @cached_property
     def apply(self):
-        return self.get('apply', False)
+        return self.get('apply', False) or self.get('order', 0) > 0
     
     @cached_property
     def build(self):
@@ -103,6 +103,10 @@ class Alteration(dict2):
     @cached_property
     def loop(self):
         return self.get('loop', 1)
+    
+    @cached_property
+    def order(self):
+        return self.get('order', 0)
     
     # 'parser' parameter in the YAML config has precedence on the globally configured parser
     @cached_property
@@ -167,17 +171,17 @@ class Alterations(list, metaclass=MetaBase):
                 dsbcnt -= 1
             tot = len(Alterations.names())
             l.debug(f"{tot} alterations loaded ({tot-dsbcnt} enabled)")
-        # check the list of selected alterations if relevant, and filter out bad names (if warn=True)
-        for name in (select or [])[:]:
-            if name not in a.registry[exe.format]:
-                msg = f"Alteration '{name}' does not exist"
-                if warn:
-                    l.warning(msg)
-                    select.remove(name)
-                else:
-                    raise ValueError(msg)
         if exe is not None:
-            parser = None
+            d = a.registry[exe.format]
+            # check the list of selected alterations if relevant, and filter out bad names (if warn=True)
+            for name in (select or [])[:]:
+                if name not in a.registry[exe.format]:
+                    msg = f"Alteration '{name}' does not exist"
+                    if warn:
+                        l.warning(msg)
+                        select.remove(name)
+                    else:
+                        raise ValueError(msg)
             # prepare the namespace if not done yet for the target executable format
             if exe.format not in a.namespaces:
                 from .modifiers import Modifiers
@@ -188,14 +192,16 @@ class Alterations(list, metaclass=MetaBase):
                 # add format-related data and modifiers
                 a.namespaces[exe.format].update(Modifiers()[exe.group])
                 # add format-specific alterations
-                a.namespaces[exe.format].update(a.registry[exe.format])
-            for name, alteration in a.registry[exe.format].items():
+                a.namespaces[exe.format].update(d)
+            def_order = max(d.values(), key=lambda x: x.order).order + 1
+            for name, alteration in sorted(d.items(), key=lambda x: x[1].order or def_order):
                 if select is None and not alteration.apply or select is not None and name not in select:
                     continue
                 # run the alteration given the format-specific namespace
                 try:
                     alteration(exe, a.namespaces[exe.format])
-                    l.debug(f"applied alteration '{alteration.name}'")
+                    info = [f" ({alteration.order})", ""][alteration.order == def_order]
+                    l.debug(f"applied alteration '{alteration.name}'{info}")
                     self.append(name)
                 except NotImplementedError as e:
                     l.warning(f"'{e.args[0]}' is not supported yet for parser '{exe.parsed.parser}'")
