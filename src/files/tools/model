@@ -59,6 +59,7 @@ if __name__ == '__main__':
     add_argument(test, "mdname", "executable", "features-set", "ignore-labels")
     test.add_argument("--sep", default=",", choices=",;|\t", help="set the CSV separator",
                       note="required when using input CSV data instead of a Dataset (no effect otherwise)")
+    test.add_argument("-T", "--true-class", help="class to be considered as True")
     train = sparsers.add_parser("train", category="create/modify/delete", help="train a model on the given dataset")
     train.add_argument("dataset", type=Dataset.load, help="dataset for training the model")
     train.add_argument("-a", "--algorithms-set", metavar="YAML", type=ts.file_exists, default=config['algorithms'],
