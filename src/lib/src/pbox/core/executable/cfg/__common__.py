@@ -17,6 +17,9 @@ def __init_angr():
     for l in logging.root.manager.loggerDict:
         if any(re.match(al, l) for al in angr_loggers):
             logging.getLogger(l).setLevel([logging.WARNING, logging.DEBUG][_LOG_CONFIG[0]])
+    from angr.misc.picklable_lock import PicklableLock
+    from threading import RLock
+    PicklableLock._LOCK = RLock
     from cle.backends.pe.regions import PESection
     try:
         code.insert_line(PESection.__init__, 1, "from tinyscript.helpers import ensure_str")
