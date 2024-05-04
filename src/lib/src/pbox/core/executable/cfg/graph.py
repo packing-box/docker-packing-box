@@ -117,7 +117,7 @@ def ngrams(self, n, length=None, across_nodes=True):
         queue, visited, mnemonics = [self.root_node], set(), isinstance(self.root_node.byte_string, tuple)
         _pad = lambda bs: bs + ('', ) * (n - len(bs)) if mnemonics else bs.ljust(n, b'\0')
         while queue:
-            if len(ngrams) >= length:
+            if length and len(ngrams) >= length:
                 break
             node = queue.pop(0)
             if node.byte_string:
