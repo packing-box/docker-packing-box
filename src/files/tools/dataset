@@ -68,17 +68,20 @@ if __name__ == '__main__':
     bgroup = browse.add_mutually_exclusive_group()
     add_argument(bgroup, "features-set")
     bgroup.add_argument("-n", "--no-feature", action="store_true", help="do not compute features")
+    add_argument(browse, "n-jobs")
     add_argument(browse, "query")
     convert = add_argument(cmds.add_parser("convert", category="create/modify/delete",
                                            help="convert the target dataset to a fileless one"), "dsname")
     add_argument(convert, "features-set")
     convert.add_argument("-n", "--new-name", help="name for the new converted dataset",
                          note="if None, the original dataset is overwritten")
+    add_argument(convert, "n-jobs")
     add_argument(cmds.add_parser("edit", category="create/modify/delete", help="edit the data file"), "dsname")
     export = add_argument(cmds.add_parser("export", category="create/modify/delete", help="export packed samples from a"
                                           " dataset or export the dataset to a given format"), "dsname")
     export.add_argument("-f", "--format", default="dsff", choices=("arff", "csv", "dsff", "packed-samples"),
                         help="output format")
+    add_argument(export, "n-jobs")
     export.add_argument("-o", "--output", default="export", metavar="F", type=ts.folder_does_not_exist,
                         help="output folder or file for the export", note="the extension gets added automatically")
     export_ = export.add_argument_group("option when exporting packed samples", before="extra arguments")
@@ -124,6 +127,7 @@ if __name__ == '__main__':
     add_argument(merge, "dsname", argname="name2", help="name of the dataset to merge")
     merge.add_argument("-n", "--new-name", help="name for the new merged dataset",
                        note="if None, the original dataset is overwritten")
+    add_argument(merge, "n-jobs")
     plot = cmds.add_parser("plot", category="read", help="plot something about the dataset")
     pcmds = plot.add_subparsers(dest="subcommand", help="command to be executed")
     plot_char = pcmds.add_parser("characteristic", help="plot reduced data highlighting a characteristic")
@@ -157,6 +161,7 @@ if __name__ == '__main__':
     add_argument(plot_samp, "query")
     preproc = cmds.add_parser("preprocess", category="read", help="preprocess the input dataset given preprocessors")
     add_argument(preproc, "dsname")
+    add_argument(preproc, "n-jobs")
     preproc.add_argument("-p", "--preprocessor", action="extend", nargs="*", choices=PREPROCESSORS.keys(), help=pp_help)
     add_argument(preproc, "query")
     purge = cmds.add_parser("purge", category="create/modify/delete", help="purge a dataset")

@@ -91,6 +91,8 @@ def add_argument(parser, *names, **kwargs):
         elif name == "multiclass":
             parser.add_argument("-m", "--multiclass", action="store_true", help="process features using true labels",
                                 note="if False, means binary classification (1:True/0:False/-1:Unlabelled)")
+        elif name == "n-jobs":
+            parser.add_argument("--n-jobs", type=lambda x: pos_int(x, False), help="number of jobs to be run in parallel")
         elif name == "number":
             parser.add_argument("-n", "--number", dest=kwargs.get('dest', "limit"), type=pos_int, default=0,
                                 help="limit number of executables for the output dataset", note="0 means all")
