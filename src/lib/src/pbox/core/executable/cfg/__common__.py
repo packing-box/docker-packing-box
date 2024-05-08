@@ -1,5 +1,5 @@
 # -*- coding: UTF-8 -*-
-from tinyscript import code, logging, re
+from tinyscript import code, logging, re, functools
 from tinyscript.helpers import Capture, Timeout, TimeoutError
 
 from ....helpers.mixins import *
@@ -101,6 +101,17 @@ class CFG(GetItemMixin, ResetCachedPropertiesMixin):
             if node.byte_string and not all(b == 0 for b in node.byte_string) and node.block:
                 for i in node.block.disassembly.insns:
                     yield i.mnemonic, i.op_str
+
+    @staticmethod
+    def sortedhist(vector):
+        """Orders the elements of the input list first by occurence, then by value, yielding a sorted histogram
+        
+        :param vector: a list of unordered elements
+        :return: (list of ordered elements; first by occurence; then by value,
+                list of number of occurences of the elements in ordered list)
+        """
+        from collections import Counter
+        return list(map(list, zip(*sorted(Counter(vector).items(), key=lambda x: (x[1], x[0]), reverse=True))))
     
     @staticmethod
     def to_acyclic(graph, root_node=None):
@@ -200,4 +211,17 @@ class CFG(GetItemMixin, ResetCachedPropertiesMixin):
                 exclude.update(node.signature for node in subgraph)
             remaining_nodes = self.graph.filter_nodes(remaining_nodes, subgraph)
         return subgraphs
+
+    @cached_property
+    def nodesize_hist(self):
+        """ Gets a sorted histogram of node sizes. """
+        return self.__class__.sortedhist([node.size if node.size else 0 for node in self.nodes])
+
+    @functools.lru_cache
+    def ngram_hist(self, n, across_nodes=True, all_subgraphs=False):
+        """ Gets a sorted histogram of ngrams. """
+        from hashlib import sha1
+        return self.__class__.sortedhist([b''.join(map(lambda x: sha1(x.encode()).digest()[:1], ng)) if isinstance(ng, tuple) else ng for ng in ( \
+            [ngram for sg in self.subgraphs for ngram in sg.ngrams(n, across_nodes=across_nodes)] if all_subgraphs else \
+            self.acyclic_graph.ngrams(n, across_nodes=across_nodes))])
 
