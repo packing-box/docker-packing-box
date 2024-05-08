@@ -186,14 +186,18 @@ class CFG(GetItemMixin, ResetCachedPropertiesMixin):
             for best_next_node in remaining_nodes:
                 if not best_next_node.predecessors:
                     break
+            if best_next_node.signature in exclude:
+                remaining_nodes = self.graph.filter_nodes(remaining_nodes, [best_next_node])
+                continue
             sub_root_node = self.graph.find_root(best_next_node, exclude)
+            exclude.update(sub_root_node.signature)
             if sub_root_node.name == "PathTerminator":
                 remaining_nodes = self.graph.filter_nodes(remaining_nodes, [sub_root_node])
                 continue
             subgraph = list(self.iternodes(sub_root_node, exclude))
             subgraphs.append(self.__class__.to_acyclic(_graph2subgraph(self.graph, subgraph)))
             if config['exclude_duplicate_sigs']:
-                exclude.update(node_signature(node) for node in subgraph)
+                exclude.update(node.signature for node in subgraph)
             remaining_nodes = self.graph.filter_nodes(remaining_nodes, subgraph)
         return subgraphs
 

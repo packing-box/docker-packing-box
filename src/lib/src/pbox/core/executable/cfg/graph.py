@@ -47,30 +47,34 @@ def find_root(self, node, exclude=_DEFAULT_EXCLUDE):
                      still part of the subgraph extracted from the returned (sub_)root_node
     """
     visited, sub_root_node, already_checked_nodes = set(), node, [node]
-    while self.predecessors(sub_root_node):
+    while any(self.predecessors(sub_root_node)):
         s1 = sub_root_node.signature
-        sub_root_node = list(self.predecessors(sub_root_node))[0]
-        s2 = sub_root_node.signature
-        if s1 == s2 or s2 in visited or s2 in exclude:
+        sub_root_node_candidate = list(self.predecessors(sub_root_node))[0]
+        s2 = sub_root_node_candidate.signature
+        if sub_root_node == sub_root_node_candidate or s1 == s2 or s2 in visited or s2 in exclude:
             break
-        valid, already_checked_nodes = valid_sub_root_node(sub_root_node, already_checked_nodes)
+        valid, already_checked_nodes = valid_sub_root_node(self, sub_root_node_candidate, already_checked_nodes)
         if not valid:
             break
         visited.add(s1)
+        sub_root_node = sub_root_node_candidate
     return sub_root_node
 ncg.Graph.find_root = find_root
 
 
 def iter_nodes(self, exclude=_DEFAULT_EXCLUDE):
     """ Iterate over nodes downwards from the provided root_node """
-    queue, visited = [self.root_node], set()
+    queue, visited = [self], set()
     while queue:
         node = queue.pop(0)
+        sig = node.signature
+        if sig in exclude or sig in visited:
+            continue
         yield node
-        visited.add(node.signature)
+        visited.add(sig)
         for successor in node.successors:
-            s = successor.signature
-            if s in visited or s in exclude:
+            sig = successor.signature
+            if sig in visited or sig in exclude:
                 continue
             queue.append(successor)
 ncg.Graph.iter_nodes = iter_nodes
@@ -194,7 +198,7 @@ def set_depth(graph):
     return root_depth
 
 
-def valid_sub_root_node(sub_root_node, already_checked_nodes):
+def valid_sub_root_node(graph, sub_root_node, already_checked_nodes):
     """ Verifies if using this sub_root_node to extract a subgraph will yield a subgraph that contains the original node
          from which this sub_root_node was calculated (with get_root_node(node))
     
@@ -207,7 +211,7 @@ def valid_sub_root_node(sub_root_node, already_checked_nodes):
     """
     sub_root_successor, visited = [], set()
     # filter out duplicate nodes
-    for node in sub_root_node.successors:
+    for node in graph.successors(sub_root_node):
         s = node.signature
         if s not in visited:
             visited.add(s)
@@ -218,7 +222,7 @@ def valid_sub_root_node(sub_root_node, already_checked_nodes):
         sub_root_successor = filter_nodes(sub_root_successor, already_checked_nodes)
     if len(sub_root_successor) > 1:
         sub_root_successor = filter_nodes(sub_root_successor,
-                                          [n for n in sub_root_successor if n.addr + n.size != sub_root_node.addr])
+                                          [n for n in sub_root_successor if n.addr + (n.size or 0) != sub_root_node.addr])
     l = len(sub_root_successor)
     if l == 0:
         return False, []
