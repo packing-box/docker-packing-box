@@ -196,6 +196,11 @@ bi.COMMIT_VALID_COMMANDS = [
 ]
 
 
+# imports
+bi.COMMON_IMPORTS = ['GetStdHandle', 'ZwProtectVirtualMemory', 'RtlFormatCurrentUserKeyPath', 'EnterCriticalSection', 'WideCharToMultiByte', 'RaiseException', 'RegCloseKey', 'GetStartupInfo', 'GetModuleFileName', 'RtlUnwind', 'CreateFile', 'LoadLibrary', 'InitializeCriticalSection', 'MessageBox', 'GetModuleHandle', '__p__acmdln', 'GetProcAddress', 'SysFreeString', 'PrintDlg', 'ExitProcess', 'VerQueryValue', 'WriteFile', 'LocalAlloc', 'FreeLibrary', 'RegQueryValue', 'RegOpenKey', 'VirtualProtect', 'VirtualQuery', 'SetThreadContext', 'LdrLoadDll', 'SHGetFolderPath', 'VirtualAlloc', 'GetPrivateProfileSection', 'LocalFree', 'GetCommandLine', 'LdrGetProcedureAddress']
+bi.IMPORT_SUFFIXES = ('', 'A', 'W', 'Ex', 'ExA', 'ExW')
+
+
 # machine learning & visualization
 bi.IMG_FORMATS = ("jpg", "png", "tif", "svg")
 bi.LABELS = {

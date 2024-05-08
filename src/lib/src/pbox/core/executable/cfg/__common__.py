@@ -8,6 +8,7 @@ from ....helpers.mixins import *
 __all__ = ["CFG"]
 
 _DEFAULT_EXCLUDE = set()
+_NON_APIS = {'PathTerminator'}
 
 
 def __init_angr():
@@ -172,11 +173,38 @@ class CFG(GetItemMixin, ResetCachedPropertiesMixin):
     def acyclic_graph(self):
         """ Compute and return the acyclic version of the CFG. """
         return self.__class__.to_acyclic(self.graph)
+
+    @cached_property
+    def common_imports_present(self):
+        return [any({f+s for s in IMPORT_SUFFIXES} & set(self.imported_apis)) for f in COMMON_IMPORTS]
     
     @cached_property
     def imported_apis(self):
+        if not self.model:
+            self.compute()
         return list(self.model.project.loader.main_object.imports.keys())
     
+    @cached_property
+    def mal_imported_apis(self):
+        return [a for a in self.imported_apis if a in {f+s for f in COMMON_IMPORTS for s in IMPORT_SUFFIXES}]
+    
+    @cached_property
+    def mal_used_apis(self):
+        return [a for a in self.used_apis if a in {f+s for f in COMMON_IMPORTS for s in IMPORT_SUFFIXES}]
+    
+    @functools.lru_cache
+    def ngram_hist(self, n, across_nodes=True, all_subgraphs=False):
+        """ Gets a sorted histogram of ngrams. """
+        from hashlib import sha1
+        return self.__class__.sortedhist([b''.join(map(lambda x: sha1(x.encode()).digest()[:1], ng)) if isinstance(ng, tuple) else ng for ng in ( \
+            [ngram for sg in self.subgraphs for ngram in sg.ngrams(n, across_nodes=across_nodes)] if all_subgraphs else \
+            self.acyclic_graph.ngrams(n, across_nodes=across_nodes))])
+
+    @cached_property
+    def nodesize_hist(self):
+        """ Gets a sorted histogram of node sizes. """
+        return self.__class__.sortedhist([node.size if node.size else 0 for node in self.nodes])
+
     @cached_property
     def subgraphs(self):
         """ Get the list of subgraphs from the CFG. """
@@ -211,17 +239,7 @@ class CFG(GetItemMixin, ResetCachedPropertiesMixin):
                 exclude.update(node.signature for node in subgraph)
             remaining_nodes = self.graph.filter_nodes(remaining_nodes, subgraph)
         return subgraphs
-
+    
     @cached_property
-    def nodesize_hist(self):
-        """ Gets a sorted histogram of node sizes. """
-        return self.__class__.sortedhist([node.size if node.size else 0 for node in self.nodes])
-
-    @functools.lru_cache
-    def ngram_hist(self, n, across_nodes=True, all_subgraphs=False):
-        """ Gets a sorted histogram of ngrams. """
-        from hashlib import sha1
-        return self.__class__.sortedhist([b''.join(map(lambda x: sha1(x.encode()).digest()[:1], ng)) if isinstance(ng, tuple) else ng for ng in ( \
-            [ngram for sg in self.subgraphs for ngram in sg.ngrams(n, across_nodes=across_nodes)] if all_subgraphs else \
-            self.acyclic_graph.ngrams(n, across_nodes=across_nodes))])
-
+    def used_apis(self):
+        return [n.name for n in self.nodes if n.name is not None and n.name not in _NON_APIS]
