@@ -151,23 +151,39 @@ def append_to_section(name, data):
     return _append_to_section
 
 
-def move_entrypoint_to_new_section(name, section_type=None, characteristics=None, pre_data=b"", post_data=b""):
+def move_entrypoint_to_new_section(name, section_type=None, characteristics=None, pre_data=b"", post_data=b"", pre_trampoline_bytes=b""):
     """ Set the entrypoint (EP) to a new section added to the binary that contains code to jump back to the original EP.
         The new section contains *pre_data*, then the code to jump back to the original EP, and finally *post_data*.
     """
-    @supported_parsers("lief")
+    def _get_trampoline_code(oep_or_offset):
+        return [
+            0xE9,  # jmp original_entrypoint
+            *list(oep_or_offset.to_bytes(4, "little", signed=True)),
+        ]
+
+    @supported_parsers("lief") # 'parsed' is a lief.PE.Binary
     def _move_entrypoint_to_new_section(parsed, logger):
-        ep_bytes = list(parsed.entrypoint.to_bytes([4, 8][parsed.path.format[-2:] == "64"], "little"))
-        #  push current_entrypoint
-        #  ret
-        entrypoint_data = [0x68] + ep_bytes + [0xc3]
-        # other possibility:
-        #  mov eax current_entrypoint
-        #  jmp eax
-        #  entrypoint_data = [0xb8] + ep_bytes + [0xff, 0xe0]
+        logger.debug(f">> moving entrypoint to new section: {name}")
+        print(f">> moving entrypoint to new section: {name}")
+        original_entrypoint = parsed.optional_header.addressof_entrypoint # + parsed.optional_header.imagebase
+        #is_64bits = parsed.path.format[-2:] == "64" # PE64
+        
+        entrypoint_data = []
+
+        # ---- Add trampoline code ----
+        entrypoint_data += _get_trampoline_code(original_entrypoint)
+
+        # ---- Create the new section ----
         add_section(name, section_type or parsed.SECTION_TYPES['TEXT'], characteristics,
                     list(pre_data) + entrypoint_data + list(post_data))(parsed, logger)
-        parsed.optional_header.addressof_entrypoint = parsed.get_section(name).virtual_address + len(pre_data)
+        
+        # ---- Update the content and trampoline offset ---- (do it after to know the address of the new section)
+        created_section = parsed.section(name)
+        offset = original_entrypoint - (created_section.virtual_address + len(pre_data) + len(entrypoint_data))
+        created_section.content = list(pre_data) + _get_trampoline_code(offset) + list(post_data)
+        
+        # ---- Update the entrypoint ----
+        parsed.optional_header.addressof_entrypoint = created_section.virtual_address + len(pre_data)
     return _move_entrypoint_to_new_section
 
 
