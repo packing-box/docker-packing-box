@@ -61,6 +61,14 @@ def _fmt(s, v):
 _fmt.__name__ = "image format"
 
 
+def _nj(s, v):
+    v = positive_int(v)
+    if v > CPU_COUNT:
+        logging.getLogger().debug(f"This computer has {CPU_COUNT} CPUs ; reducing number of jobs to this value")
+        v = CPU_COUNT
+    return v
+
+
 def _rp(s, v):
     v = Path(str(v), expand=True).absolute()
     if not v.exists():
@@ -104,6 +112,7 @@ bi.config = Config("packing-box",
             'experiments':   ("/mnt/share/experiments", "PATH", "path to the experiments folder", _np),
             'backup_copies': ("3", "COPIES", "keep N backups of datasets ; for commands that trigger backups", _it),
             'exec_timeout':  ("20", "SECONDS", "execution timeout of items (detectors, packers, ...)", _it),
+            'number_jobs':   ("6", "JOBS", "number of jobs to be run in parallel", _nj),
         },
         'cfg': {
             'angr_engine':            ("default", "ENGINE", "set the engine for CFG extraction by Angr", _ae),

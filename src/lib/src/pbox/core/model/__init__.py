@@ -168,7 +168,7 @@ class BaseModel(Entity):
         self._data, self._target = self._data.fillna(-1), self._target.fillna(NOT_LABELLED)
         # convert to binary class
         if not multiclass:
-            self._target = (self._target['label'] == true_class).astype('int') if true_class else \
+            self._target = (self._target['label'] == true_class).astype('int') if true_class is not None else \
                            self._target.map(lambda x: LABELS_BACK_CONV.get(x, 1)).astype('int')
         # create the pipeline if it does not exist (i.e. while training)
         if not data_only:
@@ -460,7 +460,6 @@ class Model(BaseModel):
     def train(self, algorithm=None, cv=5, n_jobs=None, param=None, reset=False, ignore_labels=False, wrapper_select=False, select_param=None, **kw):
         """ Training method handling cross-validation. """
         import multiprocessing as mp
-        n_jobs = int(n_jobs or mp.cpu_count() // 2)
         l, n_cpu, ds, multiclass = self.logger, mp.cpu_count(), kw['dataset'], kw.get('multiclass', False)
         try:
             cls = self._algorithm = Algorithm.get(algorithm)
@@ -484,9 +483,6 @@ class Model(BaseModel):
             l.error(f"'{algo}' won't work with a dataset that is not labelled")
             return
         l.info(f"Selected algorithm: {cls.description}")
-        if n_jobs > n_cpu:
-            l.warning(f"Maximum n_jobs is {n_cpu}")
-            n_jobs = n_cpu
         # prepare the dataset first, as we need to know the number of features for setting model's name
         if not self._prepare(**kw):
             return
@@ -527,6 +523,7 @@ class Model(BaseModel):
                                    len(set(l for l in self._metadata['dataset']['counts'].keys() if l != NOT_LABELLED))
             l.debug(f"> parameter n_clusters=\"auto\" set to {n}{[' based on labels',''][ignore_labels]}")
         # use recursive feature elimination with cross-validation to select optimal features
+        n_jobs = n_jobs or config['number_jobs']
         if wrapper_select:
             l.info("Finding optimal feature set...")
             # apply user-defined parameters
