@@ -94,6 +94,10 @@ class dict2(dict):
                     name = str(e).split("'")[1]
                     dict2._logger.debug(f"'{name}' is either not computed yet or mistaken")
                 raise
+            except ZeroDivisionError as e:
+                if not silent:
+                    dict2._logger.debug(f"Division by zero, returning -1. Expression: {expr}")
+                return -1
             except Exception as e:
                 if not silent:
                     dict2._logger.warning(f"Bad expression: {expr}")
