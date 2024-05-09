@@ -113,6 +113,8 @@ class Features(dict, metaclass=MetaBase):
                         self[name] = bool(v) if feature.boolean else v
                     except NameError:
                         todo.append(feature)
+                    except ZeroDivisionError:  # i.e. when a ratio has its denominator set to 0 ;
+                        v = None               #  in this case, feature's value is undefined
                     except ValueError:  # occurs when FobiddenNodeError is thrown
                         continue
             # then lazily compute features until we converge in a state where all the required features are computed
@@ -150,6 +152,8 @@ class Features(dict, metaclass=MetaBase):
                             counts.setdefault(name2, 0)
                     if counts.get(n, 0) > 10:
                         raise ValueError(f"Too much iterations of '{n}'")
+                except ZeroDivisionError:  # i.e. when a ratio has its denominator set to 0 ;
+                    v = None               #  in this case, feature's value is undefined
                 except ValueError:  # occurs when FobiddenNodeError is thrown
                     continue
             # once converged, ensure that we did not leave a feature that should not be kept
