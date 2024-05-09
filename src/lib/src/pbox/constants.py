@@ -174,7 +174,8 @@ bi.TEST_FILES = {
         "~/.wine64/drive_c/windows/system32/msadp32.acm",
     ],
 }
-bi.X86_64_INSTRUCTIONS = {
+bi.X86_64_JUMP_MNEMONICS = {"call", "jmp", "bnd jmp", "je", "jne", "jz", "jnz", "ja", "jae", "jb", "jbe", "jl", "jle", "jg", "jge", "jo", "jno", "js", "jns", "jp", "jnp", "jecxz", "jrcxz", "jmpf", "jmpq", "jmpw"}
+bi.X86_64_REGISTERS = {
     "Return value":              {"rax", "eax", "ax", "ah", "al"},
     "General-Purpose Registers": {"rbx", "rcx", "rdx", "ebx", "ecx", "edx", "bx", "bh", "bl", "cx", "ch", "cl", "dx",
                                   "dh", "dl"},
