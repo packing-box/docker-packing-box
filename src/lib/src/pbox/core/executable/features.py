@@ -1,7 +1,7 @@
 # -*- coding: UTF-8 -*-
 from collections import deque
 from tinyscript import itertools, logging, re
-from tinyscript.helpers import is_generator, Path
+from tinyscript.helpers import is_generator as is_gen, Path
 
 from ...helpers import dict2, expand_formats, load_yaml_config, MetaBase
 
@@ -67,7 +67,7 @@ class Features(dict, metaclass=MetaBase):
                     expr = r.get(fmt)
                     if expr is not None:
                         if len(values) > 0:
-                            if not all(isinstance(x, (dict, list, tuple)) or is_generator(x) for x in values):
+                            if not all(isinstance(x, (list, set, tuple, range, range2)) or is_gen(x) for x in values):
                                 values = [values]
                             f = []
                             for val in itertools.product(*values):
