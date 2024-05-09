@@ -1,7 +1,7 @@
 # -*- coding: UTF-8 -*-
 import builtins
 from tinyscript import inspect, logging, random, re, string
-from tinyscript.helpers import get_terminal_size, is_file, is_folder, is_iterable, set_exception, zeropad
+from tinyscript.helpers import get_terminal_size, is_file, is_folder, is_iterable, reduce, set_exception, zeropad
 from tinyscript.helpers.expressions import WL_NODES
 from tinyscript.helpers.path import Path, TempPath
 
