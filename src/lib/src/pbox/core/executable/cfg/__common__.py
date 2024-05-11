@@ -67,6 +67,9 @@ class CFG(GetItemMixin, ResetCachedPropertiesMixin):
             self.__project = self.model = None
             self.logger.exception(e)
     
+    def __filter(self, d):
+        return d.get(self.__target.format, {}) or d.get(self.__target.group, {})
+    
     def compute(self, algorithm=None, timeout=None, **kw):
         l = self.__class__.logger
         if self.__project is None:
@@ -99,6 +102,11 @@ class CFG(GetItemMixin, ResetCachedPropertiesMixin):
                                                           next(_ for _ in self.model.nodes())
             self.model.graph._acyclic = False
     
+    def indirect_jumps(self):
+        for m, o in self.iterinsns():
+             if m in X86_64_JUMP_MNEMONICS and not o.startswith('0x'):
+                yield m
+    
     def iternodes(self, root_node=None, exclude=_DEFAULT_EXCLUDE):
         """ Iterate over nodes downwards from the provided root_node. """
         queue, visited = [root_node or self.graph.root_node], set()
@@ -122,6 +130,11 @@ class CFG(GetItemMixin, ResetCachedPropertiesMixin):
             if node.byte_string and not all(b == 0 for b in node.byte_string) and node.block:
                 for i in node.block.disassembly.insns:
                     yield i.mnemonic, i.op_str
+    
+    def jumps(self):
+        for m, _ in self.iterinsns():
+            if m in X86_64_JUMP_MNEMONICS:
+                yield m
     
     @staticmethod
     def to_acyclic(graph, root_node=None):
@@ -154,7 +167,7 @@ class CFG(GetItemMixin, ResetCachedPropertiesMixin):
     @property
     def edges(self):
         return self.graph.edges
-
+    
     @property
     def entry(self):
         return self.model.project.entry
@@ -189,8 +202,7 @@ class CFG(GetItemMixin, ResetCachedPropertiesMixin):
     
     @cached_property
     def common_imports(self):
-        return self.imported_apis & (_COMMON_API_IMPORTS.get(self.__target.format, {}) or \
-                                     _COMMON_API_IMPORTS.get(self.__target.group, {}))
+        return self.imported_apis & self.__filter(_COMMON_API_IMPORTS)
     
     @cached_property
     def imported_apis(self):
@@ -200,33 +212,23 @@ class CFG(GetItemMixin, ResetCachedPropertiesMixin):
     
     @cached_property
     def malicious_imported_apis(self):
-        return self.imported_apis & (_COMMON_MALICIOUS_APIS.get(self.__target.format, {}) or \
-                                     _COMMON_MALICIOUS_APIS.get(self.__target.group, {}))
+        return self.imported_apis & self.__filter(_COMMON_MALICIOUS_APIS)
     
     @cached_property
     def malicious_used_apis(self):
-        return self.used_apis & (_COMMON_MALICIOUS_APIS.get(self.__target.format, {}) or \
-                                 _COMMON_MALICIOUS_APIS.get(self.__target.group, {}))
+        return self.used_apis & self.__filter(_COMMON_MALICIOUS_APIS)
     
     @functools.lru_cache
-    def ngram_hist(self, n, across_nodes=True, all_subgraphs=False):
+    def ngram_histogram(self, n, across_nodes=True, all_subgraphs=False):
         """ Gets a sorted histogram of ngrams. """
         return _sorted_hist([b''.join(map(lambda x: _sha1(x)[:1], ng)) if isinstance(ng, tuple) else ng for ng in \
                              ([ngram for sg in self.subgraphs for ngram in sg.ngrams(n, across_nodes=across_nodes)] \
                              if all_subgraphs else self.acyclic_graph.ngrams(n, across_nodes=across_nodes))])
     
     @cached_property
-    def nodesize_hist(self):
+    def nodesize_histogram(self):
         """ Gets a sorted histogram of node sizes. """
         return _sorted_hist([node.size if node.size else 0 for node in self.nodes])
-    
-    @cached_property
-    def num_indir_jumps(self):
-        return sum(1 for m, o in self.iterinsns() if m in X86_64_JUMP_MNEMONICS and not o.startswith('0x'))
-    
-    @cached_property
-    def num_jumps(self):
-        return sum(1 for m, _ in self.iterinsns() if m in X86_64_JUMP_MNEMONICS)
     
     @cached_property
     def reg_type_counts(self):
