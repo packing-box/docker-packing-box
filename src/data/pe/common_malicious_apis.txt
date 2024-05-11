@@ -1,16 +1,117 @@
-CreateFileA
+# Source: Advanced Feature Engineering for Static Detection of Executable Packing
+
+CreateFile
+EnterCriticalSection
 ExitProcess
-GetCommandLineA
-GetModuleFileNameA
-GetModuleHandleA
+FreeLibrary
+GetCommandLine
+GetModuleFileName
+GetModuleHandle
+GetPrivateProfileSection
 GetProcAddress
-GetStartupInfoA
+GetStartupInfo
 GetStdHandle
+InitializeCriticalSection
+LdrGetProcedureAddress
+LdrLoadDll
 LoadLibrary
-LoadLibraryA
-MessageBoxA
-RegOpenKeyExA
-RegQueryValueExA
+LocalAlloc
+LocalFree
+MessageBox
+PrintDlg
+RaiseException
+RegCloseKey
+RegOpenKey
+RegQueryValue
+RtlFormatCurrentUserKeyPath
+RtlUnwind
+SHGetFolderPath
+SetThreadContext
+SysFreeString
+VerQueryValue
 VirtualAlloc
-VirtualFree
 VirtualProtect
+VirtualQuery
+WideCharToMultiByte
+WriteFile
+ZwProtectVirtualMemory
+__p__acmdln
+
+# Source: https://book.hacktricks.xyz/reversing/common-api-used-in-malware
+
+## Anti-analysis / Virtual Machine
+CreateToolhelp32Snapshot
+GetSystemInfo
+GetVersion
+GlobalMemoryStatus
+IsDebuggerPresent
+
+## DLL injection
+CreateRemoteThread
+NTCreateThread
+OpenProcess
+Process32First
+Process32Next
+RtlCreateUserThread
+WriteProcessMemory
+
+## Encryption
+CryptAcquireContext
+CryptDecrypt
+CryptDeriveKey
+CryptGenKey
+CryptReleaseContext
+WinCrypt
+
+## Execution
+CreateProcess
+NtResumeThread
+ResumeThread
+ShellExecute
+WinExec
+
+## Miscellaneous
+BitBlt
+CreateToolhelp32Snapshot
+FindResource
+GetAsyncKeyState
+GetDC
+GetForeGroundWindow
+InternetOpen
+InternetOpenUrl
+InternetReadFile
+InternetWriteFile
+LoadResource
+LockResource
+SetWindowsHook
+
+## Persistence
+CopyFile
+CreateService
+GetTempPath
+OpenSCManager
+ReadFile
+RegCreateKey
+RegDeleteKey
+RegGetValue
+RegSetValue
+StartServiceCtrlDispatcher
+
+## Process hollowing
+NtUnmapViewOfSection
+ZwUnmapViewOfSection
+
+## Stealth
+CreateProcessInternal
+CreateRemoteThread
+NtUnmapViewOfSection
+NtWriteVirtualMemory
+QueueUserAPC
+ReadProcessMemory
+WriteProcessMemory
+
+## Thread hyjacking
+OpenThread
+SuspendThread
+Thread32First
+Thread32Next
