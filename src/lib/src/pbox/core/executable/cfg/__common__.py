@@ -154,6 +154,10 @@ class CFG(GetItemMixin, ResetCachedPropertiesMixin):
     @property
     def edges(self):
         return self.graph.edges
+
+    @property
+    def entry(self):
+        return self.model.project.entry
     
     @property
     def graph(self):
