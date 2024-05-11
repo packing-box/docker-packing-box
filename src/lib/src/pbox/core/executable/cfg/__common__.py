@@ -1,13 +1,23 @@
 # -*- coding: UTF-8 -*-
-from tinyscript import code, logging, re, functools
-from tinyscript.helpers import Capture, Timeout, TimeoutError
+from tinyscript import code, functools, hashlib, logging, re
+from tinyscript.helpers import Capture, Timeout
 
+from ....helpers.data import get_data
 from ....helpers.mixins import *
 
 
 __all__ = ["CFG"]
 
+def __init_common_api_imports():
+    return {grp: set(functools.reduce(lambda l1, l2: l1 + l2, get_data(grp).get('COMMON_DLL_IMPORTS', {}).values() \
+            or [()])) for grp in FORMATS.keys() if grp != "All"}
+_COMMON_API_IMPORTS = lazy_load_object("_COMMON_API_IMPORTS", __init_common_api_imports)
+def __init_common_malicious_apis():
+    return {grp: set(get_data(grp).get('COMMON_MALICIOUS_APIS', {})) for grp in FORMATS.keys() if grp != "All"}
+_COMMON_MALICIOUS_APIS = lazy_load_object("_COMMON_MALICIOUS_APIS", __init_common_malicious_apis)
 _DEFAULT_EXCLUDE = set()
+
+_sha1 = lambda x: hashlib.sha1(x.encode()).digest()
 
 
 def __init_angr():
@@ -31,15 +41,26 @@ def __init_angr():
 lazy_load_module("angr", postload=__init_angr)
 
 
+def _sorted_hist(vector):
+    """ Orders the elements of the input list first by occurence, then by value, yielding a sorted histogram.
+    
+    :param vector: a list of unordered elements
+    :return: (list of ordered elements; first by occurence; then by value,
+              list of number of occurences of the elements in ordered list)
+    """
+    from collections import Counter
+    return list(map(list, zip(*sorted(Counter(vector).items(), key=lambda x: (x[1], x[0]), reverse=True))))
+
+
 class CFG(GetItemMixin, ResetCachedPropertiesMixin):
     engines = {k: getattr(angr.engines, "UberEngine" if k in ["default", "vex"] else f"UberEngine{k.capitalize()}") \
                for k in ANGR_ENGINES}
     logger = logging.getLogger("executable.cfg")
     
     def __init__(self, target, engine=None, **kw):
-        self.__target = str(target)
+        self.__target = target
         try:
-            self.__project = angr.Project(self.__target, load_options={'auto_load_libs': False},
+            self.__project = angr.Project(str(self.__target), load_options={'auto_load_libs': False},
                                           engine=self.engines[engine or config['angr_engine']])
             self.model = self.__project.kb.cfgs.new_model(f"{self.__target}")
         except Exception as e:
@@ -101,17 +122,6 @@ class CFG(GetItemMixin, ResetCachedPropertiesMixin):
             if node.byte_string and not all(b == 0 for b in node.byte_string) and node.block:
                 for i in node.block.disassembly.insns:
                     yield i.mnemonic, i.op_str
-
-    @staticmethod
-    def sortedhist(vector):
-        """Orders the elements of the input list first by occurence, then by value, yielding a sorted histogram
-        
-        :param vector: a list of unordered elements
-        :return: (list of ordered elements; first by occurence; then by value,
-                list of number of occurences of the elements in ordered list)
-        """
-        from collections import Counter
-        return list(map(list, zip(*sorted(Counter(vector).items(), key=lambda x: (x[1], x[0]), reverse=True))))
     
     @staticmethod
     def to_acyclic(graph, root_node=None):
@@ -144,6 +154,10 @@ class CFG(GetItemMixin, ResetCachedPropertiesMixin):
     @property
     def edges(self):
         return self.graph.edges
+
+    @property
+    def entry(self):
+        return self.model.project.entry
     
     @property
     def graph(self):
@@ -167,15 +181,44 @@ class CFG(GetItemMixin, ResetCachedPropertiesMixin):
                 r.update((n[i-1], n[i]))
         return r
     
-    # ----------------------------------------------- LAZY COMPUTATIONS ------------------------------------------------
+    # ------------------------------------------ LAZY ONE-TIME COMPUTATIONS --------------------------------------------
     @cached_property
     def acyclic_graph(self):
         """ Compute and return the acyclic version of the CFG. """
         return self.__class__.to_acyclic(self.graph)
     
     @cached_property
+    def common_imports(self):
+        return self.imported_apis & (_COMMON_API_IMPORTS.get(self.__target.format, {}) or \
+                                     _COMMON_API_IMPORTS.get(self.__target.group, {}))
+    
+    @cached_property
     def imported_apis(self):
-        return list(self.model.project.loader.main_object.imports.keys())
+        if not self.model:
+            self.compute()
+        return set(self.model.project.loader.main_object.imports.keys())
+    
+    @cached_property
+    def malicious_imported_apis(self):
+        return self.imported_apis & (_COMMON_MALICIOUS_APIS.get(self.__target.format, {}) or \
+                                     _COMMON_MALICIOUS_APIS.get(self.__target.group, {}))
+    
+    @cached_property
+    def malicious_used_apis(self):
+        return self.used_apis & (_COMMON_MALICIOUS_APIS.get(self.__target.format, {}) or \
+                                 _COMMON_MALICIOUS_APIS.get(self.__target.group, {}))
+    
+    @functools.lru_cache
+    def ngram_hist(self, n, across_nodes=True, all_subgraphs=False):
+        """ Gets a sorted histogram of ngrams. """
+        return _sorted_hist([b''.join(map(lambda x: _sha1(x)[:1], ng)) if isinstance(ng, tuple) else ng for ng in \
+                             ([ngram for sg in self.subgraphs for ngram in sg.ngrams(n, across_nodes=across_nodes)] \
+                             if all_subgraphs else self.acyclic_graph.ngrams(n, across_nodes=across_nodes))])
+    
+    @cached_property
+    def nodesize_hist(self):
+        """ Gets a sorted histogram of node sizes. """
+        return _sorted_hist([node.size if node.size else 0 for node in self.nodes])
     
     @cached_property
     def num_indir_jumps(self):
@@ -227,17 +270,8 @@ class CFG(GetItemMixin, ResetCachedPropertiesMixin):
                 exclude.update(node.signature for node in subgraph)
             remaining_nodes = self.graph.filter_nodes(remaining_nodes, subgraph)
         return subgraphs
-
+    
     @cached_property
-    def nodesize_hist(self):
-        """ Gets a sorted histogram of node sizes. """
-        return self.__class__.sortedhist([node.size if node.size else 0 for node in self.nodes])
-
-    @functools.lru_cache
-    def ngram_hist(self, n, across_nodes=True, all_subgraphs=False):
-        """ Gets a sorted histogram of ngrams. """
-        from hashlib import sha1
-        return self.__class__.sortedhist([b''.join(map(lambda x: sha1(x.encode()).digest()[:1], ng)) if isinstance(ng, tuple) else ng for ng in ( \
-            [ngram for sg in self.subgraphs for ngram in sg.ngrams(n, across_nodes=across_nodes)] if all_subgraphs else \
-            self.acyclic_graph.ngrams(n, across_nodes=across_nodes))])
+    def used_apis(self):
+        return {n.name for n in self.nodes if n.name is not None and n.name != "PathTerminator"}
 

@@ -1,7 +1,7 @@
 # -*- coding: UTF-8 -*-
 import builtins
 from tinyscript import inspect, logging, random, re, string
-from tinyscript.helpers import get_terminal_size, is_file, is_folder, is_iterable, set_exception, zeropad
+from tinyscript.helpers import get_terminal_size, is_file, is_folder, is_iterable, reduce, set_exception, zeropad
 from tinyscript.helpers.expressions import WL_NODES
 from tinyscript.helpers.path import Path, TempPath
 
@@ -14,12 +14,13 @@ set_exception("NotInstantiable", "TypeError")
 __all__ = ["dict2", "load_yaml_config", "Item", "MetaBase", "MetaItem"]
 
 _EVAL_NAMESPACE = {k: getattr(builtins, k) for k in ["abs", "divmod", "float", "hash", "hex", "id", "int", "len",
-                                                     "list", "max", "min", "next", "oct", "ord", "pow", "range",
-                                                     "range2", "round", "set", "str", "sum", "tuple", "type"]}
+                                                     "list", "min", "next", "oct", "ord", "pow", "range", "range2",
+                                                     "round", "set", "str", "sum", "tuple", "type"]}
 _WL_EXTRA_NODES = ("arg", "arguments", "keyword", "lambda")
 
 
 _concatn  = lambda l, n: reduce(lambda a, b: a[:n]+b[:n], l, stop=lambda x: len(x) > n)
+_max      = lambda l, *a, **kw: max((x for x in l if x is not None), *a, **kw)
 _repeatn  = lambda s, n: (s * (n // len(s) + 1))[:n]
 _sec_name = lambda s: getattr(s, "real_name", getattr(s, "name", s))
 _size     = lambda exe, ratio=.1, blocksize=512: round(int(exe['size'] * ratio) / blocksize + .5) * blocksize
@@ -76,9 +77,9 @@ class dict2(dict):
     
     def __call__(self, data, silent=False, **kwargs):
         d = {k: getattr(random, k) for k in ["choice", "randint", "randrange", "randstr"]}
-        d.update({'apply': _apply, 'concatn': _concatn, 'printable': string.printable, 'randbytes': _randbytes,
-                  'repeatn': _repeatn, 'select': _select(), 'select_section_name': _select(_sec_name), 'size': _size,
-                  'zeropad': zeropad})
+        d.update({'apply': _apply, 'concatn': _concatn, 'max': _max, 'printable': string.printable,
+                  'randbytes': _randbytes, 'repeatn': _repeatn, 'select': _select(),
+                  'select_section_name': _select(_sec_name), 'size': _size, 'zeropad': zeropad})
         d.update(_EVAL_NAMESPACE)
         d.update(data)
         kwargs.update(getattr(self, "parameters", {}))

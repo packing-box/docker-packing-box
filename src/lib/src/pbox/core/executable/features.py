@@ -1,7 +1,7 @@
 # -*- coding: UTF-8 -*-
 from collections import deque
 from tinyscript import itertools, logging, re
-from tinyscript.helpers import is_generator, Path
+from tinyscript.helpers import is_generator as is_gen, Path
 
 from ...helpers import dict2, expand_formats, load_yaml_config, MetaBase
 
@@ -14,7 +14,10 @@ __all__ = ["Features"]
 class Feature(dict2):
     def __call__(self, data, *args, **kwargs):
         self._exe = data.get('executable')
-        return super().__call__(data, *args, **kwargs)
+        try:
+            return super().__call__(data, *args, **kwargs)
+        except ZeroDivisionError:  # i.e. when a ratio has its denominator set to 0 ;
+            return                 #  in this case, feature's value is undefined
     
     @cached_property
     def boolean(self):
@@ -67,7 +70,7 @@ class Features(dict, metaclass=MetaBase):
                     expr = r.get(fmt)
                     if expr is not None:
                         if len(values) > 0:
-                            if not all(isinstance(x, (dict, list, tuple)) or is_generator(x) for x in values):
+                            if not all(isinstance(x, (list, set, tuple, range, range2)) or is_gen(x) for x in values):
                                 values = [values]
                             f = []
                             for val in itertools.product(*values):

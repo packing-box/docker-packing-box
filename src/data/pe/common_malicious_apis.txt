@@ -1,0 +1,16 @@
+CreateFileA
+ExitProcess
+GetCommandLineA
+GetModuleFileNameA
+GetModuleHandleA
+GetProcAddress
+GetStartupInfoA
+GetStdHandle
+LoadLibrary
+LoadLibraryA
+MessageBoxA
+RegOpenKeyExA
+RegQueryValueExA
+VirtualAlloc
+VirtualFree
+VirtualProtect
