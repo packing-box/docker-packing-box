@@ -3,7 +3,7 @@ from collections import deque
 from tinyscript import itertools, logging, re
 from tinyscript.helpers import is_generator as is_gen, Path
 
-from ...helpers import dict2, expand_formats, load_yaml_config, MetaBase
+from ...helpers import dict2, expand_formats, get_data, load_yaml_config, MetaBase
 
 lazy_load_module("yaml")
 
@@ -67,6 +67,9 @@ class Features(dict, metaclass=MetaBase):
                 # allow to use 'result: ...' instead of 'result:\n  All: ...' to save space
                 if not isinstance(r, dict):
                     r = {'All': r}
+                # allow to use expressions in the 'values' field
+                if isinstance(values, str):
+                    values = list(dict2({'result': values})({'get_data': get_data}))
                 # consider features for most specific formats first, then intermediate format classes and finally the
                 #  collapsed format class "All"
                 for fmt in flist:

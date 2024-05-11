@@ -1,4 +1,5 @@
 # -*- coding: UTF-8 -*-
+from abc import ABC, abstractmethod
 from tinyscript import functools
 from tinyscript.helpers import ensure_str, execute, is_generator
 
@@ -26,7 +27,7 @@ def supported_parsers(*parsers):
     return _wrapper
 
 
-class AbstractParsedExecutable(CustomReprMixin, GetItemMixin):
+class AbstractParsedExecutable(ABC, CustomReprMixin, GetItemMixin):
     def __getitem__(self, name):
         try:
             v = super().__getitem__(name)
@@ -41,9 +42,6 @@ class AbstractParsedExecutable(CustomReprMixin, GetItemMixin):
                 return getattr(self.path, name)
             raise
         return v
-    
-    def __iter__(self):
-        raise NotImplementedError("__iter__")
     
     def average_block_entropy_per_section(self, blocksize=256, ignore_half_block_zeros=True, overlay=True, raw=True):
         r, t = 0., 0
@@ -62,9 +60,9 @@ class AbstractParsedExecutable(CustomReprMixin, GetItemMixin):
             t += w
         return r / (t or 1)
     
-    def average_entropy(self, *sections):
-        #TODO
-        pass
+    def sections_average_entropy(self, *sections):
+        e = [s.entropy for s in (sections or self)]
+        return sum(e) / len(e)
     
     def block_entropy(self, blocksize=256, ignore_half_block_zeros=False, ignore_half_block_same_byte=True):
         return bintropy.entropy(_rb(self.code), blocksize, ignore_half_block_zeros, ignore_half_block_same_byte)
@@ -72,12 +70,6 @@ class AbstractParsedExecutable(CustomReprMixin, GetItemMixin):
     def block_entropy_per_section(self, blocksize=256, ignore_half_block_zeros=True, ignore_half_block_same_byte=True):
         return {getattr(s, "real_name", s.name): s.block_entropy(blocksize, ignore_half_block_zeros,
                                                                  ignore_half_block_same_byte) for s in self}
-    
-    def build(self, **kw):
-        raise NotImplementedError("build")
-    
-    def disassemble(self, **kw):
-        raise NotImplementedError("disassemble")
     
     def modify(self, modifier, **kw):
         modifier(self.parsed, **kw)
@@ -129,10 +121,6 @@ class AbstractParsedExecutable(CustomReprMixin, GetItemMixin):
         return type(first)
     
     @property
-    def checksum(self):
-        raise NotImplementedError("checksum")
-    
-    @property
     def code(self):
         return self.path.bytes
     
@@ -175,6 +163,22 @@ class AbstractParsedExecutable(CustomReprMixin, GetItemMixin):
     def standard_sections(self):
         d = [""] + get_data(self.path.format)['STANDARD_SECTION_NAMES']
         return [s for s in self if _rn(s) in d]
+    
+    # ------------------------------------------- mandatory concrete methods -------------------------------------------
+    @abstractmethod
+    def __iter__(self):
+        pass
+    
+    # ------------------------------------------- optional concrete methods --------------------------------------------
+    def build(self, **kw):
+        raise NotImplementedError("build")
+    
+    def disassemble(self, **kw):
+        raise NotImplementedError("disassemble")
+    
+    @property
+    def checksum(self):
+        raise NotImplementedError("checksum")
 
 
 def get_section_class(name, **mapping):
