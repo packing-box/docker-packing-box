@@ -9,7 +9,7 @@ from tinyscript.helpers import slugify, Path
 def __init__cpu_count():
     import multiprocessing as mp
     return mp.cpu_count()
-bi.CPU_COUNT = lazy_object(__init__cpu_count)
+bi.CPU_COUNT = lazy_load_object("CPU_COUNT", __init__cpu_count)
 bi.LOG_FORMATS = ["%(asctime)s [%(levelname)s] %(message)s", "%(asctime)s [%(levelname)-8s] %(name)-18s %(message)s"]
 bi.PACKING_BOX_SOURCES = {
     'ELF': ["/usr/bin", "/usr/sbin"],
@@ -115,10 +115,10 @@ bi.CFG_ALGORITHMS = ["emulated", "fast"]
 bi.DATA_EXTENSIONS = [".json", ".txt"]
 bi.EXE_METADATA = ["realpath", "format", "signature", "size", "ctime", "mtime"]
 bi.FORMATS = {
-    'All':    ["ELF", "Mach-O", "MSDOS", "PE"],
+    'All':    ["ELF", "Mach-O", "PE"],
     'ELF':    ["ELF32", "ELF64"],
     'Mach-O': ["Mach-O32", "Mach-O64", "Mach-Ou"],
-    'PE':     [".NET", "PE32", "PE64"],
+    'PE':     [".NET", "MSDOS", "PE32", "PE64"],
 }
 bi.SIGNATURES = {
     '^Mach-O 32-bit ':                         "Mach-O32",

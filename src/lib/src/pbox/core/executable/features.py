@@ -64,6 +64,9 @@ class Features(dict, metaclass=MetaBase):
             flist = [f for l in [["All"], [f for f in FORMATS.keys() if f != "All"], expand_formats("All")] for f in l]
             for name, params in load_yaml_config(src):
                 r, values = params.pop('result', {}), params.pop('values', [])
+                # allow to use 'result: ...' instead of 'result:\n  All: ...' to save space
+                if not isinstance(r, dict):
+                    r = {'All': r}
                 # consider features for most specific formats first, then intermediate format classes and finally the
                 #  collapsed format class "All"
                 for fmt in flist:

@@ -122,10 +122,8 @@ def get_format_group(exe_format, short=False):
     """ Get the parent formats group from the given executable format. """
     if exe_format is None:
         raise UnknownFormatError("Unknown format")
-    if exe_format in list(FORMATS.keys())[1:]:
-        return format_shortname(exe_format) if short else exe_format
     for fgroup, formats in list(FORMATS.items())[1:]:  # NB: exclude index 0 as it is "All"
-        if exe_format in formats:
+        if exe_format in [fgroup] + formats:
             return format_shortname(fgroup) if short else fgroup
     raise UnknownFormatError(f"Cannot find the group for executable format '{exe_format}'")
 

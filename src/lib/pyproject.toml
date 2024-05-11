@@ -49,7 +49,7 @@ dependencies = [
   "rich",
   "scikit-learn>=1.3.2",
   "seaborn",
-  "tinyscript>=1.30.9",
+  "tinyscript>=1.30.10",
   "weka",
 ]
 dynamic = ["version"]

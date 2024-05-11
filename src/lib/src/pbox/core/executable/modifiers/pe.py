@@ -19,8 +19,7 @@ def get_pe_data():
     from ....helpers.data import get_data
     d = {k: v for k, v in get_data("PE").items() if k in ["COMMON_API_IMPORTS", "COMMON_DLL_IMPORTS",
                                                           "COMMON_PACKER_SECTION_NAMES", "STANDARD_SECTION_NAMES"]}
-    dll = d.pop('COMMON_DLL_IMPORTS')
-    d['COMMON_API_IMPORTS'] = [(lib, api) for lib in dll for api in dll[lib]]
+    d['COMMON_API_IMPORTS'] = [(lib, api) for lib, lst in d.pop('COMMON_DLL_IMPORTS').items() for api in lst]
     for k in ["COMMON_PACKER_SECTION_NAMES", "STANDARD_SECTION_NAMES"]:
         d[k] = valid_names(d[k])
     return d
@@ -31,8 +30,8 @@ valid_names = lambda nl: list(filter(lambda n: len(n) <= 8, map(lambda x: x if i
 
 
 # ------------------------------------------------- Modifiers ----------------------------------------------------------
-def add_API_to_IAT(*args):
     """ Add a function to the IAT. If no function from this library is imported in the binary yet, the library is added
+def add_API_to_IAT(*args):
          to the binary.
     
     :param args: either (library, api) or ((library, api), )
@@ -151,39 +150,26 @@ def append_to_section(name, data):
     return _append_to_section
 
 
-def move_entrypoint_to_new_section(name, section_type=None, characteristics=None, pre_data=b"", post_data=b"", pre_trampoline_bytes=b""):
+def move_entrypoint_to_new_section(name, section_type=None, characteristics=None, pre_data=b"", post_data=b""):
     """ Set the entrypoint (EP) to a new section added to the binary that contains code to jump back to the original EP.
         The new section contains *pre_data*, then the code to jump back to the original EP, and finally *post_data*.
     """
-    def _get_trampoline_code(oep_or_offset):
-        return [
-            0xE9,  # jmp original_entrypoint
-            *list(oep_or_offset.to_bytes(4, "little", signed=True)),
-        ]
-
+    _trampoline_code = lambda oep_or_offset: [0xE9, *list(oep_or_offset.to_bytes(4, "little", signed=True))]
     @supported_parsers("lief") # 'parsed' is a lief.PE.Binary
     def _move_entrypoint_to_new_section(parsed, logger):
         logger.debug(f">> moving entrypoint to new section: {name}")
-        print(f">> moving entrypoint to new section: {name}")
-        original_entrypoint = parsed.optional_header.addressof_entrypoint # + parsed.optional_header.imagebase
-        #is_64bits = parsed.path.format[-2:] == "64" # PE64
-        
-        entrypoint_data = []
-
-        # ---- Add trampoline code ----
-        entrypoint_data += _get_trampoline_code(original_entrypoint)
-
-        # ---- Create the new section ----
+        oep = parsed.optional_header.addressof_entrypoint
+        # add trampoline code
+        ep_data = _trampoline_code(oep)
+        # create new section
         add_section(name, section_type or parsed.SECTION_TYPES['TEXT'], characteristics,
-                    list(pre_data) + entrypoint_data + list(post_data))(parsed, logger)
-        
-        # ---- Update the content and trampoline offset ---- (do it after to know the address of the new section)
-        created_section = parsed.section(name)
-        offset = original_entrypoint - (created_section.virtual_address + len(pre_data) + len(entrypoint_data))
-        created_section.content = list(pre_data) + _get_trampoline_code(offset) + list(post_data)
-        
-        # ---- Update the entrypoint ----
-        parsed.optional_header.addressof_entrypoint = created_section.virtual_address + len(pre_data)
+                    list(pre_data) + ep_data + list(post_data))(parsed, logger)
+        # update content and trampoline offset (do it after to know the address of the new section)
+        s = parsed.section(name)
+        offset = oep - (s.virtual_address + len(pre_data) + len(entrypoint_data))
+        s.content = list(pre_data) + _trampoline(offset) + list(post_data)
+        # update EP
+        parsed.optional_header.addressof_entrypoint = s.virtual_address + len(pre_data)
     return _move_entrypoint_to_new_section
 
 

@@ -5,7 +5,7 @@ from tinyscript import *
 
 
 __script__      = "Model manipulation tool"
-__version__     = "1.3.6"
+__version__     = "1.3.7"
 __contributors__ = [
     {'author': "Sébastien Martinez", 'reason': "extended ML algorithms, metrics and visualizations to unsupervised "
                                                "learning"},
@@ -59,7 +59,7 @@ if __name__ == '__main__':
     add_argument(test, "mdname", "executable", "features-set", "ignore-labels")
     test.add_argument("--sep", default=",", choices=",;|\t", help="set the CSV separator",
                       note="required when using input CSV data instead of a Dataset (no effect otherwise)")
-    test.add_argument("-T", "--true-class", help="class to be considered as True")
+    test.add_argument("-T", "--true-class", metavar="CLASS", help="class to be considered as True")
     train = sparsers.add_parser("train", category="create/modify/delete", help="train a model on the given dataset")
     train.add_argument("dataset", type=Dataset.load, help="dataset for training the model")
     train.add_argument("-a", "--algorithms-set", metavar="YAML", type=ts.file_exists, default=config['algorithms'],
@@ -72,15 +72,17 @@ if __name__ == '__main__':
     tgroup = train.add_mutually_exclusive_group()
     tgroup.add_argument("-m", "--multiclass", action="store_true", help="train the model using multiple label classes")
     train.add_argument("-r", "--reset", action="store_true", help="reset the model before (re)training")
-    tgroup.add_argument("-T", "--true-class", help="class to be considered as True")
+    tgroup.add_argument("-T", "--true-class", metavar="CLASS", help="class to be considered as True")
     train.add_argument("--cv", default=5, type=ts.pos_int, help="number of Cross-Validation folds")
     train.add_argument("--feature", action="extend", nargs="*", help="list of features to be selected")
     add_argument(train, "ignore-labels")
     train.add_argument("--n-jobs", type=lambda x: ts.pos_int(x, False), help="number of jobs to be run in parallel")
-    train.add_argument("-w", "--wrapper-select", action="store_true", help="use recursive feature elimination with cross-validation wrapper method to select optimal features before model training")
+    train.add_argument("-w", "--wrapper-select", action="store_true", help="use recursive feature elimination with CV "
+                       "wrapper method to select optimal features before model training")
     train.add_argument("-p", "--param", nargs="*", help="comma-separated list of parameters for the algorithm",
                        note="fixing a parameter with this option disables it from the cross-validation")
-    train.add_argument("-W", "--wrapper-param", nargs="*",type=lambda x: x.split(","), help="comma-separated list of parameters for the wrapper feature selection algorithm")
+    train.add_argument("-W", "--wrapper-param", nargs="*",type=lambda x: x.split(","), help="comma-separated list of "
+                       "parameters for the wrapper feature selection algorithm")
     add_argument(train, "mi-select")
     add_argument(train, "mi-kbest")
     visualize = add_argument(sparsers.add_parser("visualize", category="read", help="visualize the model"), "mdname")

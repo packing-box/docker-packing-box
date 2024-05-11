@@ -1,6 +1,6 @@
 # -*- coding: UTF-8 -*-
 from tinyscript import functools, inspect, re
-from tinyscript.helpers.data.types import file_exists, folder_does_not_exist, folder_exists, json_config, pos_int
+from tinyscript.helpers.data.types import *
 
 
 __all__ = ["add_argument", "characteristic_identifier", "expand_parameters", "figure_options", "filter_args",
@@ -83,16 +83,18 @@ def add_argument(parser, *names, **kwargs):
             kw = {'type': model_exists(kwargs.get('force', False)), 'help': kwargs.get('help', "name of the model")}
             parser.add_argument(*a, **kw)
         elif name == "mi-select":
-            parser.add_argument("-M", "--mi-select", action="store_true", help="apply mutual information feature selection")
+            parser.add_argument("-M", "--mi-select", action="store_true",
+                                help="apply mutual information feature selection")
         elif name == "mi-kbest":
-            # FIXME: the type should be a positive float (maybe integrate in tinyscript)
-            parser.add_argument("-k", "--mi-kbest", type=float, default=0.7, help="threshold for mutual information feature selection",
-                                note="If mi_kbest >= 1, the mi_kbest features with highest mutual information will be kept. If within (0.0, 1.0), the mi_kbest percent of features will be kept.")
+            parser.add_argument("-k", "--mi-kbest", type=pos_float, default=0.7,
+                                help="threshold for mutual information feature selection",
+                                note="if mi_kbest >= 1, the mi_kbest features with highest MI will be kept ; "
+                                     "if within (0.0, 1.0), the mi_kbest percent of features will be kept")
         elif name == "multiclass":
             parser.add_argument("-m", "--multiclass", action="store_true", help="process features using true labels",
                                 note="if False, means binary classification (1:True/0:False/-1:Unlabelled)")
         elif name == "n-jobs":
-            parser.add_argument("--n-jobs", type=lambda x: pos_int(x, False), help="number of jobs to be run in parallel")
+            parser.add_argument("--n-jobs", type=lambda x: pos_int(x, False), help="number of parallel jobs")
         elif name == "number":
             parser.add_argument("-n", "--number", dest=kwargs.get('dest', "limit"), type=pos_int, default=0,
                                 help="limit number of executables for the output dataset", note="0 means all")

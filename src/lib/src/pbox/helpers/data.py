@@ -91,14 +91,14 @@ def get_data(exe_format):
       Let us take the following structure (NB: ~/.packing-box/data is the default location defined in config):
         data/
          +-- pe/
-         |    +-- common_api_imports.txt
-         |    +-- common_api_imports_pe64.txt
+         |    +-- common_dll_imports.txt
+         |    +-- common_dll_imports_pe64.txt
          |    +-- common_section_names.txt
          +-- common_section_names.txt
       
      get_data("PE") will output:
       {
-        'COMMON_API_IMPORTS':   <list from data/pe/common_api_imports.txt>
+        'COMMON_DLL_IMPORTS':   <list from data/pe/common_dll_imports.txt>
         'COMMON_SECTION_NAMES': <list from data/pe/common_section_names.txt>
       }
      
@@ -109,7 +109,7 @@ def get_data(exe_format):
       
      get_data("PE64") will output:
       {
-        'COMMON_API_IMPORTS':   <list from data/pe/common_api_imports_pe64.txt>
+        'COMMON_DLL_IMPORTS':   <list from data/pe/common_dll_imports_pe64.txt>
         'COMMON_SECTION_NAMES': <list from data/pe/common_section_names.txt>
       }
     """

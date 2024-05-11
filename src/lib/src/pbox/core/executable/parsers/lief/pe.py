@@ -42,10 +42,6 @@ def __init_pe():
             return builder
         
         @property
-        def api_imports(self):
-            return sorted(api.name for imp in self.imports for api in imp.entries)
-        
-        @property
         def checksum(self):
             return self._parsed.optional_header.computed_checksum
         
@@ -62,11 +58,15 @@ def __init_pe():
             return self._parsed.data_directory(lief.PE.DataDirectory.TYPES.IMPORT_TABLE)
         
         @property
+        def imported_apis(self):
+            return {(dll.name, api.name) for dll in self.imports for api in dll.entries}
+        
+        @property
         def imported_dlls(self):
-            return sorted(dll.name for dll in self.imports)
+            return {dll.name for dll in self._parsed.imports}
         
         def sections_with_slack_space(self, length=1):
-            return [s for s in self if s.size - len(s.content) >= length]
+            return {s for s in self if s.size - len(s.content) >= length}
         
         def sections_with_slack_space_entry_jump(self, offset=0):
             return self.sections_with_slack_space(6 + offset)
