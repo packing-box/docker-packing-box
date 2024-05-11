@@ -221,6 +221,22 @@ class CFG(GetItemMixin, ResetCachedPropertiesMixin):
         return _sorted_hist([node.size if node.size else 0 for node in self.nodes])
     
     @cached_property
+    def num_indir_jumps(self):
+        return sum(1 for m, o in self.iterinsns() if m in X86_64_JUMP_MNEMONICS and not o.startswith('0x'))
+    
+    @cached_property
+    def num_jumps(self):
+        return sum(1 for m, _ in self.iterinsns() if m in X86_64_JUMP_MNEMONICS)
+    
+    @cached_property
+    def reg_type_counts(self):
+        reg_counts = {group: 0 for group in X86_64_REGISTERS}
+        for token in sum((re.sub(r"[,\+\*\[\]\-]", " ", it[1]).split() for it in self.iterinsns()), []):
+            for group, reg_set in X86_64_REGISTERS.items():
+                reg_counts[group] += token in reg_set
+        return list(reg_counts.values())
+    
+    @cached_property
     def subgraphs(self):
         """ Get the list of subgraphs from the CFG. """
         def _graph2subgraph(graph, nodes):
