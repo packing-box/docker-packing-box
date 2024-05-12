@@ -120,6 +120,9 @@ bi.FORMATS = {
     'Mach-O': ["Mach-O32", "Mach-O64", "Mach-Ou"],
     'PE':     [".NET", "MSDOS", "PE32", "PE64"],
 }
+bi.IMPORT_SUFFIXES = {
+    'PE': ('', 'A', 'W', 'Ex', 'ExA', 'ExW'),
+}
 bi.SIGNATURES = {
     '^Mach-O 32-bit ':                         "Mach-O32",
     '^Mach-O 64-bit ':                         "Mach-O64",
@@ -199,6 +202,7 @@ bi.COMMIT_VALID_COMMANDS = [
 
 
 # machine learning & visualization
+bi.FEATURE_CONSTANTS = ["IMPORT_SUFFIXES", "X86_64_JUMP_MNEMONICS"]
 bi.IMG_FORMATS = ("jpg", "png", "tif", "svg")
 bi.LABELS = {
     'not-packed':         "Original",

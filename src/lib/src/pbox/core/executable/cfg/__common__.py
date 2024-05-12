@@ -231,7 +231,7 @@ class CFG(GetItemMixin, ResetCachedPropertiesMixin):
         return _sorted_hist([node.size if node.size else 0 for node in self.nodes])
     
     @cached_property
-    def reg_type_counts(self):
+    def register_type_counts(self):
         reg_counts = {group: 0 for group in X86_64_REGISTERS}
         for token in sum((re.sub(r"[,\+\*\[\]\-]", " ", it[1]).split() for it in self.iterinsns()), []):
             for group, reg_set in X86_64_REGISTERS.items():
