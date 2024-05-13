@@ -132,7 +132,9 @@ class Features(dict, metaclass=MetaBase):
                 # set 'binary' as the generic reference for the parsed binary but also for specific formats ('pe', ...)
                 d = {'binary': p, exe.group.lower(): p}
                 # add some constants
-                d.update({c: globals()[c] for c in FEATURE_CONSTANTS})
+                c = {c: globals()[c] for c in FEATURE_CONSTANTS}
+                d.update({c: v.get(exe.format) or v.get(exe.group) or v.get('default') or v if isinstance(v, dict) \
+                             else v for c, v in c.items()})
                 # add raw extracted data
                 d.update(self._rawdata)
                 # add already computed features

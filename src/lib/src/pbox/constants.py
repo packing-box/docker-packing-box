@@ -121,6 +121,7 @@ bi.FORMATS = {
     'PE':     [".NET", "MSDOS", "PE32", "PE64"],
 }
 bi.IMPORT_SUFFIXES = {
+    'default': (),
     'PE': ('', 'A', 'W', 'Ex', 'ExA', 'ExW'),
 }
 bi.SIGNATURES = {
