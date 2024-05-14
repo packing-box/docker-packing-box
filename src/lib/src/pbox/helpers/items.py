@@ -14,9 +14,9 @@ set_exception("NotInstantiable", "TypeError")
 
 __all__ = ["dict2", "load_yaml_config", "Item", "MetaBase", "MetaItem"]
 
-_EVAL_NAMESPACE = {k: getattr(builtins, k) for k in ["abs", "divmod", "float", "hash", "hex", "id", "int", "list",
-                                                     "min", "next", "oct", "ord", "pow", "range", "range2", "round",
-                                                     "set", "str", "sum", "tuple", "type"]}
+_EVAL_NAMESPACE = {k: getattr(builtins, k) for k in ["abs", "any", "divmod", "float", "hash", "hex", "id", "int",
+                                                     "list", "min", "next", "oct", "ord", "pow", "range", "range2",
+                                                     "round", "set", "str", "sum", "tuple", "type"]}
 _WL_EXTRA_NODES = ("arg", "arguments", "keyword", "lambda")
 
 
