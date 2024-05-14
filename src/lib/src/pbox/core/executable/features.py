@@ -123,7 +123,7 @@ class Features(dict, metaclass=MetaBase):
                         self[name] = bool(v) if feature.boolean else v
                     except NameError:
                         todo.append(feature)
-                    except (ForbiddenNodeError, UnknownNameError):  # already handled in dict2.__call__
+                    except ForbiddenNodeError:  # already handled in dict2.__call__
                         continue
             # then lazily compute features until we converge in a state where all the required features are computed
             while len(todo) > 0:
@@ -165,7 +165,7 @@ class Features(dict, metaclass=MetaBase):
                     if counts.get(n, 0) > 10:
                         raise ValueError(f"Too much iterations of '{n}'")
                     todo.append(feature)
-                except (ForbiddenNodeError, UnknownNameError):  # already handled in dict2.__call__
+                except ForbiddenNodeError:  # already handled in dict2.__call__
                     continue
             # once converged, ensure that we did not leave a feature that should not be kept
             do_not_keep = []

@@ -92,7 +92,7 @@ class dict2(dict):
                 r = eval2(expr, d, {}, whitelist_nodes=WL_NODES + _WL_EXTRA_NODES)
                 if len(kwargs) == 0:  # means no parameter provided
                     return r
-            except (ForbiddenNodeError, UnknownNameError) as e:  # these error types shall always be reported
+            except ForbiddenNodeError as e:  # this error type shall always be reported
                 dict2._logger.warning(f"Bad expression: {expr}")
                 dict2._logger.error(f"{e}")
                 raise

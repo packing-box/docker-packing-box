@@ -5,7 +5,7 @@ from .pe import *
 from ....helpers.formats import expand_formats
 
 
-__all__ = ["Extractors"]
+__all__ = ["Extractors", "elfeats", "mofeats", "pefeats"]
 
 
 _EXTRACTORS = {
