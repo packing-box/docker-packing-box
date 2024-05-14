@@ -14,7 +14,7 @@ set_exception("NotInstantiable", "TypeError")
 
 __all__ = ["dict2", "load_yaml_config", "Item", "MetaBase", "MetaItem"]
 
-_EVAL_NAMESPACE = {k: getattr(builtins, k) for k in ["abs", "any", "divmod", "float", "hash", "hex", "id", "int",
+_EVAL_NAMESPACE = {k: getattr(builtins, k) for k in ["abs", "all", "any", "divmod", "float", "hash", "hex", "id", "int",
                                                      "list", "min", "next", "oct", "ord", "pow", "range", "range2",
                                                      "round", "set", "str", "sum", "tuple", "type"]}
 _WL_EXTRA_NODES = ("arg", "arguments", "keyword", "lambda")
@@ -92,6 +92,10 @@ class dict2(dict):
                 r = eval2(expr, d, {}, whitelist_nodes=WL_NODES + _WL_EXTRA_NODES)
                 if len(kwargs) == 0:  # means no parameter provided
                     return r
+            except (ForbiddenNodeError, UnknownNameError) as e:  # these error types shall always be reported
+                dict2._logger.warning(f"Bad expression: {expr}")
+                dict2._logger.error(f"{e}")
+                raise
             except NameError as e:
                 if not silent:
                     name = str(e).split("'")[1]
