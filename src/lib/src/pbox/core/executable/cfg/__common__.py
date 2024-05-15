@@ -49,7 +49,7 @@ def _sorted_hist(vector):
               list of number of occurences of the elements in ordered list)
     """
     from collections import Counter
-    return list(map(list, zip(*sorted(Counter(vector).items(), key=lambda x: (x[1], x[0]), reverse=True))))
+    return list(map(list, zip(*sorted(Counter(vector).items(), key=lambda x: (x[1], x[0]), reverse=True)))) or [[], []]
 
 
 class CFG(GetItemMixin, ResetCachedPropertiesMixin):
