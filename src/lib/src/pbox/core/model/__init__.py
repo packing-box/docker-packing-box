@@ -235,7 +235,7 @@ class BaseModel(Entity):
         try:
             proba, dt2 = benchmark(self.pipeline.predict_proba)(self._data)
             dt += dt2
-            proba = proba[:, 0]
+            proba = proba[:, 1]
         except AttributeError:
             proba = None
         metrics = cls.metrics if isinstance(cls.metrics, (list, tuple)) else [cls.metrics]
