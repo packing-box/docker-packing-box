@@ -109,12 +109,15 @@ def __init():
                 raise ValueError("Bad subcommand (should be one of: config|data|script)")
         
         def _load(self):
-            for folder in ["conf", "datasets", "models"]:
-                folder = self.path.joinpath(folder)
-                if not folder.exists():
-                    folder.mkdir()
-            self['README'].touch()
-            config['experiment'] = config['workspace'] = self.path
+            try:
+                for folder in ["conf", "datasets", "models"]:
+                    folder = self.path.joinpath(folder)
+                    if not folder.exists():
+                        folder.mkdir()
+                self['README'].touch()
+                config['experiment'] = config['workspace'] = self.path
+            except PermissionError as e:
+                Experiment.logger.exception(e)
         
         def close(self, **kw):
             """ Close the currently open experiment. """

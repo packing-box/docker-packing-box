@@ -43,6 +43,8 @@ def _init_base():
             return line.replace("$TMP", f"/tmp/{self.type}s") \
                        .replace("$OPT", expanduser(f"~/.opt/{self.type}s")) \
                        .replace("$BIN", expanduser("~/.opt/bin")) \
+                       .replace("$LOC", expanduser("~/.local")) \
+                       .replace("$HOME", expanduser("~")) \
                        .replace("$CWD", self.__cwd or "")
         
         def _check(self, exe, silent=False):

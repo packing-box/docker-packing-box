@@ -457,7 +457,8 @@ class Model(BaseModel):
                   f"**Packers**:      {', '.join(get_counts(ds).keys())}"])
         render(Section("Reference dataset"), c)
     
-    def train(self, algorithm=None, cv=5, n_jobs=None, param=None, reset=False, ignore_labels=False, wrapper_select=False, select_param=None, **kw):
+    def train(self, algorithm=None, cv=5, n_jobs=None, param=None, reset=False, ignore_labels=False,
+              wrapper_select=False, select_param=None, **kw):
         """ Training method handling cross-validation. """
         import multiprocessing as mp
         l, n_cpu, ds, multiclass = self.logger, mp.cpu_count(), kw['dataset'], kw.get('multiclass', False)
@@ -583,13 +584,13 @@ class Model(BaseModel):
         predict = self.pipeline.predict if hasattr(self.pipeline.steps[-1][1], "predict") else self.pipeline.fit_predict
         self._train.predict = predict(self._train.data)
         try:
-            self._train.predict_proba = self.pipeline.predict_proba(self._train.data)[:, 0]
+            self._train.predict_proba = self.pipeline.predict_proba(self._train.data)[:, 1]
         except (AttributeError, KeyError):  # some algorithms do not support .predict_proba(...)
             self._train.predict_proba = None
         if len(self._test.data) > 0:
             self._test.predict = predict(self._test.data)
             try:
-                self._test.predict_proba = self.pipeline.predict_proba(self._test.data)[:, 0]
+                self._test.predict_proba = self.pipeline.predict_proba(self._test.data)[:, 1]
             except (AttributeError, KeyError):  # some algorithms do not support .predict_proba(...)
                 self._test.predict_proba = None
         metrics = cls.metrics if isinstance(cls.metrics, (list, tuple)) else [cls.metrics]
