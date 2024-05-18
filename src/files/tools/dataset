@@ -137,6 +137,9 @@ if __name__ == '__main__':
     add_argument(plot_char, "reduction-algorithm", "binary", "ncomponents", "perplexity")
     plot_feat = pcmds.add_parser("features", help="distribution of one or multiple features (bar chart)")
     add_argument(plot_feat, "dsname", "feature", "multiclass")
+    plot_feat.add_argument("-n", "--num-values", type=ts.pos_int, default=0,
+                        help="limit number of most occurring distict feature values in plot",
+                        note="0 means all")
     figure_options(plot_feat)
     plot_featcomp = pcmds.add_parser("features-compare", help="compare feature difference with other datasets")
     add_argument(plot_featcomp, "dsname", "feature", "aggregate", "datasets", "max-features",
