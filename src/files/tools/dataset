@@ -136,7 +136,9 @@ if __name__ == '__main__':
                            note="by 'characteristic', it is meant either executable metadata or feature")
     add_argument(plot_char, "reduction-algorithm", "binary", "ncomponents", "perplexity")
     plot_feat = pcmds.add_parser("features", help="distribution of one or multiple features (bar chart)")
-    add_argument(plot_feat, "dsname", "feature", "multiclass")
+    add_argument(plot_feat, "dsname", "feature")
+    plot_feat_ = plot_feat.add_mutually_exclusive_group()
+    add_argument(plot_feat_, "multiclass", "true-class")
     figure_options(plot_feat)
     plot_featcomp = pcmds.add_parser("features-compare", help="compare feature difference with other datasets")
     add_argument(plot_featcomp, "dsname", "feature", "aggregate", "datasets", "max-features",
