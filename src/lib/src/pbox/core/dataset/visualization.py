@@ -7,7 +7,6 @@ from ...helpers import *
 
 lazy_load_module("packer", "pbox.core.items")
 lazy_load_module("seaborn")
-lazy_load_module("textwrap")
 
 
 @save_figure
@@ -136,7 +135,7 @@ def _features_bar_chart(dataset, feature=None, multiclass=False, scaler=None, **
     l.debug("plotting...")
     try:
         title = dataset._features[feature[0]] if len(feature) == 1 else \
-                "\n".join(textwrap.wrap(f"combination of {', '.join(dataset._features[f] for f in feature)}", 60))
+                "".join(f"combination of {', '.join(dataset._features[f] for f in feature)}")
         title = title[0].upper() + title[1:] + f" for dataset {dataset.name}"
     except KeyError as e:
         l.error(f"Feature '{e.args[0]}' does not exist in the target dataset.")
@@ -159,7 +158,7 @@ def _features_bar_chart(dataset, feature=None, multiclass=False, scaler=None, **
               for k in counts.keys()]
     plt.rcParams['font.family'] = ["serif"]
     plt.figure(figsize=(6, (len(title.splitlines()) * 24 + 11 * len(counts) + 120) / 80))
-    plt.title(title, pad=20, fontweight="bold", fontsize=16)
+    plt.title(title, pad=20, fontweight="bold", fontsize=16, wrap=True)
     plt.xlabel(x_label, fontdict={'size': 14})
     plt.ylabel(y_label, fontdict={'size': 14})
     starts = [0 for i in range(len(values[0]))]
