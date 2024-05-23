@@ -159,7 +159,7 @@ def _features_bar_chart(dataset, feature=None, multiclass=False, scaler=None, **
               for k in counts.keys()]
     plt.rcParams['font.family'] = ["serif"]
     plt.figure(figsize=(6, (len(title.splitlines()) * 24 + 11 * len(counts) + 120) / 80))
-    plt.title(title, pad=20, fontweight="bold", fontsize=16)
+    plt.title(kw.get('title') or title, pad=20, fontweight="bold", fontsize=16)
     plt.xlabel(x_label, fontdict={'size': 14})
     plt.ylabel(y_label, fontdict={'size': 14})
     starts = [0 for i in range(len(values[0]))]
