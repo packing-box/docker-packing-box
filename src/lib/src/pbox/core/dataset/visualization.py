@@ -58,7 +58,7 @@ def _characteristic_scatter_plot(dataset, characteristic=None, multiclass=True, 
 
 
 @save_figure
-def _features_bar_chart(dataset, feature=None, num_values=None, multiclass=False, scaler=None, **kw):
+def _features_bar_chart(dataset, feature=None, num_values=None, multiclass=False, scaler=None, true_class=None, **kw):
     """ Plot the distribution of the given feature or multiple features combined. """
     l = dataset.logger
     if feature is None:
@@ -71,6 +71,7 @@ def _features_bar_chart(dataset, feature=None, num_values=None, multiclass=False
     # data preparation
     feature = filter_features(dataset, feature)
     l.info(f"Counting values for feature{['', 's'][len(feature) > 1]} {', '.join(feature)}...")
+    true_class_cap = true_class[0].upper() + true_class[1:]
     #FIXME: for continuous values, convert to ranges to limit chart's height
     # start counting, keeping 'Not packed' counts separate (to prevent it from being sorted with others)
     counts_np, counts, labels, data = {}, {}, [], pd.DataFrame()
@@ -79,9 +80,11 @@ def _features_bar_chart(dataset, feature=None, num_values=None, multiclass=False
         data = pd.concat([data, pd.DataFrame.from_records([row])], ignore_index=True)
         v = tuple(row.values())
         counts_np.setdefault(v, 0)
-        counts.setdefault(v, {} if multiclass else {'Packed': 0})
+        counts.setdefault(v, {true_class_cap: 0} if true_class else {} if multiclass else {'Packed': 0})
         lbl = str(exe.label)
-        if lbl == NOT_PACKED:
+        if true_class and lbl == true_class:
+            counts[v][true_class_cap] += 1
+        elif lbl == NOT_PACKED or true_class:
             counts_np[v] += 1
         elif multiclass:
             lbl = packer.Packer.get(lbl).cname
@@ -107,10 +110,12 @@ def _features_bar_chart(dataset, feature=None, num_values=None, multiclass=False
         if multiclass:
             for lbl in labels:
                 d.setdefault(lbl, 0)
+        elif true_class:
+            d.setdefault(true_class_cap, 0)
         else:
             d.setdefault('Packed', 0)
     # merge counts of not packed and other counts
-    all_counts = {k: {'Not packed': v} for k, v in sorted(counts_np.items(), key=lambda x: x[0])}
+    all_counts = {k: {'Not ' + true_class if true_class else 'Not packed': v} for k, v in sorted(counts_np.items(), key=lambda x: x[0])}
     for k, v in counts.items():
         for sk, sv in v.items():
             all_counts[k][sk] = sv  # force keys order
