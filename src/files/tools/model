@@ -59,7 +59,7 @@ if __name__ == '__main__':
     add_argument(test, "mdname", "executable", "features-set", "ignore-labels")
     test.add_argument("--sep", default=",", choices=",;|\t", help="set the CSV separator",
                       note="required when using input CSV data instead of a Dataset (no effect otherwise)")
-    test.add_argument("-T", "--true-class", metavar="CLASS", help="class to be considered as True")
+    add_argument(test, "true-class")
     train = sparsers.add_parser("train", category="create/modify/delete", help="train a model on the given dataset")
     train.add_argument("dataset", type=Dataset.load, help="dataset for training the model")
     train.add_argument("-a", "--algorithms-set", metavar="YAML", type=ts.file_exists, default=config['algorithms'],
@@ -71,8 +71,8 @@ if __name__ == '__main__':
     add_argument(train, "features-set")
     tgroup = train.add_mutually_exclusive_group()
     tgroup.add_argument("-m", "--multiclass", action="store_true", help="train the model using multiple label classes")
+    add_argument(tgroup, "true-class")
     train.add_argument("-r", "--reset", action="store_true", help="reset the model before (re)training")
-    tgroup.add_argument("-T", "--true-class", metavar="CLASS", help="class to be considered as True")
     train.add_argument("--cv", default=5, type=ts.pos_int, help="number of Cross-Validation folds")
     train.add_argument("--feature", action="extend", nargs="*", help="list of features to be selected")
     add_argument(train, "ignore-labels")

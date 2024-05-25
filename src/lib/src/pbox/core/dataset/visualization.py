@@ -7,7 +7,6 @@ from ...helpers import *
 
 lazy_load_module("packer", "pbox.core.items")
 lazy_load_module("seaborn")
-lazy_load_module("textwrap")
 
 
 @save_figure
@@ -58,7 +57,7 @@ def _characteristic_scatter_plot(dataset, characteristic=None, multiclass=True, 
 
 
 @save_figure
-def _features_bar_chart(dataset, feature=None, multiclass=False, scaler=None, **kw):
+def _features_bar_chart(dataset, feature=None, num_values=None, multiclass=False, scaler=None, true_class=None, **kw):
     """ Plot the distribution of the given feature or multiple features combined. """
     l = dataset.logger
     if feature is None:
@@ -71,6 +70,7 @@ def _features_bar_chart(dataset, feature=None, multiclass=False, scaler=None, **
     # data preparation
     feature = filter_features(dataset, feature)
     l.info(f"Counting values for feature{['', 's'][len(feature) > 1]} {', '.join(feature)}...")
+    true_class_cap = true_class[0].upper() + true_class[1:]
     #FIXME: for continuous values, convert to ranges to limit chart's height
     # start counting, keeping 'Not packed' counts separate (to prevent it from being sorted with others)
     counts_np, counts, labels, data = {}, {}, [], pd.DataFrame()
@@ -79,9 +79,11 @@ def _features_bar_chart(dataset, feature=None, multiclass=False, scaler=None, **
         data = pd.concat([data, pd.DataFrame.from_records([row])], ignore_index=True)
         v = tuple(row.values())
         counts_np.setdefault(v, 0)
-        counts.setdefault(v, {} if multiclass else {'Packed': 0})
+        counts.setdefault(v, {true_class_cap: 0} if true_class else {} if multiclass else {'Packed': 0})
         lbl = str(exe.label)
-        if lbl == NOT_PACKED:
+        if true_class and lbl == true_class:
+            counts[v][true_class_cap] += 1
+        elif lbl == NOT_PACKED or true_class:
             counts_np[v] += 1
         elif multiclass:
             lbl = packer.Packer.get(lbl).cname
@@ -107,18 +109,23 @@ def _features_bar_chart(dataset, feature=None, multiclass=False, scaler=None, **
         if multiclass:
             for lbl in labels:
                 d.setdefault(lbl, 0)
+        elif true_class:
+            d.setdefault(true_class_cap, 0)
         else:
             d.setdefault('Packed', 0)
-    l.debug("sorting feature values...")
-    # sort counts by feature value and by label
-    counts = {k: {sk: sv for sk, sv in sorted(v.items(), key=lambda x: x[0].lower())} \
-              for k, v in sorted(counts.items(), key=lambda x: x[0])}
     # merge counts of not packed and other counts
-    all_counts = {k: {'Not packed': v} for k, v in sorted(counts_np.items(), key=lambda x: x[0])}
+    all_counts = {k: {'Not ' + true_class if true_class else 'Not packed': v} for k, v in sorted(counts_np.items(), key=lambda x: x[0])}
     for k, v in counts.items():
         for sk, sv in v.items():
             all_counts[k][sk] = sv  # force keys order
     counts = all_counts
+    if num_values:
+        l.debug(f"selecting {num_values} most occurring feature values...")
+        counts = dict(sorted(counts.items(), key=lambda x: sum(x[1].values()), reverse=True)[:num_values])
+    l.debug("sorting feature values...")
+    # sort counts by feature value and by label
+    counts = {k: {sk: sv for sk, sv in sorted(v.items(), key=lambda x: x[0].lower())} \
+              for k, v in sorted(counts.items(), key=lambda x: x[0])}
     l.debug("reformatting feature values...")
     vtype = str
     #  transform {0,1} to False|True
@@ -136,7 +143,7 @@ def _features_bar_chart(dataset, feature=None, multiclass=False, scaler=None, **
     l.debug("plotting...")
     try:
         title = dataset._features[feature[0]] if len(feature) == 1 else \
-                "\n".join(textwrap.wrap(f"combination of {', '.join(dataset._features[f] for f in feature)}", 60))
+                "".join(f"combination of {', '.join(dataset._features[f] for f in feature)}")
         title = title[0].upper() + title[1:] + f" for dataset {dataset.name}"
     except KeyError as e:
         l.error(f"Feature '{e.args[0]}' does not exist in the target dataset.")
@@ -154,12 +161,13 @@ def _features_bar_chart(dataset, feature=None, multiclass=False, scaler=None, **
     labels = list(counts[next(iter(counts))].keys())
     # display plot
     plur = ["", "s"][len(feature) > 1]
-    x_label, y_label = f"Samples [%] for the selected feature{plur}", f"Feature{plur} values"
+    x_label, y_label = f"Samples [%] for the selected feature{plur}", \
+                       f"Feature{plur} values" + (f" (top {num_values})" if num_values else "")
     yticks = [str(k[0]) if isinstance(k, (tuple, list)) and len(k) == 1 else str(k) \
               for k in counts.keys()]
     plt.rcParams['font.family'] = ["serif"]
     plt.figure(figsize=(6, (len(title.splitlines()) * 24 + 11 * len(counts) + 120) / 80))
-    plt.title(kw.get('title') or title, pad=20, fontweight="bold", fontsize=16)
+    plt.title(kw.get('title') or title, pad=20, fontweight="bold", fontsize=16, wrap=True)
     plt.xlabel(x_label, fontdict={'size': 14})
     plt.ylabel(y_label, fontdict={'size': 14})
     starts = [0 for i in range(len(values[0]))]
