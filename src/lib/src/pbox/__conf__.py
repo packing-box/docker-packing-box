@@ -152,6 +152,7 @@ bi.config = Config("packing-box",
             'font_size':       ("10", "SIZE", "base font size", _it),
             'format':          ("png", "FORMAT", "image format for saving figures", _fmt),
             'style':           ("default", "STYLE", "name of the PyPlot style to apply to plots", _sty),
+            'transparent':     ("false", "BOOL", "save figure with transparent background", _bl),
         },
     },
     # envvars
