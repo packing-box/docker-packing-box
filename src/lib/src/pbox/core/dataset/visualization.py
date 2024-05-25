@@ -58,7 +58,7 @@ def _characteristic_scatter_plot(dataset, characteristic=None, multiclass=True, 
 
 
 @save_figure
-def _features_bar_chart(dataset, feature=None, multiclass=False, scaler=None, true_class=None, **kw):
+def _features_bar_chart(dataset, feature=None, num_values=None, multiclass=False, scaler=None, true_class=None, **kw):
     """ Plot the distribution of the given feature or multiple features combined. """
     l = dataset.logger
     if feature is None:
@@ -114,16 +114,19 @@ def _features_bar_chart(dataset, feature=None, multiclass=False, scaler=None, tr
             d.setdefault(true_class_cap, 0)
         else:
             d.setdefault('Packed', 0)
-    l.debug("sorting feature values...")
-    # sort counts by feature value and by label
-    counts = {k: {sk: sv for sk, sv in sorted(v.items(), key=lambda x: x[0].lower())} \
-              for k, v in sorted(counts.items(), key=lambda x: x[0])}
     # merge counts of not packed and other counts
     all_counts = {k: {'Not ' + true_class if true_class else 'Not packed': v} for k, v in sorted(counts_np.items(), key=lambda x: x[0])}
     for k, v in counts.items():
         for sk, sv in v.items():
             all_counts[k][sk] = sv  # force keys order
     counts = all_counts
+    if num_values:
+        l.debug(f"selecting {num_values} most occurring feature values...")
+        counts = dict(sorted(counts.items(), key=lambda x: sum(x[1].values()), reverse=True)[:num_values])
+    l.debug("sorting feature values...")
+    # sort counts by feature value and by label
+    counts = {k: {sk: sv for sk, sv in sorted(v.items(), key=lambda x: x[0].lower())} \
+              for k, v in sorted(counts.items(), key=lambda x: x[0])}
     l.debug("reformatting feature values...")
     vtype = str
     #  transform {0,1} to False|True
@@ -159,7 +162,8 @@ def _features_bar_chart(dataset, feature=None, multiclass=False, scaler=None, tr
     labels = list(counts[next(iter(counts))].keys())
     # display plot
     plur = ["", "s"][len(feature) > 1]
-    x_label, y_label = f"Samples [%] for the selected feature{plur}", f"Feature{plur} values"
+    x_label, y_label = f"Samples [%] for the selected feature{plur}", \
+                       f"Feature{plur} values" + (f" (top {num_values})" if num_values else "")
     yticks = [str(k[0]) if isinstance(k, (tuple, list)) and len(k) == 1 else str(k) \
               for k in counts.keys()]
     plt.rcParams['font.family'] = ["serif"]
