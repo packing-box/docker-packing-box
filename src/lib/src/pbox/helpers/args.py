@@ -111,6 +111,8 @@ def add_argument(parser, *names, **kwargs):
         elif name == "reduction-algorithm":
             parser.add_argument("-a", "--reduction-algorithm", default="PCA", choices=("ICA", "PCA"),
                                 help="dimensionality reduction algorithm")
+        elif name == "true-class":
+            parser.add_argument("-T", "--true-class", metavar="CLASS", help="class to be considered as True")
         elif name == "xpname":
             parser.add_argument("name", type=experiment_exists(kwargs.get('force', False)),
                                 help=kwargs.get('help', "name of the experiment"), **params)
