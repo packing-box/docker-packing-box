@@ -183,7 +183,8 @@ bi.X86_64_JUMP_MNEMONICS = {"call", "jmp", "bnd jmp", "je", "jne", "jz", "jnz", 
 bi.X86_64_REGISTERS = {
     "Return value":              {"rax", "eax", "ax", "ah", "al"},
     "General-Purpose Registers": {"rbx", "rcx", "rdx", "ebx", "ecx", "edx", "bx", "bh", "bl", "cx", "ch", "cl", "dx",
-                                  "dh", "dl"},
+                                  "dh", "dl"} |
+                                 {f"r{i}{s}" for i in range(8, 16) for s in ("", "d", "w", "b")},
     "Segment Registers":         {"cs", "ds", "es", "fs", "gs", "ss"},
     "Function arguments":        {"rsi", "rdi", "esi", "edi"},
     "Stack Registers":           {"rbp", "rsp", "ebp", "esp"},
