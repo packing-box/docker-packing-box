@@ -127,6 +127,17 @@ PortEx:
   status: ok
   version: <output>
 
+ProgramExecutableAnalyzer:
+  author: Maurice Lambert
+  description: This script analyzes MZ-PE (MS-DOS) executable file.
+  formats:
+    - PE
+  install:
+    - pip: ProgramExecutableAnalyzer
+    - exec: mv $LOC/bin/ProgramExecutableAnalyzer.py $LOC/bin/program-executable-analyzer
+  source: https://github.com/mauricelambert/ProgramExecutableAnalyzer
+  status: ok
+
 TrID:
   author: M. Pontello
   description: TrID is a utility designed to identify file types from their binary signatures. While there are similar utilities with hard coded logic, TrID has no fixed rules. Instead, it's extensible and can be trained to recognize new formats in a fast and automatic way. It has many uses like identifying what kind of file was sent to you via e-mail, aiding in forensic analysis, supporting in file recovery, etc. TrID uses a database of definitions which describe recurring patterns for supported file types.
