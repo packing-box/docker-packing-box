@@ -20,100 +20,106 @@ def _fix_args(f):
 
 def add_argument(parser, *names, **kwargs):
     """ Set a standard argument for the given parser. """
-    _a = parser.add_argument
     params = {k: kwargs[k] for k in ["nargs", "note"] if kwargs.get(k) is not None}
     for name in names:
         if name == "aggregate":
-            _a("-a", "--aggregate", help="pattern to aggregate some of the features together",
-               default="byte_[0-9]+_after_ep")
+            parser.add_argument("-a", "--aggregate", help="pattern to aggregate some of the features together",
+                                default="byte_[0-9]+_after_ep")
         elif name == "alteration":
-            _a("-A", "--alteration", action="extend", nargs="*", type=alteration_identifier,
-               help="alteration identifiers")
+            parser.add_argument("-A", "--alteration", action="extend", nargs="*", type=alteration_identifier,
+                                help="alteration identifiers")
         elif name == "alterations-set":
-            _a("-a", "--alterations-set", metavar="YAML", default=str(config['alterations']), type=file_exists,
-               help="alterations set's YAML definition")
+            parser.add_argument("-a", "--alterations-set", metavar="YAML", default=str(config['alterations']),
+                                type=file_exists, help="alterations set's YAML definition")
         elif name == "binary":
-            _a("-b", "--binary", dest="multiclass", action="store_false",
-               help="process features using binary classification (1:True/0:False/-1:Unlabelled)")
+            parser.add_argument("-b", "--binary", dest="multiclass", action="store_false",
+                                help="process features using binary classification (1:True/0:False/-1:Unlabelled)")
         elif name == "detect":
-            _a("-d", "--detect", action="store_true", help="detect used packer with the superdetector",
-               note="type '?' to see installed detectors that vote as a superdetector")
+            parser.add_argument("-d", "--detect", action="store_true", help="detect used packer with the superdetector",
+                                note="type '?' to see installed detectors that vote as a superdetector")
         elif name == "datasets":
-            _a("-d", "--datasets", action="extend", nargs="*", help="datasets to compare features to", required=True)
+            parser.add_argument("-d", "--datasets", action="extend", nargs="*", help="datasets to compare features to",
+                                required=True)
         elif name == "dsname":
-            _a(kwargs.get('argname', "name"), type=dataset_exists(kwargs.get('force', False)),
-               help=kwargs.get('help', "name of the dataset"), **params)
+            parser.add_argument(kwargs.get('argname', "name"), type=dataset_exists(kwargs.get('force', False)),
+                                help=kwargs.get('help', "name of the dataset"), **params)
         elif name == "dsname2":
-            _a("name2", type=folder_does_not_exist, help="name of the new dataset")
+            parser.add_argument("name2", type=folder_does_not_exist, help="name of the new dataset")
         elif name == "executable":
             if kwargs.get('single', False):
-                _a("executable", help="executable file", **params)
+                parser.add_argument("executable", help="executable file", **params)
             else:
-                _a("executable", help="executable or folder containing executables or dataset or data CSV file",
-                   **params)
+                parser.add_argument("executable", help="executable or folder containing executables or dataset or data"
+                                                       " CSV file", **params)
         elif name == "exeformat":
-            _a("--format", "PE32", type=exe_format, help="executable format to be considered")
+            parser.add_argument("--format", "PE32", type=exe_format, help="executable format to be considered")
         elif name == "feature":
-            _a("feature", action="extend", nargs="*", type=feature_identifier, help="feature identifiers")
+            parser.add_argument("feature", action="extend", nargs="*", type=feature_identifier,
+                                help="feature identifiers")
         elif name == "features-set":
-            _a("-f", "--features-set", metavar="YAML", type=yaml_config, default=str(config['features']),
-               help="features set's YAML definition", **params)
+            parser.add_argument("-f", "--features-set", metavar="YAML", type=yaml_config,
+                                default=str(config['features']), help="features set's YAML definition", **params)
         elif name == "folder":
-            _a("filename", help="binary to be represented ; format is regex")
-            _a("folder", type=folder_exists, help="target folder")
+            parser.add_argument("filename", help="binary to be represented ; format is regex")
+            parser.add_argument("folder", type=folder_exists, help="target folder")
             if kwargs.get('alias', False):
-                _a("-a", "--alias", type=json_config, help="input label alias in JSON format")
+                parser.add_argument("-a", "--alias", type=json_config, help="input label alias in JSON format")
             if kwargs.get('fmt', False):
-                _a("-f", "--format", default="png", choices=IMG_FORMATS, help="image format")
+                parser.add_argument("-f", "--format", default="png", choices=IMG_FORMATS, help="image format")
             if kwargs.get('extended', True):
-                _a("-l", "--label", nargs="*", action="extend", help="select specific label (keeps order)")
-                _a("-m", "--max-not-matching", type=pos_int, help="maximum number of labels not matching")
+                parser.add_argument("-l", "--label", nargs="*", action="extend",
+                                    help="select specific label (keeps order)")
+                parser.add_argument("-m", "--max-not-matching", type=pos_int,
+                                    help="maximum number of labels not matching")
         elif name == "ignore-labels":
-            _a("--ignore-labels", action="store_true",
+            parser.add_argument("--ignore-labels", action="store_true",
                help="while computing metrics, only consider those not requiring labels")
         elif name == "labels":
-            _a("-l", "--labels", type=file_exists, help="set labels from a JSON file or a CSV data file")
+            parser.add_argument("-l", "--labels", type=file_exists,
+                                help="set labels from a JSON file or a CSV data file")
         elif name == "max-features":
-            _a("-n", "--max-features", default=0, type=pos_int,
+            parser.add_argument("-n", "--max-features", default=0, type=pos_int,
                help=f"plot n features with {kwargs['max_feats_with']}", note="0 means no limit")
         elif name == "mdname":
             a = ("-n", "--name", ) if kwargs.get('optional', False) else ("name", )
             kw = {'type': model_exists(kwargs.get('force', False)), 'help': kwargs.get('help', "name of the model")}
-            _a(*a, **kw)
+            parser.add_argument(*a, **kw)
         elif name == "mi-select":
-            _a("-M", "--mi-select", action="store_true", help="apply mutual information feature selection")
+            parser.add_argument("-M", "--mi-select", action="store_true",
+                                help="apply mutual information feature selection")
         elif name == "mi-kbest":
-            _a("-k", "--mi-kbest", type=pos_float, default=0.7,
-               help="threshold for mutual information feature selection",
-               note="if mi_kbest >= 1, the mi_kbest features with highest MI will be kept ; if within (0.0, 1.0), the "
-                    "mi_kbest percent of features will be kept")
+            parser.add_argument("-k", "--mi-kbest", type=pos_float, default=0.7,
+                                help="threshold for mutual information feature selection",
+                                note="if mi_kbest >= 1, the mi_kbest features with highest MI will be kept ; if within"
+                                     " (0.0, 1.0), the mi_kbest percent of features will be kept")
         elif name == "multiclass":
-            _a("-m", "--multiclass", action="store_true", help="process features using true labels",
+            parser.add_argument("-m", "--multiclass", action="store_true", help="process features using true labels",
                                 note="if False, means binary classification (1:True/0:False/-1:Unlabelled)")
         elif name == "n-jobs":
-            _a("--n-jobs", type=lambda x: pos_int(x, False), help="number of parallel jobs")
+            parser.add_argument("--n-jobs", type=lambda x: pos_int(x, False), help="number of parallel jobs")
         elif name == "number":
-            _a("-n", "--number", dest=kwargs.get('dest', "limit"), type=pos_int, default=0,
-               help="limit number of executables for the output dataset", note="0 means all")
+            parser.add_argument("-n", "--number", dest=kwargs.get('dest', "limit"), type=pos_int, default=0,
+                                help="limit number of executables for the output dataset", note="0 means all")
         elif name == "ncomponents":
-            _a("-n", "--n-components", metavar="N", default=20, type=int,
-               help="number of components for dimensionality reduction")
+            parser.add_argument("-n", "--n-components", metavar="N", default=20, type=int,
+                                help="number of components for dimensionality reduction")
         elif name == "perplexity":
-            _a("-p", "--perplexity", metavar="P", default=30, type=int,
-               help="t-SNE perplexity for dimensionality reduction")
+            parser.add_argument("-p", "--perplexity", metavar="P", default=30, type=int,
+                                help="t-SNE perplexity for dimensionality reduction")
         elif name == "query":
-            _a("-q", "--query", default=kwargs.get('default', "all"), help="query for filtering records to be selected",
-               note="see <https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.query.html>")
+            parser.add_argument("-q", "--query", default=kwargs.get('default', "all"),
+                                help="query for filtering records to be selected",
+                                note="see <https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.query.html>")
         elif name == "reduction-algorithm":
-            _a("-a", "--reduction-algorithm", metavar="ALGO", default="PCA", choices=("ICA", "PCA"),
-               help="dimensionality reduction algorithm")
+            parser.add_argument("-a", "--reduction-algorithm", metavar="ALGO", default="PCA", choices=("ICA", "PCA"),
+                                help="dimensionality reduction algorithm")
         elif name == "title":
-            _a("-t", "--title", help="title for the figure", note="if not specified, it is generated")
+            parser.add_argument("-t", "--title", help="title for the figure", note="if not specified, it is generated")
         elif name == "true-class":
-            _a("-T", "--true-class", metavar="CLASS", help="class to be considered as True")
+            parser.add_argument("-T", "--true-class", metavar="CLASS", help="class to be considered as True")
         elif name == "xpname":
-            _a("name", type=experiment_exists(kwargs.get('force', False)),
-               help=kwargs.get('help', "name of the experiment"), **params)
+            parser.add_argument("name", type=experiment_exists(kwargs.get('force', False)),
+                                help=kwargs.get('help', "name of the experiment"), **params)
         else:
             raise ValueError(f"Argument '{name}' not defined")
     return parser
