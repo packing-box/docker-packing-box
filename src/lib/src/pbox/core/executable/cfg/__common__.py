@@ -218,7 +218,7 @@ class CFG(GetItemMixin, ResetCachedPropertiesMixin):
     def malicious_used_apis(self):
         return self.used_apis & self.__filter(_COMMON_MALICIOUS_APIS)
     
-    @functools.lru_cache
+    @cached_result
     def ngram_histogram(self, n, across_nodes=True, all_subgraphs=False):
         """ Gets a sorted histogram of ngrams. """
         return _sorted_hist([b''.join(map(lambda x: _sha1(x)[:1], ng)) if isinstance(ng, tuple) else ng for ng in \

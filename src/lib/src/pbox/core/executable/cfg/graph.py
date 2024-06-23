@@ -1,6 +1,5 @@
 # -*- coding: UTF-8 -*-
 import networkx.classes.graph as ncg
-from tinyscript import functools
 from tinyscript.helpers import zeropad
 
 from ....helpers.figure import plt
@@ -92,7 +91,7 @@ def num_neighbors(self, node=None):
 ncg.Graph.num_neighbors = num_neighbors
 
 
-@functools.lru_cache
+@cached_result
 def ngrams(self, n, length=None, across_nodes=True):
     """ Gets a list of ngrams. """
     #FIXME: in some cases, not enough ngrams to reach 'length' => shall pad with '-1'
@@ -138,7 +137,7 @@ def ngrams(self, n, length=None, across_nodes=True):
 ncg.Graph.ngrams = ngrams
 
 
-@functools.lru_cache
+@cached_result
 def signature(self, length, exact=True):
     set_depth(self)
     signature, queue, visited = [], [self.root_node], set()

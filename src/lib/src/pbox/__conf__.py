@@ -1,6 +1,6 @@
 # -*- coding: UTF-8 -*-
 import builtins as bi
-from functools import cached_property
+from functools import cached_property, lru_cache
 from tinyscript import hashlib, logging
 from tinyscript.helpers import classproperty, positive_int, set_exception, slugify, Path
 from warnings import filterwarnings, simplefilter
@@ -17,6 +17,7 @@ simplefilter("ignore", ResourceWarning)
 
 
 bi.cached_property = cached_property
+bi.cached_result = lru_cache
 bi.classproperty = classproperty
 bi.configure_logging = configure_logging
 bi.null_logger = logging.nullLogger

@@ -1,7 +1,7 @@
 # -*- coding: UTF-8 -*-
 from abc import ABC, abstractmethod
 from tinyscript import functools
-from tinyscript.helpers import ensure_str, execute, is_generator
+from tinyscript.helpers import ensure_str, execute, is_generator, zeropad
 
 from ....helpers.data import get_data
 from ....helpers.mixins import *
@@ -60,16 +60,19 @@ class AbstractParsedExecutable(ABC, CustomReprMixin, GetItemMixin):
             t += w
         return r / (t or 1)
     
-    def sections_average_entropy(self, *sections):
-        e = [s.entropy for s in (sections or self)]
-        return sum(e) / len(e)
-    
     def block_entropy(self, blocksize=256, ignore_half_block_zeros=False, ignore_half_block_same_byte=True):
         return bintropy.entropy(_rb(self.code), blocksize, ignore_half_block_zeros, ignore_half_block_same_byte)
     
     def block_entropy_per_section(self, blocksize=256, ignore_half_block_zeros=True, ignore_half_block_same_byte=True):
         return {getattr(s, "real_name", s.name): s.block_entropy(blocksize, ignore_half_block_zeros,
                                                                  ignore_half_block_same_byte) for s in self}
+    
+    @cached_result
+    def bytes_after_entrypoint(self, n):
+        r = self.entrypoint_section.content[:n]
+        if isinstance(r, memoryview):
+            r = r.tobytes()
+        return zeropad(n)([_ for _ in r[:n]])
     
     def modify(self, modifier, **kw):
         modifier(self.parsed, **kw)
@@ -108,6 +111,10 @@ class AbstractParsedExecutable(ABC, CustomReprMixin, GetItemMixin):
     def section_names(self, *sections):
         sections = sections[0] if len(sections) == 1 and isinstance(sections, (list, tuple)) else sections
         return [s.name for s in (sections or self)]
+    
+    def sections_average_entropy(self, *sections):
+        e = [s.entropy for s in (sections or self)]
+        return sum(e) / len(e)
     
     @property
     def _section_class(self):

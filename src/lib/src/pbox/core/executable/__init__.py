@@ -1,7 +1,7 @@
 # -*- coding: UTF-8 -*-
 from contextlib import suppress
 from datetime import datetime
-from tinyscript import functools, hashlib, os, re, shutil
+from tinyscript import hashlib, os, re, shutil
 from tinyscript.helpers import human_readable_size, Path, TempPath
 from tinyscript.report import *
 
@@ -133,7 +133,7 @@ class Executable(Path):
         Alterations(self, alterations or None)
         self._reset()
     
-    @functools.lru_cache
+    @cached_result
     def block_entropy(self, blocksize=0, ignore_half_block_zeros=False, ignore_half_block_same_byte=True):
         return bintropy.entropy(self.read_bytes(), blocksize, ignore_half_block_zeros, ignore_half_block_same_byte)
     
