@@ -1,0 +1,43 @@
+#!/usr/bin/python3
+# -*- coding: UTF-8 -*-
+from pbox import *
+from tinyscript import *
+
+
+__script__       = "Feature manipulation tool"
+__version__      = "1.0.0"
+__contributors__ = [
+    {'author': "Alex Van Mechelen", 'reason': "largely contributed to advanced feature engineering and proposed the "
+                                              "creation of this tool"},
+]
+__doc__         = """
+This tool aims to manipulate a feature set in many ways including its creation, update, selection, merging or export.
+"""
+__description__ = "Manipulate feature sets for use with Machine Learning"
+__examples__    = [
+    "show custom-features.yml",
+]
+
+
+if __name__ == '__main__':
+    sparsers = parser.add_subparsers(dest="command", metavar="CMD", title="positional argument",
+                                 help="command to be executed")
+    add_argument(sparsers.add_parser("browse", help="browse features set's metadata"), "features-set", "exeformat")
+    # compute
+    export = sparsers.add_parser("export", help="export feature definitions to a given format")
+    add_argument(export, "features-set", "exeformat")
+    # merge
+    # plot
+    # remove
+    # select
+    add_argument(sparsers.add_parser("show", help="show statistics about the target features set"), "features-set")
+    # update
+    initialize(noargs_action="usage")
+    configure_logging(args.verbose)
+    set_yaml(args)
+    # compute features registry
+    Features()
+    # now execute
+    Features.source = args.features_set
+    getattr(Features, args.command)(**vars(args))
+

@@ -3,8 +3,9 @@ import builtins as bi
 from collections import deque
 from tinyscript import itertools, logging, re
 from tinyscript.helpers import is_generator as is_gen, Path
+from tinyscript.report import *
 
-from ...helpers import dict2, expand_formats, get_data, load_yaml_config, MetaBase
+from ...helpers import dict2, expand_formats, get_data, load_yaml_config, pd, render, MetaBase
 
 lazy_load_module("yaml")
 
@@ -13,6 +14,11 @@ __all__ = ["Features"]
 
 
 class Feature(dict2):
+    def __init__(self, *args, **kwargs):
+        super(Feature, self).__init__(*args, **kwargs)
+        self['boolean'] = any(self['name'].startswith(p) for p in ["is_", "has_"])
+        self.setdefault('keep', True)
+    
     def __call__(self, data, *args, **kwargs):
         self._exe = data.get('executable')
         try:
@@ -21,17 +27,8 @@ class Feature(dict2):
             return                 #  in this case, feature's value is undefined
     
     @cached_property
-    def boolean(self):
-        return any(self.name.startswith(p) for p in ["is_", "has_"])
-    
-    @cached_property
     def dependencies(self):
-        return list(set([x for x in re.split(r"[\s\.\,\-\+\[\]\(\)]", self.result or "") if x in Features]))
-    
-    # default value on purpose not set via self.setdefault(...)
-    @cached_property
-    def keep(self):
-        return self.get('keep', True)
+        return list(set(x for x in re.split(r"[\s\.\,\-\+\[\]\(\)]", self.result or "") if x in Features))
     
     # 'parser' parameter in the YAML config has precedence on the globally configured parser
     @cached_property
@@ -185,6 +182,37 @@ class Features(dict, metaclass=MetaBase):
             except ValueError:
                 pass
         return value
+    
+    @classmethod
+    def show(cls, **kw):
+        """ Show an overview of the features. """
+        from ...helpers.utils import pd
+        keys, ud = {'category': "category", 'ptime': "processing time", 'tcomplexity': "time complexity"}, "<undefined>"
+        for k in keys.keys():
+            descr = keys[k]
+            cls.logger.debug(f"computing features overview per {k}...")
+            formats = list(Features.registry.keys())
+            # collect values
+            values = []
+            for fmt in formats:
+                reg = pd.DataFrame.from_dict(Features.registry[fmt], orient="index")
+                try:
+                    for v in getattr(reg, k).unique():
+                        if v not in values:
+                            values.append(v)
+                except AttributeError:  # no value defined for this key
+                    continue
+            if len(values) == 0:
+                values = {ud}
+            # now collect counts
+            counts = {}
+            for fmt in formats:
+                reg = pd.DataFrame.from_dict(Features.registry[fmt], orient="index")
+                for val in values:
+                    counts.setdefault(val, [])
+                    counts[val].append(len(reg if val == ud else reg.query(f"{k} == '{val}'")))
+            render(Section(f"Counts per {descr}"), Table([[c] + v for c, v in counts.items()],
+                                                         column_headers=[descr.title()] + formats))
     
     @staticmethod
     def names(format="All"):
