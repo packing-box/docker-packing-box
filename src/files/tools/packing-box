@@ -35,7 +35,7 @@ def _set_subparsers(parent, *items):
         p = sparsers.add_parser(i)
         if i in ["alterations", "features"]:
             if parent._name == "test":
-                p.add_argument("-c", "--config", metavar="YAML", default=str(config[i]), type=yaml_file,
+                p.add_argument("-c", "--config", metavar="YAML", default=str(config[i]), type=yaml_config,
                                help="%s set's YAML definition" % i)
         else:
             p.add_argument(i, default=[], action="extend", nargs="*", help="specific %s to %s" % (i, parent._name))

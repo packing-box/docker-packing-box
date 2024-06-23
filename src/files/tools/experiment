@@ -53,7 +53,7 @@ if __name__ == '__main__':
         imp = sparsers.add_parser("import", help="import a YAML configuration, data or script into the experiment")
         icmds = imp.add_subparsers(dest="subcommand", help="command to be executed")
         icmd_conf = icmds.add_parser("config", help="import a YAML configuration file")
-        icmd_conf.add_argument("path", type=yaml_file, metavar="YAML",
+        icmd_conf.add_argument("path", type=yaml_config, metavar="YAML",
                                help="import the target YAML configuration file(s) within the experiment")
         icmd_data = icmds.add_parser("data", help="import a data file")
         icmd_data.add_argument("path", type=ts.file_exists, metavar="DATA",
@@ -69,7 +69,7 @@ if __name__ == '__main__':
         rem = sparsers.add_parser("remove", help="remove a YAML configuration, data or script from the experiment")
         rcmds = rem.add_subparsers(dest="subcommand", help="command to be executed")
         rcmd_conf = rcmds.add_parser("config", help="remove a YAML configuration file")
-        rcmd_conf.add_argument("path", type=yaml_file, metavar="YAML",
+        rcmd_conf.add_argument("path", type=yaml_config, metavar="YAML",
                                help="remove the target YAML configuration file(s) from the experiment")
         rcmd_data = rcmds.add_parser("data", help="remove a data file")
         rcmd_data.add_argument("path", type=ts.file_exists, metavar="DATA",
