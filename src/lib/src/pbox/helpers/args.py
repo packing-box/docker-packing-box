@@ -52,7 +52,7 @@ def add_argument(parser, *names, **kwargs):
                 parser.add_argument("executable", help="executable or folder containing executables or dataset or data"
                                                        " CSV file", **params)
         elif name == "exeformat":
-            parser.add_argument("--format", "PE32", type=exe_format, help="executable format to be considered")
+            parser.add_argument("--format", default="PE32", type=exe_format, help="executable format to be considered")
         elif name == "feature":
             parser.add_argument("feature", action="extend", nargs="*", type=feature_identifier,
                                 help="feature identifiers")
