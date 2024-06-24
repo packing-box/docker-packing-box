@@ -224,7 +224,8 @@ class Executable(Path):
                 if i == 0:
                     h.extend(["Entropy", "Block entropy (256B)"])
                 row.append(f"{sec.entropy:.5f}" if sec.size > 0 else "-")
-                row.append("-" if sec.size == 0 or sec.block_entropy(256) is None else f"{sec.block_entropy(256):.5f}")
+                sbe = sec.block_entropy(256)[1]
+                row.append("-" if sec.size == 0 or sbe is None else f"{sbe:.5f}")
                 if i == 0:
                     h.append("Standard")
                 row.append(f"{'NY'[sec.is_standard]}")
