@@ -30,8 +30,8 @@ valid_names = lambda nl: list(filter(lambda n: len(n) <= 8, map(lambda x: x if i
 
 
 # ------------------------------------------------- Modifiers ----------------------------------------------------------
-    """ Add a function to the IAT. If no function from this library is imported in the binary yet, the library is added
 def add_API_to_IAT(*args):
+    """ Add a function to the IAT. If no function from this library is imported in the binary yet, the library is added
          to the binary.
     
     :param args: either (library, api) or ((library, api), )
