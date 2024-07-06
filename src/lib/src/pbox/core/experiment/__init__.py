@@ -247,7 +247,7 @@ def __init():
             for f in self.path.joinpath("conf").listdir():
                 if f.extension != ".yml":
                     continue
-                lst_func = lambda r, s: utils.list_configfile_keys(f, r, s) if f.stem.startswith("alteration") else \
+                lst_func = (lambda r, s: utils.list_configfile_keys(f, r, s)) if f.stem.startswith("alteration") else \
                            getattr(utils, f'list_all_{f.stem}', lambda r, s: utils.list_configfile_keys(f, r, s))
                 cfg.append([f.stem, "\n".join(wrap(", ".join(lst_func(True, not f.stem.startswith("alteration")))))])
             if len(cfg) > 0:
