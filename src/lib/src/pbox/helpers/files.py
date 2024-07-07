@@ -53,7 +53,7 @@ class Locator(Path):
                 raise NotAnExperimentError("This scheme can only be used in the context of an experiment")
         else:
             raise BadSchemeError(f"'{scheme}' is not a valid scheme")
-        if p.exists():
+        if p.exists() or kwargs.get('new', False):
             return p
         raise FileNotFoundError(f"[Errno 2] No such {scheme}: '{path}'")
 

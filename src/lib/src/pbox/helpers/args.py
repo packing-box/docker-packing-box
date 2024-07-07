@@ -53,6 +53,9 @@ def add_argument(parser, *names, **kwargs):
                                                        " CSV file", **params)
         elif name == "exeformat":
             parser.add_argument("--format", default="PE32", type=exe_format, help="executable format to be considered")
+        elif name == "expformat":
+            parser.add_argument("--export", default="csv", choices=EXPORT_FORMATS.keys(),
+                                help="file format the data should be exported to")
         elif name == "feature":
             parser.add_argument("feature", action="extend", nargs="*", type=feature_identifier,
                                 help="feature identifiers")
@@ -65,7 +68,7 @@ def add_argument(parser, *names, **kwargs):
             if kwargs.get('alias', False):
                 parser.add_argument("-a", "--alias", type=json_config, help="input label alias in JSON format")
             if kwargs.get('fmt', False):
-                parser.add_argument("-f", "--format", default="png", choices=IMG_FORMATS, help="image format")
+                parser.add_argument("-f", "--img-format", default="png", choices=IMG_FORMATS, help="image format")
             if kwargs.get('extended', True):
                 parser.add_argument("-l", "--label", nargs="*", action="extend",
                                     help="select specific label (keeps order)")

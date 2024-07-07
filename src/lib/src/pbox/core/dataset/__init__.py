@@ -461,6 +461,12 @@ class Dataset(Entity):
                         self[exe] = (Detector.detect(exe), True)
         self._save()
     
+    def get(self, query=None, **kw):
+        """ Get samples as Executable instances from the current dataset based on the given query. """
+        self.logger.debug(f"getting samples from {self.basename} based on query '{query}'...")
+        for e in filter_data_iter(self._data, query, logger=self.logger, target=self.basename):
+            yield Executable(dataset=self, hash=e.hash)
+    
     def ingest(self, folder, rename_func=slugify, min_samples=0, max_samples=0, merge=False, prefix="", exclude=None,
                overwrite=None, **kw):
         """ Ingest every subfolder of a target folder to make it a dataset provided a dictionary of labels. """
@@ -1020,7 +1026,7 @@ class Dataset(Entity):
                 if fmt == "All":
                     break
         r.append(Rule())
-        r.append(Text("**Sources**:\n\n%s" % "\n".join(f"[{i}] {s}" for i, s in enumerate(src))))
+        r.append(Text("**Sources**:\n\n%s" % "\n".join(f"{i}. {s}" for i, s in enumerate(src))))
         # display files if any
         if len(data2) > 0:
             r.append(Section("Executables' metadata and labels"))
