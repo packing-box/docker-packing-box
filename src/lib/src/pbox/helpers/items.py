@@ -2,11 +2,13 @@
 import builtins
 from tinyscript import inspect, logging, random, re, string
 from tinyscript.helpers import get_terminal_size, is_file, is_folder, is_generator, is_iterable, reduce, \
-                               set_exception, zeropad
+                               set_exception, txt_terminal_render, zeropad
 from tinyscript.helpers.expressions import WL_NODES
 from tinyscript.helpers.path import Path, TempPath
 
+from .files import Locator
 from .formats import format_shortname
+from .utils import pd
 
 lazy_load_module("yaml")
 set_exception("NotInstantiable", "TypeError")
@@ -14,6 +16,7 @@ set_exception("NotInstantiable", "TypeError")
 
 __all__ = ["dict2", "load_yaml_config", "Item", "MetaBase", "MetaItem"]
 
+_EMPTY_DICT = {}
 _EVAL_NAMESPACE = {k: getattr(builtins, k) for k in ["abs", "all", "any", "divmod", "float", "hash", "hex", "id", "int",
                                                      "list", "min", "next", "oct", "ord", "pow", "range", "range2",
                                                      "round", "set", "str", "sum", "tuple", "type"]}
@@ -64,7 +67,7 @@ def _select(apply_func=None):
 
 class dict2(dict):
     """ Simple extension of dict for defining callable items. """
-    def __init__(self, idict, **kwargs):
+    def __init__(self, idict=_EMPTY_DICT, **kwargs):
         self.setdefault("name", UNDEF_RESULT)
         self.setdefault("description", "")
         self.setdefault("result", self['name'])
@@ -126,7 +129,7 @@ class MetaBase(type):
     """ This metaclass allows to iterate names over the class-bound registry of the underlying abstraction.
          It also adds a class-level 'source' attribute that can be used to reset the registry. """
     def __iter__(self):
-        self(None)  # trigger registry's lazy initialization
+        self()  # trigger registry's lazy initialization
         temp = []
         for base in self.registry.values():
             for name in base.keys():
@@ -134,27 +137,76 @@ class MetaBase(type):
                     yield name
                     temp.append(name)
     
-    @property
-    def logger(self):
-        if not hasattr(self, "_logger"):
-            n = self.__name__.lower()
-            self._logger = logging.getLogger(n)
-            logging.setLogger(n)
-        return self._logger
+    def _read(self, cfg=None):
+        """ Read the source YAML configuratino file and return a dictionary. """
+        d = {k: v for k, v in load_yaml_config(Locator(f"conf://{cfg or self.__name__.lower()}"))}
+        return d, d
     
-    @property
-    def source(self):
-        if not hasattr(self, "_source"):
-            self.source = None  # use the default source from 'config'
-        return self._source
+    def _select(self, cfg=None, query=None, raw=False, **kw):
+        """ Select a subset based on a Pandas query and return it as a dictionary. """
+        l = self.logger
+        d1, d2 = self._read(cfg)
+        df = pd.DataFrame.from_dict(d2, orient="index")
+        if query is not None and query.lower() != "all":
+            try:
+                df = df.query(query)
+            except SyntaxError as e:
+                l.error(f"Bad Pandas query expression: {e}")
+                l.warning("No entry filtered")
+            except Exception as e:
+                if Path(inspect.getfile(e.__class__)).dirname.parts[-2:] == ('pandas', 'errors') or \
+                   isinstance(e, TypeError):
+                    l.error(f"Bad Pandas query expression: {e}")
+                    l.warning("No entry filtered")
+                else:
+                    raise
+        d = {k: v for k, v in d1.items() if k in df.index}
+        # collect values
+        attrs = {}
+        for k, v in d.items():
+            for attr, val in v.items():
+                attrs.setdefault(attr, [])
+                if val not in attrs[attr]:
+                    attrs[attr].append(val)
+        # compute defaults
+        defaults = {}
+        for attr, vals in attrs.items():
+            if len(vals) == 1:
+                val = vals[0]
+                if sum(1 for v in d.values() if val in v.values()) == len(d):
+                    defaults[attr] = val
+                    for v in d.values():
+                        v.pop(attr, None)
+        if not raw:
+            return defaults, d
+        from yaml import dump
+        return (dump({'defaults': defaults}).rstrip() + "\n\n" if len(defaults) > 0 else "") + dump(d).rstrip()
     
-    @source.setter
-    def source(self, path):
-        p = Path(str(path or config[self.__name__.lower()]), expand=True)
-        if hasattr(self, "_source") and self._source == p:
+    def export(self, output="output.csv", query=None, fields=None, **kw):
+        """ Export items from the registry based on the given executable format, filtered with the given query, with
+             only the selected fields, to the given output format. """
+        ext, reg = Path(output).extension[1:], self.registry[format]
+        df = pd.DataFrame.from_dict(reg, orient="index")
+        if fields:
+            df = df[fields]
+        if query:
+            df = df.query(query)
+        df = df[df.name.isin(df.index)].drop(columns=["name"]).rename_axis("name")
+        getattr(df, f"to_{EXPORT_FORMATS.get(ext, ext)}")(output)
+
+    def inspect(self, config_file=None, query=None, **kw):
+        """ Inspect the selected features based on a Pandas query. """
+        print(txt_terminal_render(self._select(config_file, query=query, raw=True, **kw), pad=(1, 2), syntax="yaml"))
+    
+    def select(self, destination=None, config_file=None, query=None, **kw):
+        """ Select a subset based on a Pandas query. """
+        dst = Locator(f"conf://{destination or self.__name__.lower()}", new=True)
+        src = Locator(f"conf://{config_file or self.__name__.lower()}")
+        if dst.is_samepath(src):
+            self.logger.warning("Destination is identical to source ; aborting...")
             return
-        self._source = p
-        self.registry = None  # reset the registry
+        with dst.open('wt') as f:
+            f.write(self._select(src, query=query, raw=True, **kw))
     
     def test(self, files=None, keep=False, **kw):
         """ Tests on some executable files. """
@@ -190,6 +242,28 @@ class MetaBase(type):
         if not keep:
             self.logger.debug(f"rm -f {d}")
             d.remove()
+    
+    @property
+    def logger(self):
+        if not hasattr(self, "_logger"):
+            n = self.__name__.lower()
+            self._logger = logging.getLogger(n)
+            logging.setLogger(n)
+        return self._logger
+    
+    @property
+    def source(self):
+        if not hasattr(self, "_source"):
+            self.source = None  # use the default source from 'config'
+        return self._source
+    
+    @source.setter
+    def source(self, path):
+        p = Path(str(path or config[self.__name__.lower()]), expand=True)
+        if hasattr(self, "_source") and self._source == p:
+            return
+        self._source = p
+        self.registry = None  # reset the registry
 
 
 def _apply(f):
@@ -470,4 +544,9 @@ def load_yaml_config(cfg, no_defaults=(), parse_defaults=True, test_only=False):
     # collect properties that are applicable for all the other features
     for name, params in _set(d).items():
         yield name, params
+
+
+def save_yaml_config(obj, cfg):
+    """ Save a YAM configuration. """
+    #TODO
 
