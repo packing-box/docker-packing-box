@@ -6,7 +6,7 @@ from tinyscript.report import *
 
 
 __banner__      = "packing-box"
-__version__     = "1.2.1"
+__version__     = "1.2.2"
 __description__ = "Display this help message or packer's help"
 
 
@@ -91,18 +91,18 @@ if __name__ == '__main__':
                 render(subcls.help())
                 if args.yaml:
                     print("")
-                    yaml, in_block = "\n", False
+                    yaml, in_block = "", False
                     with open(cls.source) as f:
                         for l in f:
                             if l.split(":")[0] == subcls.cname:
                                 in_block = True
                             elif in_block and l.strip() == "":
                                 break
+                            if l.strip() == "":
+                                in_block = False
                             if in_block:
-                                yaml += 2 * " " + l
-                    from rich.console import Console
-                    from rich.syntax import Syntax
-                    Console().print(Syntax(yaml, "yaml"))
+                                yaml += l
+                    print(ts.txt_terminal_render(yaml.rstrip(), syntax="yaml", pad=(1, 2)))
                 break
         if subcls is None:
             logger.error("%s not found" % args.item)
