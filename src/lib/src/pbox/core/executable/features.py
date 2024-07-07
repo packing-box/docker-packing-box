@@ -51,62 +51,7 @@ class Features(dict, metaclass=MetaBase):
     
     def __init__(self, exe=None):
         ft, l = Features, self.__class__.logger
-        # parse YAML features definition once
-        if ft.registry is None:
-            src = ft.source  # WARNING! this line must appear BEFORE ft.registry={} because the first time that the
-                             #           source attribute is called, it is initialized and the registry is reset to None
-            l.debug(f"loading features from {src}...")
-            ft.registry = {}
-            # important note: the 'keep' parameter is not considered here as some features may be required for computing
-            #                  others but not kept in the final data, hence required in the registry yet
-            flist = [f for l in [["All"], [f for f in FORMATS.keys() if f != "All"], expand_formats("All")] for f in l]
-            for name, params in load_yaml_config(src):
-                r, values = params.pop('result', {}), params.pop('values', [])
-                # allow to use 'result: ...' instead of 'result:\n  All: ...' to save space
-                if not isinstance(r, dict):
-                    r = {'All': r}
-                # allow to use expressions in the 'values' field
-                if isinstance(values, str):
-                    values = list(dict2({'result': values})({'get_data': get_data}))
-                # consider features for most specific formats first, then intermediate format classes and finally the
-                #  collapsed format class "All"
-                for fmt in flist:
-                    expr = r.get(fmt)
-                    if expr is not None:
-                        if len(values) > 0:
-                            if not all(isinstance(x, (list, set, tuple, range, range2)) or is_gen(x) for x in values):
-                                values = [values]
-                            f = []
-                            for val in itertools.product(*values):
-                                p = {k: v for k, v in params.items()}
-                                val = val[0] if isinstance(val, tuple) and len(val) == 1 else val
-                                try:
-                                    e = expr % val
-                                except Exception as e:
-                                    l.error(f"expression: {expr}")
-                                    l.error(f"value:      {val}")
-                                    raise
-                                try:
-                                    n = name % (val.lower() if isinstance(val, str) else val)
-                                except TypeError:
-                                    l.error(f"name:  {name}")
-                                    l.error(f"value: {val}")
-                                    raise
-                                d = p['description']
-                                try:
-                                    p['description'] = d % val
-                                except TypeError:
-                                    l.error(f"description: {name}")
-                                    l.error(f"value:       {val}")
-                                    raise
-                                f.append(Feature(p, name=n, result=e, logger=l))
-                        else:
-                            f = [Feature(params, name=name, result=expr, logger=l)]
-                        for feat in f:
-                            for subfmt in expand_formats(fmt):
-                                ft.registry.setdefault(subfmt, {})
-                                ft.registry[subfmt][feat.name] = feat
-            l.debug(f"{len(Features.names())} features loaded")
+        ft._load()
         if exe is not None and exe.format in ft.registry:
             from .extractors import Extractors
             self._rawdata = Extractors(exe)
@@ -182,6 +127,83 @@ class Features(dict, metaclass=MetaBase):
             except ValueError:
                 pass
         return value
+    
+    @classmethod
+    def _load(cls, warn=False):
+        """ Load the registry of features, that is, the Feature instances sorted per executable format. """
+        ft, l = Features, cls.logger
+        # parse YAML features definition once
+        if ft.registry is None:
+            src = ft.source  # WARNING! this line must appear BEFORE ft.registry={} because the first time that the
+                             #           source attribute is called, it is initialized and the registry is reset to None
+            l.debug(f"loading features from {src}...")
+            ft.registry = {}
+            # important note: the 'keep' parameter is not considered here as some features may be required for computing
+            #                  others but not kept in the final data, hence required in the registry yet
+            flist = [f for l in [["All"], [f for f in FORMATS.keys() if f != "All"], expand_formats("All")] for f in l]
+            for name, params in load_yaml_config(src):
+                r, values = params.pop('result', {}), params.pop('values', [])
+                # allow to use 'result: ...' instead of 'result:\n  All: ...' to save space
+                if not isinstance(r, dict):
+                    r = {'All': r}
+                # allow to use expressions in the 'values' field
+                if isinstance(values, str):
+                    values = list(dict2({'result': values})({'get_data': get_data}))
+                # consider features for most specific formats first, then intermediate format classes and finally the
+                #  collapsed format class "All"
+                for fmt in flist:
+                    expr = r.get(fmt)
+                    if expr is not None:
+                        if len(values) > 0:
+                            if not all(isinstance(x, (list, set, tuple, range, range2)) or is_gen(x) for x in values):
+                                values = [values]
+                            f = []
+                            for val in itertools.product(*values):
+                                p = {k: v for k, v in params.items()}
+                                val = val[0] if isinstance(val, tuple) and len(val) == 1 else val
+                                try:
+                                    e = expr % val
+                                except Exception as e:
+                                    l.error(f"expression: {expr}")
+                                    l.error(f"value:      {val}")
+                                    raise
+                                try:
+                                    n = name % (val.lower() if isinstance(val, str) else val)
+                                except TypeError:
+                                    l.error(f"name:  {name}")
+                                    l.error(f"value: {val}")
+                                    raise
+                                d = p['description']
+                                try:
+                                    p['description'] = d % val
+                                except TypeError:
+                                    l.error(f"description: {name}")
+                                    l.error(f"value:       {val}")
+                                    raise
+                                f.append(Feature(p, name=n, result=e, logger=l))
+                        else:
+                            f = [Feature(params, name=name, result=expr, logger=l)]
+                        for feat in f:
+                            for subfmt in expand_formats(fmt):
+                                ft.registry.setdefault(subfmt, {})
+                                ft.registry[subfmt][feat.name] = feat
+            l.debug(f"{len(Features.names())} features loaded")
+        elif warn:
+            l.warning(f"Features already loaded")
+    
+    @classmethod
+    def _read(cls, config_file=None):
+        """ Read the source YAML configuration file and refine it. """
+        from copy import deepcopy
+        if config_file is not None:
+            config_file = Path(config_file)
+        d1 = {k: v for k, v in load_yaml_config(config_file or self.__name__.lower())}
+        d2 = deepcopy(d1)
+        for name, attrs in d2.items():
+            attrs['boolean'] = any(name.startswith(p) for p in ["is_", "has_"])
+            attrs.setdefault('keep', True)
+            attrs.setdefault('significant', False)
+        return d1, d2  # (original_dict, refined_dict)
     
     @classmethod
     def show(cls, **kw):
