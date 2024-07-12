@@ -2,6 +2,7 @@
 from tinyscript import functools, inspect, re
 from tinyscript.helpers.data.types import *
 
+from .files import Locator
 from .formats import expand_formats
 
 
@@ -269,11 +270,11 @@ def set_yaml(namespace):
         if k.endswith("_set"):
             name = k[:-4].capitalize()
             if name in glob:  # e.g. Features
-                setattr(glob[name], "source", v)
+                setattr(glob[name], "source", Locator(f"conf://{v}"))
             else:
                 name = name[:-1]  # strip 's' at the end ; e.g. Algorithms => Algorithm
                 if name in glob:
-                    setattr(glob[name], "source", v)
+                    setattr(glob[name], "source", Locator(f"conf://{v}"))
                 else:
                     glob['logger'].warning(f"Could not find a class matching '{k}'")
 
