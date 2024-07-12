@@ -167,16 +167,23 @@ class Dataset(Entity):
         """ Convenience function for computing the self._data pandas.DataFrame containing the feature values. """
         if self._files:
             self.logger.info("Computing features...")
-            from multiprocessing import Pool
-            with Pool(processes=n_jobs or config['number_jobs']) as pool:
-                with progress_bar(target=self.basename) as p:
-                    for basename, features in p.track(pool.imap_unordered(self._compute_features_worker, self),
-                                                      total=len(self)):
-                        self[basename] = (features, True)  # True: force updating the row
+            with progress_bar(target=self.basename) as p:
+                for exe in p.track(self):
+                    self[exe] = (self._compute_features(exe), True)
+            #from multiprocessing import Pool
+            #with Pool(processes=n_jobs or config['number_jobs']) as pool, progress_bar(target=self.basename) as p:
+            #    task = p.add_task("", total=len(self))
+            #    for basename, features in pool.imap_unordered(self._compute_features_worker, [e for e in self]):
+            #        if features is None:
+            #            self.logger.warning(f"Failed to process {basename}")
+            #            continue
+            #        self[basename] = (features, True)  # True: force updating the row
+            #        p.update(task, advance=1.)
     
     def _compute_features(self, exe):
         """ Compute the features for a single Executable instance. """
-        exe = Executable(hash=exe.basename, dataset=self)
+        if not isinstance(exe, Executable):
+            exe = Executable(hash=exe.basename, dataset=self)
         d = self[exe.basename, True]  # retrieve executable's record as a dictionary
         try:
             d.update(exe.data)  # be sure to include the features
@@ -190,8 +197,11 @@ class Dataset(Entity):
             self._features.update(exe.features)
         return d
     
-    def _compute_features_worker(self, exe):
-        return (exe.basename, self._compute_features(exe))
+    #def _compute_features_worker(self, exe):
+    #    try:
+    #        return exe.basename, self._compute_features(exe)
+    #    except:
+    #        return exe.basename, None
     
     def _load(self):
         """ Load dataset's associated files or create them. """
@@ -749,7 +759,7 @@ class Dataset(Entity):
         self.logger.debug(f"selecting a subset of {self.basename} based on query '{query}'...")
         ds2 = self.__class__(name2)
         ds2._metadata['sources'] = []
-        for e in filter_data_iter(self._data, query, limit=limit, logger=self.logger, target=self.basename):
+        for e in filter_data_iter(self._data, query, limit=limit, logger=self.logger, target=name2 or self.basename):
             for s in self._metadata['sources']:
                 if Path(e.realpath).is_under(Path(s, expand=True)) and s not in ds2._metadata['sources']:
                     ds2._metadata['sources'].append(s)
