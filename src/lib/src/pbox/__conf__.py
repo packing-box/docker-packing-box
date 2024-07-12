@@ -147,7 +147,8 @@ bi.config = Config("packing-box",
         'visualization': {
             'bbox_inches':     ("tight", "BBOX", "bbox in inches for saving the figure"),
             #FIXME: enforce list of valid colormaps
-            'colormap':        ("jet", "CMAP", "name of matplotlib.colors.Colormap to apply to plots"),
+            'colormap_main':   ("RdYlGn_r", "CMAP", "name of matplotlib.colors.Colormap to apply to plots"),
+            'colormap_other':  ("jet", "CMAP", "name of matplotlib.colors.Colormap to apply to plots"),
             'dpi':             ("300", "DPI", "figures' dots per inch", _it),
             'font_family':     ("serif", "FAMILY", "font family for every text"),
             'font_size':       ("10", "SIZE", "base font size", _it),

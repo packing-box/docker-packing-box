@@ -1,17 +1,9 @@
 # -*- coding: UTF-8 -*-
-from tinyscript import functools
+from tinyscript import functools, re
 from tinyscript.helpers import Path
 
 
-__all__ = ["figure_path", "mpl", "plt", "save_figure"]
-
-
-_RC_CONFIG = {
-    'colormap':    "image.cmap",
-    'font_family': "font.family",
-    'style':       lambda v: plt.style.use(v),
-    'font_size':   "font.size",
-}
+__all__ = ["configure_style", "figure_path", "mpl", "plt", "save_figure"]
 
 
 def __init_mpl():
@@ -19,40 +11,35 @@ def __init_mpl():
     return mpl
 
 
-def __config_plt(**kwargs):
-    if len(kwargs) > 0:
-        for k, v in kwargs.items():
-            if k in _RC_CONFIG.keys():
-                tgt = _RC_CONFIG[k]
-                if isinstance(tgt, type(lambda: 0)):
-                    tgt(v)
-                else:
-                    globals()['plt'].rcParams[_RC_CONFIG[k]] = v
-            else:
-                raise ValueError(f"Bad matplotlib parameter '{k}'")
-    else:
-        import matplotlib.pyplot as plt
-        plt.rcParams['figure.dpi'] = config['dpi']
-        plt.rcParams['font.family'] = [config['font_family']]
-        plt.rcParams['font.size'] = tfs = config['font_size']
-        plt.rcParams['xtick.labelsize'] = plt.rcParams['ytick.labelsize'] = tfs - 2
-        plt.rcParams['figure.titleweight'] = "bold"
-        plt.rcParams['image.cmap'] = config['colormap']
-        plt.set_cmap(config['colormap'])
-        plt.style.use(config['style'])
-        plt.set_loglevel("critical")
-        return plt
+def __init_plt():
+    import matplotlib.pyplot as plt
+    return plt
 
 
 lazy_load_object("mpl", __init_mpl)
-lazy_load_object("plt", __config_plt)
+lazy_load_object("plt", __init_plt)
 
 
-def figure_path(filename, format=None, **kw):
+def configure_style(**kw):
+    mpl.rc('font', **{k.split("_")[1]: kw.pop(k, config[k]) for k in ['font_family', 'font_size']})
+    kw['title-font'] = {'fontfamily': kw.pop('title_font_family', config['font_family']),
+                        'fontsize': kw.pop('title_font_size', int(config['font_size'] * 1.6)),
+                        'fontweight': kw.pop('title_font_weight', "bold")}
+    kw['suptitle-font'] = {'fontfamily': kw.pop('suptitle_font_family', config['font_family']),
+                           'fontsize': kw.pop('suptitle_font_size', int(config['font_size'] * 1.2)),
+                           'fontweight': kw.pop('suptitle_font_weight', "normal")}
+    for p in "xy":
+        kw[f'{p}label-font'] = {'fontfamily': kw.pop(f'{p}label_font_family', config['font_family']),
+                                'fontsize': kw.pop(f'{p}label_font_size', config['font_size']),
+                                'fontweight': kw.pop(f'{p}label_font_weight', "normal")}
+    return kw
+
+
+def figure_path(filename, img_format=None, **kw):
     # fix the extension if not specified
     p = Path(filename)
     if p.extension[1:] not in IMG_FORMATS:
-        filename = f"{p.dirname.joinpath(p.stem)}.{format or config['format']}"
+        filename = f"{p.dirname.joinpath(p.stem)}.{img_format or config['img_format']}"
     # at this point, 'filename' is either a string with eventual separators for subfolders if the figure is to be sorted
     #  in the scope of an experiment
     try:
@@ -76,22 +63,23 @@ def save_figure(f):
     def _wrapper(*a, **kw):
         l = getattr(a[0], "logger", null_logger)
         l.info("Preparing plot data...")
-        values = {k: kw.get(k, config[k]) for k in config._defaults['visualization'].keys()}
-        kw_plot = {k: v for k, v in values.items() if k not in _RC_CONFIG.keys()}
-        __config_plt(**{k: v for k, v in values.items() if k in _RC_CONFIG.keys()})
         try:
-            imgs = f(*a, **kw)
+            imgs = f(*a, **configure_style(**kw))
         except KeyError as e:
-            l.error(f"Plot type '{e.args[0]}' does not exist (should be one of [{'|'.join(_PLOTS.keys())}])")
+            l.error(f"Plot type '{e.args[0]}' does not exist")
             return
+        kw_plot = {{'img_format': "format"}.get(k, k): kw.get(k, config[k]) \
+                   for k in ["bbox_inches", "dpi", "img_format"]}
         for img in (imgs if isinstance(imgs, (list, tuple, type(x for x in []))) else [imgs]):
             if img is None:
                 continue
-            img = figure_path(img, format=kw.get('format'))
-            #from code import interact
-            #ns = {k: v for k, v in globals().items()}
-            #ns.update(locals())
-            #interact(local=ns)
+            img = figure_path(img, kw.get('img_format'))
+            if kw.get('interactive_mode', False):
+                from code import interact
+                ns = {k: v for k, v in globals().items()}
+                ns.update(locals())
+                l.info(f"{img}: use 'plt.savefig(img, **kw_plot)' to save the figure")
+                interact(local=ns)
             l.info(f"Saving to {img}...")
             plt.savefig(img, **kw_plot)
             l.debug(f"> saved to {img}...")

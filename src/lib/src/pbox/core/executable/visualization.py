@@ -170,6 +170,7 @@ def binary_diff_text(file1, file2, legend1=None, legend2=None, n=0, logger=null_
     :param n:       amount of carriage returns between the sequences
     :return:        difference between the files, in text format
     """
+    #FIXME: this only applies to PE ; need to find another way for ELF and Mach-O
     from difflib import unified_diff as udiff
     from pefile import PE
     logger.debug("dumping files info...")

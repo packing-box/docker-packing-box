@@ -23,9 +23,7 @@ def _preprocess(f):
     @wraps(f)
     def _wrapper(*a, **kw):
         kw['reduced_data'], kw['scaled_data'], s = reduce_data(kw['data'], return_scaled=True, return_suffix=True, **kw)
-        fig = f(*a, **kw)
-        fig.dst_suffix = s
-        return fig
+        return f(*a, **kw) + s
     return _wrapper
 
 
@@ -58,7 +56,7 @@ def image_knn(classifier, **params):
     knn.fit(X, y)
     # now set color map then plot
     labels = list(y.label.unique())
-    colors = plt.get_cmap(plt.rcParams['image.cmap'], len(labels))
+    colors = plt.get_cmap(config['colormap_main'], len(labels))
     fig, axes = plt.subplots()
     DecisionBoundaryDisplay.from_estimator(knn, X, cmap=colors, ax=axes, alpha=.3,
                                            response_method="predict", plot_method="pcolormesh", shading="auto")
@@ -97,9 +95,6 @@ def image_clustering(classifier, **params):
     if is_hierarchical:
         Z = linkage([Xs, Xr][params.get('reduce_train_data', False)], method='ward')
         color_threshold = params['distance_threshold']
-    # now set color map
-    #colors = plt.get_cmap("jet")
-    colors = plt.get_cmap(plt.rcParams['image.cmap'])
     # adjust number of plots and size of figure
     features = params['features'][0]
     n_features = len(features)
@@ -144,36 +139,47 @@ def image_clustering(classifier, **params):
         offset = 0
         if -1 in predicted_labels:  # -1 is for outliers in DBSCAN but messes with colors
             offset = 1
-        cluster_colors = {i: colors((i + offset) / len(predicted_labels)) for i in predicted_labels} \
-                         if not is_hierarchical else cluster_colors
+        cmap = plt.get_cmap(config['colormap_main'], len(predicted_labels))
+        l = sorted(predicted_labels)
+        if params.get('invert_cluster_colors', False):
+            l = l[::-1]
+        ccolors = {i: cmap(i) for i in l}
+        #{i: colors((i + offset) / len(predicted_labels)) for i in predicted_labels}
         for i in predicted_labels:
-            axes[current_ax].scatter(Xr[label == i, 0], Xr[label == i, 1] , label=i, color=cluster_colors[i])
+            axes[current_ax].scatter(Xr[label == i, 0], Xr[label == i, 1] , label=i, color=ccolors[i])
+            # , colors=cluster_colors[i]
     axes[current_ax].set_title("Clusters", fontsize=font_size)
     current_ax += 1
     # plot true labels
     if params['plot_labels']:
         if params['multiclass']:
             y_labels = np.unique(params['labels'])
-            colors_labels = plt.get_cmap(plt.rcParams['image.cmap'], len(y_labels))
+            n = len(y_labels)
+            cmap = plt.get_cmap(config['colormap_main'], n * 2)
+            ccolors = {0: cmap(0)}
+            ccolors.update({i + 1: cmap(n + i) for i in range(n - 1)})
             label_map = {label: 'Not packed' if label == '-' else f'Packed : {label}' for label in y_labels}
         else: 
-            colors_labels = plt.get_cmap(plt.rcParams['image.cmap'], 2)
+            cmap = plt.get_cmap(config['colormap_main'], 2)
             y_labels = np.unique(y.label.ravel())
+            ccolors = {i: cmap(i) for i in [0, 1]}
             label_map = {0: 'Not packed', 1: 'Packed'}
         for i, y_label in enumerate(y_labels):
             labels_mask = params['labels'] == y_label if params['multiclass'] else y.label.ravel() == y_label
             axes[current_ax].scatter(Xr[labels_mask, 0], Xr[labels_mask, 1], label=label_map[y_label],
-                                     color=colors_labels(i), alpha=1.0)
-        axes[current_ax].legend(loc='upper left', bbox_to_anchor=(1, 1),fontsize=font_size-2)  
+                                     color=ccolors[i], alpha=1.0)
+        axes[current_ax].legend(loc='upper left', bbox_to_anchor=(1, 1), fontsize=font_size-2)  
         axes[current_ax].set_title("Target", fontsize=font_size)
         current_ax += 1
         suffix += f"_with-labels"
     # plot file formats
     if params['plot_formats']:
         unique_formats = np.unique(params['format'])
+        cmap = plt.get_cmap(config['colormap_other'], len(unique_formats))
+        fcolors = {fmt: cmap(i) for i, fmt in enumerate(unique_formats)}
         for fmt in unique_formats:
-            format_mask = params['format'] == fmt
-            axes[current_ax].scatter(Xr[format_mask, 0], Xr[format_mask, 1], label=fmt, cmap=colors, alpha=1.0)
+            fmt_mask = params['format'] == fmt
+            axes[current_ax].scatter(Xr[fmt_mask, 0], Xr[fmt_mask, 1], label=fmt, color=fcolors[fmt], alpha=1.0)
         axes[current_ax].legend(loc='upper left', bbox_to_anchor=(1, 1),fontsize=font_size-2)
         axes[current_ax].set_title("File Formats", fontsize=font_size)
         current_ax += 1 
@@ -181,9 +187,11 @@ def image_clustering(classifier, **params):
     # plot file extensions
     if params['plot_extensions']:
         unique_extensions = np.unique(params['extension'])
+        cmap = plt.get_cmap(config['colormap_other'], len(unique_extensions))
+        ecolors = {ext: cmap(i) for i, ext in enumerate(unique_extensions)}
         for ext in unique_extensions:
-            extension_mask = params['extension'] == ext
-            axes[current_ax].scatter(Xr[extension_mask, 0], Xr[extension_mask, 1], label=ext, cmap=colors, alpha=1.0)
+            ext_mask = params['extension'] == ext
+            axes[current_ax].scatter(Xr[ext_mask, 0], Xr[ext_mask, 1], label=ext, color=ecolors[ext], alpha=1.0)
         axes[current_ax].legend(loc='upper left', bbox_to_anchor=(1, 1),fontsize=font_size-2)
         axes[current_ax].set_title("File Extensions", fontsize=font_size)
         current_ax += 1 
@@ -214,7 +222,7 @@ def image_clustering(classifier, **params):
     # colorbars have to be added after plt.tight_layout() to avoid overlapping with the plot
     for i in color_bars.keys():
         _add_colorbar(axes[i], color_bars[i], colors=colors)
-    return f"{classifier.model.basename}_{self.model.algorithm.name}-clusters{suffix}"
+    return f"{classifier.model.basename}_{classifier.model.algorithm.name}-clusters{suffix}"
 
 
 def text_dt(classifier, **params):

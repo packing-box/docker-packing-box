@@ -10,14 +10,14 @@ lazy_load_module("seaborn")
 
 
 @save_figure
-def _characteristic_scatter_plot(dataset, characteristic=None, multiclass=True, **kwargs):
+def _characteristic_scatter_plot(dataset, characteristic=None, multiclass=True, **kw):
     """ Plot a scatter plot of dataset's reduced data, highlighting the selected characteristic. """
     from ...helpers.figure import plt  # report to get the actual object (cfr lazy loading)
     X, prefix = dataset._data, "bin_" if characteristic == "label" and not multiclass else ""
     if not multiclass:
         X['label'] = X.label.map(LABELS_BACK_CONV).fillna(1).astype('int')
     X_reduced, suffix, meta = reduce_data(X[sorted(dataset._features.keys())], logger=dataset.logger,
-                                          return_suffix=True, return_meta=True, **kwargs)
+                                          return_suffix=True, return_meta=True, **kw)
     # define plot
     # important note: 'plt' needs to be called BEFORE 'mpl' ; otherwise, further references to
     #                  'matplotlib' will be seen as 'mpl', causing "ModuleNotFoundError: No module named 'mpl'"
@@ -30,9 +30,8 @@ def _characteristic_scatter_plot(dataset, characteristic=None, multiclass=True, 
         unique_values.append(nl)
     except ValueError:
         pass
-    plt.rcParams['xtick.labelsize'] = plt.rcParams['ytick.labelsize'] = fsize
-    plt.suptitle(f"Characteristic '{characteristic}' of dataset {dataset.name}")
-    plt.title(", ".join(f"{k}={v}" for k, v in meta.items()))
+    plt.suptitle(f"Characteristic '{characteristic}' of dataset {dataset.name}", **kw['suptitle-font'])
+    plt.title(kw.get('title') or ", ".join(f"{k}={v}" for k, v in meta.items()), **kw['title-font'])
     # plot a continuous colorbar if the characteristic is continuous and a legend otherwise 
     if len(unique_values) > 6 and characteristic not in ["format", "label", "signature"]:
         sc = plt.scatter(X_reduced[:, 0], X_reduced[:, 1], c=X[characteristic].to_numpy(), alpha=1.0)
@@ -167,7 +166,7 @@ def _features_bar_chart(dataset, feature=None, num_values=None, multiclass=False
               for k in counts.keys()]
     plt.rcParams['font.family'] = ["serif"]
     plt.figure(figsize=(6, (len(title.splitlines()) * 24 + 11 * len(counts) + 120) / 80))
-    plt.title(kw.get('title') or title, pad=20, fontweight="bold", fontsize=16, wrap=True)
+    plt.title(kw.get('title') or title, pad=20, **kw['title-font'])
     plt.xlabel(x_label, fontdict={'size': 14})
     plt.ylabel(y_label, fontdict={'size': 14})
     starts = [0 for i in range(len(values[0]))]
@@ -224,7 +223,7 @@ def _features_comparison_heatmap(dataset, datasets=None, feature=None, max_featu
                          cbar_kws = {'location':'right', 'ticks': ticks, 'label':label}, linecolor='black')
     ax.xaxis.tick_top()
     plt.xticks(rotation=90)
-    plt.title(title)
+    plt.title(kw.get('title') or title, **kw['title-font'])
     ax.collections[0].colorbar.set_ticklabels(["Negative", "Negligible", "Positive"])
     plt.tight_layout()
     return f"{dataset.basename}/features-compare/{'-'.join(datasets_feats)}"
@@ -254,9 +253,9 @@ def _information_gain_bar_chart(dataset, feature=None, max_features=None, multic
     # plot
     plt.figure(figsize=(10, round(0.25*max_features + 2.2)), dpi=200)
     plt.barh(*zip(*[(feature[x], info[x]) for x in order]), height=.5)
-    plt.title(f"Mutual information for dataset {dataset.name}")
-    plt.ylabel('Features')
-    plt.xlabel('Mutual information')
+    plt.title(kw.get('title') or f"Mutual information for dataset {dataset.name}", **kw['title-font'])
+    plt.ylabel('Features', **kw['ylabel-font'])
+    plt.xlabel('Mutual information', **kw['xlabel-font'])
     plt.yticks(rotation='horizontal')
     plt.margins(y=1/max_features)
     plt.axvline(x=0, color='k')
@@ -313,7 +312,7 @@ def _information_gain_comparison_heatmap(dataset, datasets=None, feature=None, m
                          cmap="YlOrBr", linewidth=0, cbar_kws={'location': 'right', 'ticks': [0,1], 'label': label},
                          vmin=0, vmax=1)
     ax.xaxis.tick_top()
-    plt.title(title, fontfamily="serif", fontsize=16, fontweight="bold", pad=14)
+    plt.title(kw.get('title') or title, pad=14, **kw['title-font'])
     plt.xticks(fontsize=12)
     plt.yticks(fontsize=10)
     plt.tight_layout()
@@ -349,7 +348,7 @@ def _labels_pie_chart(dataset, **kw):
     # plot
     l.debug("plotting figure...")
     plt.figure(figsize=(8, 4))
-    plt.title(f"Distribution of labels for dataset {dataset.name}", pad=10, fontweight="bold")
+    plt.title(kw.get('title') or f"Distribution of labels for dataset {dataset.name}", pad=10, **kw['title-font'])
     # - draw a first pie with white labels on the wedges
     plt.pie([c[k] for k in classes], colors=cmap, startangle=180, radius=.8,
             autopct=lambda p: "{:.1f}%\n({:.0f})".format(p, p/100*tot),
