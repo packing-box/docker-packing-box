@@ -3,26 +3,26 @@
 # +--------------------------------------------------------------------------------------------------------------------+
 # define global arguments
 ARG USER=user
-ARG GROUP=pbox
 ARG HOME=/home/$USER
-ARG UBIN=$HOME/.local/bin
 ARG UOPT=$HOME/.opt
-ARG PBWS=$HOME/.packing-box
-ARG PBOX=$UOPT/tools/packing-box
-ARG FILES=src/files
+ARG UBIN=$HOME/.local/bin \
+    PBWS=$HOME/.packing-box \
+    PBOX=$UOPT/tools/packing-box \
+    FILES=src/files
 # start creating the box
 FROM ubuntu:rolling AS base
-MAINTAINER Alexandre DHondt <alexandre.dhondt@gmail.com>
-LABEL version="2.0.0"
-LABEL source="https://github.com/dhondta/packing-box"
-ARG USER
-ARG GROUP
-ARG HOME
-ARG UBIN
-ENV DEBCONF_NOWARNINGS yes \
-    DEBIAN_FRONTEND noninteractive \
-    TERM xterm-256color \
-    PIP_ROOT_USER_ACTION ignore
+LABEL org.opencontainers.image.authors="alexandre.dhondt@gmail.com"  \
+      org.opencontainers.image.created="Feb 5, 2021" \
+      org.opencontainers.image.licenses="GPL-3.0" \
+      org.opencontainers.image.source="https://github.com/orgs/packing-box/repositories" \
+      org.opencontainers.image.title="Packing-Box: Experimental toolkit for static detection of executable packing" \
+      org.opencontainers.image.url="https://github.com/packing-box/docker-packing-box" \
+      org.opencontainers.image.version="2.0.1"
+ARG USER HOME UBIN
+ENV DEBCONF_NOWARNINGS=yes \
+    DEBIAN_FRONTEND=noninteractive \
+    TERM=xterm-256color \
+    PIP_ROOT_USER_ACTION=ignore
 # configure locale
 RUN apt-get update \
  && apt-get -y install locales \
@@ -35,8 +35,7 @@ RUN echo "debconf debconf/frontend select Noninteractive" | debconf-set-selectio
  && apt-get -y autoremove \
  && apt-get autoclean
 # add a non-privileged account
-RUN groupadd $GROUP \
- && useradd -g $GROUP -ms /bin/bash $USER \
+RUN useradd -g 1000 -ms /bin/bash $USER \
  && apt-get install -y sudo \
  && echo $USER ALL=\(root\) NOPASSWD:ALL > /etc/sudoers.d/$USER \
  && chmod 0440 /etc/sudoers.d/$USER
@@ -123,9 +122,8 @@ RUN go mod init pbox &
 # |                                     CUSTOMIZE THE BOX (refine the terminal)                                        |
 # +--------------------------------------------------------------------------------------------------------------------+
 FROM base AS customized
-ARG USER
-ARG UOPT
-ENV TERM xterm-256color
+ARG USER UOPT
+ENV TERM=xterm-256color
 # copy customized files for root
 USER root
 COPY src/term/[^profile]* /tmp/term/
@@ -141,14 +139,9 @@ RUN for f in `ls /tmp/term/`; do cp "/tmp/term/$f" "/home/$USER/.${f##*/}"; done
 # |                                              ADD FRAMEWORK ITEMS                                                   |
 # +--------------------------------------------------------------------------------------------------------------------+
 FROM customized AS framework
-ARG USER
-ARG HOME
-ARG UOPT
-ARG PBWS
-ARG PBOX
-ARG FILES
+ARG USER HOME UOPT PBWS PBOX FILES
 USER $USER
-ENV TERM xterm-256color
+ENV TERM=xterm-256color
 # set the base files and folders for further setup (explicitly create ~/.cache/pip to avoid it not being owned by user)
 COPY --chown=$USER src/conf/*.yml $PBWS/conf/
 RUN sudo mkdir -p /mnt/share \
