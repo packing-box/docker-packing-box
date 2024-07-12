@@ -31,7 +31,7 @@ class Locator(Path):
             from ..core import is_exe, Dataset, Executable
             if is_hash(path):
                 for ds in Dataset.iteritems():
-                    p = ds.joinpath("files", path)
+                    p = ds.files.joinpath(path)
                     if p.exists():
                         return Executable(str(p))
             for srcs in PACKING_BOX_SOURCES.values():

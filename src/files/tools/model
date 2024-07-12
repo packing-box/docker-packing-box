@@ -31,6 +31,7 @@ if __name__ == '__main__':
     add_argument(browse, "mdname", "executable", nargs="?")
     browse.add_argument("-q", "--query", help="query for filtering records to be selected",
                         note="see <https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.query.html>")
+    browse.add_argument("--no-feature", action="store_true", help="do not show computed features")
     compare = add_argument(sparsers.add_parser("compare", category="read", help="compare the selected model with "
                                                "others"), "mdname")
     compare.add_argument("-d", "--dataset", type=Dataset.load, action="extend", nargs="*",
@@ -74,7 +75,6 @@ if __name__ == '__main__':
     add_argument(tgroup, "true-class")
     train.add_argument("-r", "--reset", action="store_true", help="reset the model before (re)training")
     train.add_argument("--cv", default=5, type=ts.pos_int, help="number of Cross-Validation folds")
-    train.add_argument("--feature", action="extend", nargs="*", help="list of features to be selected")
     add_argument(train, "ignore-labels")
     train.add_argument("--n-jobs", type=lambda x: ts.pos_int(x, False), help="number of jobs to be run in parallel")
     train.add_argument("-w", "--wrapper-select", action="store_true", help="use recursive feature elimination with CV "
@@ -96,6 +96,7 @@ if __name__ == '__main__':
                                help="distance threshold for dendrograms colors")
     viz_dependent.add_argument("-f", "--features", nargs="*",type=lambda x: x.split(","),
                                help="comma separated list of features to be selected", default="")
+    viz_dependent.add_argument("-i", "--invert-cluster-colors", action="store_true", help="invert cluster colors")
     viz_dependent.add_argument("-l", "--hierarchy-levels", metavar="H", default=4, type=int,
                                help="number of levels to display when truncating dendrogram")
     add_argument(viz_dependent, "ncomponents", "perplexity")
@@ -117,8 +118,8 @@ if __name__ == '__main__':
         args.param = expand_parameters(*(args.param or []))
     if args.command == "visualize":
         args.viz_params = {}
-        for a in ["distance_threshold", "features", "hierarchy_levels", "imputer_strategy", "multiclass",
-                  "n_components", "perplexity", "plot_extensions", "plot_formats", "plot_labels", "range",
+        for a in ["distance_threshold", "features", "hierarchy_levels", "imputer_strategy", "invert_cluster_colors",
+                  "multiclass", "n_components", "perplexity", "plot_extensions", "plot_formats", "plot_labels", "range",
                   "reduce_train_data", "reduction_algorithm"]:
             args.viz_params[a] = getattr(args, a)
             delattr(args, a)

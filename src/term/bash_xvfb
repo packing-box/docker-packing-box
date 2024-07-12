@@ -74,7 +74,7 @@ if [ $? -eq 1 ]; then
   sudo sed -i "s/DISPLAY=.*/DISPLAY=\"$DISPLAY\"/g" /etc/environment
   sudo sed -i "s/SCREENSIZE=.*/SCREENSIZE=\"$SCREENSIZE\"/g" /etc/environment
   if [ $EUID -ne 0 ]; then
-    Xvfb "${DISPLAY}" -screen 0 "${SCREENSIZE}x16" -nolisten tcp -nolisten unix &
+    Xvfb "${DISPLAY}" -screen 0 "${SCREENSIZE}x16" -nolisten tcp -nolisten unix > /dev/null 2>&1 &
   fi
 fi
 

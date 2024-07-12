@@ -59,7 +59,7 @@ class Executable(Path):
                     if a in ["format", "signature"]:
                         continue
                     setattr(exe, a, d[a])
-                f = {a: v for a, v in d.items() if a not in fields if str(v) != "nan"}
+                f = {a: v for a, v in d.items() if a not in fields and str(v) != "nan"}
                 # if features could be retrieved, set the 'data' attribute (i.e. if already computed as it is part of a
                 #  FilelessDataset)
                 if len(f) > 0:
@@ -83,7 +83,12 @@ class Executable(Path):
             # if the target executable has a path that may indicate it is part of a dataset, automatically set it
             if len(parts) >= 2 and parts[-2] == "files":
                 from ..dataset import Dataset
-                return Executable(hash=parts[-1], dataset=Dataset(Path(*parts[:-2])))
+                exe = Executable(hash=parts[-1], dataset=Dataset(Path(*parts[:-2])))
+                if not exe.exists():
+                    l = kwargs.get('logger', null_logger)
+                    l.warning("This executable does not exist ; this is because it comes from a fileless dataset, "
+                           "meaning that computed features won't be computed but will be retrieved from this dataset !")
+                return exe
             self = super(Executable, cls).__new__(cls, *parts, **kwargs)
             self.label = label
             return self
@@ -188,7 +193,7 @@ class Executable(Path):
         kwargs.get('logger', null_logger).info(f"Saving to {path}...")
         path = path.dirname.joinpath(path.stem)
         kw_plot = {k: kwargs.get(k, config[k]) for k in config._defaults['visualization'].keys()}
-        kw_plot['img_format'] = kw_plot.pop('format', config['format'])
+        kw_plot['img_format'] = kw_plot.pop('img_format', config['img_format'])
         from bintropy import plot
         plot(self, img_name=path, labels=[self.label], sublabel=sublabel, target=fn, **kw_plot)
     

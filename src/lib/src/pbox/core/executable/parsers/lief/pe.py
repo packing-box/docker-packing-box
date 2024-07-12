@@ -11,6 +11,7 @@ def __init_pe():
     sec_types = {k: v for k, _, v in getattr(lief.PE.SECTION_TYPES, "@entries").values()}
     PESection = get_section_class("PESection",
         characteristics="characteristics",
+        flags=_p(lambda s: ["", "R"][s.is_readable] + ["", "W"][s.is_writable] + ["", "X"][s.is_executable]),
         has_slack_space=_p(lambda s: s.size > s.virtual_size),
         is_executable=_p(lambda s: s.characteristics & s.CHARACTERISTICS['MEM_EXECUTE'].value > 0),
         is_readable=_p(lambda s: s.characteristics & s.CHARACTERISTICS['MEM_READ'].value > 0),

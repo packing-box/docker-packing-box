@@ -49,7 +49,7 @@ class BaseModel(Entity):
                             ignore_labels=ignore_labels, logger=self.logger)
         return [f(v) for v, f in zip(values, headers.values())], list(headers.keys())
     
-    def _prepare(self, dataset=None, preprocessor=None, multiclass=False, labels=None, feature=None, data_only=False,
+    def _prepare(self, dataset=None, preprocessor=None, multiclass=False, labels=None, data_only=False,
                  unlabelled=False, mi_select=False, mi_kbest=None, true_class=None, **kw):
         """ Prepare the Model instance based on the given Dataset/FilelessDataset/CSV/other instance.
         NB: after preparation,
@@ -437,8 +437,32 @@ class Model(BaseModel):
                 l, nf = max(map(len, [x[1] for x in best_feat])), len(str(len(best_feat)))
                 best_feat = [("{: <%s}: {} (%.3f)" % (l + nf - len(str(i+1)), p[0])) \
                              .format(p[1], self._features[p[1]]) for i, p in enumerate(best_feat)]
-                fi_str = ["**Features**:      %d (%d with non-null importance)\n\n\t1. %s\n\n" % \
-                          (len(self._features), len(best_feat), "\n\n\t1. ".join(best_feat))]
+                fi_str = [f"**Features**:      {len(self._features)} ({len(best_feat)} with non-null importance)"
+                          f"\n\n\t- {'\n\n\t- '.join(best_feat)}\n\n"]
+        else:
+            from tinyscript import re, string
+            feat, cnt = [], None
+            for f in string.sorted_natural(self._features.keys()):
+                try:
+                    prefix, i, suffix = re.split(r"(\d+)", f, 1)
+                    j = int(i)
+                    if cnt is None:
+                        cnt, prev_prefix, prev_suffix = (j, None), prefix, suffix
+                        continue
+                    elif prev_prefix == prefix and prev_suffix == suffix and \
+                         (cnt[1] is None and j == cnt[0] + 1 or j == cnt[1] + 1):
+                        cnt = (cnt[0], j)
+                        continue
+                except ValueError:
+                    pass
+                if cnt is not None:
+                    if isinstance(cnt[0], int) and cnt[1] is None:
+                        feat.append(f"{prev_prefix}{cnt[0]}{prev_suffix}")
+                    else:
+                        feat.append(f"{prev_prefix}[{cnt[0]}-{cnt[1]}]{prev_suffix}")
+                    cnt = None
+                feat.append(f)
+            fi_str = [f"**Features**:      {len(self._features)}\n\n\t- {'\n\n\t- '.join(feat)}\n\n"]
         params = a['parameters'].keys()
         l = max(map(len, params))
         params = [("{: <%s} = {}" % l).format(*p) for p in sorted(a['parameters'].items(), key=lambda x: x[0])]
@@ -460,8 +484,7 @@ class Model(BaseModel):
     def train(self, algorithm=None, cv=5, n_jobs=None, param=None, reset=False, ignore_labels=False,
               wrapper_select=False, select_param=None, **kw):
         """ Training method handling cross-validation. """
-        import multiprocessing as mp
-        l, n_cpu, ds, multiclass = self.logger, mp.cpu_count(), kw['dataset'], kw.get('multiclass', False)
+        l, ds, multiclass = self.logger, kw['dataset'], kw.get('multiclass', False)
         try:
             cls = self._algorithm = Algorithm.get(algorithm)
         except KeyError:
