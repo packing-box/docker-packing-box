@@ -166,8 +166,8 @@ def move_entrypoint_to_new_section(name, section_type=None, characteristics=None
                     list(pre_data) + ep_data + list(post_data))(parsed, logger)
         # update content and trampoline offset (do it after to know the address of the new section)
         s = parsed.section(name)
-        offset = oep - (s.virtual_address + len(pre_data) + len(entrypoint_data))
-        s.content = list(pre_data) + _trampoline(offset) + list(post_data)
+        offset = oep - (s.virtual_address + len(pre_data) + len(ep_data))
+        s.content = list(pre_data) + _trampoline_code(offset) + list(post_data)
         # update EP
         parsed.optional_header.addressof_entrypoint = s.virtual_address + len(pre_data)
     return _move_entrypoint_to_new_section
@@ -181,15 +181,15 @@ def move_entrypoint_to_slack_space(section_input, pre_data=b"", post_data_source
         if parsed.optional_header.section_alignment % parsed.optional_header.file_alignment != 0:
             raise ValueError("SectionAlignment is not a multiple of FileAlignment (file integrity cannot be assured)")
         address_bitsize = [64, 32]["32" in parsed.path.format]
-        original_entrypoint = parsed.optional_header.addressof_entrypoint + parsed.optional_header.imagebase
+        oep = parsed.optional_header.addressof_entrypoint + parsed.optional_header.imagebase
         #  push current_entrypoint
         #  ret
-        entrypoint_data = [0x68] + list(original_entrypoint.to_bytes([4, 8][parsed.path.format[-2:] == "64"], 'little')) + [0xc3]
+        ep_data = [0x68] + list(oep.to_bytes([4, 8][parsed.path.format[-2:] == "64"], 'little')) + [0xc3]
         # other possibility:
         #  mov eax current_entrypoint
         #  jmp eax
-        #  entrypoint_data = [0xb8] + list(original_entrypoint.to_bytes(4, 'little')) + [0xff, 0xe0]
-        d = list(pre_data) + entrypoint_data
+        #  ep_data = [0xb8] + list(oep.to_bytes(4, 'little')) + [0xff, 0xe0]
+        d = list(pre_data) + ep_data
         if callable(post_data_source):
             full_data = lambda l: d + list(post_data_source(l - len(d)))
             add_size = section.size - len(section.content)
