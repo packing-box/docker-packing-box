@@ -215,6 +215,7 @@ bi.LABELS = {
     'Enigma Virtual Box': "Enigma VBox",
     'Eronana Packer':     "Eronana",
 }
+bi.MARKERS = "v^<>.+x*ospxhd123"
 # metric format function: p=precision, m=multiplier, s=symbol
 _mformat = lambda p=3, m=1, s=None: lambda x: "-" if x == "-" else ("{:.%df}{}" % p).format(m * x, s or "")
 bi.METRIC_DISPLAY = {

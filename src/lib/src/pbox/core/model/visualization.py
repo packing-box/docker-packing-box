@@ -1,6 +1,7 @@
 # -*- coding: UTF-8 -*-
 from contextlib import suppress
 from functools import wraps
+from itertools import cycle
 
 from .algorithm import Algorithm 
 from ...helpers import *
@@ -103,7 +104,9 @@ def image_clustering(classifier, **params):
     font_size, suffix = 16, ""
     plt.rcParams['axes.labelsize'] = 16
     plt.rcParams['xtick.labelsize'], plt.rcParams['ytick.labelsize'] = 14, 14
-    fig, axes = plt.subplots(n_plots, figsize=(10 , 6 + 3 * n_plots))
+    horizontal = params.get('horizontal', False)
+    disp = (1, n_plots) if horizontal else (n_plots, )
+    fig, axes = plt.subplots(*disp, figsize=(6 + 3 * n_plots, 4) if horizontal else (10 , 6 + 3 * n_plots))
     # wrap the AxesSubplot object in a list to make it subscriptable when there is only one plot
     if not isinstance(axes, (list, np.ndarray)):
         axes = [axes]
@@ -145,8 +148,8 @@ def image_clustering(classifier, **params):
             l = l[::-1]
         ccolors = {i: cmap(i) for i in l}
         #{i: colors((i + offset) / len(predicted_labels)) for i in predicted_labels}
-        for i in predicted_labels:
-            axes[current_ax].scatter(Xr[label == i, 0], Xr[label == i, 1] , label=i, color=ccolors[i])
+        for i, m in zip(predicted_labels, cycle(MARKERS)):
+            axes[current_ax].scatter(Xr[label == i, 0], Xr[label == i, 1] , label=i, marker=m, s=20, color=ccolors[i])
             # , colors=cluster_colors[i]
     axes[current_ax].set_title("Clusters", fontsize=font_size)
     current_ax += 1
@@ -155,7 +158,7 @@ def image_clustering(classifier, **params):
         if params['multiclass']:
             y_labels = np.unique(params['labels'])
             n = len(y_labels)
-            cmap = plt.get_cmap(config['colormap_main'], n * 2)
+            cmap = plt.get_cmap(config['colormap_main'], (n - 1) * 2)
             ccolors = {0: cmap(0)}
             ccolors.update({i + 1: cmap(n + i) for i in range(n - 1)})
             label_map = {label: 'Not packed' if label == '-' else f'Packed : {label}' for label in y_labels}
@@ -164,10 +167,11 @@ def image_clustering(classifier, **params):
             y_labels = np.unique(y.label.ravel())
             ccolors = {i: cmap(i) for i in [0, 1]}
             label_map = {0: 'Not packed', 1: 'Packed'}
-        for i, y_label in enumerate(y_labels):
+        for i, p in enumerate(zip(y_labels, cycle(MARKERS))):
+            y_label, m = p
             labels_mask = params['labels'] == y_label if params['multiclass'] else y.label.ravel() == y_label
             axes[current_ax].scatter(Xr[labels_mask, 0], Xr[labels_mask, 1], label=label_map[y_label],
-                                     color=ccolors[i], alpha=1.0)
+                                     marker=m, s=20, color=ccolors[i], alpha=1.0)
         axes[current_ax].legend(loc='upper left', bbox_to_anchor=(1, 1), fontsize=font_size-2)  
         axes[current_ax].set_title("Target", fontsize=font_size)
         current_ax += 1

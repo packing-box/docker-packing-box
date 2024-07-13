@@ -574,6 +574,8 @@ class Model(BaseModel):
                 self._train.data = self._train.data[self._data.columns]
                 self._test.data = self._test.data[self._data.columns]
         l.info("Training model...")
+        if self.pipeline.steps[-1][0] == cls.description:
+            self.pipeline.pop()
         self.pipeline.append((cls.description, cls.base(**params)))
         # if a param_grid is input, perform cross-validation and select the best classifier
         _convert = lambda d: {k.split("__", 1)[1]: v for k, v in d.items()}

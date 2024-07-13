@@ -103,6 +103,8 @@ if __name__ == '__main__':
     viz_dependent.add_argument("-r", "--reduce-train-data", action="store_true", help="reduce the training data",
                                note="the data is only reduced for the visualization by default")
     viz_dependent.add_argument("-t", "--plot-labels", action="store_true", help="plot true labels of packers")
+    viz_dependent.add_argument("--horizontal", action="store_true",
+                               help="display subplots horizontally instead of vertically")
     viz_dependent.add_argument("--multiclass", action="store_true", help="plot multiclass true labels of packers")
     viz_dependent.add_argument("--plot-extensions", action="store_true", help="plot the file extensions")
     viz_dependent.add_argument("--plot-formats", action="store_true", help="plot the file formats")
@@ -118,9 +120,9 @@ if __name__ == '__main__':
         args.param = expand_parameters(*(args.param or []))
     if args.command == "visualize":
         args.viz_params = {}
-        for a in ["distance_threshold", "features", "hierarchy_levels", "imputer_strategy", "invert_cluster_colors",
-                  "multiclass", "n_components", "perplexity", "plot_extensions", "plot_formats", "plot_labels", "range",
-                  "reduce_train_data", "reduction_algorithm"]:
+        for a in ["distance_threshold", "features", "hierarchy_levels", "horizontal", "imputer_strategy",
+                  "invert_cluster_colors", "multiclass", "n_components", "perplexity", "plot_extensions",
+                  "plot_formats", "plot_labels", "range", "reduce_train_data", "reduction_algorithm"]:
             args.viz_params[a] = getattr(args, a)
             delattr(args, a)
     getattr(Model(**vars(args)), args.command)(**vars(args))
