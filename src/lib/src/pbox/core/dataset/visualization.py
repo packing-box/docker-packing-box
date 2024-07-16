@@ -267,14 +267,14 @@ def _information_gain_comparison_heatmap(dataset, datasets=None, feature=None, m
                                          aggregate="byte_[0-9]+_after_ep", **kw):
     """ Plot a heatmap with the diffferences of information gain between a reference dataset (Dataset instance) and the
          given list of datasets (by name). """
-    #FIXME: remove temp coode [START]
+    #FIXME: remove temp code [START]
     import matplotlib
     #Create the style of the font 
     font = {'family' : 'serif',
             'weight' : 'normal',
             'size'   : 10}         
     matplotlib.rc('font', **font) #set the font style created
-    #FIXME: remove temp coode [END]
+    #FIXME: remove temp code [END]
     from ...helpers.figure import plt  # report to get the actual object (cfr lazy loading)
     from sklearn.feature_selection import mutual_info_classif as mic
     from sklearn.impute import SimpleImputer
@@ -289,7 +289,8 @@ def _information_gain_comparison_heatmap(dataset, datasets=None, feature=None, m
     #fct = [lambda x: pd.Series(mic(x[feature].astype('float'), x['label'] == NOT_PACKED), index=feature),
     #       lambda x: pd.Series(mic(x[feature].astype('float'), x['label']), index=feature)][multiclass]
     df[feature] = SimpleImputer(missing_values=np.nan, strategy="mean").fit_transform(df[feature])
-    df = df.groupby('experiment').apply(lambda x: pd.Series(mic(x[feature].astype('float'), x['label'], random_state=42), index=feature))
+    df = df.groupby('experiment') \
+           .apply(lambda x: pd.Series(mic(x[feature].astype('float'), x['label'], random_state=42), index=feature))
     df = (df - df.loc[dataset.basename]).apply(abs)
     df = df.drop(index=dataset.basename)
     if max_features in [None, 0] or max_features > len(feature):
@@ -300,10 +301,9 @@ def _information_gain_comparison_heatmap(dataset, datasets=None, feature=None, m
         df = df.drop(to_group, axis=1)
         if max_features > df.shape[1]:
             max_features = df.shape[1]
-    order = sorted(sorted(df.columns, key=lambda x: df[x].mean())[-max_features:],
-                   key=lambda x: df[x].mean())[::-1]
+    order = sorted(sorted(df.columns, key=lambda x: df[x].mean())[-max_features:], key=lambda x: df[x].mean())[::-1]
     # normalize per column
-    df[order] = df[order].div(df[order].max(axis=0), axis=1)
+    df[order] = df[order].div(df[order].max(axis=0), axis=1).replace(np.nan, .0)
     label = f"Normalized IG difference from reference dataset"
     title = f"Information Gain comparison with reference dataset {dataset.basename}"
     plt.figure(figsize=(1.2*len(df.index) + 3, round(0.25 * max_features + 2.2)), dpi=200)
