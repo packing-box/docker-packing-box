@@ -155,24 +155,45 @@ def append_to_section(name, data):
     return _append_to_section
 
 
+
 def move_entrypoint_to_new_section(name, section_type=None, characteristics=None, pre_data=b"", post_data=b""):
     """ Set the entrypoint (EP) to a new section added to the binary that contains code to jump back to the original EP.
         The new section contains *pre_data*, then the code to jump back to the original EP, and finally *post_data*.
+        (*code_data* is the code to be executed before the jump back to the original EP.)
     """
     _trampoline_code = lambda oep_or_offset: [0xE9, *list(oep_or_offset.to_bytes(4, "little", signed=oep_or_offset < 0))]
     @supported_parsers("lief") # 'parsed' is a lief.PE.Binary
     def _move_entrypoint_to_new_section(parsed, logger):
         logger.debug(f">> moving entrypoint to new section: {name}")
         oep = parsed.optional_header.addressof_entrypoint
+
+        # add dead code
+        import random
+        dead_code = get_pe_data()["DEAD_CODE"]
+        MAX_DEAD_CODE = 128
+        MIN_DEAD_CODE = 64
+        MAX_REPEATED_DEAD_CODE = 16
+        code_data = random.sample(dead_code, k=random.randint(MIN_DEAD_CODE, MAX_DEAD_CODE), counts=[random.randint(MAX_REPEATED_DEAD_CODE - (MAX_REPEATED_DEAD_CODE // 2), MAX_REPEATED_DEAD_CODE) for _ in range(len(dead_code))])
+
+        if isinstance(code_data, list):
+            if isinstance(code_data[0], list):
+                # if code_data not empty and  is list of lists(of bytes), convert it to a list of bytes    
+                code_data = [x for sublist in code_data for x in sublist]
+        else:
+            code_data = list(code_data)
+        
+        # add dead code to be executed before the jump back to the original EP
+        ep_data = code_data
         # add trampoline code
-        ep_data = _trampoline_code(oep)
+        ep_data += _trampoline_code(oep)
+        
         # create new section
         add_section(name, section_type or parsed.SECTION_TYPES['TEXT'], characteristics,
                     list(pre_data) + ep_data + list(post_data))(parsed, logger)
         # update content and trampoline offset (do it after to know the address of the new section)
         s = parsed.get_section(name)
         offset = oep - (s.virtual_address + len(pre_data) + len(ep_data))
-        s.content = list(pre_data) + _trampoline_code(offset) + list(post_data)
+        s.content = list(pre_data) + code_data + _trampoline_code(offset) + list(post_data)
         # update EP
         parsed.optional_header.addressof_entrypoint = s.virtual_address + len(pre_data)
     return _move_entrypoint_to_new_section
