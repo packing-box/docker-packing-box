@@ -14,16 +14,21 @@ __all__ = [
 
 
 # --------------------------------------------------- Utils ------------------------------------------------------------
+_listify = lambda l: [[int(x, 16) for x in s.split(', ')] for s in l]
 def get_pe_data():
     """ Derive other PE-specific data from this of ~/.packing-box/data/pe. """
     from ....helpers.data import get_data
     d = {k: v for k, v in get_data("PE").items() if k in ["COMMON_API_IMPORTS", "COMMON_DLL_IMPORTS",
-                                                          "COMMON_PACKER_SECTION_NAMES", "STANDARD_SECTION_NAMES"]}
+                                                          "COMMON_PACKER_SECTION_NAMES", "STANDARD_SECTION_NAMES", 
+                                                          "DEAD_CODE"]}
     d['COMMON_API_IMPORTS'] = [(lib, api) for lib, lst in d.pop('COMMON_DLL_IMPORTS').items() for api in lst]
     for k in ["COMMON_PACKER_SECTION_NAMES", "STANDARD_SECTION_NAMES"]:
         d[k] = valid_names(d[k])
-    return d
+    
+    # add DEADCODE
+    d['DEAD_CODE'] = _listify(d["DEAD_CODE"]) # will contain a list of lists of bytes [[0x90], [0x33, 0xC0]]
 
+    return d
 
 valid_names = lambda nl: list(filter(lambda n: len(n) <= 8, map(lambda x: x if isinstance(x, str) else \
                                                                 getattr(x, "real_name", getattr(x, "name", "")), nl)))

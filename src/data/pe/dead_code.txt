@@ -1,0 +1,7 @@
+0x90                                                                    # NOP
+0x33, 0xC0                                                              # XOR EAX, EAX
+0x33, 0xC9                                                              # XOR ECX, ECX
+0x33, 0xDB                                                              # XOR EBX, EBX
+0x83, 0xC0, 0x00                                                        # ADD EAX, 0
+0x87, 0xC0                                                              # XCHG EAX, EAX
+0x83, 0xE9, 0x00                                                        # SUB ECX, 0
