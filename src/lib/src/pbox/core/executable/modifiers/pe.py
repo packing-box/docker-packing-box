@@ -154,7 +154,7 @@ def move_entrypoint_to_new_section(name, section_type=None, characteristics=None
     """ Set the entrypoint (EP) to a new section added to the binary that contains code to jump back to the original EP.
         The new section contains *pre_data*, then the code to jump back to the original EP, and finally *post_data*.
     """
-    _trampoline_code = lambda oep_or_offset: [0xE9, *list(oep_or_offset.to_bytes(4, "little", signed=True))]
+    _trampoline_code = lambda oep_or_offset: [0xE9, *list(oep_or_offset.to_bytes(4, "little", signed=oep_or_offset < 0))]
     @supported_parsers("lief") # 'parsed' is a lief.PE.Binary
     def _move_entrypoint_to_new_section(parsed, logger):
         logger.debug(f">> moving entrypoint to new section: {name}")
@@ -165,7 +165,7 @@ def move_entrypoint_to_new_section(name, section_type=None, characteristics=None
         add_section(name, section_type or parsed.SECTION_TYPES['TEXT'], characteristics,
                     list(pre_data) + ep_data + list(post_data))(parsed, logger)
         # update content and trampoline offset (do it after to know the address of the new section)
-        s = parsed.section(name)
+        s = parsed.get_section(name)
         offset = oep - (s.virtual_address + len(pre_data) + len(ep_data))
         s.content = list(pre_data) + _trampoline_code(offset) + list(post_data)
         # update EP
