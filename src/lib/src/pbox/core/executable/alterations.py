@@ -174,8 +174,8 @@ class Alterations(list, metaclass=MetaBase):
         if exe is not None:
             d = a.registry[exe.format]
             # check the list of selected alterations if relevant, and filter out bad names (if warn=True)
-            for name in (select or [])[:]:
-                if name not in a.registry[exe.format]:
+            for name in (select or list(d.keys()))[:]:
+                if name not in d:
                     msg = f"Alteration '{name}' does not exist"
                     if warn:
                         l.warning(msg)
