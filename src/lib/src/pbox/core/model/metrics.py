@@ -96,6 +96,8 @@ def _map_values_to_integers(*arrays, **kwargs):
         if binary and i == 0:
             continue
         tn, fp, fn, tp = matrix.ravel()
+        #FIXME: counts in each class are wrong when using a clustering algorithm due to the issue of assigning clusters
+        #        to the right labels, but computation of metrics is correct
         l.debug(f"> {[f'[{i}] ',''][binary]}TN: {tn} ; TP: {tp} ; FN: {fn} ; FP: {fp}")
     for i, y in enumerate(out_arrays[:2]):
         n = min(_N_LAB, len(y))
@@ -159,6 +161,14 @@ def classification_metrics(X, y_pred, y_true=None, y_proba=None, labels=None, sa
              len(set([k for k in y_true if k != NOT_LABELLED])) <= 2
     # get the true and predicted values without the not-labelled ones and as integers
     yt, yp, ypr, d = _map_values_to_integers(y_true, y_pred, y_proba, **kw)
+    mcc = skm.matthews_corrcoef(yt, yp)
+    if mcc < 0 and set(x for x in yt if x != -1) == {0, 1}:
+        if y_true is not None:
+            y_true = y_true.__class__([1, 0][x] for x in y_true)
+        if y_proba is not None:
+            y_proba = y_proba.__class__(1 - x for x in y_proba)
+        yt, yp, ypr, d = _map_values_to_integers(y_true, y_pred, y_proba, **kw)
+        mcc = skm.matthews_corrcoef(yt, yp)
     if labels is None and d is not None:
         labels = [k for k in d.keys() if k not in [NOT_LABELLED, NOT_PACKED]]
     accuracy = skm.accuracy_score(yt, yp, sample_weight=sample_weight)
@@ -167,7 +177,6 @@ def classification_metrics(X, y_pred, y_true=None, y_proba=None, labels=None, sa
                                                                          sample_weight=sample_weight)
     if binary:
         precision, recall, fmeasure = precision[0], recall[0], fmeasure[0]
-    mcc = skm.matthews_corrcoef(yt, yp)
     try:
         auc = skm.roc_auc_score(yt, ypr)
     except (TypeError, ValueError):

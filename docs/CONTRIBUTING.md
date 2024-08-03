@@ -9,7 +9,7 @@ We use GitHub to sync code to and from our internal repository. We'll use GitHub
 
 We actively welcome your pull requests.
 
-1. Fork the repo and create your branch from `master`.
+1. Fork the repo and create your branch from `main`.
 2. If you want to **tune container's bash console**, you can add/edit files in this folder: `files/term`. Please test what you tune and be sure not to break other related features.
 3. If you want to **add a packer**, please refer to the related subsection hereafter.
 4. If you want to **add a tool**, please refer to the related subsection hereafter.
@@ -17,7 +17,6 @@ We actively welcome your pull requests.
   Please beware that:
   - Already-built packers respectively go to: `files/packers` (project-side) and `/opt/packers/.bin` (within the container).
   - Tools respectively go to the following project and container folders: `files/tools` and `/opt/tools`.
-  - 
 
 Before submitting your pull requests, please follow the steps below to explain your contribution.
 

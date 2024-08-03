@@ -264,7 +264,7 @@ def _information_gain_bar_chart(dataset, feature=None, max_features=None, multic
 
 @save_figure
 def _information_gain_comparison_heatmap(dataset, datasets=None, feature=None, max_features=None, multiclass=False,
-                                         aggregate="byte_[0-9]+_after_ep", **kw):
+                                         aggregate="byte_[0-9]+_after_ep", do_not_normalize=False, **kw):
     """ Plot a heatmap with the diffferences of information gain between a reference dataset (Dataset instance) and the
          given list of datasets (by name). """
     #FIXME: remove temp code [START]
@@ -303,8 +303,9 @@ def _information_gain_comparison_heatmap(dataset, datasets=None, feature=None, m
             max_features = df.shape[1]
     order = sorted(sorted(df.columns, key=lambda x: df[x].mean())[-max_features:], key=lambda x: df[x].mean())[::-1]
     # normalize per column
-    df[order] = df[order].div(df[order].max(axis=0), axis=1).replace(np.nan, .0)
-    label = f"Normalized IG difference from reference dataset"
+    if not do_not_normalize:
+        df[order] = df[order].div(df[order].max(axis=0), axis=1).replace(np.nan, .0)
+    label = f"{['Normalized ', ''][do_not_normalize]}IG difference from reference dataset"
     title = f"Information Gain comparison with reference dataset {dataset.basename}"
     plt.figure(figsize=(1.2*len(df.index) + 3, round(0.25 * max_features + 2.2)), dpi=200)
     annotations = df[order].applymap(lambda x: "%.2f"%x if abs(x) < 1000 else "%.1e"%x).values.T
