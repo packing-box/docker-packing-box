@@ -145,6 +145,23 @@ class AbstractParsedExecutable(ABC, CustomReprMixin, GetItemMixin):
         d = [""] + get_data(self.path.format)['STANDARD_SECTION_NAMES']
         return [s for s in self if _rn(s) not in d]
     
+
+    def __decode_section_name(self, pe, encoded_name, file):
+        if encoded_name.startswith('/'):
+            offset = int(encoded_name[1:])
+            string_table_offset = pe.header.pointerto_symbol_table + pe.header.numberof_symbols * 18
+            real_name_offset = string_table_offset + offset
+
+            # Seek to the calculated offset
+            file.seek(real_name_offset)
+
+            # Read the null-terminated string from the file
+            real_name = b''.join(iter(lambda: file.read(1), b'\x00')).decode('utf-8', errors='ignore')
+
+            return real_name
+        else:
+            return encoded_name
+
     @property
     def real_section_names(self):
         """ This only applies to PE as section names are limited to 8 characters for image files ; when using longer
@@ -158,13 +175,14 @@ class AbstractParsedExecutable(ABC, CustomReprMixin, GetItemMixin):
                 self._real_section_names = {}
                 return self._real_section_names
             real_names = []
-            out, _ = execute(["objdump", "-h", str(self.path)])
-            for l in out.decode("latin-1").split("\n"):
-                m = match(r"\s+\d+\s(.*?)\s+", l)
-                if m:
-                    real_names.append(m.group(1))
+            with open(self.path, "rb") as f:
+                for encoded_name in names:
+                    real_name = self.__decode_section_name(self, encoded_name, f)
+                    real_names.append(real_name)
+            
             self._real_section_names = {n: rn for n, rn in zip(names, real_names) if match(r"/\d+$", n)}
         return self._real_section_names
+    
     
     @property
     def standard_sections(self):
