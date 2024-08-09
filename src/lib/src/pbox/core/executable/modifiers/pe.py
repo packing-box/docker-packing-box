@@ -14,16 +14,21 @@ __all__ = [
 
 
 # --------------------------------------------------- Utils ------------------------------------------------------------
+_listify = lambda l: [[int(x, 16) for x in s.split(', ')] for s in l]
 def get_pe_data():
     """ Derive other PE-specific data from this of ~/.packing-box/data/pe. """
     from ....helpers.data import get_data
     d = {k: v for k, v in get_data("PE").items() if k in ["COMMON_API_IMPORTS", "COMMON_DLL_IMPORTS",
-                                                          "COMMON_PACKER_SECTION_NAMES", "STANDARD_SECTION_NAMES"]}
+                                                          "COMMON_PACKER_SECTION_NAMES", "STANDARD_SECTION_NAMES", 
+                                                          "DEAD_CODE"]}
     d['COMMON_API_IMPORTS'] = [(lib, api) for lib, lst in d.pop('COMMON_DLL_IMPORTS').items() for api in lst]
     for k in ["COMMON_PACKER_SECTION_NAMES", "STANDARD_SECTION_NAMES"]:
         d[k] = valid_names(d[k])
-    return d
+    
+    # add DEADCODE
+    d['DEAD_CODE'] = _listify(d["DEAD_CODE"]) # will contain a list of lists of bytes [[0x90], [0x33, 0xC0]]
 
+    return d
 
 valid_names = lambda nl: list(filter(lambda n: len(n) <= 8, map(lambda x: x if isinstance(x, str) else \
                                                                 getattr(x, "real_name", getattr(x, "name", "")), nl)))
@@ -150,26 +155,59 @@ def append_to_section(name, data):
     return _append_to_section
 
 
-def move_entrypoint_to_new_section(name, section_type=None, characteristics=None, pre_data=b"", post_data=b""):
+
+def move_entrypoint_to_new_section(name, section_type=None, characteristics=None, pre_data=b"", post_data=b"", with_dead_code=True):
     """ Set the entrypoint (EP) to a new section added to the binary that contains code to jump back to the original EP.
         The new section contains *pre_data*, then the code to jump back to the original EP, and finally *post_data*.
+        (*code_data* is the code to be executed before the jump back to the original EP.)
     """
-    _trampoline_code = lambda oep_or_offset: [0xE9, *list(oep_or_offset.to_bytes(4, "little", signed=True))]
+    _trampoline_code = lambda oep_or_offset: [0xE9, *list(oep_or_offset.to_bytes(4, "little", signed=oep_or_offset < 0))]
     @supported_parsers("lief") # 'parsed' is a lief.PE.Binary
     def _move_entrypoint_to_new_section(parsed, logger):
         logger.debug(f">> moving entrypoint to new section: {name}")
         oep = parsed.optional_header.addressof_entrypoint
+        ep_data = []
+        import random
+        # Randomly add prolog (mostly found in NotPacked binaries)
+        #   push ebp / mov ebp, esp /&/ sub esp, 0xc
+        code_data = [0x83, 0xec, 0x0c] if random.randint(0, 1) == 1 else [0x55, 0x8b, 0xec, 0x83, 0xec, 0x0c]
+        
+        # add dead code (dummy instructions that do nothing)
+        if with_dead_code:
+            dead_code = get_pe_data()["DEAD_CODE"]
+            MAX_DEAD_CODE = 256
+            MIN_DEAD_CODE = 64
+            MAX_REPEATED_DEAD_CODE = 16
+            # Select k random elements from the dead_code list (With random number of repetitions for each element (allowing for repetition) )
+            _deadcode_data = random.sample(dead_code, k=random.randint(MIN_DEAD_CODE, MAX_DEAD_CODE), counts=[random.randint(MAX_REPEATED_DEAD_CODE - (MAX_REPEATED_DEAD_CODE // 2), MAX_REPEATED_DEAD_CODE) for _ in range(len(dead_code))])
+
+            if isinstance(_deadcode_data, list):
+                if isinstance(_deadcode_data[0], list):
+                    _deadcode_data = [x for sublist in _deadcode_data for x in sublist]
+            else:
+                _deadcode_data = list(_deadcode_data)
+            code_data += _deadcode_data
+            
+            # restore stack (add esp, 0xc)
+            code_data += [0x83, 0xc4, 0x0c]
+            # add dead code to be executed before the jump back to the original EP
+            ep_data += code_data
+        
         # add trampoline code
-        ep_data = _trampoline_code(oep)
+        ep_data += _trampoline_code(oep)
+        
+        _characteristics = characteristics or parsed.SECTION_CHARACTERISTICS['MEM_READ'] | parsed.SECTION_CHARACTERISTICS['MEM_EXECUTE']
+
         # create new section
-        add_section(name, section_type or parsed.SECTION_TYPES['TEXT'], characteristics,
+        add_section(name, section_type or parsed.SECTION_TYPES['TEXT'], _characteristics,
                     list(pre_data) + ep_data + list(post_data))(parsed, logger)
         # update content and trampoline offset (do it after to know the address of the new section)
-        s = parsed.section(name)
+        s = parsed.get_section(name)
         offset = oep - (s.virtual_address + len(pre_data) + len(ep_data))
-        s.content = list(pre_data) + _trampoline_code(offset) + list(post_data)
+        s.content = list(pre_data) + code_data + _trampoline_code(offset) + list(post_data)
         # update EP
         parsed.optional_header.addressof_entrypoint = s.virtual_address + len(pre_data)
+
     return _move_entrypoint_to_new_section
 
 
