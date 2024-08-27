@@ -18,14 +18,15 @@ __all__ = ["dict2", "load_yaml_config", "Item", "MetaBase", "MetaItem"]
 
 _EMPTY_DICT = {}
 _EVAL_NAMESPACE = {k: getattr(builtins, k) for k in ["abs", "all", "any", "divmod", "float", "hash", "hex", "id", "int",
-                                                     "list", "min", "next", "oct", "ord", "pow", "range", "range2",
-                                                     "round", "set", "str", "sum", "tuple", "type"]}
+                                                     "list", "next", "oct", "ord", "pow", "range", "range2", "round",
+                                                     "set", "str", "sum", "tuple", "type"]}
 _WL_EXTRA_NODES = ("arg", "arguments", "keyword", "lambda")
 
 
 _concatn  = lambda l, n: reduce(lambda a, b: a[:n]+b[:n], l, stop=lambda x: len(x) > n)
 _len      = lambda i: sum(1 for _ in i) if is_generator(i) else len(i)
-_max      = lambda l, *a, **kw: max((x for x in l if x is not None), *a, **kw)
+_max      = lambda l, *a, **kw: None if len(l2 := [x for x in l if x is not None]) == 0 else max(l2, *a, **kw)
+_min      = lambda l, *a, **kw: None if len(l2 := [x for x in l if x is not None]) == 0 else min(l2, *a, **kw)
 _repeatn  = lambda s, n: (s * (n // len(s) + 1))[:n]
 _sec_name = lambda s: getattr(s, "real_name", getattr(s, "name", s))
 _size     = lambda exe, ratio=.1, blocksize=512: round(int(exe['size'] * ratio) / blocksize + .5) * blocksize
@@ -82,8 +83,8 @@ class dict2(dict):
     
     def __call__(self, data, silent=False, **kwargs):
         d = {k: getattr(random, k) for k in ["choice", "randint", "randrange", "randstr"]}
-        d.update({'apply': _apply, 'concatn': _concatn, 'len': _len, 'max': _max, 'printable': string.printable,
-                  'randbytes': _randbytes, 'repeatn': _repeatn, 'select': _select(),
+        d.update({'apply': _apply, 'concatn': _concatn, 'len': _len, 'max': _max, 'min': _min,
+                  'printable': string.printable, 'randbytes': _randbytes, 'repeatn': _repeatn, 'select': _select(),
                   'select_section_name': _select(_sec_name), 'size': _size, 'zeropad': zeropad})
         d.update(_EVAL_NAMESPACE)
         d.update(data)
