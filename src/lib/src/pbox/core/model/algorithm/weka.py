@@ -20,7 +20,7 @@ def to_arff(name="undefined"):
             a, mlen = [], 0
             mlen = max(map(len, self._feature_names))
             for fname in self._feature_names:
-                # all features are numeric when called from .fit(...) or .predict(...) are they were preprocessed with
+                # all features are numeric when called from .fit(...) or .predict(...) as they were preprocessed with
                 #  the ._prepare(...) method of the Model class
                 a.append(("@ATTRIBUTE {: <%s} numeric" % mlen).format(fname))
             # compute the block of data

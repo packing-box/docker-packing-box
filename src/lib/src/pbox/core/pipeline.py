@@ -32,8 +32,19 @@ def __init_pr():
 bi.PREPROCESSORS = lazy_object(__init_pr)
 
 
+# defined here for pickling when a new model gets joblib-serialized
+def _df2npa(X):
+    """ Dummy function for converting an input pandas.DataFrame to a numpy.array ; used for the FunctionTransformer that
+         allows to implement an identity transformer (when no scaler or transformer is required in the pipeline). """
+    from numpy import array
+    return array(X)
+
+
 def make_pipeline(pipeline, preprocessors, logger=null_logger):
     """ Make the ML pipeline by chaining the input preprocessors. """
+    if len(preprocessors) == 0:  # create the Pipeline instance with the list of steps
+        from sklearn.preprocessing import FunctionTransformer
+        pipeline.append(("pandas.DataFrame -> numpy.array", FunctionTransformer(_df2npa)))
     for p in preprocessors:
         p, params = PREPROCESSORS.get(p, p), {}
         if isinstance(p, tuple):
@@ -66,7 +77,7 @@ def __init_pl():
         
         def _log_message(self, step_idx):
             """ Overload original method to display messages with our own logger.
-            NB: verbosity is controlled via the logger, therefore we output None so that it is not natively displayed. """
+            NB: verbosity is controlled via the logger, hence we output None so that it is not natively displayed. """
             if not getattr(Pipeline, "silent", False):
                 name, _ = self.steps[step_idx]
                 logger.info(f"[{step_idx+1}/{len(self.steps)}] {name}")
