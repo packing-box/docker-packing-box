@@ -161,6 +161,12 @@ class BaseModel(Entity):
             for col in missing_cols:
                 self._features[col] = np.nan
             self._data = self._data.reindex(columns=sorted(self._features.keys()))
+        # if the associated algorithm imposes feature names, filter out unneeded features
+        cls = self._algorithm
+        params = cls.parameters.get('static', cls.parameters if cls.labelling == "none" else {})
+        classifier = cls.base(**params)
+        if hasattr(classifier, "_feature_names"):
+            self._data = self._data[classifier._feature_names]
         # if data has to be unlabelled, force values for column 'label'
         if unlabelled:
             self._target['label'] = NOT_LABELLED
@@ -227,9 +233,9 @@ class BaseModel(Entity):
             l.warning("Model shall be trained before testing")
             return
         kw['data_only'], kw['dataset'] = True, ds
+        cls = self._algorithm = Algorithm.get(self._metadata['algorithm']['name'])
         if not self._prepare(**kw):
             return
-        cls = self._algorithm = Algorithm.get(self._metadata['algorithm']['name'])
         l.debug(f"Testing {self.name} on {ds}...")
         prediction, dt = benchmark(self.pipeline.predict)(self._data)
         try:
@@ -243,8 +249,11 @@ class BaseModel(Entity):
         for metric in metrics:
             try:
                 m, h = self._metrics(self._data, prediction, self._target, proba, metric, dt, ignore_labels)
-            except TypeError:  # when None is returned because of a bad metrics category OR ignore_labels is
-                continue       #  True and labels were required for the metrics category
+            except TypeError as e:
+                # when None is returned because of a bad metrics category OR ignore_labels is True and labels were
+                #  required for the metrics category
+                l.debug(e)
+                continue
             for header in [[], ["Model"]][self.__class__ is DumpedModel] + ["Dataset"] + h:
                 if header not in self._performance.columns:
                     self._performance[header] = np.nan
@@ -426,6 +435,7 @@ class Model(BaseModel):
     
     def show(self, **kw):
         """ Show an overview of the model. """
+        from tinyscript import re
         a, ds, ps = self._metadata['algorithm'], self._metadata['dataset'], self.pipeline.steps
         last_step = ps[-1][1] if isinstance(ps[-1], tuple) else ps[-1]
         fi, fi_str = getattr(last_step, "feature_importances_", None), []
@@ -435,12 +445,12 @@ class Model(BaseModel):
                          sorted(zip(fi, sorted(self._features.keys())), key=lambda x: -x[0]) if i > 0.]
             if len(best_feat) > 0:
                 l, nf = max(map(len, [x[1] for x in best_feat])), len(str(len(best_feat)))
-                best_feat = [("{: <%s}: {} (%.3f)" % (l + nf - len(str(i+1)), p[0])) \
+                best_feat = [("{: <%s}: {} (%.3f)" % (l + nf - 1, p[0])) \
                              .format(p[1], self._features[p[1]]) for i, p in enumerate(best_feat)]
                 fi_str = [f"**Features**:      {len(self._features)} ({len(best_feat)} with non-null importance)"
                           f"\n\n\t- {'\n\n\t- '.join(best_feat)}\n\n"]
         else:
-            from tinyscript import re, string
+            from tinyscript import string
             feat, cnt = [], None
             for f in string.sorted_natural(self._features.keys()):
                 try:
@@ -466,13 +476,21 @@ class Model(BaseModel):
         params = a['parameters'].keys()
         l = max(map(len, params))
         params = [("{: <%s} = {}" % l).format(*p) for p in sorted(a['parameters'].items(), key=lambda x: x[0])]
-        c = List([f"**Path**:          {self.path}",
-                  f"**Size**:          {human_readable_size(self.path.joinpath('dump.joblib').size)}",
-                  f"**Algorithm**:     {a['description']} ({a['name']})",
-                  f"**Multiclass**:    {'NY'[a['multiclass']]}"] + fi_str + \
-                 ["**Preprocessors**: \n\n\t- %s\n\n" % "\n\t- ".join(a['preprocessors']),
-                  "**Parameters**: \n\n\t- %s\n\n" % "\n\t- ".join(params)])
-        render(Section("Model characteristics"), c)
+        l = [f"**Path**:          {self.path}",
+             f"**Size**:          {human_readable_size(self.path.joinpath('dump.joblib').size)}",
+             f"**Algorithm**:     {a['description']} ({a['name']})",
+             f"**Multiclass**:    {'NY'[a['multiclass']]}"] + fi_str
+        if len(a['preprocessors']) > 0:
+            l.append("**Preprocessors**: \n\n\t- %s\n\n" % "\n\t- ".join(a['preprocessors']))
+        if len(params) > 0:
+            l.append("**Parameters**: \n\n\t- %s\n\n" % "\n\t- ".join(params))
+        hyperparams = {k: v for k, v in self.classifier.__dict__.items() if re.search(r"[a-zA-Z0-9]_$", k) and \
+                       k not in ["classes_", "estimator_", "estimators_", "labels_", "n_classes_", "n_features_in_",
+                                 "n_outputs_"]}
+        if len(hyperparams) > 0:
+            l.append("**Hyper-parameters**: \n\n\t- %s\n\n" % "\n\t- " \
+                     .join(f"{k.rstrip('_')} = {v}" for k, v in hyperparams.items()))
+        render(Section("Model characteristics"), List(l))
         ds_path = config['datasets'].joinpath(ds['name'])
         c = List([f"**Path**:         {ds_path}",
                   f"**Size**:         {human_readable_size(ds_path.size)}",
@@ -525,7 +543,7 @@ class Model(BaseModel):
             l.error(f"'{algo}' does not support multiclass")
             return
         # get classifer and parameters
-        params = cls.parameters.get('static', cls.parameters if cls.labelling == "none" else None)
+        params = cls.parameters.get('static', cls.parameters if cls.labelling == "none" else {})
         if cls.is_weka():
             #params['model'] = self
             params['feature_names'] = sorted(self._features.keys())
@@ -574,7 +592,7 @@ class Model(BaseModel):
                 self._train.data = self._train.data[self._data.columns]
                 self._test.data = self._test.data[self._data.columns]
         l.info("Training model...")
-        if self.pipeline.steps[-1][0] == cls.description:
+        if len(self.pipeline.steps) and self.pipeline.steps[-1][0] == cls.description:
             self.pipeline.pop()
         self.pipeline.append((cls.description, cls.base(**params)))
         # if a param_grid is input, perform cross-validation and select the best classifier

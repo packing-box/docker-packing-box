@@ -42,15 +42,16 @@ def __init_metaalgo():
                 glob.pop(child.cname, None)
             cls.registry = []
             # start parsing items of cls
+            _labellings = {'Supervised': "full", 'Semi-Supervised': "partial", 'Unsupervised': "none", \
+                           'Heuristics': "full"}
             for category, items in load_yaml_config(p, parse_defaults=False):
-                if category not in ["Semi-Supervised", "Supervised", "Unsupervised"]:
+                if category not in _labellings.keys():
                     raise ValueError(f"bad learning algorithm category ({category})")
                 dflts = items.pop('defaults', {})
                 dflts.setdefault('boolean', False)
                 dflts.setdefault('multiclass', True)
                 dflts.setdefault('parameters', {})
-                dflts['labelling'] = {'Supervised': "full", 'Semi-Supervised': "partial", 'Unsupervised': "none"} \
-                                     [category]
+                dflts['labelling'] = _labellings[category]
                 for algo, data in items.items():
                     for k, v in dflts.items():
                         if k == "base":
