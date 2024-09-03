@@ -291,10 +291,6 @@ export DOTNET_CLI_TELEMETRY_OPTOUT=1
 #  QStandardPaths: XDG_RUNTIME_DIR not set, defaulting to '/tmp/runtime-root'
 export XDG_RUNTIME_DIR=/tmp/runtime-root
 
-# add relevant folders to PATH
-for FOLDER in .local/bin .opt/tools .opt/utils .opt/bin; do
-  pathprepend $HOME/$FOLDER
-done
 
 # thefuck alias
 if [ $EUID -ne 0 ]; then
@@ -307,3 +303,10 @@ fi
 
 # enable loading additional modules at Python interpreter startup
 export PYTHONSTARTUP="$HOME/.pythonrc.py"
+# set Ruby Gems home folder
+export GEM_HOME="$HOME/.gem"
+
+# add relevant folders to PATH
+for FOLDER in .gem/bin .local/bin .opt/tools .opt/utils .opt/bin; do
+  pathprepend $HOME/$FOLDER
+done

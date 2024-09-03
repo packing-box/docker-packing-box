@@ -313,6 +313,14 @@ def _init_base():
                         arg = [arg]
                     for a in arg:
                         run(a, **kw)
+                # simple install through Ruby Gems
+                elif cmd == "gem":
+                    cwd2 = os.getcwd()
+                    os.chdir(str(result))
+                    run(f"gem build {arg}.gemspec --silent", **kw)
+                    gem = list(result.listdir(filter_func=lambda p: p.extension == ".gem"))[0]
+                    run(f"gem install {gem}", silent=["The environment variable HTTP_PROXY is discouraged."])
+                    os.chdir(cwd2)
                 # git clone a project
                 elif cmd in ["git", "gitr"]:
                     result = (result or tmp).joinpath(Path(urlparse(arg).path).stem.lower() if arg1 == arg2 else arg2)

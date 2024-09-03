@@ -90,6 +90,16 @@ PE-Bear:
     - PE
   source: https://github.com/hasherezade/pe-bear-releases
 
+PEdump:
+  description: 
+  formats:
+    - PE
+  install:
+    - git: https://github.com/zed-0xff/pedump
+    - gem: pedump
+  source: https://github.com/zed-0xff/pedump
+  status: ok
+
 PEscan:
   description: pescan is a command line tool to scan portable executable (PE) files to identify how they were constructed.
   formats:

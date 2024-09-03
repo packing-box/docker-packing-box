@@ -51,8 +51,8 @@ RUN apt-get -y install apt-transport-https apt-utils \
 # && apt-get -y install libgtk2.0-0:i386 \
 # install useful tools
 RUN apt-get -y install colordiff colortail cython3 dos2unix dosbox git golang kmod less ltrace meson nasm tree strace \
- && apt-get -y install iproute2 nftables nodejs npm python3-setuptools python3-pip swig vim weka x11-apps yarnpkg \
- && apt-get -y install bc curl ffmpeg imagemagick pev psmisc tesseract-ocr unrar unzip wget zstd \
+ && apt-get -y install iproute2 nftables nodejs npm python3-setuptools python3-pip rubygems swig vim weka yarnpkg \
+ && apt-get -y install bc curl ffmpeg imagemagick pev psmisc tesseract-ocr unrar unzip wget x11-apps zstd \
  && apt-get -y install bats binutils-dev binwalk dwarfdump ent foremost jq tmate tmux visidata xdotool xterm xvfb \
  && wget -qO /tmp/bat.deb https://github.com/sharkdp/bat/releases/download/v0.18.2/bat-musl_0.18.2_amd64.deb \
  && dpkg -i /tmp/bat.deb \
