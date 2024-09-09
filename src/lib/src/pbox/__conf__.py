@@ -137,6 +137,7 @@ bi.config = Config("packing-box",
             'data':           ("data", "PATH", "path to executable formats' related data, relative to the workspace",
                                _rp, ["workspace", PBOX_HOME], True),
             'hash_algorithm': ("sha256", "ALGORITHM", "hashing algorithm for identifying samples", _vh),
+            'vt_api_key':     ("", "API_KEY", "VirusTotal's RESTful API key"),
         },
         'parsers': {
             'default_parser': ("lief", "PARSER", "name of the module for parsing any format of executable"),

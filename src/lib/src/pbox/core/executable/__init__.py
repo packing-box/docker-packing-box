@@ -197,6 +197,50 @@ class Executable(Path):
         from bintropy import plot
         plot(self, img_name=path, labels=[self.label], sublabel=sublabel, target=fn, **kw_plot)
     
+    def scan(self, executables=(), **kwargs):
+        l, verb = kwargs.get('logger', null_logger), kwargs.get('verbose', False) and len(executables) == 0
+        @json_cache("vt", self.hash, kwargs.get('force', False))
+        def _scan():
+            from vt import Client
+            k = config['vt_api_key']
+            if k == "":
+                l.warn("'vt_api_key' shall be defined")
+                return
+            try:
+                with Client(k) as c:
+                    l.info(f"Scanning '{self.filename}' ({self.hash}) on VirusTotal, this may take a while...")
+                    with self.open('rb') as f:
+                        analysis = c.scan_file(f, wait_for_completion=True)
+                d = analysis.to_dict()
+                d['filename'] = self.filename
+                d['hash'] = self.hash
+                return d
+            except Exception as e:
+                l.error(e)
+                return
+        data = _scan() or {}
+        if not kwargs.get('show', True):
+            return data
+        sdata = [Executable(e).scan(show=False, **kwargs) for e in executables]
+        _bad, _fail = ["malicious", "suspicious"], ["confirmed-timeout", "failure", "timeout", "type-unsupported"]
+        sd = lambda d, k1, k2: d['attributes']['results'].get(k1, {}).get(k2, "")
+        fmt = lambda r, c: colored(r or ("⚠" if c in _fail else ""),
+                                   {'malicious': "red", 'suspicious': "orange"}.get(c, "grey"))
+        st = lambda d: (d['filename'], d['hash'], sum(v for k, v in d['attributes']['stats'].items() if k in _bad), \
+                        sum(v for k, v in d['attributes']['stats'].items() if k not in _fail))
+        try:
+            detections = [([d['engine_name'], d['engine_version'], d['engine_update'], d['category'], d['method'],
+                            d['result'] or ""] if verb else [d['engine_name'], fmt(d['result'], d['category'])] + \
+                       ([fmt(sd(x, d['engine_name'], 'result'), sd(x, d['engine_name'], 'category')) for x in sdata])) \
+                        for d in sorted(data['attributes']['results'].values(), key=lambda x: x['engine_name'].lower())]
+            stats = [st(data)] + [st(x) for x in sdata]
+        except KeyError:
+            l.error("Could not parse results")
+            return
+        head = [["Engine"] + [f"{f} ({m}/{t})\n{h}" for f, h, m, t in stats],
+                ["Engine", "Version", "Last Update", "Category", "Method", "Result"]][verb]
+        render(*[Section("Scan Results"), Table(detections, column_headers=head)])
+    
     def show(self, base_info=True, sections=True, features=False, **kwargs):
         ds, r = hasattr(self, "_dataset"), []
         if base_info:

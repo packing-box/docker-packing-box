@@ -1,5 +1,5 @@
 # -*- coding: UTF-8 -*-
-from tinyscript import re
+from tinyscript import functools, re
 
 lazy_load_module("numpy", alias="np")
 lazy_load_module("pandas", alias="pd")
@@ -7,7 +7,7 @@ lazy_load_module("yaml")
 
 
 __all__ = ["at_interrupt", "benchmark", "bin_label", "bold", "class_or_instance_method", "execute_and_get_values_list",
-           "get_counts", "np", "pd", "shorten_str", "strip_version", "yaml"]
+           "get_counts", "json_cache", "np", "pd", "shorten_str", "strip_version", "yaml"]
 
 
 bin_label = lambda l: {NOT_LABELLED.lower(): -1, 'false': 0, NOT_PACKED.lower(): 0, 'true': 1, None: None} \
@@ -51,6 +51,34 @@ def execute_and_get_values_list(command, offset=1):
             except ValueError:
                 values.append(x)
         return values
+
+
+def json_cache(name, key, force=False):
+    cache = PBOX_HOME.joinpath("cache", name)
+    cache.mkdir(parents=True, exist_ok=True)
+    def _wrapper(f):
+        @functools.wraps(f)
+        def _subwrapper(*a, **kw):
+            from json import dump, dumps, load
+            cache_file = cache.joinpath(f"{key}.json")
+            if cache_file.exists():
+                if force:
+                    cache_file.remove()
+                else:
+                    with cache_file.open('rb') as fin:
+                        return load(fin)
+            r = f(*a, **kw)
+            if r is not None and len(r) > 0:
+                with cache_file.open('w') as fout:
+                    try:
+                        dump(r, fout, indent=2)
+                    except TypeError:
+                        from vt.object import UserDictJsonEncoder
+                        fout.truncate()
+                        fout.write(dumps(r, cls=UserDictJsonEncoder, indent=2))
+            return r
+        return _subwrapper
+    return _wrapper
 
 
 def shorten_str(string, l=80):
