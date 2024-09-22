@@ -13,6 +13,13 @@ ACProtect:
   source: https://www.yaldex.com/Bestsoft/Utilities/acprotect.htm
   status: commercial
 
+Aegis:
+  description: #TODO
+  formats:
+    - PE
+  references:
+    - https://www.youtube.com/watch?v=uxlpRof1QWs
+
 AinEXE:
   categories:
     - compressor
@@ -109,6 +116,8 @@ ASPack:
     - PE32
   references:
     - https://github.com/fireeye/capa-rules/blob/master/anti-analysis/packer/aspack/packed-with-aspack.yml
+  related:
+    - https://attack.mitre.org/techniques/T1027/002
   source: http://www.aspack.com/aspack.html
   status: broken
 
@@ -210,6 +219,13 @@ CCG_Packer:
   references:
     - https://www.hexacorn.com/blog/2012/10/14/random-stats-from-1-2m-samples-pe-section-names
 
+Conficker:
+  description: Worm targeting Microsoft Windows operations systems propagated as a DLL packed using UPX.
+  formats:
+    - PE
+  references:
+    - https://github.com/MBCProject/mbc-markdown/blob/main/xample-malware/conficker.md
+
 ConfuserEx:
   categories:
     - protector
@@ -223,6 +239,9 @@ ConfuserEx:
   references:
     - https://github.com/yck1509/ConfuserEx
     - https://opencollective.com/confuserex
+  related:
+    - https://attack.mitre.org/techniques/T1027/002
+    - https://attack.mitre.org/software/S0628
   source: https://github.com/mkaring/ConfuserEx
 
 Crinkler:
@@ -239,6 +258,13 @@ Crunch:
     - PE
   references:
     - https://www.hexacorn.com/blog/2012/10/14/random-stats-from-1-2m-samples-pe-section-names
+
+DarkComet:
+  description: RAT that allows a user to control the system via a GUI ; it features packing payloads with UPX or MPRESS.
+  formats:
+    - PE
+  references:
+    - https://github.com/MBCProject/mbc-markdown/blob/main/xample-malware/dark-comet.md
 
 Dragon_Armor:
   formats:
@@ -328,6 +354,13 @@ ElecKey:
   source: https://www.sciensoft.com/products/eleckey
   status: commercial
 
+Emotet:
+  description: Banking Trojan using custom packers which first decrypt the loaders, and then the loaders decrypt and load Emotet's main payloads.
+  formats:
+    - PE
+  references:
+    - https://github.com/MBCProject/mbc-markdown/blob/main/xample-malware/emotet.md
+
 Enigma_Protector:
   categories:
     - protector
@@ -335,6 +368,8 @@ Enigma_Protector:
   formats:
     - PE32
     - PE64
+  related:
+    - https://attack.mitre.org/techniques/T1027/002
   source: https://www.enigmaprotector.com/
   status: commercial
 
@@ -406,6 +441,9 @@ Ezuri:
   references:
     - https://www.guitmz.com/linux-elf-runtime-crypter/
     - https://github.com/f0wl/ezuri_unpack
+  related:
+    - https://attack.mitre.org/techniques/T1027/002
+    - https://attack.mitre.org/groups/G0139
   source: https://github.com/guitmz/ezuri
   status: ok
 
@@ -536,6 +574,13 @@ Kkrunchy:
   steps:
     - kkrunchy --good {{executable}} --out {{executable}}
 
+Kovter:
+  description: Trojan that performs click-fraud which comes packed by a crypter/FUD.
+  formats:
+    - PE
+  references:
+    - https://github.com/MBCProject/mbc-markdown/blob/main/xample-malware/kovter.md
+
 LM-X_License_Manager:
   categories:
     - protector
@@ -660,6 +705,8 @@ MPRESS:
     - https://storage.ey.md/Technology%%20Related/Programming%%20%%26%%20Reversing/Tuts4You%%20Collection/UnPackMe%%20Collection/PE32/MPress%%202.12.rar
     - https://storage.ey.md/Technology%%20Related/Programming%%20%%26%%20Reversing/Tuts4You%%20Collection/UnPackMe%%20Collection/PE64/MPress%%201.07%%20x64.rar
     - https://storage.ey.md/Technology%%20Related/Programming%%20%%26%%20Reversing/Tuts4You%%20Collection/UnPackMe%%20Collection/PE64/MPress%%202.12%%20x64.rar
+  related:
+    - https://attack.mitre.org/techniques/T1027/002
   silent:
     - Warning!
   source: https://www.softpedia.com/get/Programming/Packers-Crypters-Protectors/MPRESS.shtml
@@ -718,6 +765,8 @@ Obsidium:
   formats:
     - PE32
     - PE64
+  related:
+    - https://attack.mitre.org/techniques/T1027/002
   source: https://www.obsidium.de
   status: commercial
 
@@ -908,6 +957,13 @@ ProCrypt:
     - PE
   references:
     - https://www.hexacorn.com/blog/2012/10/14/random-stats-from-1-2m-samples-pe-section-names
+
+Redhip:
+  description: Information stealer packed with different custom packers.
+  formats:
+    - PE
+  references:
+    - https://github.com/MBCProject/mbc-markdown/blob/main/xample-malware/redhip.md
 
 RLPack:
   categories:
@@ -1112,6 +1168,8 @@ Themida:
     - PE64
   references:
     - https://github.com/mandiant/capa-rules/blob/master/anti-analysis/packer/themida/packed-with-themida.yml
+  related:
+    - https://attack.mitre.org/techniques/T1027/002
   source: https://www.oreans.com/themida.php
   status: commercial
 
@@ -1124,6 +1182,13 @@ Thinstall:
     - PE
   source: https://www.vmware.com/products/thinapp
   status: commercial
+
+TrickBot:
+  description: Trojan spyware written in C++ mainly used for targeting banking sites, using a custom packer to obfuscate itself.
+  formats:
+    - PE
+  references:
+    - https://github.com/MBCProject/mbc-markdown/blob/main/xample-malware/trickbot.md
 
 Upack:
   categories:
@@ -1161,6 +1226,8 @@ UPX:
     - https://github.com/fireeye/capa-rules/blob/master/anti-analysis/packer/upx/packed-with-upx.yml
     - https://www.aldeid.com/wiki/Category:Digital-Forensics/Computer-Forensics/Anti-Reverse-Engineering/Packers/UPX
     - https://storage.ey.md/Technology%%20Related/Programming%%20%%26%%20Reversing/Tuts4You%%20Collection/Unpacking%%20Tutorials/UPX%%20%%28Unpacking%%29.rar
+  related:
+    - https://attack.mitre.org/techniques/T1027/002
   silent:
     - AlreadyPackedException
     - CantPackException
@@ -1238,6 +1305,8 @@ VMProtect:
     - PE
   references:
     - https://www.hexacorn.com/blog/2012/10/14/random-stats-from-1-2m-samples-pe-section-names
+  related:
+    - https://attack.mitre.org/techniques/T1027/002
   source: https://vmpsoft.com/products/vmprotect
   status: commercial
 
@@ -1278,7 +1347,6 @@ Windows-PE-Packer:
   formats:
     - PE32
   source: https://github.com/czs108/Windows-PE-Packer
-  status: info 
 
 WinUPack:
   aliases:
