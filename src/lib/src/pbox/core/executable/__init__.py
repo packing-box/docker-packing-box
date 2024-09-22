@@ -172,6 +172,22 @@ class Executable(Path):
                 raise ValueError(f"Modifier '{modifier}' does not exist")
         self.parsed.modify(modifier, **kwargs)
     
+    def objdump(self, n=0, executable_only=False):
+        from subprocess import check_output
+        output, result, l = check_output(["objdump", ["-D", "-d"][executable_only], str(self)]), bytearray(b""), 0
+        for line in output.splitlines():
+            tokens = line.decode().split("\t")
+            if len(tokens) != 3:
+                continue
+            hb = tokens[1].strip().replace(" ", "")
+            if re.match(r"([0-9a-f]{2})+", hb):
+                b = bytes.fromhex(hb)
+                l += len(b)
+                if 0 < n < l:
+                    return bytes(result + b[:l % n])
+                result += b
+        return bytes(result)
+    
     def parse(self, parser=None, reset=True):
         parser = parser or config[f'{self.shortgroup}_parser']
         if reset:  # this forces recomputing the cached properties 'parsed', 'hash', 'size', ...
