@@ -42,32 +42,35 @@ def __init_metaalgo():
                 glob.pop(child.cname, None)
             cls.registry = []
             # start parsing items of cls
-            _labellings = {'Supervised': "full", 'Semi-Supervised': "partial", 'Unsupervised': "none", \
-                           'Heuristics': "full"}
-            for category, items in load_yaml_config(p, parse_defaults=False):
-                if category not in _labellings.keys():
-                    raise ValueError(f"bad learning algorithm category ({category})")
-                dflts = items.pop('defaults', {})
-                dflts.setdefault('boolean', False)
-                dflts.setdefault('multiclass', True)
-                dflts.setdefault('parameters', {})
-                dflts['labelling'] = _labellings[category]
-                for algo, data in items.items():
-                    for k, v in dflts.items():
-                        if k == "base":
-                            raise ValueError("parameter 'base' cannot have a default value")
-                        data.setdefault(k, v)
-                    # put the related algorithm in module's globals()
-                    d = dict(cls.__dict__)
-                    for a in ["get", "iteritems", "mro", "registry"]:
-                        d.pop(a, None)
-                    i = glob[algo] = type(algo, (cls, ), d)
-                    i._instantiable = True
-                    # now set attributes from YAML parameters
-                    for k, v in data.items():
-                        setattr(i, "_" + k if k == "source" else k, v)
-                    glob['__all__'].append(algo)
-                    cls.registry.append(i())
+            _labellings = {'supervised': "full", 'semi-supervised': "partial", 'unsupervised': "none", \
+                           'heuristics': "full"}
+            algos = {k: v for k, v in load_yaml_config(p, ["base"])}
+            # backward compatibility with former algorithms.yml format
+            if all(k.lower() in _labellings for k in algos.keys()):
+                d = {}
+                for k, algo in algos.items():
+                    for sk, v in algo.items():
+                        v['category'] = k.lower()
+                        d[sk] = v
+                algos = d
+            for algo, data in algos.items():
+                if data.get('category') not in _labellings.keys():
+                    raise ValueError(f"bad learning algorithm category ({data.get('category')})")
+                data.setdefault('boolean', False)
+                data.setdefault('multiclass', True)
+                data.setdefault('parameters', {})
+                data['labelling'] = _labellings[data['category']]
+                # put the related algorithm in module's globals()
+                d = dict(cls.__dict__)
+                for a in ["get", "iteritems", "mro", "registry"]:
+                    d.pop(a, None)
+                i = glob[algo] = type(algo, (cls, ), d)
+                i._instantiable = True
+                # now set attributes from YAML parameters
+                for k, v in data.items():
+                    setattr(i, "_" + k if k == "source" else k, v)
+                glob['__all__'].append(algo)
+                cls.registry.append(i())
     return MetaAlgorithm
 lazy_load_object("MetaAlgorithm", __init_metaalgo)
 
