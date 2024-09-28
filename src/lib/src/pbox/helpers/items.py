@@ -2,9 +2,8 @@
 import builtins
 from tinyscript import inspect, logging, random, re, string
 from tinyscript.helpers import get_terminal_size, is_file, is_folder, is_generator, is_iterable, reduce, \
-                               set_exception, txt_terminal_render, zeropad
+                               set_exception, txt_terminal_render, zeropad, Path, TempPath
 from tinyscript.helpers.expressions import WL_NODES
-from tinyscript.helpers.path import Path, TempPath
 
 from .files import Locator
 from .formats import format_shortname
@@ -480,12 +479,15 @@ def _init_item():
 lazy_load_object("Item", _init_item)
 
 
-def load_yaml_config(cfg, no_defaults=(), parse_defaults=True, test_only=False):
+def load_yaml_config(cfg, no_defaults=(), parse_defaults=True):
     """ Load a YAML configuration, either as a single file or a folder with YAML files (in this case, loading
          defaults.yml in priority to get the defaults first). """
-    def _set(config):
+    from copy import deepcopy
+    # local function for expanding defaults from child configurations
+    def _set(config, defaults_=None):
         if parse_defaults:
-            defaults = config.pop('defaults', {})
+            defaults = deepcopy(defaults_ or {})
+            defaults.update(config.pop('defaults', {}))
             for params in [v for v in config.values()]:
                 for default, value in defaults.items():
                     if default in no_defaults:
@@ -499,22 +501,22 @@ def load_yaml_config(cfg, no_defaults=(), parse_defaults=True, test_only=False):
                         #         - ^is_*       (do not keep boolean features)
                         #       value: false
                         value.pop('comment', None)
-                        if set(value.keys()) != {'match', 'value'}:
-                            raise ValueError(f"Bad configuration for default '{default}' ; should be a dictionary with"
-                                             " 'value' and 'match' (format: list) as its keys")
-                        v = value['value']
-                        for pattern in value['match']:
-                            for name2 in config.keys():
-                                # special case: boolean value ; in this case, set value for matching names and set
-                                #                                non-matching names to its opposite
-                                if isinstance(v, bool):
-                                    # in the advanced example here above, entropy-based and boolean features will not be
-                                    #  kept but all others will be
-                                    config[name2].setdefault(default, v if re.search(pattern, name2) else not v)
-                                    # this means that, if we want to keep additional features, we can still force
-                                    #  keep=true per feature declaration
-                                elif re.search(pattern, name2):
-                                    config[name2].setdefault(default, v)
+                        if set(value.keys()) == {'match', 'value'}:
+                            #raise ValueError(f"Bad configuration for default '{default}' ; should be a dictionary with"
+                            #                 " 'value' and 'match' (format: list) as its keys")
+                            v = value['value']
+                            for pattern in value['match']:
+                                for name2 in config.keys():
+                                    # special case: boolean value ; in this case, set value for matching names and set
+                                    #                                non-matching names to its opposite
+                                    if isinstance(v, bool):
+                                        # in the advanced example here above, entropy-based and boolean features will
+                                        #  not be kept but all others will be
+                                        config[name2].setdefault(default, v if re.search(pattern, name2) else not v)
+                                        # this means that, if we want to keep additional features, we can still force
+                                        #  keep=true per feature declaration
+                                    elif re.search(pattern, name2):
+                                        config[name2].setdefault(default, v)
                     else:
                         # example normal defaults configuration:
                         #   defaults:
@@ -522,28 +524,55 @@ def load_yaml_config(cfg, no_defaults=(), parse_defaults=True, test_only=False):
                         #     source: <unknown>
                         params.setdefault(default, value)
         return config
+    # local function for merging child configurations
+    def _merge(config, k, v, keep=False):
+        if k not in config.keys():
+            config[k] = deepcopy(v)
+        else:
+            v1 = config[k]
+            if isinstance(v1, dict):
+                return True
+            elif isinstance(v1, (list, set, tuple)):
+                if isinstance(v, (list, set, tuple)):
+                    for sv in v:
+                        if sv not in v1:
+                            v1.append(sv)
+                else:
+                    v1.append(v)
+            elif not keep:
+                config[k] = v
+    # local function for updating the main configuration
+    def _update(base, folder, defaults, parent=()):
+        defaults_, dflt = deepcopy(defaults), folder.joinpath("defaults.yml")
+        if dflt.is_file():
+            with dflt.open() as f:
+                defaults_.update(yaml.load(f, Loader=yaml.Loader))
+        for cfg in folder.listdir(lambda p: p.extension == ".yml"):
+            if cfg.stem == "defaults":
+                continue
+            with cfg.open() as f:
+                config = yaml.load(f, Loader=yaml.Loader)
+            _set(config, defaults_)
+            for k, v in config.items():
+                if _merge(base, k, v):
+                    _update(base[k], v, defaults_, list(parent) + [k])
+        for cfg_folder in folder.listdir(lambda p: p.is_dir()):
+            _update(base, cfg_folder, defaults_, parent)
     # get the list of configs ; may be:
     #  - single YAML file
-    #  - folder with YAML files
+    #  - folder (and subfolders) with YAML files
     p = cfg if isinstance(cfg, Path) else Path(config[cfg])
-    configs = list(p.listdir(lambda x: x.extension == ".yml")) if p.is_dir() else [p]
-    # separate defaults.yml from the list
-    defaults = list(filter(lambda x: x.stem == "defaults", configs))
-    configs = list(filter(lambda x: x.stem != "defaults", configs))
-    d = {}
-    if len(defaults) > 0:
-        with defaults[0].open() as f:
-            d = yaml.load(f, Loader=yaml.Loader)
-    # now parse YAML configurations, setting local defaults from child configs
-    for c in configs:
-        with c.open() as f:
-            cfg = yaml.load(f, Loader=yaml.Loader)
-        d.update(_set(cfg or {}))
-    if test_only:
-        _set(d)
-        return cfg
+    if p.is_dir():
+        # parse YAML configurations according to the following rules:
+        #  - when encountering a defaults.yml, its values become the defautls for the current folder and subfolders
+        #  - when finding a defaults key in a .yml, these default values are merged with higher level defaults
+        d = {}
+        _update(d, p, {})
+    else:
+        with p.open() as f:
+            d = _set(yaml.load(f, Loader=yaml.Loader) or {})
     # collect properties that are applicable for all the other features
-    for name, params in _set(d).items():
+    for name, params in d.items():
         yield name, params
 
 
