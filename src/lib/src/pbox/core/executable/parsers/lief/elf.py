@@ -24,7 +24,7 @@ def __init_elf():
         
         @property
         def entrypoint_section(self):
-            return self.section_from_offset(self._parsed.entrypoint)
+            return ELFSection(self.section_from_offset(self._parsed.entrypoint))
     
     ELF.__name__ = "ELF"
     return ELF

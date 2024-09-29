@@ -1,7 +1,7 @@
 # -*- coding: UTF-8 -*-
 import builtins as bi
 from collections import deque
-from tinyscript import itertools, logging, re
+from tinyscript import ast, itertools, logging, re
 from tinyscript.helpers import is_generator as is_gen, Path
 from tinyscript.report import *
 
@@ -123,7 +123,7 @@ class Features(dict, metaclass=MetaBase):
         #  ValueError: Must have equal len keys and value when setting with an iterable)
         if isinstance(value, str):
             try:
-                return literal_eval(value)
+                return ast.literal_eval(value)
             except ValueError:
                 pass
         return value

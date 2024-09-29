@@ -66,6 +66,10 @@ def __init_pe():
         def imported_dlls(self):
             return {dll.name for dll in self._parsed.imports}
         
+        @property
+        def machine(self):
+            return self._parsed.header.machine.value
+        
         def sections_with_slack_space(self, length=1):
             return {s for s in self if s.size - len(s.content) >= length}
         

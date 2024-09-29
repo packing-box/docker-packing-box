@@ -1,10 +1,11 @@
 # -*- coding: UTF-8 -*-
 import builtins as bi
 from subprocess import check_output
-from tinyscript import re, sys
+from tinyscript import colored, re, sys
 from tinyscript.helpers import slugify, Path
 
 
+bi.colored = colored
 # basic framework constants
 def __init__cpu_count():
     import multiprocessing as mp
@@ -83,7 +84,6 @@ bi.COLORMAP = {
 bi.DEFAULT_BACKEND = "rich"
 
 def __init(*args):
-    from tinyscript import colored
     def _wrapper():
         if isinstance(args[0], dict):
             return {k: colored(*v) if isinstance(v, tuple) else v for k, v in args[0].items()}
@@ -201,7 +201,8 @@ bi.COMMIT_VALID_COMMANDS = [
     # OS commands
     "cd", "cp", "mkdir", "mv",
     # packing-box commands
-    "analyzer", "dataset", "detector", "model", "packer", "unpacker", "visualizer",
+    "alteration", "analyzer", "dataset", "detector", "executable", "feature", "model", "packer", "unpacker",
+    "visualizer",
 ]
 
 

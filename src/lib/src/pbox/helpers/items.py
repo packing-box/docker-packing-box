@@ -29,6 +29,7 @@ _min      = lambda l, *a, **kw: None if len(l2 := [x for x in l if x is not None
 _repeatn  = lambda s, n: (s * (n // len(s) + 1))[:n]
 _sec_name = lambda s: getattr(s, "real_name", getattr(s, "name", s))
 _size     = lambda exe, ratio=.1, blocksize=512: round(int(exe['size'] * ratio) / blocksize + .5) * blocksize
+_val      = lambda o: getattr(o, "value", o)
 
 
 def _randbytes(n, unique=True):
@@ -84,7 +85,7 @@ class dict2(dict):
         d = {k: getattr(random, k) for k in ["choice", "randint", "randrange", "randstr"]}
         d.update({'apply': _apply, 'concatn': _concatn, 'len': _len, 'max': _max, 'min': _min,
                   'printable': string.printable, 'randbytes': _randbytes, 'repeatn': _repeatn, 'select': _select(),
-                  'select_section_name': _select(_sec_name), 'size': _size, 'zeropad': zeropad})
+                  'select_section_name': _select(_sec_name), 'size': _size, 'value': _val, 'zeropad': zeropad})
         d.update(_EVAL_NAMESPACE)
         d.update(data)
         kwargs.update(getattr(self, "parameters", {}))
@@ -531,7 +532,11 @@ def load_yaml_config(cfg, no_defaults=(), parse_defaults=True):
         else:
             v1 = config[k]
             if isinstance(v1, dict):
-                return True
+                if isinstance(v, dict):
+                    for sk, sv in v.items():
+                        _merge(v1, sk, sv)
+                elif not keep:
+                    config[k] = v
             elif isinstance(v1, (list, set, tuple)):
                 if isinstance(v, (list, set, tuple)):
                     for sv in v:
@@ -546,16 +551,15 @@ def load_yaml_config(cfg, no_defaults=(), parse_defaults=True):
         defaults_, dflt = deepcopy(defaults), folder.joinpath("defaults.yml")
         if dflt.is_file():
             with dflt.open() as f:
-                defaults_.update(yaml.load(f, Loader=yaml.Loader))
+                defaults_.update(yaml.load(f, Loader=yaml.Loader) or {})
         for cfg in folder.listdir(lambda p: p.extension == ".yml"):
             if cfg.stem == "defaults":
                 continue
             with cfg.open() as f:
-                config = yaml.load(f, Loader=yaml.Loader)
+                config = yaml.load(f, Loader=yaml.Loader) or {}
             _set(config, defaults_)
             for k, v in config.items():
-                if _merge(base, k, v):
-                    _update(base[k], v, defaults_, list(parent) + [k])
+                _merge(base, k, v)
         for cfg_folder in folder.listdir(lambda p: p.is_dir()):
             _update(base, cfg_folder, defaults_, parent)
     # get the list of configs ; may be:
