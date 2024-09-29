@@ -1,6 +1,6 @@
 # -*- coding: UTF-8 -*-
 from abc import ABC, abstractmethod
-from tinyscript import functools
+from tinyscript import functools, re
 from tinyscript.helpers import ensure_str, execute, is_generator, zeropad
 
 from ....helpers.data import get_data
@@ -31,12 +31,8 @@ class AbstractParsedExecutable(ABC, CustomReprMixin, GetItemMixin):
     def __getitem__(self, name):
         try:
             v = super().__getitem__(name)
-            if name.lower().endswith("header") and not hasattr(v, "__getitem__"):
-                # if not done yet, patch Header class with a getitem method too (e.g. for getting exe['header']['...'])
-                try:
-                    setattr(v, "__getitem__", GetItemMixin.__getitem__.__get__(v, v.__class__))
-                except AttributeError:
-                    pass
+            if re.search(r"^(|[a-z]+_)(configuration|header)$", name, re.I) and not hasattr(v, "__getitem__"):
+                setattr(v.__class__, "__getitem__", GetItemMixin.__getitem__.__get__(v, v.__class__))
         except AttributeError:
             if hasattr(self, "path") and hasattr(self.path, name):
                 return getattr(self.path, name)
@@ -136,13 +132,17 @@ class AbstractParsedExecutable(ABC, CustomReprMixin, GetItemMixin):
         return [s for s in self if _rn(s) == ""]
     
     @property
+    def format(self):
+        return self.path.format
+    
+    @property
     def known_packer_sections(self):
-        d = get_data(self.path.format)['COMMON_PACKER_SECTION_NAMES']
+        d = get_data(self.format)['COMMON_PACKER_SECTION_NAMES']
         return [s for s in self if _rn(s) in d]
     
     @property
     def non_standard_sections(self):
-        d = [""] + get_data(self.path.format)['STANDARD_SECTION_NAMES']
+        d = [""] + get_data(self.format)['STANDARD_SECTION_NAMES']
         return [s for s in self if _rn(s) not in d]
     
 
@@ -186,7 +186,7 @@ class AbstractParsedExecutable(ABC, CustomReprMixin, GetItemMixin):
     
     @property
     def standard_sections(self):
-        d = [""] + get_data(self.path.format)['STANDARD_SECTION_NAMES']
+        d = [""] + get_data(self.format)['STANDARD_SECTION_NAMES']
         return [s for s in self if _rn(s) in d]
     
     # ------------------------------------------- mandatory concrete methods -------------------------------------------

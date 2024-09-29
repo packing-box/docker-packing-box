@@ -40,17 +40,6 @@ lazy_load_object("_LIEF2CS_ARCH", __init_LIEF2CS_ARCH)
 
 def __init_lief(lief):
     lief.logging.enable() if config['lief_logging'] else lief.logging.disable()
-    # monkey-patch header-related classes ; this allows following calls (given that a parsed object from the Executable
-    #  abstraction has this __getitem__ method too):
-    #   exe.parsed['header']['signature']
-    #   exe.parsed['optional_header']['file_alignment']
-    # this is for use in YAML configurations (parameter 'result')
-    def __getitem__(self, name):
-        if not name.startswith("_"):
-            return getattr(self, name)
-        raise KeyNotAllowedError(name)
-    lief._lief.PE.Header.__getitem__ = __getitem__
-    lief._lief.PE.OptionalHeader.__getitem__ = __getitem__
     return lief
 lazy_load_module("lief", postload=__init_lief)
 
