@@ -10,7 +10,6 @@ Supervised:
     parameters:
       static:
         algorithm:     SAMME.R
-        estimator:     !!python/object:sklearn.tree.DecisionTreeClassifier {max_depth=1}  # (default, same as None)
         learning_rate: 1.
         n_estimators:  50
         random_state:  42

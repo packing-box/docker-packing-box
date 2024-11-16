@@ -48,10 +48,15 @@ def __init_metaalgo():
             # backward compatibility with former algorithms.yml format
             if all(k.lower() in _labellings for k in algos.keys()):
                 d = {}
-                for k, algo in algos.items():
-                    for sk, v in algo.items():
-                        v['category'] = k.lower()
-                        d[sk] = v
+                for category, items in algos.items():
+                    dflts = items.pop('defaults', {})
+                    dflts['category'] = category.lower()
+                    for algo, data in items.items():
+                        for k, v in dflts.items():
+                            if k == "base":
+                                raise ValueError("parameter 'base' cannot have a default value")
+                            data.setdefault(k, v)
+                        d[algo] = data
                 algos = d
             for algo, data in algos.items():
                 if data.get('category') not in _labellings.keys():
