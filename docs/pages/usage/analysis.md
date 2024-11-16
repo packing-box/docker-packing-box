@@ -1,20 +1,20 @@
 # Data Visualization
 
-
 `Visualizer` is a command that allows you to visualize data in a folder/dataset. It can be used to compare, plot, find, remove and extract features from a dataset.
 
 
-
 ```console
+┌──[user@packing-box]──[/mnt/share]────────
 $ visualizer 
 usage: visualizer [-h] [--help] [-v] CMD ...
 ```
  Available CMD : `compare`, `features`, `find`, `plot`, `remove`
 
 
-
 ## Plot
+
 ```console
+┌──[user@packing-box]──[/mnt/share]────────
 $ visualizer plot 
 usage: visualizer plot [-h] [--help] [-a ALIAS] [-f {jpg,png,tif,svg}] [-l [LABEL ...]] [-m MAX_NOT_MATCHING]
 [--legend-location LEGEND_LOCATION] [-n] [-s]
@@ -26,20 +26,20 @@ visualizer plot: the following arguments are required: filename, folder
 
 - Example ploting `calc.exe` and its packed version (if exists)
 ```console
-visualizer plot calc.exe dataset-packed-pe -l not-packed -l beroexepacker -l fsg -l mew -l nspack -l rlpack -s
+┌──[user@packing-box]──[/mnt/share]────────
+$ visualizer plot calc.exe dataset-packed-pe -l not-packed -l beroexepacker -l fsg -l mew -l nspack -l rlpack -s
 ```
 
 This will result in a similar plot:
 ![calc.png](../imgs/calc.png)
 
 
-
----
 ## Compare
 
 `compare`, takes two binaries and compares their contents. This command helps us to see exactly what has been changed in a binary between two versions.
 
 ```console
+┌──[user@packing-box]──[/mnt/share]────────
 $ visualizer compare
 usage: visualizer compare [-h] [--help] [-l1 LEGEND1] [-l2 LEGEND2] [-o FILE] [--text] [-t TITLE | --no-title]
                           pattern1 pattern2
@@ -48,12 +48,17 @@ visualizer compare: the following arguments are required: pattern1, pattern2
 ```
 
 - Example of comparing two binaries:
+
 ```console
+┌──[user@packing-box]──[/mnt/share]────────
 $ visualizer compare ^7z.exe$ ^upx_7z.exe$
 ```
+
 This will result in a similar plot:
 ![7z_upx_7z.png](../imgs/7z_upx_7z.png.png)
+
 If the `--text` option is used, the output will be in text format:
+
 ```console
 --- /mnt/share/7z.exe
 
@@ -84,9 +89,10 @@ SizeOfInitializedData:         0x1000
 ```
 
 
-
 ## Features
+
 ```console
+┌──[user@packing-box]──[/mnt/share]────────
 $ visualizer features 
 usage: visualizer features [-h] [--help] [-l [LABEL ...]] [-m MAX_NOT_MATCHING] [-r] filename folder
 
@@ -95,10 +101,12 @@ visualizer features: the following arguments are required: filename, folder
 
 
 ## Find
+
 This command is used to find in a dataset files matching a given pattern, and how many variations of the file, packed by distinct packers, are found within the dataset.
 
 ```console
-visualizer find 
+┌──[user@packing-box]──[/mnt/share]────────
+$ visualizer find 
 usage: visualizer find [-h] [--help] [-l [LABEL ...]] [-m MAX_NOT_MATCHING] [-d] [-x [EXCLUDE ...]] filename folder
 
 visualizer find: the following arguments are required: filename, folder
@@ -106,6 +114,7 @@ visualizer find: the following arguments are required: filename, folder
 
 Example of finding all the files that are not packed in a dataset:
 ```console  
+┌──[user@packing-box]──[/mnt/share]────────
 $ visualizer find . datasets/dataset-packed-elf --no-display --max-not-matching 0 
 
 00:00:03.406 [INFO] Searching for files from datasets/dataset-packed-elf matching '.'... 
@@ -125,6 +134,7 @@ $ visualizer find . datasets/dataset-packed-elf --no-display --max-not-matching 
 
 Example of usage:
 ```console
+┌──[user@packing-box]──[/mnt/share]────────
 $ visualizer find . dataset-packed-pe/packed --no-display --max-not-matching 2
 
 00:00:00.240 [INFO] Searching for files from dataset-packed-pe/packed matching '.'...
@@ -138,13 +148,13 @@ $ visualizer find . dataset-packed-pe/packed --no-display --max-not-matching 2
 ```
 
 
----
 ## Remove
+
 ```console
+┌──[user@packing-box]──[/mnt/share]────────
 $ visualizer remove 
 usage: visualizer remove [-h] [--help] [-l [LABEL ...]] [-m MAX_NOT_MATCHING] filename folder
 
 visualizer remove: the following arguments are required: filename, folder
 ```
-
 

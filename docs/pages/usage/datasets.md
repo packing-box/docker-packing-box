@@ -30,6 +30,7 @@ Fileless datasets can be used when we are sure of the features set to be compute
 A [dedicated tool](https://github.com/dhondta/docker-packing-box/blob/main/files/tools/dataset) called `dataset` is provided with the [*Packing Box*](https://github.com/dhondta/docker-packing-box) to manipulate datasets. Its help message tells everything the user needs to get started.
 
 ```console
+┌──[user@packing-box]──[/mnt/share]────────
 $ dataset --help
 [...]
 This tool aims to manipulate a dataset in many ways including its creation, enlargement, update, alteration, selection,
@@ -68,6 +69,7 @@ The list of datasets in a folder can be viewed by using the command `dataset lis
 Among the other commands, we can `show` the metadata of the dataset for describing it, limiting the number of displayed records if required (`-l`/`--limit` ; default is 10 records) and/or sorting the metadata per category (`-c`/`--categories`).
 
 ```console
+┌──[user@packing-box]──[/mnt/share]────────
 $ dataset show test-upx
 
 Dataset characteristics

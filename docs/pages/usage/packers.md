@@ -7,6 +7,7 @@
 A [dedicated tool](https://github.com/dhondta/docker-packing-box/blob/main/files/tools/packer) called `packer` is provided with the [*Packing Box*](https://github.com/dhondta/docker-packing-box) to pack samples. It is especially useful for **mass-packing** as either a single sample or a folder of samples can be specified as input, as its help message tells.
 
 ```console
+┌──[user@packing-box]──[/mnt/share]────────
 $ packer --help
 [...]
 This tool simply packs (using Packer.pack) with the selected packer an input executable or folder of executables.

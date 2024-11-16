@@ -15,6 +15,10 @@ This [class](https://github.com/packing-box/docker-packing-box/blob/main/src/lib
 [<pbox.items.detector.Bintropy object at 0x7f30e37f37f0>, [...]
 ```
 
+**Special attributes**:
+
+- `vote` (only for detectors): boolean indicating if the tool shall be used to vote for a packer label
+
 **Special methods**:
 
 - `check(formats)`: for checking if the detector applies for the input executable formats

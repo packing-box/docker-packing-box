@@ -53,12 +53,13 @@ This abstraction facilitates the integration of new items as it provides just en
 - `source`: source where the tool was found
 - `status`: status of the tool, amongst the values listed in the [*Status*](#status) section
 - `steps`: list of shell commands to be used to come to the desired result from the tool's output (this way, it can for instance include parsing steps)
-- `vote` (only for detectors): boolean indicating if the tool shall be used to vote for a packer label
 
     \* Required (otherwise, an exception will be thrown)
 
 **Methods**:
 
+- `check(*formats)`: check if the item applies to the given formats
+- `help`: display the item's help message
 - `run`: for shaping the command line to run the item on an input executable
 - `setup`: for setting up the item according to its install instructions
 - `test`: for testing the item on some executable files (embedded with the box)

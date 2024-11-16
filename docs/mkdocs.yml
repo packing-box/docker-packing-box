@@ -6,6 +6,7 @@ docs_dir: pages
 nav:
   - Introduction: index.md
   - 'Quick Start': quickstart.md
+  - 'Use Cases': cases.md
   - Usage:
     - usage/index.md
     - 'Framework Management': usage/management.md

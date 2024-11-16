@@ -10,10 +10,50 @@ The `Executable` class allows to abstract an executable. It inherits from the `t
 
 This class can be used in four different ways:
 
-1. As a classical `Path` instance
-2. As a classical `Path` instance with a [`Dataset`](datasets.md) instance bound
-3. With no positional arguments for describing a path but a [`Dataset`](datasets.md) instance and a *hash* as keyword-arguments ; this will bind the `Executable` instance to the dataset and make the path point to the executable with the given *hash* from within the dataset
-4. From an `Executable` instance as positional argument with a [`Dataset`](datasets.md) instance as keyword-argument ; in this case, the new `Executable` will have the properties of the input one and the file will be copied to the bound dataset
+1. As a classical `Path` instance, not bound to a [`Dataset`](datasets.md) instance
+
+    ```console
+    >>> exe = Executable("test.exe")
+    >>> exe.filetype
+    'PE32 executable (GUI) Intel 80386, for MS Windows'
+    ``
+
+2. As a classical `Path` instance with a [`Dataset`](datasets.md) instance specified, to be bound
+
+    ```console
+    >>> exe = Executable("test.exe", dataset=Dataset("my-dataset"))
+    >>> exe.signature    # data gets retrieved from "my-dataset"
+    'PE32 executable (GUI) Intel 80386, for MS Windows, UPX compressed'
+    ``
+    
+    Note that, in this case, the file is required to compute attributes.
+
+3. With exactly one positional argument being the data row with all the attributes to be added to the bound dataset
+
+    ```console
+    >>> exe = Executable("test.exe", dataset=Dataset("my-dataset"))
+    >>> exe.signature    # data gets retrieved from "my-dataset"
+    'PE32 executable (GUI) Intel 80386, for MS Windows, UPX compressed'
+    ``
+    
+    Note that, in this case, the file is not required as attributes come from the input data row.
+
+4. With no positional argument but a [`Dataset`](datasets.md) instance and a *hash* as keyword-arguments ; this will bind the `Executable` instance to the dataset, getting its attributes with data coming from the dataset, and make its path point to the executable with the given *hash* from within the dataset
+
+    ```console
+    >>> exe = Executable(hash="9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08", dataset=Dataset("my-dataset"))
+    >>> exe.signature    # data gets retrieved from "my-dataset"
+    'PE32 executable (GUI) Intel 80386, for MS Windows, UPX compressed'
+    ``
+
+    Note that, in this case, the file is not required as attributes are retrieved from dataset's data.
+
+5. With no positional argument but a source [`Dataset`](datasets.md) instance as *dataset*, a destination [`Dataset`](datasets.md) instance as *dataset2* and a *hash* as keyword-arguments ; this will bind the `Executable` instance to the source dataset and copy its attributes to the destination dataset
+
+    ```console
+    >>> exe = Executable(hash="9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08", dataset=Dataset("my-dataset"), dataset2=Dataset("my-new-dataset"))
+    ``
+
 
 ## Supported Formats
 
@@ -82,6 +122,11 @@ This abstraction facilitates the retrieval of important attributes and the integ
 
 **Methods**:
 
+- `alter()`: apply [alterations](https://github.com/packing-box/docker-packing-box/blob/main/src/conf/alterations.yml) to the executable
 - `copy()`: copy the file to `self.destination`, that is, to the dataset it is bound to (note that its permissions are restricted to READ for the owner, that is `user`)
-- `update()`: triggers the removal of the cached properties `filetype`, `format` and `hash` for further recomputation
+- `modify(name)`: apply a modifier by `name` to the executable
+- `objdump(n)`: dump `n` disassembled bytes from the executable
+- `parse(name)`: parse the binary with a given parser by `name` (by default, the one defined in `~/.packing-box.conf` or, if not defined, the [default from the `pbox` package](https://github.com/packing-box/docker-packing-box/blob/main/src/lib/src/pbox/__conf__.py))
+- `plot(...)`: plot the executable's sections with colors and entropy levels
+- `show(...)`: show information about the executable
 

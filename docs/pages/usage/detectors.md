@@ -7,9 +7,11 @@
 A [dedicated tool called `detector`](https://github.com/packing-box/docker-packing-box/blob/main/src/files/tools/detector) is provided with the [*Packing Box*](https://github.com/dhondta/docker-packing-box) to detect packers. Its help message tells everything the user needs to get started.
 
 ```console
+┌──[user@packing-box]──[/mnt/share]────────
 $ detector
 usage: detector [-b] [-d [DETECTOR ...]] [-f | -m] [-s] [-t THRESHOLD] [-w] [-h] [--help] [-v] executable
 
+┌──[user@packing-box]──[/mnt/share]────────
 $ detector --help
 [...]
 This tool aims to detect the packer used on an input executable, folder of executables or Dataset.
@@ -34,6 +36,7 @@ From the optional arguments, we can see that it allows to force the detector to 
 This tool can be used directly on a dataset or a folder (or trivially on a single file). In this case, every sample from the target dataset is checked with the selected detector against its label and various performance metrics are determined, as shown in the example below.
 
 ```console
+┌──[user@packing-box]──[/mnt/share]────────
 $ detector test-upx -d manalyze -f
 
 Detection results:
@@ -47,6 +50,7 @@ Detection results:
 It can also be used without specifying a detector. In this case, every detector that is **allowed to vote** (this can be checked in the help message via the "`?`" tool) will be run on the target executable and the final decision is a simple plurality vote. In the following example, we use one level of verbosity ("`-v`") to see the results of each detector. Note that "`-vv`" would also display the output of each detector.
 
 ```console
+┌──[user@packing-box]──[/mnt/share]────────
 $ detector upx_calc.exe -v
 12:34:56 [WARNING] Decisions:
 die           : upx
@@ -71,6 +75,7 @@ Different metrics are computed when applying detection to a dataset. When the ta
 The following example shows execution on a very simple test dataset. Green and red colors (not present in the trace below) indicate successes or failures. If using the `-f`/`--failures-only` option, only failures will be displayed. When using the `-m`/`--metrics-only` option, only a single line will be output with the comma-separated metrics.
 
 ```console
+┌──[user@packing-box]──[/mnt/share]────────
 $ detector test-upx
 00:00:00.205 [INFO] Superdetector: DIE, PEiD, PyPackerDetect, RetDec
 00:00:03.437 [SUCCESS] /mnt/share/experiments/test/datasets/test-upx/files/1d8bf746ba84e321d1afd29c48a6f152e3195cb0c92d5559d75a455d5873eed9: not packed
