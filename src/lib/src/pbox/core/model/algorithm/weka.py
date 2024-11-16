@@ -56,8 +56,9 @@ class WekaClassifier(Classifier):
     """ This class implements a binding for using the Decorate algorithm from the Weka framework the same way as
          SkLearn algorithms. """
     def __init__(self, **kwargs):
-        self._feature_names = list(map(lambda n: n.replace("<", "[lt]").replace(">", "[gt]"),
-                                       kwargs.pop('feature_names')))
+        fn = kwargs.pop('feature_names', None)
+        if fn:
+            self._feature_names = list(map(lambda n: n.replace("<", "[lt]").replace(">", "[gt]"), fn))
         kwargs = {("-" + k if not k.startswith("-") else k): v for k, v in kwargs.items()}
         super(WekaClassifier, self).__init__(name=self._weka_base, ckargs=kwargs)
     

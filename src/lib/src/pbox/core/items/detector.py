@@ -70,7 +70,7 @@ def __init():
                     l.debug("not allowed to vote")
                     return False
                 if d_mc and not i_mc:
-                    warn = not d_vote and not kwargs['debug']
+                    warn = not d_vote and not kwargs.get('debug', False)
                     (l.warning if warn else l.debug)(f"{['', self.cname + ' '][warn]}does not support multiclass")
                     return False
                 return True

@@ -161,7 +161,7 @@ class AbstractParsedExecutable(ABC, CustomReprMixin, GetItemMixin):
             return real_name
         else:
             return encoded_name
-
+    
     @property
     def real_section_names(self):
         """ This only applies to PE as section names are limited to 8 characters for image files ; when using longer
@@ -182,7 +182,6 @@ class AbstractParsedExecutable(ABC, CustomReprMixin, GetItemMixin):
             
             self._real_section_names = {n: rn for n, rn in zip(names, real_names) if match(r"/\d+$", n)}
         return self._real_section_names
-    
     
     @property
     def standard_sections(self):

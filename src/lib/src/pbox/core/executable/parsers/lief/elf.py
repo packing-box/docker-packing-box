@@ -9,8 +9,6 @@ def __init_elf():
     ELFSection = get_section_class("ELFSection")
     
     class ELF(Binary):
-        checksum = None
-        
         def __iter__(self):
             for s in self.sections:
                 yield ELFSection(s, self)

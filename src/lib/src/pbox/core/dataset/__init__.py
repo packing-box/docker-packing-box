@@ -5,6 +5,7 @@ from tinyscript.report import *
 
 from .visualization import *
 from ..executable import *
+from ..items import Detector
 from ...helpers import *
 
 lazy_load_module("alterations", "pbox.core.executable")
@@ -468,7 +469,7 @@ class Dataset(Entity):
                     if h in labels:
                         self[exe] = (labels[h], True)
                     elif detect:
-                        self[exe] = (Detector.detect(exe), True)
+                        self[exe] = (list(Detector.detect(exe))[0][1], True)
         self._save()
     
     def get(self, query=None, **kw):
@@ -822,7 +823,7 @@ class Dataset(Entity):
                 pass
             # label was not found and is not set yet and detection is enabled => detect
             elif detect:
-                self[e] = (Detector.detect(e), True)
+                self[e] = (list(Detector.detect(e))[0][1], True)
             if not self._files:
                 self[h] = (self._compute_features(e), True)  # True: force updating the row
         # case (1) source directories provided, eventually with labels => ingest samples

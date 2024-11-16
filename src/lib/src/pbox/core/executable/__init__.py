@@ -325,7 +325,7 @@ class Executable(Path):
             return self._destination
         if hasattr(self, "_dataset") and self.hash is not None:
             return (self._dataset.files if self._dataset._files else TempPath()).joinpath(self.hash)
-        raise ValueError(f"Could not compute destination path for '{self}'")
+        raise ValueError(f"Could not compute destination path for '{self}' (no destination specified or dataset bound)")
     
     @cached_property
     def entropy(self):

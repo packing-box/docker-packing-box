@@ -53,7 +53,7 @@ teardown_file(){
 # ✓ test
 # ✓ show
 @test "train a model based on $TEST_DS (RandomForest)" {
-  run model train "$TEST_DS" -a rf
+  run model train "$TEST_DS" -A rf
   MD_NAME="`list-models`"
   assert_output --partial "Name: $MD_NAME"
   assert_output --partial 'Classification metrics'
@@ -76,7 +76,7 @@ teardown_file(){
   for ALGO in `list-all-algorithms`; do
     # AdaBoost failing with AttributeError: 'DecisionTreeClassifier' object has no attribute 'ccp_alpha'
     if [[ "$ALGO" != "ab" ]]; then
-      run model train "$TEST_DS" -a $ALGO
+      run model train "$TEST_DS" -A $ALGO
       assert_success
     fi
   done
