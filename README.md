@@ -5,6 +5,7 @@
 [![Read The Docs](https://readthedocs.org/projects/docker-packing-box/badge/?version=latest)](http://docker-packing-box.readthedocs.io/en/latest/?badge=latest)
 [![Black Hat Arsenal Europe 2022](https://badgen.net/badge/Black%20Hat%20Arsenal/Europe%202022/blue)](https://www.blackhat.com/eu-22/arsenal/schedule/index.html#packing-box-playing-with-executable-packing-29054)
 [![Black Hat Arsenal Europe 2023](https://badgen.net/badge/Black%20Hat%20Arsenal/Europe%202023/blue)](https://www.blackhat.com/eu-23/arsenal/schedule/#packing-box-breaking-detectors--visualizing-packing-35678)
+[![Black Hat Arsenal Europe 2024](https://badgen.net/badge/Black%20Hat%20Arsenal/Europe%202024/blue)](https://www.blackhat.com/eu-24/arsenal/schedule/#packing-box-improving-detection-of-executable-packing-41931)
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-orange.svg)](https://www.gnu.org/licenses/gpl-3.0)
 
 This Docker container is a CLI environment featuring a toolkit that gathers executable analyzers, packing detectors, packers and unpackers but also many tools for generating and manipulating datasets of packed and not-packed executables of different formats (including PE, ELF and Mach-O) for the sake of evaluating static detection techniques and tools, visualizing executables' layout and automating machine learning pipelines with the support of many algorithms.
@@ -13,6 +14,7 @@ See the Black Hat Arsenal presentations for demonstrations:
 
 - [Packing-Box: Playing with Executable Packing](https://raw.githubusercontent.com/packing-box/docker-packing-box/main/docs/material/bheu22-packingbox.pdf)
 - [Packing-Box: Breaking Detectors & Visualizing Packing](https://raw.githubusercontent.com/packing-box/docker-packing-box/main/docs/material/bheu23-packingbox.pdf)
+- [Packing-Box: Improving Detection of Executable Packing](https://raw.githubusercontent.com/packing-box/docker-packing-box/main/docs/material/bheu24-packingbox.pdf)
 
 Here is what you can see when you start up the Docker container.
 
