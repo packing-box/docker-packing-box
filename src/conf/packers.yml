@@ -58,8 +58,8 @@ Amber:
   formats:
     - PE
   install:
-    - wget: https://github.com/EgeBalci/amber:latest{linux_amd64}
-    - unzip: $OPT
+    - wget: <<source>>:latest{linux_amd64}
+    - unzip: $OPT/amber
     - ln: amber
   references:
     - https://pentest.blog/introducing-new-packing-method-first-reflective-pe-packer
@@ -146,7 +146,7 @@ AtomPePacker:
   formats:
     - PE64
   install:
-    - wget: https://github.com/ORCx41/AtomPePacker:latest{Release.zip}
+    - wget: <<source>>:latest{Release.zip}
     - unzip: $OPT/atompepacker infected
     - lwine64: PePacker.exe
   source: https://github.com/ORCx41/AtomPePacker
@@ -233,7 +233,7 @@ ConfuserEx:
   formats:
     - .NET
   install:
-    - wget: https://github.com/mkaring/ConfuserEx:latest{ConfuserEx-CLI}
+    - wget: <<source>>:latest{ConfuserEx-CLI}
     - unzip: $OPT/confuserex
     - mono: Confuser.CLI.exe
   references:
@@ -397,7 +397,7 @@ Eronana_Packer:
   formats:
     - PE32
   install:
-    - wget: https://github.com/Eronana/packer/releases/download/packer/packer.zip
+    - wget: <<source>>/releases/download/packer/packer.zip
     - unzip: $OPT/eronana-packer
     - wine: packer.exe
   references:
@@ -419,7 +419,7 @@ eXPressor:
     - PE32
     - PE64
   install:
-    - wget: http://www.cgsoftlabs.ro/zip/eXPressor.zip
+    - wget: <<source>>/zip/eXPressor.zip
     - unzip: $OPT/expressor
     - wine: packer.exe
   references:
@@ -434,7 +434,7 @@ Ezuri:
   formats:
     - ELF
   install:
-    - wget: https://github.com/guitmz/ezuri/archive/master.zip
+    - wget: <<source>>/archive/master.zip
     - unzip: $OPT
     - go: github.com/guitmz/ezuri
     - lsh: ezuri
@@ -476,7 +476,7 @@ GoPacker:
   formats:
     - PE
   install:
-    - wget: https://github.com/nirhaas/gopacker/archive/refs/heads/master.zip
+    - wget: <<source>>/archive/refs/heads/master.zip
     - unzip: $OPT
     - go: github.com/nirhaas/gopacker
     - lsh: gopacker
@@ -515,7 +515,7 @@ hXOR-Packer:
   formats:
     - PE
   install:
-    - wget: https://github.com/rurararura/hXOR-Packer:latest{hXOR-Packer}
+    - wget: <<source>>:latest{hXOR-Packer}
     - unzip: $OPT
     - chmod: packer.exe
     - lwine: packer.exe
@@ -564,7 +564,7 @@ Kkrunchy:
   formats:
     - PE32
   install:
-    - wget: http://www.farbrausch.de/~fg/kkrunchy/kkrunchy_023a2.zip
+    - wget: <<source>>/kkrunchy_023a2.zip
     - unzip: $OPT/kkrunchy
     - wine: kkrunchy_k7.exe
   references:
@@ -601,7 +601,7 @@ M0dern_P4cker:
   install:
     - apt: libcapstone-dev
     - exec: rm -rf $OPT/m0dern_p4cker-e24a1d47dae1acb0cc3dc4d2fb42a61662bc210c $OPT/m0dern_p4cker
-    - wget: https://github.com/n4sm/m0dern_p4cker/archive/e24a1d47dae1acb0cc3dc4d2fb42a61662bc210c.zip
+    - wget: <<source>>/archive/e24a1d47dae1acb0cc3dc4d2fb42a61662bc210c.zip
     - unzip: $OPT
     - cd: packer@git
     - make: main
@@ -753,7 +753,7 @@ NetCrypt:
   formats:
     - .NET
   install:
-    - wget: https://github.com/friedkiwi/netcrypt:latest{netcrypt}
+    - wget: <<source>>:latest{netcrypt}
     - unzip: $OPT/netcrypt
     - wine: SimplePacker.exe
   source: https://github.com/friedkiwi/netcrypt
@@ -796,7 +796,7 @@ Pakkero:
   formats:
     - ELF
   install:
-    - wget: https://github.com/89luca89/pakkero/releases/download/0.7.0/pakkero_linux_amd64
+    - wget: <<source>>/releases/download/0.7.0/pakkero_linux_amd64
     - copy: pakkero
   source: https://github.com/89luca89/pakkero
   status: broken
@@ -829,7 +829,7 @@ PE-Packer:
   formats:
     - PE32
   install:
-    - wget: https://github.com/czs108/PE-Packer:41583213{beta-win}
+    - wget: <<source>>:41583213{beta-win}
     - unzip: $OPT/pepacker
     - wine: PE-Packer.exe
   references:
@@ -1033,7 +1033,7 @@ Silent_Packer:
     - ELF
     - PE
   install:
-    - wget: https://github.com/SilentVoid13/Silent_Packer/releases/download/v0.1/Silent_Packer
+    - wget: <<source>>/releases/download/v0.1/Silent_Packer
     - copy: silent-packer
   source: https://github.com/SilentVoid13/Silent_Packer
 
@@ -1043,10 +1043,10 @@ SimpleDpack:
   formats:
     - PE32
   install:
-    - wget: https://github.com/YuriSizuku/SimpleDpack:latest{SimpleDpack.exe} SimpleDpack.exe
+    - wget: <<source>>:latest{SimpleDpack.exe} SimpleDpack.exe
     - copy: $OPT/simpledpack/
     - lwine: SimpleDpack.exe
-    - wget: https://github.com/YuriSizuku/SimpleDpack:latest{simpledpackshell.dll} simpledpackshell.dll
+    - wget: <<source>>:latest{simpledpackshell.dll} simpledpackshell.dll
     - copy: $OPT/simpledpack/
     - rm: $TMP/simpledpack*
   source: https://github.com/YuriSizuku/SimpleDpack
@@ -1059,10 +1059,10 @@ SimpleDpack:
       formats:
         - PE64
       install:
-        - wget: https://github.com/YuriSizuku/SimpleDpack:latest{SimpleDpack64.exe} SimpleDpack64.exe
+        - wget: <<source>>:latest{SimpleDpack64.exe} SimpleDpack64.exe
         - copy: $OPT/simpledpack/
         - lwine: SimpleDpack64.exe
-        - wget: https://github.com/YuriSizuku/SimpleDpack:latest{simpledpackshell64.dll} simpledpackshell64.dll
+        - wget: <<source>>:latest{simpledpackshell64.dll} simpledpackshell64.dll
         - copy: $OPT/simpledpack/
         - rm: $TMP/simpledpack*
       steps:
@@ -1089,7 +1089,7 @@ Squishy:
   formats:
     - PE64
   install:
-    - wget: https://logicoma.io/squishy/releases/squishy-0.2.0.zip
+    - wget: <<source>>/releases/squishy-0.2.0.zip
     - unzip: $OPT/squishy
     - wine64: squishy-x64.exe
   silent:
@@ -1104,7 +1104,7 @@ Squishy:
       formats:
         - PE32
       install:
-        - wget: https://logicoma.io/squishy/releases/squishy-0.1.3.zip
+        - wget: <<source>>/releases/squishy-0.1.3.zip
         - unzip: $OPT/squishy-x86
         - wine: squishy-x86.exe
       steps:
@@ -1153,7 +1153,7 @@ TheArk:
   formats:
     - PE32
   install:
-    - wget: https://github.com/aaaddress1/theArk:latest{Release}
+    - wget: <<source>>:latest{Release}
     - unzip: $OPT/theark
     - wine: theArk.exe
   source: https://github.com/aaaddress1/theArk
@@ -1217,7 +1217,7 @@ UPX:
     - PE32
     - PE64
   install:
-    - wget: https://github.com/upx/upx:latest{amd64_linux}
+    - wget: <<source>>:latest{amd64_linux}
     - untar: $TMP
     - ln: upx
   references:
@@ -1233,9 +1233,15 @@ UPX:
     - CantPackException
     - IOException
     - NotCompressibleException
-  source: https://upx.github.io
+  source: https://github.com/upx/upx
   status: ok
   variants:
+    _template:
+      _version: ["3.91", "3.92", "3.93", "3.94", "3.95", "3.96", "4.0.0", "4.0.1", "4.0.2", "4.1.0", "4.2.0", "4.2.1", "4.2.2", "4.2.3", "4.2.4"]
+      install:
+        - wget: <<source>>/releases/download/v<<version>>/upx-<<version>>-amd64_linux.tar.xz
+        - untar: $OPT
+        - ln: $OPT/upx-<<version>>/upx
     UPX-1.25:
       references:
         - <from-parent>
@@ -1245,6 +1251,11 @@ UPX:
     UPX-2.03:
       source: https://www.sac.sk/download/pack/upx203l.tgz
       status: info
+    UPX-3.00:
+      install:
+        - wget: <<source>>/archive/refs/tags/v3.00.tar.gz
+        - make: upx
+        - lsh: $OPT/upx-3.00/upx upx-3.00
     UPX-3.04:
       references:
         - <from-parent>
@@ -1255,46 +1266,25 @@ UPX:
       formats:
         - PE32
         - PE64
-      install:
-        - wget: https://github.com/upx/upx/releases/download/v3.91/upx-3.91-amd64_linux.tar.bz2
-        - untar: $OPT
-        - ln: $OPT/upx-3.91/upx
     UPX-3.92:
       formats:
         - PE32
         - PE64
-      install:
-        - wget: https://github.com/upx/upx/releases/download/v3.92/upx-3.92-amd64_linux.tar.xz
-        - untar: $OPT
-        - ln: $OPT/upx-3.92/upx
     UPX-3.93:
       formats:
         - PE32
         - PE64
-      install:
-        - wget: https://github.com/upx/upx/releases/download/v3.93/upx-3.93-amd64_linux.tar.xz
-        - untar: $OPT
-        - ln: $OPT/upx-3.93/upx
     UPX-3.94:
       formats:
         - ELF32
         - ELF64
         - PE32
         - PE64
+    UPX-3.99:
       install:
-        - wget: https://github.com/upx/upx/releases/download/v3.94/upx-3.94-amd64_linux.tar.xz
-        - untar: $OPT
-        - ln: $OPT/upx-3.94/upx
-    UPX-3.95:
-      install:
-        - wget: https://github.com/upx/upx/releases/download/v3.95/upx-3.95-amd64_linux.tar.xz
-        - untar: $OPT
-        - ln: $OPT/upx-3.95/upx
-    UPX-3.96:
-      install:
-        - wget: https://github.com/upx/upx/releases/download/v3.96/upx-3.96-amd64_linux.tar.xz
-        - untar: $OPT
-        - ln: $OPT/upx-3.96/upx
+        - wget: <<source>>/releases/download/v3.99/upx-3.99-src.tar.xz
+        - make: upx
+        - lsh: $OPT/upx-3.99/upx upx-3.99
   xflag: true
 
 VMProtect:
