@@ -6,7 +6,7 @@ from tinyscript import *
 
 
 __script__      = "Executable manipulation tool"
-__version__     = "1.2.2"
+__version__     = "1.2.3"
 __doc__         = """
 This tool aims to manipulate a single executable.
 """
@@ -30,11 +30,13 @@ if __name__ == '__main__':
     diff.add_argument("executable2", help="another executable file")
     feat = sparsers.add_parser("features", help="compute features of the target executable")
     add_argument(feat, "executable", "features-set", single=True)
-    plot = sparsers.add_parser("plot", help="plot the target executable")
-    add_argument(plot, "executable", single=True)
+    plot = sparsers.add_parser("plot", help="plot the target executable(s)")
+    add_argument(plot, "executable", nargs="+", single=True)
+    plot.add_argument("-l", "--label", nargs="*", action="extend", help="set the label(s) (keeps order)")
     plot.add_argument("-p", "--prefix", help="string to be prepended to the target filename")
     l = list(SUBLABELS.keys())
     plot.add_argument("-s", "--sublabel", default=l[-1], choices=l, help="label to be added under the filename")
+    plot.add_argument("--scale", action="store_true", help="use the same scale when multiple executables are input")
     figure_options(plot)
     scan = sparsers.add_parser("scan", help="send the executable to VirusTotal for scanning")
     add_argument(scan, "executable")
@@ -49,5 +51,12 @@ if __name__ == '__main__':
         Features.source = args.features_set
         Executable(args.executable).show(False, False, True)
     else:
+        if args.command == "plot":
+            e = args.executable
+            if isinstance(e, list):
+                if len(e) > 1:
+                    getattr(Executable(e[0]), args.command)(executables=e[1:], **vars(args))
+                    sys.exit(0)
+                args.executable = e[0]
         getattr(Executable(args.executable), args.command)(**vars(args))
 
