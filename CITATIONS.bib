@@ -1,0 +1,22 @@
+@misc{dhondtPackingBox2024,
+  title = {Packing-{{Box}}},
+  author = {D'Hondt, Alexandre},
+  year = {2024},
+  abstract = {Docker image gathering many packing-related tools and for making datasets of packed executables for use with machine learning.},
+  keywords = {elf,elf32,framework,mach-o,machine learning,packers,pe,pe32,platform,static analysis}
+}
+
+@inproceedings{dhondtExperimentalToolkitManipulating2024,
+  title = {Experimental Toolkit for Manipulating Executable Packing},
+  booktitle = {Risks and Security of Internet and Systems},
+  author = {D'Hondt, Alexandre and Van Ouytsel, Charles Henry Bertrand and Legay, Axel},
+  editor = {Ait Wakrime, Abderrahim and {Navarro-Arribas}, Guillermo and Cuppens, Fr{\'e}d{\'e}ric and Cuppens, Nora and Benaini, Redouane},
+  year = {2024},
+  month = jun,
+  pages = {263--279},
+  publisher = {Springer Nature Switzerland},
+  doi = {10.1007/978-3-031-61231-2_17},
+  abstract = {Executable packing is a well-known problematic especially in the field of malware analysis. It often consists in applying compression or encryption to a binary file and embedding a stub for reversing these transformations at runtime. This way, the packed executable is more difficult to reverse-engineer and/or is obfuscated, which is effective for evading static detection techniques. Many detection approaches, including machine learning, have been proposed in the literature so far, but most studies rely on questionable ground truths and do not provide any open implementation, making the comparison of state-of-the-art solutions tedious. We thus think that first solving the issue of repeatability shall help to compare existing executable packing static detection techniques. Given this challenge, we propose an experimental toolkit, named Packing Box, that leverages automation and containerization in an open source platform that brings a unified solution to the research community. We present our engineering approach for designing and implementing our solution. We then showcase it with a few basic experiments, including a performance evaluation of open source static packing detectors and training a model with machine learning pipeline automation. This introduces the toolset that will be used in further studies.},
+  isbn = {978-3-031-61231-2},
+  keywords = {machine learning,packer detection,packer identification,packing-box,toolkit}
+}
