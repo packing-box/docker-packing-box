@@ -201,7 +201,7 @@ class Executable(Path):
             self._parsed.real_section_names  # trigger computation of real names
         return self._parsed
     
-    def plot(self, prefix="", sublabel="size-ep-ent", **kwargs):
+    def plot(self, executables=(), prefix="", label=None, sublabel="size-ep-ent", **kwargs):
         fn = (prefix or "") + Path(self.realpath).basename
         if hasattr(self, "_dataset"):
             fn = Path(self._dataset.basename, "samples", fn)
@@ -209,9 +209,12 @@ class Executable(Path):
         kwargs.get('logger', null_logger).info(f"Saving to {path}...")
         path = path.dirname.joinpath(path.stem)
         kw_plot = {k: kwargs.get(k, config[k]) for k in config._defaults['visualization'].keys()}
+        if len(executables) > 0:
+            kw_plot['scale'] = kwargs.pop('scale')
         kw_plot['img_format'] = kw_plot.pop('img_format', config['img_format'])
         from bintropy import plot
-        plot(self, img_name=path, labels=[self.label], sublabel=sublabel, target=fn, **kw_plot)
+        plot(*((self, ) + tuple(executables)), img_name=path, labels=label or [self.label], sublabel=sublabel,
+             target=fn, **kw_plot)
     
     def scan(self, executables=(), **kwargs):
         l, verb = kwargs.get('logger', null_logger), kwargs.get('verbose', False) and len(executables) == 0

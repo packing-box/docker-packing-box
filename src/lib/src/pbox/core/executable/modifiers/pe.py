@@ -27,11 +27,10 @@ def get_pe_data():
     d['COMMON_API_IMPORTS'] = [(lib, api) for lib, lst in d.pop('COMMON_DLL_IMPORTS').items() for api in lst]
     for k in ["COMMON_PACKER_SECTION_NAMES", "STANDARD_SECTION_NAMES"]:
         d[k] = valid_names(d[k])
-    
     # add DEADCODE
     d['DEAD_CODE'] = _listify(d["DEAD_CODE"]) # will contain a list of lists of bytes [[0x90], [0x33, 0xC0]]
-
     return d
+
 
 valid_names = lambda nl: list(filter(lambda n: len(n) <= 8, map(lambda x: x if isinstance(x, str) else \
                                                                 getattr(x, "real_name", getattr(x, "name", "")), nl)))
@@ -176,11 +175,12 @@ def move_entrypoint_to_new_section(name, section_type=None, characteristics=None
         code_data = [[0x55, 0x8b, 0xec], []][randint(0, 1)] + [0x83, 0xec, 0x0c]
         # add dead code (dummy instructions that do nothing)
         if with_dead_code:
+            from random import randint
             dead_code, dcr = get_pe_data()["DEAD_CODE"], _DEAD_CODE_MAX_REPEAT
-            # select k random elements from the dead_code list (With random number of repetitions for each element
-            #  (allowing for repetition) )
-            _dc_data = sample(dead_code, k=random.randint(*_DEAD_CODE_BOUNDS),
-                              counts=[random.randint(dcr - (dcr // 2), dcr) for _ in range(len(dead_code))])
+            # select k random elements from the dead_code list (with random number of repetitions for each element,
+            #  allowing for repetition)
+            _dc_data = sample(dead_code, k=randint(*_DEAD_CODE_BOUNDS),
+                              counts=[randint(dcr - (dcr // 2), dcr) for _ in range(len(dead_code))])
             _dc_data = ([x for l in _dc_data for x in l] if isinstance(_dc_data[0], list) else _dc_data) \
                        if isinstance(_dc_data, list) else _dc_data
             # restore stack (add esp, 0xc)

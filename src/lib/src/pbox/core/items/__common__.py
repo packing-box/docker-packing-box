@@ -40,6 +40,11 @@ def _init_base():
             self.__init = False
         
         def __expand(self, line):
+            for attr in re.findall(r"<<(.*?)>>", line):
+                try:
+                    line = line.replace(f"<<{attr}>>", getattr(self, attr))
+                except:
+                    pass
             return line.replace("$TMP", f"/tmp/{self.type}s") \
                        .replace("$OPT", expanduser(f"~/.opt/{self.type}s")) \
                        .replace("$BIN", expanduser("~/.opt/bin")) \
@@ -350,7 +355,7 @@ def _init_base():
                         if hasattr(self, "gui"):
                             txt = self._gui(tgt, arch)
                         else:
-                            txt += f"WINEPREFIX=\"$HOME/.wine{arch}\" WINEARCH=win{arch} wine{arch} \"{target}\" \"$@\""
+                            txt += f"WINEPREFIX=\"$HOME/.wine{arch}\" WINEARCH=win{arch} {cmd} \"{tgt}\" \"$@\""
                     self.logger.debug(f"echo -en '{txt}' > '{r}'")
                     try:
                         r.write_text(txt)
@@ -443,7 +448,7 @@ def _init_base():
                     result = arg if cmd == "set" else tmp.joinpath(arg)
                 # decompress a RAR/TAR/ZIP archive to the given location (absolute or relative to /tmp/[ITEM]s)
                 elif cmd in ["un7z", "unrar", "untar", "unzip"]:
-                    ext = "." + (cmd[-2:] if cmd == "un7z" else cmd[-3:])
+                    ext = f".{cmd[-[3, 2][cmd == 'un7z']:]}"
                     # for TAR, fix the extension (may be .tar.bz2, .tar.gz, .tar.xz, ...)
                     if ext == ".tar" and isinstance(result, Path):
                         # it requires 'result' to be a Path instance ; this works i.e. after having downloaded with Wget
@@ -469,8 +474,7 @@ def _init_base():
                         if arg2 != arg1:
                             pswd = f" -p'{arg2}'" if ext == ".7z" else \
                                    f" -P '{arg2}'" if ext == ".zip" else \
-                                   f" p'{arg2}'" if ext == ".rar" else \
-                                   ""
+                                   f" p'{arg2}'" if ext == ".rar" else ""
                         for d in paths:
                             run_func = run if first else run2
                             if ext == ".tar.bz2":
@@ -529,7 +533,8 @@ def _init_base():
                                     dest = t
                                 else:
                                     run(f"rm -rf '{result}'", **kw)
-                            run(f"mv -f '{dest}' '{result}'", **kw)
+                            if not result.is_under(dest):
+                                run(f"mv -f '{dest}' '{result}'", **kw)
                     else:
                         raise ValueError(f"{result} is not a {ext.lstrip('.').upper()} file")
                 # download a resource, possibly downloading 2-stage generated download links (in this case, the list is

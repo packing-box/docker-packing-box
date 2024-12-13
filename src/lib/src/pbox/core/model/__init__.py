@@ -162,7 +162,7 @@ class BaseModel(Entity):
                 self._features[col] = np.nan
             self._data = self._data.reindex(columns=sorted(self._features.keys()))
         # if the associated algorithm imposes feature names, filter out unneeded features
-        cls = self._algorithm
+        cls = self.algorithm
         params = cls.parameters.get('static', cls.parameters if cls.labelling == "none" else {})
         classifier = cls.base(**params)
         if hasattr(classifier, "_feature_names"):

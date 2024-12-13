@@ -35,7 +35,9 @@ RUN echo "debconf debconf/frontend select Noninteractive" | debconf-set-selectio
  && apt-get -y autoremove \
  && apt-get autoclean
 # add a non-privileged account
-RUN useradd -g 1000 -ms /bin/bash $USER \
+RUN usermod -l $USER ubuntu \
+ && groupmod -n $USER ubuntu \
+ && usermod -d /home/$USER -m $USER \
  && apt-get install -y sudo \
  && echo $USER ALL=\(root\) NOPASSWD:ALL > /etc/sudoers.d/$USER \
  && chmod 0440 /etc/sudoers.d/$USER

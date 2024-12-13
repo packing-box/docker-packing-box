@@ -1,6 +1,6 @@
 # -*- coding: UTF-8 -*-
 import builtins
-from tinyscript import inspect, logging, random, re, string
+from tinyscript import inspect, itertools, logging, random, re, string
 from tinyscript.helpers import get_terminal_size, is_file, is_folder, is_generator, is_iterable, reduce, \
                                set_exception, txt_terminal_render, zeropad, Path, TempPath
 from tinyscript.helpers.expressions import WL_NODES
@@ -381,6 +381,19 @@ def _init_metaitem():
                 #  variants to the new classes (note that on the contrary of base, a variant inherits the 'status'
                 #  parameter)
                 variants, vilist = data.pop('variants', {}), []
+                # collect template parameters
+                template = variants.pop('_template', {})
+                if len(template) > 0:
+                    attrs = [k[1:] for k in list(template.keys()) if k.startswith("_")]
+                    iterables = [template.pop(f"_{k}") for k in attrs]
+                    for values in itertools.product(*iterables):
+                        vitem = "-".join(map(str, (item, ) + values))
+                        # this create the new variant item if not present
+                        variants.setdefault(vitem, {k: v for k, v in template.items()})
+                        # this updates existing variant item with template's content
+                        for k, v in itertools.chain(zip(attrs, values), template.items()):
+                            variants[vitem].setdefault(k, v)
+                # create variant classes in globals
                 for vitem in variants.keys():
                     d = dict(self.__dict__)
                     del d['registry']

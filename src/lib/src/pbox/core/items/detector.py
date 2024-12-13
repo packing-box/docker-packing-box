@@ -79,12 +79,12 @@ def __init():
         @class_or_instance_method
         @file_or_folder_or_dataset
         def detect(self, executable, **kwargs):
-            """ Detects the packing label(s) of a target executable, folder/dataset of executables, applying the decision
-                 heuristic if used as a class (superdetecor).
+            """ Detects the packing label(s) of a target executable, folder/dataset of executables, applying the
+                 decision heuristic if used as a class (superdetector).
             
             If called from the class:
-                Runs every known detector on the given executable and decides the label through voting (with a penalty on
-                 cases where the executable is considered not packed).
+                Runs every known detector on the given executable and decides the label through voting (with a penalty
+                 on cases where the executable is considered not packed).
             
             If called from an instance:
                 Runs the detector according to its command line format and outputs its label.
