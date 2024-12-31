@@ -150,19 +150,13 @@ RUN sudo mkdir -p /mnt/share \
  && sudo chown $USER /mnt/share \
  && mkdir -p $UOPT/bin $UOPT/tools $UOPT/analyzers $UOPT/detectors $UOPT/packers $UOPT/unpackers \
              /tmp/analyzers /tmp/detectors /tmp/packers /tmp/unpackers
-# copy pre-built utils and tools
-# note: libgtk is required for bytehist, even though it can be used in no-GUI mode
-COPY --chown=$USER $FILES/utils/* $UOPT/utils/
-COPY --chown=$USER $FILES/tools/* $UOPT/tools/
-RUN mv $UOPT/tools/help $UOPT/tools/?
-RUN wget https://github.com/packing-box/packer-masking-tool/raw/main/notpacked%2b%2b -O $UOPT/utils/notpacked++ \
- && chmod +x $UOPT/utils/notpacked++
 # copy executable format related data
 COPY --chown=$USER src/data $PBWS/data
 # copy and install pbox (main library for tools) and pboxtools (lightweight library for items)
 COPY --chown=$USER src/lib /tmp/lib
 RUN pip3 install --user --no-warn-script-location --break-system-packages /tmp/lib/ \
  && rm -rf /tmp/lib
+COPY --chown=$USER $FILES/tools/packing-box $PBOX
 # install analyzers
 COPY --chown=$USER $FILES/analyzers/* /tmp/analyzers/
 RUN find /tmp/analyzers -type f -executable -exec mv {} $UOPT/bin/ \; \
@@ -178,7 +172,14 @@ RUN $PBOX setup packer
 # install unpackers
 #COPY ${FILES}/unpackers/* /tmp/unpackers/  # leave this commented as long as $FILES/unpackers has no file
 RUN $PBOX setup unpacker
-# geenerate Bash completions
+# copy pre-built utils and tools
+# note: libgtk is required for bytehist, even though it can be used in no-GUI mode
+COPY --chown=$USER $FILES/utils/* $UOPT/utils/
+COPY --chown=$USER $FILES/tools/* $UOPT/tools/
+RUN mv $UOPT/tools/help $UOPT/tools/?
+RUN wget https://github.com/packing-box/packer-masking-tool/raw/main/notpacked%2b%2b -O $UOPT/utils/notpacked++ \
+ && chmod +x $UOPT/utils/notpacked++
+# generate Bash completions
 COPY --chown=$USER $FILES/utils/_pbox-compgen $UOPT/utils/
 COPY --chown=$USER $FILES/utils/pbox-completions.json $UOPT/utils/
 RUN $UOPT/utils/_pbox-compgen $UOPT/utils/pbox-completions.json -f $HOME/.bash_completion
