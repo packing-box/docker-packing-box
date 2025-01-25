@@ -130,21 +130,25 @@ def get_data(exe_format):
             return _sort([_uncmt(l) for l in fp.read_text().split("\n") if _uncmt(l) != ""])
     # first, get the group (simply use exe_format if it is precisely a group)
     data, group = {}, get_format_group(exe_format)
-    # consider most specific data first
-    if group != exe_format:
-        path = config['data'].joinpath(_name(group))
-        if path.exists():
-            for datafile in path.listdir(lambda p: p.extension in DATA_EXTENSIONS):
-                if datafile.stem.endswith("_" + _name(exe_format)):
-                    data["_".join(datafile.stem.split("_")[:-1]).upper()] = _open(datafile)
-    # then the files without specific mention in a subfolder of config['data'] that matches a format class and
-    #  finally the files without specific mention at the root of config['data']
-    for path in [config['data'].joinpath(_name(group)), config['data']]:
-        if path.exists():
-            for datafile in path.listdir(lambda p: p.extension in DATA_EXTENSIONS):
-                if not datafile.stem.endswith("_" + _name(exe_format)):
-                    c = datafile.stem.upper()
-                    data[c] = _add(_open(datafile), data[c]) if c in data else _open(datafile)
+    c1, c2 = config.default('data'), config['data']
+    #TODO: test loop on 'data_folders'
+    data_folders = [c1] if c1.is_same_path(c2) else [c1, c2]
+    for cfg in data_folders:
+        # consider most specific data first
+        if group != exe_format:
+            path = cfg.joinpath(_name(group))
+            if path.exists():
+                for datafile in path.listdir(lambda p: p.extension in DATA_EXTENSIONS):
+                    if datafile.stem.endswith("_" + _name(exe_format)):
+                        data["_".join(datafile.stem.split("_")[:-1]).upper()] = _open(datafile)
+        # then the files without specific mention in a subfolder of 'cfg' that matches a format class and finally the
+        #  files without specific mention at the root of 'cfg'
+        for path in [cfg.joinpath(_name(group)), cfg]:
+            if path.exists():
+                for datafile in path.listdir(lambda p: p.extension in DATA_EXTENSIONS):
+                    if not datafile.stem.endswith("_" + _name(exe_format)):
+                        c = datafile.stem.upper()
+                        data[c] = _add(_open(datafile), data[c]) if c in data else _open(datafile)
     return data
 
 
