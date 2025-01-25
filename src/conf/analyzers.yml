@@ -19,10 +19,10 @@ Capa:
   formats:
     - All
   install:
-    - wget: https://github.com/mandiant/capa:latest{linux}
+    - wget: <<source>>:latest{linux}
     - unzip: $OPT/capa
     - ln: $OPT/capa/capa
-    - git: https://github.com/mandiant/capa-rules $OPT/capa/rules
+    - git: <<source>>-rules $OPT/capa/rules
   source: https://github.com/mandiant/capa
 
 ClamScan:
@@ -77,6 +77,18 @@ GetTyp:
   status: ok
   version: <output>
 
+Nauz:
+  author: Hors (horsicq)
+  description: TODO
+  formats:
+    - PE
+  install:
+    - wget: <<source>>:latest{nfd_0.09_Ubuntu_22.04_amd64.deb} $TMP/nauz.deb
+    - dpkg: $TMP/nauz.deb
+    - ln: /usr/bin/nfdc
+  source: https://github.com/horsicq/Nauz-File-Detector
+  status: ok
+
 NPEFileAnalyzer:
   comment: PEiD-like detection.
   description: NPE File Analyzer is a utility that allow users to view and edit 32bit and 64bit Portable Executable (PE) files, such as .EXE .DLL and .SYS files. This tool provides functions for inspection of unknown binaries, you can analyze sections, resources, import and export tables, relocations, TlsTable, and much more. It has a built-in process manager to analyze running processes and loaded modules.
@@ -95,7 +107,7 @@ PEdump:
   formats:
     - PE
   install:
-    - git: https://github.com/zed-0xff/pedump
+    - git: <<source>>
     - gem: pedump
   source: https://github.com/zed-0xff/pedump
   status: ok
@@ -116,7 +128,7 @@ PETools:
   formats:
     - PE
   install:
-    - wget: https://github.com/petoolse/petools:latest
+    - wget: <<source>>:latest
     - un7z: $OPT/petools
     - chmod: PETools.exe
   source: https://github.com/petoolse/petools
@@ -129,11 +141,11 @@ PortEx:
     - MSDOS
     - PE
   install:
-    - wget: https://github.com/struppigel/PortEx:latest
+    - wget: <<source>>:latest
     - exec: mv $TMP/portex.jar $OPT/
     - java: $OPT/portex.jar
   license: apache-2.0
-  source: https://github.com/katjahahn/PortEx
+  source: https://github.com/struppigel/PortEx
   status: ok
   version: <output>
 
