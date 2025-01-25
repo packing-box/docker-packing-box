@@ -311,6 +311,10 @@ def _init_base():
                     if arg1 == self.name:
                         rm = False
                     result = dst if dst.is_dir() else dst.dirname
+                # install a Debian package using dpkg
+                elif cmd == "dpkg":
+                    result = None
+                    run(f"sudo dpkg -i {arg}", **kw)
                 # execute the given shell command or the given list of shell commands
                 elif cmd == "exec":
                     result = None
@@ -368,7 +372,7 @@ def _init_base():
                     r = ubin.joinpath(self.name if arg1 == arg2 else arg2)
                     r.remove(False)
                     p = (result or tmp).joinpath(arg1)
-                    run(f"chmod +x '{p}'", **kw)
+                    run(f"chmod +x '{p}'" if p.is_under("~") else f"sudo chmod +x '{p}'", **kw)
                     run(f"ln -fs '{p}' '{r}'", **kw)
                     result = r
                 # create a shell script to execute the given target from its source directory with its intepreter/
@@ -569,7 +573,8 @@ def _init_base():
                                 tag, idx, pattern = re.match(regex, tag).groups()
                             except AttributeError:
                                 pass
-                            resp = json.loads(run(f"curl -Ls https://api.github.com/repos{path}/releases/{tag}")[0])
+                            link = f"https://api.github.com/repos{path}/releases/{tag}"
+                            resp = json.loads(run(f"curl -Ls {link}")[0])
                             # case 1: https://github.com/username/repo:TAG{pattern} ; get file based on pattern
                             if pattern is not None:
                                 try:
@@ -579,8 +584,12 @@ def _init_base():
                                             arg1 = link
                                             break
                                 except KeyError:
-                                    self.logger.warning("GitHub API may be blocking requests at the moment ; please try"
-                                                        " again later")
+                                    if resp.get('status') == "404":
+                                        self.logger.error(f"{link} not found")
+                                    else:
+                                        self.logger.warning("GitHub API may be blocking requests at the moment ; please"
+                                                            " try again later")
+                                        self.logger.debug(resp.content)
                                     raise
                             # case 2: https://github.com/username/repo:TAG[X] ; get Xth file from the selected release
                             else:
