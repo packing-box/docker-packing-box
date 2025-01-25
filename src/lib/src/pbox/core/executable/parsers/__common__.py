@@ -145,23 +145,6 @@ class AbstractParsedExecutable(ABC, CustomReprMixin, GetItemMixin):
         d = [""] + get_data(self.format)['STANDARD_SECTION_NAMES']
         return [s for s in self if _rn(s) not in d]
     
-
-    def __decode_section_name(self, pe, encoded_name, file):
-        if encoded_name.startswith('/'):
-            offset = int(encoded_name[1:])
-            string_table_offset = pe.header.pointerto_symbol_table + pe.header.numberof_symbols * 18
-            real_name_offset = string_table_offset + offset
-
-            # Seek to the calculated offset
-            file.seek(real_name_offset)
-
-            # Read the null-terminated string from the file
-            real_name = b''.join(iter(lambda: file.read(1), b'\x00')).decode('utf-8', errors='ignore')
-
-            return real_name
-        else:
-            return encoded_name
-    
     @property
     def real_section_names(self):
         """ This only applies to PE as section names are limited to 8 characters for image files ; when using longer
@@ -169,6 +152,14 @@ class AbstractParsedExecutable(ABC, CustomReprMixin, GetItemMixin):
         if self.path.group != "PE":
             raise AttributeError(f"'{self.__class__.__name__}' object has no attribute 'real_section_names'")
         if not hasattr(self, "_real_section_names"):
+            def _decode(pe, name, fh):
+                if not name.startswith("/"):
+                    return name
+                string_table_offset = pe.header.pointerto_symbol_table + pe.header.numberof_symbols * 18
+                fh.seek(string_table_offset + int(name[1:]))
+                # read the null-terminated string from the file
+                return b"".join(iter(lambda: fh.read(1), b'\x00')).decode("utf-8", errors="ignore")
+            # start parsing section names
             names = [ensure_str(s.name) for s in self]
             from re import match
             if all(match(r"/\d+$", n) is None for n in names):
@@ -177,9 +168,8 @@ class AbstractParsedExecutable(ABC, CustomReprMixin, GetItemMixin):
             real_names = []
             with open(self.path, "rb") as f:
                 for encoded_name in names:
-                    real_name = self.__decode_section_name(self, encoded_name, f)
+                    real_name = _decode(self, encoded_name, f)
                     real_names.append(real_name)
-            
             self._real_section_names = {n: rn for n, rn in zip(names, real_names) if match(r"/\d+$", n)}
         return self._real_section_names
     
