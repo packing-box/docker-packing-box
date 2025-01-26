@@ -1253,9 +1253,7 @@ UPX:
       status: info
     UPX-3.00:
       install:
-        - wget: <<source>>/archive/refs/tags/v3.00.tar.gz
-        - make: upx
-        - lsh: $OPT/upx-3.00/upx upx-3.00
+        - copy: upx-3.00
     UPX-3.04:
       references:
         - <from-parent>
