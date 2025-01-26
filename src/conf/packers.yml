@@ -266,12 +266,6 @@ DarkComet:
   references:
     - https://github.com/MBCProject/mbc-markdown/blob/main/xample-malware/dark-comet.md
 
-Dragon_Armor:
-  formats:
-    - PE
-  references:
-    - https://www.hexacorn.com/blog/2012/10/14/random-stats-from-1-2m-samples-pe-section-names
-
 DotNetZ:
   categories:
     - bundler
@@ -287,6 +281,35 @@ DotNetZ:
     - https://mindlocksite.wordpress.com/2017/01/22/netz-packer-unpack-avec-windbg/
     - https://ltops9.wordpress.com/2012/12/02/191/
   source: https://www.softpedia.com/get/Programming/Packers-Crypters-Protectors/NETZ.shtml
+
+Dragon_Armor:
+  formats:
+    - PE
+  references:
+    - https://www.hexacorn.com/blog/2012/10/14/random-stats-from-1-2m-samples-pe-section-names
+
+ELF-Cryptor:
+  description: Simple Polymorphic x86_64 Runtime Code Segment Cryptor.
+  formats:
+    - ELF
+  install:
+    - copy: elf_cryptor.py elf-cryptor
+    - pip: pwn --no-deps
+  source: https://github.com/glen-mac/ELF-Packer
+  status: ok
+
+ELF-Packer:
+  description: Encrypts 64-bit ELF files that decrypt at runtime.
+  formats:
+    - ELF64
+  install:
+    - git: <<source>>
+    - make: packer
+    - copy: packer elf-packer
+  silent:
+    - /usr/bin/ld
+  source: https://github.com/telepath9000/elf-packer
+  status: broken
 
 ELFuck:
   categories:
@@ -503,6 +526,16 @@ GZEXE:
     - gzexe {{executable}}
     - rm -f {{executable}}~
 
+Huan:
+  categories:
+    - cryptor
+  description: Encrypted PE Loader Generator that I developed for learning PE file structure and PE loading processes. It encrypts the PE file to be run with different keys each time and embeds it in a new section of the loader binary.
+  formats:
+    - PE64
+  references:
+    - https://github.com/mandiant/capa-rules/blob/master/anti-analysis/packer/huan/packed-with-huan.yml
+  source: https://github.com/frkngksl/Huan
+
 hXOR-Packer:
   categories:
     - compressor
@@ -539,16 +572,6 @@ hXOR-Packer:
       steps:
         - hxor-packer {{executable}} {{executable}} -e {{key[randint(0,16777215)]}}
 
-Huan:
-  categories:
-    - cryptor
-  description: Encrypted PE Loader Generator that I developed for learning PE file structure and PE loading processes. It encrypts the PE file to be run with different keys each time and embeds it in a new section of the loader binary.
-  formats:
-    - PE64
-  references:
-    - https://github.com/mandiant/capa-rules/blob/master/anti-analysis/packer/huan/packed-with-huan.yml
-  source: https://github.com/frkngksl/Huan
-
 JDPack:
   description: N/A
   formats:
@@ -580,6 +603,13 @@ Kovter:
     - PE
   references:
     - https://github.com/MBCProject/mbc-markdown/blob/main/xample-malware/kovter.md
+
+Laturi:
+  description: Laturi is a linker and compression front-end intended to be used for Mac OS X 1k, 4k (and perhaps 8K) intros.
+  formats:
+    - Mach-O
+  source: http://laturi.haxor.fi
+  status: info
 
 LM-X_License_Manager:
   categories:
@@ -726,15 +756,6 @@ Muncho:
     - https://www.pouet.net/prod.php?which=51324
   source: https://demozoo.org/productions/175774/
 
-NSPack:
-  categories:
-    - compressor
-  description: NsPack is a wonderful tool which can compress 32bits and 64bits exe, dll, ocx, scr files. Application supports also windows programs as well as C#.net program.
-  formats:
-    - PE32
-    - PE64
-  source: https://webscene.ir/tools/show/NsPack-and-crack-3.7
-
 NeoLite:
   categories:
     - compressor
@@ -758,6 +779,15 @@ NetCrypt:
     - wine: SimplePacker.exe
   source: https://github.com/friedkiwi/netcrypt
 
+NSPack:
+  categories:
+    - compressor
+  description: NsPack is a wonderful tool which can compress 32bits and 64bits exe, dll, ocx, scr files. Application supports also windows programs as well as C#.net program.
+  formats:
+    - PE32
+    - PE64
+  source: https://webscene.ir/tools/show/NsPack-and-crack-3.7
+
 Obsidium:
   categories:
     - protector
@@ -778,6 +808,16 @@ Origami:
   formats:
     - .NET
   source: https://github.com/dr4k0nia/Origami
+
+PackELF:
+  comment: Simple script relying on PatchELF.
+  categories:
+    - bundler
+  description: Packing Linux ELF program and its dependencies libraries into standalone executable.
+  formats:
+    - ELF
+  source: https://github.com/yzfedora/packelf
+  status: info
 
 Packman:
   categories:
@@ -811,6 +851,13 @@ Pakkero:
       steps:
         - pakkero --file {{executable}} -o {{executable}} -c
 
+Pakr:
+  description: Pakr is an in-memory packer for macOS Mach-O bundles.
+  formats:
+    - Mach-O
+  source: https://github.com/iangcarroll/pakr
+  status: info
+
 Papaw:
   categories:
     - compressor
@@ -819,6 +866,15 @@ Papaw:
   formats:
     - ELF
   source: https://github.com/dimkr/papaw
+
+PatchELF:
+  categories:
+    - bundler
+  description: A small utility to modify the dynamic linker and RPATH of ELF executables.
+  formats:
+    - ELF
+  source: https://github.com/NixOS/patchelf
+  status: info
 
 PE-Packer:
   categories:
@@ -885,7 +941,7 @@ PELock:
   source: https://www.pelock.com/products/pelock
   status: broken
 
-Perplex:
+PErplex:
   formats:
     - PE
   references:
@@ -943,7 +999,7 @@ PEzor:
   formats:
     - PE
   install:
-    - git: https://github.com/phra/PEzor.git
+    - git: <<source>>.git
     - exec: sudo bash $TMP/pezor/install.sh
   references:
     - https://iwantmore.pizza/posts/PEzor.html
