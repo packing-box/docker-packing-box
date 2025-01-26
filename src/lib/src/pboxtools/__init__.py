@@ -104,7 +104,7 @@ def execute(name, **kwargs):
             exit(0)
         else:
             cmd = f"{cmd.split()[0]} --version"
-    shell = ">" in cmd
+    shell = any(_ in cmd for _ in [">", "&", "&&", "|", "||"])
     # prepare the command line and run the tool
     cmd = cmd.format(**kwargs)
     cmd = cmd if shell else split(cmd)

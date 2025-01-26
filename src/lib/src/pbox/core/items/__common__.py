@@ -430,9 +430,19 @@ def _init_base():
                     run(f"mv -f '{cwd2}' '{result}'", **kw)
                     os.chdir(str(result))
                 # simple install through PIP
-                elif cmd == "pip":
+                elif cmd in ["pip", "pipr"]:
+                    opt = ""
+                    if cmd == "pipr":
+                        result = (result or tmp).joinpath(arg)
+                        opt += "-r "
+                    if arg1 != arg2:
+                        opt += f"{arg2} "
                     run(f"pip3 -qq install --user --no-warn-script-location --ignore-installed --break-system-packages "
-                        f"{arg}", **kw)
+                        f"{opt}{result if cmd == 'pipr' else arg1}", **kw)
+                # prepend a line (e.g. a missing shebang) to the targe file
+                elif cmd == "prepend":
+                    result = (result or tmp).joinpath(arg1)
+                    run(f"sed -i '1i{arg2}' {result}", **kw)
                 # remove a given directory (then bypassing the default removal at the end of all commands)
                 elif cmd == "rm":
                     star = arg.endswith("*")
