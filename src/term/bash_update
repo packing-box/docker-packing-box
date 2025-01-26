@@ -28,6 +28,20 @@ pbox-update() {
     _pbox-compgen $OPT/utils/pbox-completions.json -f ~/.bash_completion
     source $HOME/.bashrc
   }
+  __files_update() {
+    printf "${CYA}Copying files from packing-box...${RST}\n"
+    rm -rf $OPT/data/ && cp -rf /mnt/share/src/data $PBWS/
+    cp -f /mnt/share/src/files/tools/* $OPT/tools/
+    mv -f $OPT/tools/help $OPT/tools/?
+    cp -f /mnt/share/src/conf/*.yml $PBWS/conf/
+    for F in /mnt/share/src/term/*; do
+      cp -f "$F" "$HOME/.${F##*/}"
+    done
+    source $HOME/.bashrc
+    find /mnt/share/src/files/detectors/ -type f \( ! -iname \"*\.*\" \) -exec cp -f {} $OPT/bin/ \;
+    mv -f $OPT/bin/userdb*.txt $OPT/detectors/
+    rm -f $OPT/detectors/.userdb_txt.json ~/.local/lib/python3.11/site-packages/peid/db/.userdb_txt.json
+  }
   __package_update() {
     if [ ! "$*" = "-n" ] && [ ! "$*" = "--no-internet" ] && [ $ret -eq 0 ]; then
       printf "${CYA}Upgrading pbox library...${RST}\n"
@@ -41,21 +55,12 @@ pbox-update() {
     echo "Usage: pbox-update [-n/--no-internet] [[-c/--completion-only]|[-p/--package-only]]"
   elif [ "$*" = "-c" ] || [ "$*" = "--completion-only" ]; then
     __completion_update
+  elif [ "$*" = "-f" ] || [ "$*" = "--files-only" ]; then
+    __files_update
   elif [ "$*" = "-p" ] || [ "$*" = "--package-only" ]; then
     __package_update
   else
-    printf "${CYA}Copying files from packing-box...${RST}\n"
-    rm -rf $OPT/data/ && cp -rf /mnt/share/src/data $PBWS/
-    cp -f /mnt/share/src/files/tools/* $OPT/tools/
-    mv -f $OPT/tools/help $OPT/tools/?
-    cp -f /mnt/share/src/conf/*.yml $PBWS/conf/
-    for F in /mnt/share/src/term/*; do
-      cp -f "$F" "$HOME/.${F##*/}"
-    done
-    source $HOME/.bashrc
-    find /mnt/share/src/files/detectors/ -type f \( ! -iname \"*\.*\" \) -exec cp -f {} $OPT/bin/ \;
-    mv -f $OPT/bin/userdb*.txt $OPT/detectors/
-    rm -f $OPT/detectors/.userdb_txt.json ~/.local/lib/python3.11/site-packages/peid/db/.userdb_txt.json
+    __files_update
     if [ ! "$*" = "-n" ] && [ ! "$*" = "--no-internet" ] && [ $ret -eq 0 ]; then
       printf "${CYA}Upgrading Pip...${RST}\n"
       pip -qq install --user --no-warn-script-location --break-system-packages --upgrade pip
