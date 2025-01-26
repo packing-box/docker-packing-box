@@ -1,0 +1,21 @@
+#!/usr/bin/python3
+# -*- coding: UTF-8 -*-
+from pboxtools import *
+
+
+def parse(output, **kwargs):
+    p, r = kwargs['path'], []
+    for l in output.splitlines():
+        if l.startswith("[ERROR]"):
+            kwargs['logger'].error(l.split("]", 1)[1].strip())
+            return
+        if any(l.startswith(_) for _ in ["[INFO]", "[WARNING]"]):
+            continue
+        with suppress(AttributeError):
+            r.append(l)
+    return r
+
+
+if __name__ == "__main__":
+    run("BinaryObjectScanner", parse_func=parse)
+

@@ -112,7 +112,7 @@ RUN wget -qO /tmp/dotnet-install.sh https://dot.net/v1/dotnet-install.sh \
 # install/update Python packages (install dl8.5 with root separately to avoid wheel's build failure)
 RUN python3 -m pip install --user --upgrade --break-system-packages pip
 RUN pip3 install --user --no-warn-script-location --ignore-installed --break-system-packages \
-        capstone meson poetry thefuck tinyscript tldr vt-py \
+        capstone meson poetry pythonnet thefuck tinyscript tldr vt-py \
  && pip3 install --user --no-warn-script-location --ignore-installed --break-system-packages \
         angr capa pandas pydl8.5 scikit-learn weka \
  && rm -f /home/user/.local/lib/python3.11/site-packages/unicorn/lib \

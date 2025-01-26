@@ -22,6 +22,17 @@ ASL:
   source: https://github.com/ExeinfoASL/ASL
   status: useless
 
+BinaryObjectScanner:
+  command: $OPT/binaryobjectscanner/PackerScan -na -ni -no {path}
+  description: 
+  formats:
+    - PE
+  install:
+    - unzip: $OPT/binaryobjectscanner
+    - ln: $OPT/binaryobjectscanner/PackerScan
+  source: https://github.com/SabreTools/BinaryObjectScanner
+  status: ok
+
 Bintropy:
   description: Bintropy is an analysis tool that estimates the likelihood that a binary file contains compressed or encrypted bytes.
   formats:
@@ -170,12 +181,12 @@ PEiD:
     - MSDOS
     - PE
   install:
-    - pip:  peid>=2.1.1
+    - pip:  peid>=2.2.1
     - exec: rm -f $OPT/.userdb_txt.json $OPT/.userdb_asl_txt.json
   references:
     - https://www.aldeid.com/wiki/PEiD
     - www.softpedia.com/get/Programming/Packers-Crypters-Protectors/PEiD-updated.shtml
-    - https://github.com/ynadji/peid/
+    - https://github.com/ynadji/peid
     - https://github.com/wolfram77web/app-peid
   source: https://github.com/packing-box/peid
   status: ok
@@ -213,7 +224,7 @@ PyPeid:
     - MSDOS
     - PE
   install:
-    - gitr: https://github.com/FFRI/pypeid.git
+    - gitr: <<source>>.git
     - cd:   $TMP/pypeid
     - exec:
       - poetry build -q
@@ -237,7 +248,7 @@ REMINDer:
   formats:
     - All
   install:
-    - pip: reminder-detector>=1.2.0
+    - pip: reminder-detector>=1.2.1
   multiclass: false
   references:
     - https://ieeexplore.ieee.org/document/5404211
@@ -251,7 +262,7 @@ RetDec:
   formats:
     - All
   install:
-    - wget:  https://github.com/avast/retdec:latest{Linux}
+    - wget:  <<source>>:latest{Linux}
     - untar: $OPT/retdec
   license: mit
   source:  https://github.com/avast/retdec
