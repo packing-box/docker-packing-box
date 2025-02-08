@@ -55,6 +55,12 @@ def _cg(s, v):
 _cg.__name__ = "CFG extraction algorithm"
 
 
+def _cm(s, v):
+    import matplotlib.pyplot as plt
+    if v not in plt.colormaps():
+        raise ValueError(f"invalid colormap '{v}'")
+    return v
+
 def _fmt(s, v):
     if v not in IMG_FORMATS:
         raise ValueError(f"invalid image format '{v}' ; shall be one of: {'|'.join(IMG_FORMATS)}")
@@ -71,7 +77,7 @@ def _nj(s, v):
 
 
 def _rp(s, v):
-    v = Path(str(v), expand=True).absolute()
+    v = Path(s['workspace'].joinpath(v), expand=True).absolute()
     if not v.exists():
         raise ValueError(v)
     return v
@@ -147,9 +153,8 @@ bi.config = Config("packing-box",
         },
         'visualization': {
             'bbox_inches':     ("tight", "BBOX", "bbox in inches for saving the figure"),
-            #FIXME: enforce list of valid colormaps
-            'colormap_main':   ("RdYlGn_r", "CMAP", "name of matplotlib.colors.Colormap to apply to plots"),
-            'colormap_other':  ("jet", "CMAP", "name of matplotlib.colors.Colormap to apply to plots"),
+            'colormap_main':   ("RdYlGn_r", "CMAP", "name of matplotlib.colors.Colormap to apply to plots", _cm),
+            'colormap_other':  ("jet", "CMAP", "name of matplotlib.colors.Colormap to apply to plots", _cm),
             'dpi':             ("300", "DPI", "figures' dots per inch", _it),
             'font_family':     ("serif", "FAMILY", "font family for every text"),
             'font_size':       ("10", "SIZE", "base font size", _it),

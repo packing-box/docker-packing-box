@@ -226,6 +226,10 @@ class Features(dict, metaclass=MetaBase):
                     continue
             if len(values) == 0:
                 values = {ud}
+            if k == 'ptime':
+                values = sorted(values, key=lambda k: FEATURE_PTIME.index(k) if k in FEATURE_PTIME else -1)
+            elif k == 'tcomplexity':
+                values = sorted(values, key=lambda x: eval(x.replace("log(n)", "2").replace("n", "100")))
             # now collect counts
             counts = {}
             for fmt in formats:

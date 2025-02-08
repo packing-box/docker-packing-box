@@ -1,13 +1,13 @@
 # -*- coding: UTF-8 -*-
 from tinyscript import functools, re
 
+lazy_load_module("json")
 lazy_load_module("numpy", alias="np")
-lazy_load_module("pandas", alias="pd")
 lazy_load_module("yaml")
 
 
 __all__ = ["at_interrupt", "benchmark", "bin_label", "bold", "class_or_instance_method", "execute_and_get_values_list",
-           "get_counts", "json_cache", "np", "pd", "shorten_str", "strip_version", "yaml"]
+           "get_counts", "json", "json_cache", "np", "pd", "shorten_str", "strip_version", "yaml"]
 
 
 bin_label = lambda l: {NOT_LABELLED.lower(): -1, 'false': 0, NOT_PACKED.lower(): 0, 'true': 1, None: None} \
@@ -15,6 +15,18 @@ bin_label = lambda l: {NOT_LABELLED.lower(): -1, 'false': 0, NOT_PACKED.lower():
 bold = lambda text: "\033[1m{}\033[0m".format(text)
 get_counts = lambda metadata, packed=True: {k: v for k, v in metadata['counts'].items() if k not in \
                                             ([NOT_LABELLED, NOT_PACKED] if packed else [NOT_LABELLED])}
+
+
+def __init_pd(module):
+    def to_yml(self, path_or_buf=None, **kwargs):
+        from _io import BufferedWriter
+        d = json.loads(self.to_json(**kwargs))
+        if path_or_buf is None:
+            return "" if (y := yaml.dump(d)) == "{}\n" else y
+        with (path_or_buf if isinstance(path_or_buf, BufferedWriter) else open(path_or_buf, 'wt')) as f:
+            yaml.dump(d, f)
+    module.DataFrame.to_yml = to_yml
+lazy_load_module("pandas", alias="pd", postload=__init_pd)
 
 
 def at_interrupt():
@@ -59,23 +71,22 @@ def json_cache(name, key, force=False):
     def _wrapper(f):
         @functools.wraps(f)
         def _subwrapper(*a, **kw):
-            from json import dump, dumps, load
             cache_file = cache.joinpath(f"{key}.json")
             if cache_file.exists():
                 if force:
                     cache_file.remove()
                 else:
                     with cache_file.open('rb') as fin:
-                        return load(fin)
+                        return json.load(fin)
             r = f(*a, **kw)
             if r is not None and len(r) > 0:
                 with cache_file.open('w') as fout:
                     try:
-                        dump(r, fout, indent=2)
+                        json.dump(r, fout, indent=2)
                     except TypeError:
                         from vt.object import UserDictJsonEncoder
                         fout.truncate()
-                        fout.write(dumps(r, cls=UserDictJsonEncoder, indent=2))
+                        fout.write(json.dumps(r, cls=UserDictJsonEncoder, indent=2))
             return r
         return _subwrapper
     return _wrapper

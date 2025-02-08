@@ -23,7 +23,7 @@ class Locator(Path):
         if scheme in ["conf", "data"]:
             if scheme == "conf" and not path.endswith(".yml"):
                 path += ".yml"
-            p = config['workspace'].joinpath(scheme, path)
+            p = Path(path) if re.match("./[^/]+", path) else config['workspace'].joinpath(scheme, path)
         elif scheme in ["dataset", "model"]:
             from ..core import Dataset, Model
             return locals()[scheme.capitalize()].load(path)
@@ -48,7 +48,7 @@ class Locator(Path):
                 return Experiment(path)
         elif scheme in ["figure", "script"]:
             try:
-                p = config['experiment'].joinpath(scheme + "s", path)
+                p = Path(path) if re.match("./[^/]+", path) else config['experiment'].joinpath(scheme + "s", path)
             except KeyError:
                 raise NotAnExperimentError("This scheme can only be used in the context of an experiment")
         else:

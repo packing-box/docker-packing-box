@@ -12,7 +12,7 @@ def __init__cpu_count():
     return mp.cpu_count()
 bi.CPU_COUNT = lazy_load_object("CPU_COUNT", __init__cpu_count)
 bi.EXPORT_FORMATS = {'md': "markdown", 'tex': "latex", 'txt': "string", 'xlsx': "excel"}
-for f in ['csv', 'html', 'json', 'pickle', 'xml']:
+for f in ['csv', 'html', 'json', 'pickle', 'xml', 'yml']:
     bi.EXPORT_FORMATS[f] = f
 bi.LOG_FORMATS = ["%(asctime)s [%(levelname)s] %(message)s", "%(asctime)s [%(levelname)-8s] %(name)-18s %(message)s"]
 bi.PACKING_BOX_SOURCES = {
@@ -208,6 +208,7 @@ bi.COMMIT_VALID_COMMANDS = [
 
 # machine learning & visualization
 bi.FEATURE_CONSTANTS = ["IMPORT_SUFFIXES", "X86_64_JUMP_MNEMONICS"]
+bi.FEATURE_PTIME = ["low", "medium", "high", "extreme"]
 bi.IMG_FORMATS = ("jpg", "png", "tif", "svg")
 bi.LABELS = {
     'not-packed':         "Original",
