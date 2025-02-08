@@ -55,7 +55,7 @@ def add_argument(parser, *names, **kwargs):
         elif name == "exeformat":
             parser.add_argument("--format", default="PE32", type=exe_format, help="executable format to be considered")
         elif name == "expformat":
-            parser.add_argument("--export", default="csv", choices=EXPORT_FORMATS.keys(),
+            parser.add_argument("-e", "--export", dest="output", default="csv", choices=EXPORT_FORMATS.keys(),
                                 help="file format the data should be exported to")
         elif name == "feature":
             parser.add_argument("feature", action="extend", nargs="*", type=feature_identifier,
@@ -201,9 +201,13 @@ def feature_identifier(name):
     return name
 
 
-def figure_options(parser):
+def figure_options(parser, add_no_title=False):
     group = parser.add_argument_group("figure options", before="extra arguments")
-    for option, params in config._defaults['visualization'].items():
+    for option in sorted(list(config._defaults['visualization'].keys()) + [[], ["no-title"]][add_no_title]):
+        params = config._defaults['visualization'].get(option)
+        if option == "no-title":
+            group.add_argument("--no-title", action="store_true", help="do not display the title (default: False)")
+            continue
         kw = {}
         if params[1] != "BOOL":
             kw['metavar'] = params[1]

@@ -33,8 +33,10 @@ dependencies = [
   "bintropy>=1.5.7",
   "capstone",
   "dsff>=1.0.3",
+  "exeplot>=0.2.0",
 #  "filebytes",
   "lief>=0.14.0",
+  "malsearch>=0.2.1",
 #  "macholibre@git+https://github.com/aaronst/macholibre.git",
 #  "matplotlib<3.8",  # see: https://github.com/matplotlib/matplotlib/issues/27289
   "pandas>=1.5.0",

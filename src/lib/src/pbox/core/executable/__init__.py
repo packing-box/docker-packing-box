@@ -10,17 +10,19 @@ from .alterations import __all__ as _alter
 from .features import *
 from .features import __all__ as _features
 from .parsers import get_parser
-from .visualization import *
-from .visualization import __all__ as _viz
 from ...helpers import *
 
 lazy_load_module("bintropy")
 
 
-__all__ = ["is_exe", "Executable"] + _alter + _features + _viz
+__all__ = ["is_exe", "Executable"] + _alter + _features
 
 _N_SECTIONS = re.compile(r", \d+ sections$")
-
+_METHOD = """def {name}(self, *args, **kwargs):
+    from exeplot import {name}
+    kwargs['img_name'] = self._filename(**kwargs)
+    return {name}(*args, **kwargs)
+"""
 is_exe = lambda e: Executable(e).format is not None
 
 
@@ -42,6 +44,25 @@ class Executable(Path):
     (5) dataset-bound, with a new destination dataset
          kwargs: hash, dataset, dataset2
     """
+    class Plot:
+        def __init__(self, outer):
+            from exeplot import __all__ as _viz_funcs
+            self._outer = outer
+            for f in _viz_funcs:
+                exec(_METHOD.format(name=f))
+                setattr(Executable.Plot, f, locals()[f])
+        
+        def _filename(self, prefix="", suffix="", no_ext=True, **kwargs):
+            fn = (prefix or "") + Path(self._outer.realpath).basename + (suffix or "")
+            if hasattr(self._outer, "_dataset"):
+                fn = Path(self._outer._dataset.basename, "samples", fn)
+            path = figure_path(fn, **kwargs)
+            return str(path.dirname.joinpath(path.stem) if no_ext else path)
+    
+    def __init__(self, *args, **kwargs):
+        self.__logger = kwargs.get('logger', null_logger)
+        self.plot = self.Plot(self)
+    
     def __new__(cls, *parts, **kwargs):
         h, ds1, ds2 = kwargs.pop('hash', None), kwargs.pop('dataset', None), kwargs.pop('dataset2', None)
         fields, kwargs['expand'], e = ["hash", "label"] + EXE_METADATA, True, parts[0] if len(parts) == 1 else None
@@ -85,9 +106,9 @@ class Executable(Path):
                 from ..dataset import Dataset
                 exe = Executable(hash=parts[-1], dataset=Dataset(Path(*parts[:-2])))
                 if not exe.exists():
-                    l = kwargs.get('logger', null_logger)
-                    l.warning("This executable does not exist ; this is because it comes from a fileless dataset, "
-                           "meaning that computed features won't be computed but will be retrieved from this dataset !")
+                    self._logger(**kwargs).warning("This executable does not exist ; this is because it comes from a"
+                                                   " fileless dataset, meaning that computed features won't be computed"
+                                                   " but will be retrieved from this dataset !")
                 return exe
             self = super(Executable, cls).__new__(cls, *parts, **kwargs)
             self.label = label
@@ -123,6 +144,9 @@ class Executable(Path):
         raise ValueError("Unsupported combination of arguments (see the docstring of the Executable class for more "
                          "information)")
     
+    def _logger(self, **kwargs):
+        return kwargs.get('logger', self.__logger)
+    
     def _reset(self):
         # ensure filetype and format will be recomputed at their next invocation (i.e. when a packer modifies the binary
         #  in a way that makes its format change)
@@ -155,6 +179,23 @@ class Executable(Path):
             except:
                 pass
         # return None to indicate that the copy failed (i.e. when the current instance is already the destination path)
+    
+    def diff(self, file2, legend1=None, legend2=None, n=0, **kwargs):
+        """ Generates a text-based difference between two PE files. 
+        
+        :param file1:   first file's name
+        :param file2:   second file's name
+        :param legend1: first file's alias (file1 if None)
+        :param legend2: second file's alias (file2 if None)
+        :param n:       amount of carriage returns between the sequences
+        :return:        difference between the files, in text format
+        """
+        #FIXME: this only applies to PE ; need to find another way for ELF and Mach-O
+        from difflib import unified_diff as udiff
+        from pefile import PE
+        self._logger(**kwargs).debug("dumping files info...")
+        dump1, dump2 = PE(self).dump_info(), PE(file2).dump_info()
+        return "\n".join(udiff(dump1.split('\n'), dump2.split('\n'), legend1 or str(self), legend2 or str(file2), n=n))
     
     def is_valid(self):
         return self.format is not None
@@ -201,23 +242,8 @@ class Executable(Path):
             self._parsed.real_section_names  # trigger computation of real names
         return self._parsed
     
-    def plot(self, executables=(), prefix="", label=None, sublabel="size-ep-ent", **kwargs):
-        fn = (prefix or "") + Path(self.realpath).basename
-        if hasattr(self, "_dataset"):
-            fn = Path(self._dataset.basename, "samples", fn)
-        path = figure_path(fn, **kwargs)
-        kwargs.get('logger', null_logger).info(f"Saving to {path}...")
-        path = path.dirname.joinpath(path.stem)
-        kw_plot = {k: kwargs.get(k, config[k]) for k in config._defaults['visualization'].keys()}
-        if len(executables) > 0:
-            kw_plot['scale'] = kwargs.pop('scale')
-        kw_plot['img_format'] = kw_plot.pop('img_format', config['img_format'])
-        from bintropy import plot
-        plot(*((self, ) + tuple(executables)), img_name=path, labels=label or [self.label], sublabel=sublabel,
-             target=fn, **kw_plot)
-    
     def scan(self, executables=(), **kwargs):
-        l, verb = kwargs.get('logger', null_logger), kwargs.get('verbose', False) and len(executables) == 0
+        l, verb = self._logger(**kwargs), kwargs.get('verbose', False) and len(executables) == 0
         @json_cache("vt", self.hash, kwargs.get('force', False))
         def _scan():
             from vt import Client
@@ -400,13 +426,4 @@ class Executable(Path):
     @cached_property
     def size(self):
         return super(Executable, self).size
-    
-    @staticmethod
-    def diff_plot(file1, file2, img_name=None, img_format="png", legend1="", legend2="", dpi=400, title=None, **kwargs):
-        return binary_diff_plot(Executable(file1), Executable(file2), img_name, img_format, legend1, legend2, dpi,
-                                title, **kwargs)
-    
-    @staticmethod
-    def diff_text(file1, file2, legend1=None, legend2=None, n=0, **kwargs):
-        return binary_diff_text(Executable(file1), Executable(file2), legend1, legend2, n, **kwargs)
 

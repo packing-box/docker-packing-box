@@ -1,8 +1,11 @@
 #!/usr/bin/python3
 # -*- coding: UTF-8 -*-
-from bintropy.__init__ import SUBLABELS
 from pbox import *
 from tinyscript import *
+# import exeplot afterwards to avoid name clashes
+from exeplot.plots import *
+from exeplot.plots import __all__ as _plots
+from exeplot.plots.__common__ import SUBLABELS
 
 
 __script__      = "Executable manipulation tool"
@@ -25,19 +28,16 @@ if __name__ == '__main__':
     alter = sparsers.add_parser("alter", help="alter the target executable with the given alteration")
     add_argument(alter, "executable", single=True)
     add_argument(alter, "alterations-set", "alteration")
-    diff = sparsers.add_parser("diff", help="represent differences between two target executables")
-    add_argument(diff, "executable", single=True)
-    diff.add_argument("executable2", help="another executable file")
+    dif = sparsers.add_parser("diff", help="represent differences in information dumps between two target executables")
+    add_argument(dif, "executable", single=True)
+    dif.add_argument("executable2", help="another executable file")
     feat = sparsers.add_parser("features", help="compute features of the target executable")
     add_argument(feat, "executable", "features-set", single=True)
     plot = sparsers.add_parser("plot", help="plot the target executable(s)")
-    add_argument(plot, "executable", nargs="+", single=True)
-    plot.add_argument("-l", "--label", nargs="*", action="extend", help="set the label(s) (keeps order)")
-    plot.add_argument("-p", "--prefix", help="string to be prepended to the target filename")
-    l = list(SUBLABELS.keys())
-    plot.add_argument("-s", "--sublabel", default=l[-1], choices=l, help="label to be added under the filename")
-    plot.add_argument("--scale", action="store_true", help="use the same scale when multiple executables are input")
-    figure_options(plot)
+    plots = plot.add_subparsers(dest="type", help="plot type")
+    for plot in sorted(_plots):
+        plot_parser = (pf := globals()[plot]).__args__(plots.add_parser(plot, help=pf.__doc__.strip()))
+        figure_options(plot_parser, add_no_title=True)
     scan = sparsers.add_parser("scan", help="send the executable to VirusTotal for scanning")
     add_argument(scan, "executable")
     scan.add_argument("executables", nargs="*", help="executable files to compare with the reference file")
@@ -49,14 +49,13 @@ if __name__ == '__main__':
     # now execute
     if args.command == "features":
         Features.source = args.features_set
-        Executable(args.executable).show(False, False, True)
+        Executable(args.executable, logger=logger).show(False, False, True)
+    elif args.command == "plot":  #FIXME (TypeError: 'Plot' object is not callable)
+            e = sorted([args.__dict__.pop(a) for a in dir(args) if a.startswith("executable")])
+            if isinstance(e[0], list) and len(e) == 1:
+                e = e[0]
+            getattr(Executable(e[0], logger=logger).plot, args.type)(*e, **vars(args))
     else:
-        if args.command == "plot":
-            e = args.executable
-            if isinstance(e, list):
-                if len(e) > 1:
-                    getattr(Executable(e[0]), args.command)(executables=e[1:], **vars(args))
-                    sys.exit(0)
-                args.executable = e[0]
         getattr(Executable(args.executable), args.command)(**vars(args))
+    sys.exit(0)
 
