@@ -1,7 +1,8 @@
 # -*- coding: UTF-8 -*-
 from tinyscript import logging
+from tinyscript.report import *
 
-from ...helpers import dict2, expand_formats, get_data, get_format_group, load_yaml_config, MetaBase
+from ...helpers import dict2, expand_formats, get_data, get_format_group, load_yaml_config, render, MetaBase
 
 set_exception("ExecutableBuildError", "RuntimeError")
 
@@ -207,6 +208,18 @@ class Alterations(list, metaclass=MetaBase):
                     l.warning(f"'{e.args[0]}' is not supported yet for parser '{exe.parsed.parser}'")
                 except Exception as e:
                     l.exception(e)
+    
+    @classmethod
+    def show(cls, **kw):
+        """ Show an overview of the features. """
+        from ...helpers.utils import pd
+        cls.logger.debug(f"computing alterations overview...")
+        formats = list(Alterations.registry.keys())
+        # collect counts
+        counts = {}
+        for fmt in formats:
+            counts[fmt] = len(Alterations.registry[fmt])
+        render(Section(f"Counts"), Table([list(counts.values())], column_headers=formats))
     
     @staticmethod
     def names(format="All"):
