@@ -2,13 +2,15 @@
 entropy:
   description: Entropy of the whole executable
   result:
-    All: entropy
+    All: binary['entropy']
     PE:  pefeats[46]
+  significant: true
 
 entropy_code_section:
   description: Entropy of .text section
   result:
     PE: pefeats[42]
+  significant: true
 
 entropy_data_section:
   description: Entropy of .data section
@@ -46,6 +48,7 @@ byte_%d_after_ep:
   description: Byte %d following the EP
   result:
     PE: pefeats[48+%d]
+  significant: true
   values: !!python/object/new:range [64]
 
 checksum:
@@ -117,6 +120,7 @@ number_addresses_in_iat:
   description: Number of addresses (corresponds to functions) found in the import address table (IAT)
   result:
     PE: pefeats[116]
+  significant: true
 
 number_dll_imported:
   description: Number of DLLs imported
@@ -127,6 +131,7 @@ number_func_imported_in_idt:
   description: Number of functions imported found in the import table directory (IDT)
   result:
     PE: pefeats[113]
+  significant: true
 
 number_malicious_api_imported:
   description: Number of malicious APIs imported
@@ -148,6 +153,7 @@ number_rwx_sections:
   description: Number of Writable and Readable and Executable sections
   result:
     PE: pefeats[29]
+  significant: true
 
 number_rx_sections:
   description: Number of readable and executable sections
@@ -169,6 +175,7 @@ number_standard_sections:
   result:
     All: len(binary['standard_sections'])
     PE: pefeats[21]
+  significant: true
 
 number_w_sections:
   description: Number of Writable sections
@@ -179,6 +186,7 @@ number_wx_sections:
   description: Number of Writable and Executable sections
   result:
     PE: pefeats[26]
+  significant: true
 
 number_x_sections:
   description: Number of Executable sections
@@ -204,6 +212,7 @@ ratio_malicious_api_imported:
   description: Ratio between the number of malicious APIs imported to the number of all functions imported by the PE
   result:
     PE: pefeats[115]
+  significant: true
 
 ratio_standard_sections:
   description: Ratio between the number of standards sections found and the number of all sections found in the PE under analysis
@@ -275,6 +284,7 @@ is_code_section_not_present:
   description: Code section is not present in the PE under analysis
   result:
     PE: pefeats[32]
+  significant: true
 
 is_code_section_not_x:
   description: Is the code section not executable
@@ -290,11 +300,13 @@ is_ep_not_in_code_section:
   description: EP is not in the code section
   result:
     PE: pefeats[33]
+  significant: true
 
 is_ep_not_in_standard_section:
   description: EP is not in a standard section
   result:
     PE: pefeats[34]
+  significant: true
 
 is_ep_not_in_x_section:
   description: EP is not in an executable section
