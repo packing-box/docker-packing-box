@@ -185,7 +185,8 @@ if __name__ == '__main__':
                         note="this removes all backups")
     select = cmds.add_parser("select", category="create/modify/delete", help="select a subset of the dataset")
     add_argument(select, "dsname", "dsname2", "number", "query")
-    select.add_argument("-s", "--split", action="store_true", help="split original dataset by removing the selected samples from the original")
+    select.add_argument("-s", "--split", action="store_true",
+                        help="split original dataset by removing the selected samples from the original")
     show = add_argument(cmds.add_parser("show", category="read", help="get an overview of the dataset"), "dsname")
     show.add_argument("-l", "--limit", default=10, type=int, help="number of executables to be displayed per format")
     show.add_argument("--per-format", action="store_true", help="display statistics per format")

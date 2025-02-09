@@ -192,7 +192,7 @@ bi.X86_64_REGISTERS = {
     "Stack Registers":           {"rbp", "rsp", "ebp", "esp"},
     "Instruction Pointer":       {"rip", "eip"},
     "Flags Register":            {"rflags", "eflags"},
-    "Floating-Point Registers":  set("xmm{}".format(i) for i in range(16))
+    "Floating-Point Registers":  set(f"xmm{i}" for i in range(16))
 }
 
 

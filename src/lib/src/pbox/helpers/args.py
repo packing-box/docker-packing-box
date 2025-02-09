@@ -53,9 +53,9 @@ def add_argument(parser, *names, **kwargs):
                 parser.add_argument("executable", help="executable or folder containing executables or dataset or data"
                                                        " CSV file", **params)
         elif name == "exeformat":
-            parser.add_argument("--format", default="PE32", type=exe_format, help="executable format to be considered")
+            parser.add_argument("--format", default="All", type=exe_format, help="executable format to be considered")
         elif name == "expformat":
-            parser.add_argument("-e", "--export", dest="output", default="csv", choices=EXPORT_FORMATS.keys(),
+            parser.add_argument("-o", "--output", default="csv", choices=EXPORT_FORMATS.keys(),
                                 help="file format the data should be exported to")
         elif name == "feature":
             parser.add_argument("feature", action="extend", nargs="*", type=feature_identifier,
@@ -157,7 +157,7 @@ def dataset_exists(force=False):
 
 
 def exe_format(name):
-    if name not in expand_formats("All"):
+    if name not in FORMATS.keys() and name not in expand_formats("All"):
         raise ValueError("Invalid executable format")
     return name
 

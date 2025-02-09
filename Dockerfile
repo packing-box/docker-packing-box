@@ -50,7 +50,10 @@ RUN apt-get -y install apt-transport-https apt-utils \
                        libdwarf-dev libcairo2-dev libdbus-1-dev libegl1-mesa-dev libfreetype6-dev libfuse-dev \
                        libgl1-mesa-dev libglib2.0-dev libglu1-mesa-dev libpulse-dev libssl-dev libsvm-dev libsvm-java \
                        libtiff5-dev libudev-dev libxcursor-dev libxkbfile-dev libxml2-dev libxrandr-dev
-# && apt-get -y install libgtk2.0-0:i386 \
+# install Rust
+RUN curl https://sh.rustup.rs -sSf | bash -s -- -y
+# initialize Go
+RUN go mod init pbox &
 # install useful tools
 RUN apt-get -y install colordiff colortail cython3 dos2unix dosbox git golang kmod less ltrace meson nasm tree strace \
  && apt-get -y install iproute2 nftables nodejs npm python3-setuptools python3-pip rubygems swig vim weka yarnpkg \
@@ -58,7 +61,8 @@ RUN apt-get -y install colordiff colortail cython3 dos2unix dosbox git golang km
  && apt-get -y install bats binutils-dev binwalk dwarfdump ent foremost jq tmate tmux visidata xdotool xterm xvfb \
  && wget -qO /tmp/bat.deb https://github.com/sharkdp/bat/releases/download/v0.18.2/bat-musl_0.18.2_amd64.deb \
  && dpkg -i /tmp/bat.deb \
- && rm -f /tmp/bat.deb
+ && rm -f /tmp/bat.deb \
+ && go install github.com/antonmedv/fx@latest
 # install wine (for running Windows software on Linux)
 RUN dpkg --add-architecture i386 \
  && wget -O /etc/apt/keyrings/winehq-archive.key https://dl.winehq.org/wine-builds/winehq.key \
@@ -112,14 +116,12 @@ RUN wget -qO /tmp/dotnet-install.sh https://dot.net/v1/dotnet-install.sh \
 # install/update Python packages (install dl8.5 with root separately to avoid wheel's build failure)
 RUN python3 -m pip install --user --upgrade --break-system-packages pip
 RUN pip3 install --user --no-warn-script-location --ignore-installed --break-system-packages \
-        capstone meson poetry pythonnet thefuck tinyscript tldr vt-py \
+        capstone jinja2 meson poetry pythonnet thefuck tinyscript tldr vt-py \
  && pip3 install --user --no-warn-script-location --ignore-installed --break-system-packages \
         angr capa pandas pydl8.5 scikit-learn weka \
  && rm -f /home/user/.local/lib/python3.11/site-packages/unicorn/lib \
  && pip3 uninstall -y --break-system-packages unicorn \
  && pip3 install --user --no-warn-script-location --ignore-installed --break-system-packages unicorn
-# initialize Go
-RUN go mod init pbox &
 # +--------------------------------------------------------------------------------------------------------------------+
 # |                                     CUSTOMIZE THE BOX (refine the terminal)                                        |
 # +--------------------------------------------------------------------------------------------------------------------+
