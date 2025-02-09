@@ -18,6 +18,7 @@ class Feature(dict2):
         super(Feature, self).__init__(*args, **kwargs)
         self['boolean'] = any(self['name'].startswith(p) for p in ["is_", "has_"])
         self.setdefault('keep', True)
+        self.setdefault('significant', False)
     
     def __call__(self, data, *args, **kwargs):
         self._exe = data.get('executable')
@@ -192,20 +193,6 @@ class Features(dict, metaclass=MetaBase):
             l.warning(f"Features already loaded")
     
     @classmethod
-    def _read(cls, config_file=None):
-        """ Read the source YAML configuration file and refine it. """
-        from copy import deepcopy
-        if config_file is not None:
-            config_file = Path(config_file)
-        d1 = {k: v for k, v in load_yaml_config(config_file or self.__name__.lower())}
-        d2 = deepcopy(d1)
-        for name, attrs in d2.items():
-            attrs['boolean'] = any(name.startswith(p) for p in ["is_", "has_"])
-            attrs.setdefault('keep', True)
-            attrs.setdefault('significant', False)
-        return d1, d2  # (original_dict, refined_dict)
-    
-    @classmethod
     def show(cls, **kw):
         """ Show an overview of the features. """
         from ...helpers.utils import pd
@@ -229,7 +216,8 @@ class Features(dict, metaclass=MetaBase):
             if k == 'ptime':
                 values = sorted(values, key=lambda k: FEATURE_PTIME.index(k) if k in FEATURE_PTIME else -1)
             elif k == 'tcomplexity':
-                values = sorted(values, key=lambda x: eval(x.replace("log(n)", "2").replace("n", "100")))
+                values = sorted(values, key=lambda x: -1 if x == ud else \
+                                                      eval(x.replace("log(n)", "2").replace("n", "100")))
             # now collect counts
             counts = {}
             for fmt in formats:

@@ -6,7 +6,7 @@ from tinyscript.helpers import get_terminal_size, is_file, is_folder, is_generat
 from tinyscript.helpers.expressions import WL_NODES
 
 from .files import Locator
-from .formats import format_shortname
+from .formats import expand_formats, format_shortname
 from .utils import pd
 
 lazy_load_module("yaml")
@@ -138,38 +138,59 @@ class MetaBase(type):
                     yield name
                     temp.append(name)
     
-    def _read(self, cfg=None):
-        """ Read the source YAML configuratino file and return a dictionary. """
-        d = {k: v for k, v in load_yaml_config(Locator(f"conf://{cfg or self.__name__.lower()}"))}
-        return d, d
-    
-    def _select(self, cfg=None, query=None, raw=False, **kw):
+    def _select(self, format="All", query=None, fields=None, index="name", raw=False, dataframe=False, **kw):
         """ Select a subset based on a Pandas query and return it as a dictionary. """
-        l = self.logger
-        d1, d2 = self._read(cfg)
-        df = pd.DataFrame.from_dict(d2, orient="index")
+        _l = self.logger
+        # from the registry, based on the required formats, build a DataFrame combining all items
+        for i, c in enumerate(expand_formats(format)):
+            d = {}
+            for record in self.registry.get(c, {}).values():
+                for k, v in dict(record).items():  # dict(...) converts the dict2 instance to its full version
+                    if k not in d:
+                        d[k] = []
+                        for _ in range(len(d[index])-1):
+                            d[k].append(None)
+                    d[k].append(str(v))
+            n = len(d[index])
+            for k, l in d.items():
+                if (n2 := len(l)) < n:
+                    for _ in range(n-n2):
+                        l.append(None)
+            df = pd.DataFrame.from_dict(d) if i == 0 else df.combine_first(pd.DataFrame.from_dict(d))
+        if fields:
+            if index not in fields:
+                fields = [index] + fields
+            df = df[fields]
+        # now filter the resulting DataFrame with the given query
         if query is not None and query.lower() != "all":
             try:
                 df = df.query(query)
             except SyntaxError as e:
-                l.error(f"Bad Pandas query expression: {e}")
-                l.warning("No entry filtered")
+                _l.error(f"Bad Pandas query expression: {e}")
+                _l.warning("No entry filtered")
             except Exception as e:
                 if Path(inspect.getfile(e.__class__)).dirname.parts[-2:] == ('pandas', 'errors') or \
                    isinstance(e, TypeError):
-                    l.error(f"Bad Pandas query expression: {e}")
-                    l.warning("No entry filtered")
+                    _l.error(f"Bad Pandas query expression: {e}")
+                    _l.warning("No entry filtered")
                 else:
                     raise
-        d = {k: v for k, v in d1.items() if k in df.index}
-        # collect values
+        if len(df) == 0:
+            _l.warning("No data")
+            return None if dataframe or raw else (None, None)
+        _l.debug(f"Dataframe queried:\n{df}")
+        if dataframe:
+            return df
+        # only keep the interesting parts of the configuration file based the filtered DataFrame's list of names
+        d = {k: v for k, v in load_yaml_config(self._source) if k in df[[index]].values}
+        # collect values in the selected items to rebuild the defaults
         attrs = {}
         for k, v in d.items():
             for attr, val in v.items():
                 attrs.setdefault(attr, [])
                 if val not in attrs[attr]:
                     attrs[attr].append(val)
-        # compute defaults
+        # compute the defaults based on collected values
         defaults = {}
         for attr, vals in attrs.items():
             if len(vals) == 1:
@@ -180,34 +201,44 @@ class MetaBase(type):
                         v.pop(attr, None)
         if not raw:
             return defaults, d
-        from yaml import dump
-        return (dump({'defaults': defaults}).rstrip() + "\n\n" if len(defaults) > 0 else "") + dump(d).rstrip()
+        from yaml import dump, SafeDumper
+        # custom dumper for inserting blank lines between top-level objects
+        class CustomDumper(SafeDumper):
+            # inspired by https://stackoverflow.com/a/44284819/3786245
+            def write_line_break(self, data=None):
+                super().write_line_break(data)
+                if len(self.indents) == 1:
+                    super().write_line_break()
+        return (dump({'defaults': defaults}, width=float("inf")).rstrip() + "\n\n" if len(defaults) > 0 else "") + \
+               dump(d, Dumper=CustomDumper, width=float("inf")).rstrip()
     
-    def export(self, output="output.csv", query=None, fields=None, **kw):
+    def export(self, output="output.csv", format="All", query=None, fields=None, index="name", **kw):
         """ Export items from the registry based on the given executable format, filtered with the given query, with
              only the selected fields, to the given output format. """
-        ext, reg = Path(output).extension[1:], self.registry[format]
-        df = pd.DataFrame.from_dict(reg, orient="index")
-        if fields:
-            df = df[fields]
-        if query:
-            df = df.query(query)
-        df = df[df.name.isin(df.index)].drop(columns=["name"]).rename_axis("name")
-        getattr(df, f"to_{EXPORT_FORMATS.get(ext, ext)}")(output)
+        if output in EXPORT_FORMATS.keys():
+            output = f"{self.__name__.lower()}-export.{output}"
+        kw, df = {}, self._select(format, query, fields, dataframe=True)
+        if (ext := Path(output).extension[1:]) != "pickle":
+            kw['index'] = False
+        if ext in ["json", "yml"]:
+            kw.update(orient="records", indent=2)
+        if ext == "csv":
+            kw.update(sep=";", index=False)
+        getattr(df.reset_index(), "to_" + EXPORT_FORMATS.get(ext, ext))(output, **kw)
 
-    def inspect(self, config_file=None, query=None, **kw):
-        """ Inspect the selected features based on a Pandas query. """
-        print(txt_terminal_render(self._select(config_file, query=query, raw=True, **kw), pad=(1, 2), syntax="yaml"))
-    
-    def select(self, destination=None, config_file=None, query=None, **kw):
-        """ Select a subset based on a Pandas query. """
-        dst = Locator(f"conf://{destination or self.__name__.lower()}", new=True)
-        src = Locator(f"conf://{config_file or self.__name__.lower()}")
-        if dst.is_samepath(src):
-            self.logger.warning("Destination is identical to source ; aborting...")
-            return
-        with dst.open('wt') as f:
-            f.write(self._select(src, query=query, raw=True, **kw))
+    def select(self, output=None, format="All", query=None, **kw):
+        """ Select a subset based on a Pandas query and either display or dump it. """
+        if output is not None:
+            dst = Locator(f"conf://{output}", new=True)
+            if dst.is_samepath(self._source):
+                self.logger.warning("Destination is identical to source ; aborting...")
+                return
+        if (c := self._select(format, query, raw=True, **kw)) is not None:
+            if output is None:
+                print(txt_terminal_render(c, pad=(1, 2), syntax="yaml"))
+            else:
+                with dst.open('wt') as f:
+                    f.write(c)
     
     def test(self, files=None, keep=False, **kw):
         """ Tests on some executable files. """
@@ -278,6 +309,8 @@ def _apply(f):
 
 def _init_metaitem():
     class MetaItem(type):
+        __fields__ = {}
+        
         def __getattribute__(self, name):
             # this masks some attributes for child classes (e.g. Packer.registry can be accessed, but when the registry
             #  of child classes is computed, the child classes, e.g. UPX, won't be able to get UPX.registry)
@@ -321,7 +354,8 @@ def _init_metaitem():
             def _setattr(i, d):
                 for k, v in d.items():
                     if k in ["source", "status"]:
-                        setattr(i, "_" + k, v)
+                        
+                        setattr(i, k := f"_{k}", v)
                     elif hasattr(i, "parent") and k in ["install", "references", "steps"]:
                         nv = []
                         for l in v:
@@ -333,6 +367,8 @@ def _init_metaitem():
                         setattr(i, k, nv)
                     else:
                         setattr(i, k, v)
+                    if k not in self.__fields__.keys():
+                        self.__fields__[k] = None
             # open the .conf file associated to the main class (i.e. Detector, Packer, ...)
             glob = inspect.getparentframe().f_back.f_globals
             # remove the child classes of the former registry from the global scope

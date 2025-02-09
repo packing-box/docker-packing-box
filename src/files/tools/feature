@@ -15,6 +15,9 @@ This tool aims to manipulate a feature set in many ways including its creation, 
 """
 __description__ = "Manipulate feature sets for use with Machine Learning"
 __examples__    = [
+    "compute test.exe",
+    "export --features-set my-cumstom-features.yml --format ELF --output csv",
+    "select --format PE -q 'significant == \"True\"' --output significant-features.yml",
     "show custom-features.yml",
 ]
 
@@ -25,19 +28,16 @@ conf_does_not_exist.__name__ = "non-existing configuration file"
 
 if __name__ == '__main__':
     sparsers = parser.add_subparsers(dest="command", metavar="CMD", title="positional argument",
-                                 help="command to be executed")
-    add_argument(sparsers.add_parser("browse", help="browse features set's metadata"), "exeformat", "features-set")
-    # compute
+                                     help="command to be executed")
+    add_argument(sparsers.add_parser("compute", help="compute target executable's features"),
+                 "executable", "features-set", single=True)
     export = sparsers.add_parser("export", help="export feature definitions to a given format")
-    add_argument(export, "expformat", "features-set")
-    insp = sparsers.add_parser("inspect", help="inspect the selected features of a target set")
-    add_argument(insp, "exeformat", "features-set", "query")
-    # merge
+    add_argument(export, "expformat", "exeformat", "features-set", "query")
     # plot
     # remove
     select = sparsers.add_parser("select", help="select features from a target set")
-    select.add_argument("destination", type=conf_does_not_exist,
-                        help="destination YAML file with the selected features")
+    select.add_argument("-o", "--output", type=conf_does_not_exist,
+                        help="output YAML file with the selected features")
     add_argument(select, "exeformat", "features-set", "query")
     add_argument(sparsers.add_parser("show", help="show statistics about the target features set"), "features-set")
     # update
@@ -48,5 +48,8 @@ if __name__ == '__main__':
     Features()
     # now execute
     Features.source = args.config_file = args.features_set
-    getattr(Features, args.command)(**vars(args))
+    if args.command == "compute":
+        Executable(args.executable, logger=logger).show(False, False, True)
+    else:
+        getattr(Features, args.command)(**vars(args))
 
