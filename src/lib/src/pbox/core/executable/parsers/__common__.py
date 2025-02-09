@@ -136,6 +136,10 @@ class AbstractParsedExecutable(ABC, CustomReprMixin, GetItemMixin):
         return self.path.format
     
     @property
+    def has_slack_space(self):
+        return any(s.slack_space > 0 for s in self)
+    
+    @property
     def known_packer_sections(self):
         d = get_data(self.format)['COMMON_PACKER_SECTION_NAMES']
         return [s for s in self if _rn(s) in d]
@@ -239,6 +243,10 @@ def get_section_class(name, **mapping):
         @property
         def entropy(self):
             return bintropy.entropy(_rb(self.content))
+        
+        @property
+        def slack_space(self):
+            return max(0, self.raw_data_size - self.virtual_size)
         
         @property
         def is_standard(self):

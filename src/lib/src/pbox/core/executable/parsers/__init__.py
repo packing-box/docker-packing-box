@@ -19,7 +19,7 @@ def get_parser(parser, exe_format):
     except ImportError:
         raise ImportError(f"no parsing module named '{parser}'")
     try:
-        return getattr(m, exe_format, getattr(m, get_format_group(exe_format)))
+        return getattr(m, exe_format, getattr(m, get_format_group(exe_format).replace("-", "")))
     except AttributeError:
         raise ValueError(f"no parser available for format '{exe_format}'")
 

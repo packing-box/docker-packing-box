@@ -5,22 +5,37 @@ from .__common__ import *
 __all__ = ["PE"]
 
 
+_FLAGS = {
+    'MEM_DISCARDABLE': "D",
+    'MEM_READ':        "R",
+    'MEM_SHARED':      "S",
+    'MEM_WRITE':       "W",
+    'MEM_EXECUTE':     "X",
+}
+_FLAG_RENAME = {
+    'MEM_EXECUTE': "executable",
+    'MEM_READ':    "readable",
+    'MEM_WRITE':   "writable",
+}
+
+
 def __init_pe():
-    _p = cached_property
-    sec_chars = {k: v for k, _, v in getattr(lief.PE.Section.CHARACTERISTICS, "@entries").values()}
-    sec_types = {k: v for k, _, v in getattr(lief.PE.SECTION_TYPES, "@entries").values()}
+    _p, _rn = cached_property, lambda sk: _FLAG_RENAME.get(sk, sk).lower().replace("mem_", "").replace("_", "")
+    sec_chars = {k: v for k, v in getattr(lief.PE.Section.CHARACTERISTICS, "_member_map_").items()}
+    sec_types = {k: v for k, v in getattr(lief.PE.SECTION_TYPES, "_member_map_").items()}
+    is_ = {f'is_{_rn(k)}': _make_property(k) for k in _FLAGS}
     PESection = get_section_class("PESection",
         characteristics="characteristics",
-        flags=_p(lambda s: ["", "R"][s.is_readable] + ["", "W"][s.is_writable] + ["", "X"][s.is_executable]),
-        has_slack_space=_p(lambda s: s.size > s.virtual_size),
-        is_executable=_p(lambda s: (s.characteristics or 0) & s.CHARACTERISTICS['MEM_EXECUTE'].value > 0),
-        is_readable=_p(lambda s: (s.characteristics or 0) & s.CHARACTERISTICS['MEM_READ'].value > 0),
-        is_writable=_p(lambda s: (s.characteristics or 0) & s.CHARACTERISTICS['MEM_WRITE'].value > 0),
-        raw_data_size=_p(lambda s: s.size),
+        flags="characteristics",
+        flags_str=_p(lambda s: "".join(["", v][getattr(s, f"is_{_rn(k)}")] for k, v in _FLAGS.items())),
+        is_code_section=_p(lambda s: s.type.value),
+        raw_data_size="size",
         real_name="name",
         virtual_size="virtual_size",
         CHARACTERISTICS=sec_chars,
+        FLAGS=sec_chars,
         TYPES=sec_types,
+        **is_,
     )
     
     class PE(Binary):
@@ -71,7 +86,7 @@ def __init_pe():
             return self._parsed.header.machine.value
         
         def sections_with_slack_space(self, length=1):
-            return {s for s in self if s.size - len(s.content) >= length}
+            return {s for s in self if s.virtual_size - len(s.content) >= length}
         
         def sections_with_slack_space_entry_jump(self, offset=0):
             return self.sections_with_slack_space(6 + offset)

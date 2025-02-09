@@ -5,10 +5,46 @@ from .__common__ import *
 __all__ = ["ELF"]
 
 
+_FLAGS = {
+    'ALLOC':            "A",
+    'COMPRESSED':       "C",
+    'EXCLUDE':          "E",
+    'GROUP':            "G",
+    'INFO_LINK':        "I",
+    'LINK_ORDER':       "L",
+    'MERGE':            "M",
+    'NONE':             "N",
+    'OS_NONCONFORMING': "O",
+    'STRINGS':          "S",
+    'TLS':              "T",
+    'WRITE':            "W",
+    'EXECINSTR':        "X",
+}
+_FLAG_RENAME = {
+    'ALLOC':     "allocated",
+    'EXECINSTR': "executable",
+    'WRITE':     "writable",
+}
+
+
 def __init_elf():
-    ELFSection = get_section_class("ELFSection")
+    _p, _rn = cached_property, lambda sk: _FLAG_RENAME.get(sk, sk).lower().replace("_", "")
+    sec_flags = {k: v for k, v in getattr(lief.ELF.Section.FLAGS, "_member_map_").items()}
+    sec_types = {k: v for k, v in getattr(lief.ELF.Section.TYPE, "_member_map_").items()}
+    is_ = {f'is_{_rn(k)}': _make_property(k) for k in _FLAGS}
+    ELFSection = get_section_class("ELFSection",
+        flags="flags",
+        flags_str=_p(lambda s: "".join(["", v][getattr(s, f"is_{_rn(k)}")] for k, v in _FLAGS.items())),
+        raw_data_size=_p(lambda s: len(s.content)),
+        virtual_size="size",
+        FLAGS=sec_flags,
+        TYPES=sec_types,
+        **is_,
+    )
     
     class ELF(Binary):
+        checksum = 0
+        
         def __iter__(self):
             for s in self.sections:
                 yield ELFSection(s, self)
@@ -25,6 +61,8 @@ def __init_elf():
             return ELFSection(self.section_from_offset(self._parsed.entrypoint))
     
     ELF.__name__ = "ELF"
+    ELF.SECTION_FLAGS = sec_flags
+    ELF.SECTION_TYPES = sec_types
     return ELF
 lazy_load_object("ELF", __init_elf)
 

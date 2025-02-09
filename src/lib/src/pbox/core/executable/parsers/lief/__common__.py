@@ -4,7 +4,7 @@ from tinyscript.helpers import Path
 from ..__common__ import *
 
 
-__all__ = ["get_section_class", "lief", "Binary", "BuildConfig"]
+__all__ = ["get_section_class", "lief", "Binary", "BuildConfig", "_make_property"]
 
 
 def __init_CS2CS_MODE():
@@ -42,6 +42,13 @@ def __init_lief(lief):
     lief.logging.enable() if config['lief_logging'] else lief.logging.disable()
     return lief
 lazy_load_module("lief", postload=__init_lief)
+
+
+def _make_property(k):
+    @cached_property
+    def is_func(s):
+        return (getattr(s.flags, "value", s.flags) or 0) & s.FLAGS[k].value > 0
+    return is_func
 
 
 class Binary(AbstractParsedExecutable):
