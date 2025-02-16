@@ -36,9 +36,12 @@ if __name__ == '__main__':
     # plot
     # remove
     select = sparsers.add_parser("select", help="select features from a target set")
-    select.add_argument("-o", "--output", type=conf_does_not_exist,
-                        help="output YAML file with the selected features")
-    add_argument(select, "exeformat", "features-set", "query")
+    add_argument(select, "exeformat", "features-set")
+    select.add_argument("-o", "--output", type=conf_does_not_exist, help="output YAML file with the selected features")
+    add_argument(select, "query")
+    select.add_argument("-s", "--split-on", choices=["category", "ptime", "tcomplexity"],
+                        help="split the selected features according to the specified attribute",
+                        note="if --output is not defined, it sets it to 'features.yml' by default")
     add_argument(sparsers.add_parser("show", help="show statistics about the target features set"), "features-set")
     # update
     initialize(noargs_action="usage")

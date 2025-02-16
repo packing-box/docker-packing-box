@@ -138,7 +138,8 @@ class MetaBase(type):
                     yield name
                     temp.append(name)
     
-    def _select(self, format="All", query=None, fields=None, index="name", raw=False, dataframe=False, **kw):
+    def _select(self, format="All", query=None, fields=None, index="name", raw=False, dataframe=False, split_on=None,
+                **kw):
         """ Select a subset based on a Pandas query and return it as a dictionary. """
         _l = self.logger
         # from the registry, based on the required formats, build a DataFrame combining all items
@@ -177,40 +178,49 @@ class MetaBase(type):
                     raise
         if len(df) == 0:
             _l.warning("No data")
-            return None if dataframe or raw else (None, None)
+            return
         _l.debug(f"Dataframe queried:\n{df}")
         if dataframe:
             return df
-        # only keep the interesting parts of the configuration file based the filtered DataFrame's list of names
+        # only keep the interesting parts of the configuration file based on the filtered DataFrame's list of names
         d = {k: v for k, v in load_yaml_config(self._source) if k in df[[index]].values}
-        # collect values in the selected items to rebuild the defaults
-        attrs = {}
-        for k, v in d.items():
-            for attr, val in v.items():
-                attrs.setdefault(attr, [])
-                if val not in attrs[attr]:
-                    attrs[attr].append(val)
-        # compute the defaults based on collected values
-        defaults = {}
-        for attr, vals in attrs.items():
-            if len(vals) == 1:
-                val = vals[0]
-                if sum(1 for v in d.values() if val in v.values()) == len(d):
-                    defaults[attr] = val
-                    for v in d.values():
-                        v.pop(attr, None)
-        if not raw:
-            return defaults, d
-        from yaml import dump, SafeDumper
-        # custom dumper for inserting blank lines between top-level objects
-        class CustomDumper(SafeDumper):
-            # inspired by https://stackoverflow.com/a/44284819/3786245
-            def write_line_break(self, data=None):
-                super().write_line_break(data)
-                if len(self.indents) == 1:
-                    super().write_line_break()
-        return (dump({'defaults': defaults}, width=float("inf")).rstrip() + "\n\n" if len(defaults) > 0 else "") + \
-               dump(d, Dumper=CustomDumper, width=float("inf")).rstrip()
+        # if split_on is defined, collect possible values
+        if split_on is not None:
+            try:
+                splitv = set(v[split_on] for v in d.values())
+            except KeyError:
+                _l.warning(f"No field '{split_on}' ; cannot split")
+                split_on = None
+        for config in ([d] if split_on is None else \
+                       [{k: v for k, v in d.items() if v[split_on] == s} for s in splitv]):
+            # collect values in the selected items to rebuild the defaults
+            attrs = {}
+            for k, v in config.items():
+                for attr, val in v.items():
+                    attrs.setdefault(attr, [])
+                    if val not in attrs[attr]:
+                        attrs[attr].append(val)
+            # compute the defaults based on collected values
+            defaults = {}
+            for attr, vals in attrs.items():
+                if len(vals) == 1:
+                    val = vals[0]
+                    if sum(1 for v in config.values() if val in v.values()) == len(config):
+                        defaults[attr] = val
+                        for v in config.values():
+                            v.pop(attr, None)
+            if not raw:
+                yield defaults, config
+            from yaml import dump, SafeDumper
+            # custom dumper for inserting blank lines between top-level objects
+            class CustomDumper(SafeDumper):
+                # inspired by https://stackoverflow.com/a/44284819/3786245
+                def write_line_break(self, data=None):
+                    super().write_line_break(data)
+                    if len(self.indents) == 1:
+                        super().write_line_break()
+            yield (dump({'defaults': defaults}, width=float("inf")).rstrip() + "\n\n\n" if len(defaults) > 0 else "") +\
+                  dump(config, Dumper=CustomDumper, width=float("inf")).rstrip(), defaults.get(split_on)
     
     def export(self, output="output.csv", format="All", query=None, fields=None, index="name", **kw):
         """ Export items from the registry based on the given executable format, filtered with the given query, with
@@ -226,19 +236,23 @@ class MetaBase(type):
             kw.update(sep=";", index=False)
         getattr(df.reset_index(), "to_" + EXPORT_FORMATS.get(ext, ext))(output, **kw)
 
-    def select(self, output=None, format="All", query=None, **kw):
+    def select(self, output=None, format="All", query=None, split_on=None, **kw):
         """ Select a subset based on a Pandas query and either display or dump it. """
+        if split_on is not None and output is None:
+            output = "features.yml"
         if output is not None:
             dst = Locator(f"conf://{output}", new=True)
             if dst.is_samepath(self._source):
                 self.logger.warning("Destination is identical to source ; aborting...")
                 return
-        if (c := self._select(format, query, raw=True, **kw)) is not None:
+        if split_on is not None:
+            dst.mkdir()
+        for cfg, name in self._select(format, query, raw=True, split_on=split_on, **kw):
             if output is None:
-                print(txt_terminal_render(c, pad=(1, 2), syntax="yaml"))
+                print(txt_terminal_render(cfg, pad=(1, 2), syntax="yaml"))
             else:
-                with dst.open('wt') as f:
-                    f.write(c)
+                with (dst if split_on is None else dst.joinpath(f"{name or 'features'}.yml")).open('wt') as f:
+                    f.write(cfg)
     
     def test(self, files=None, keep=False, **kw):
         """ Tests on some executable files. """
@@ -552,8 +566,6 @@ def load_yaml_config(cfg, no_defaults=(), parse_defaults=True):
                         #       value: false
                         value.pop('comment', None)
                         if set(value.keys()) == {'match', 'value'}:
-                            #raise ValueError(f"Bad configuration for default '{default}' ; should be a dictionary with"
-                            #                 " 'value' and 'match' (format: list) as its keys")
                             v = value['value']
                             for pattern in value['match']:
                                 for name2 in config.keys():
@@ -627,9 +639,4 @@ def load_yaml_config(cfg, no_defaults=(), parse_defaults=True):
     # collect properties that are applicable for all the other features
     for name, params in d.items():
         yield name, params
-
-
-def save_yaml_config(obj, cfg):
-    """ Save a YAM configuration. """
-    #TODO
 

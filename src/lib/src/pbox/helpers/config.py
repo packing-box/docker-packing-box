@@ -121,6 +121,8 @@ class Config:
                 default_value, metavar, description = o[:3]
                 # 4-tuple format: (..., transform_function)
                 func = o[3] if len(o) >= 4 else lambda s, v, *a: str(v)
+                if metavar == "PATH":
+                    default_value = PBOX_HOME.joinpath(default_value)
                 return func(self, default_value)
         raise KeyError(option)
     

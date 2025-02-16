@@ -77,7 +77,7 @@ def _nj(s, v):
 
 
 def _rp(s, v):
-    v = Path(s['workspace'].joinpath(v), expand=True).absolute()
+    v = Path(str(v), expand=True).absolute()
     if not v.exists():
         raise ValueError(v)
     return v
@@ -136,7 +136,7 @@ bi.config = Config("packing-box",
              ['algorithms', 'alterations', 'analyzers', 'detectors', 'features', 'packers', 'scenarios', 'unpackers']},
         'logging': {
             'lief_logging': ("false", "BOOL", "display LIEF logging messages", _bl),
-            'wine_errors': ("false", "BOOL", "display Wine errors", _bl),
+            'wine_errors':  ("false", "BOOL", "display Wine errors", _bl),
         },
         'others': {
             'autocommit':     ("false", "BOOL", "auto-commit in commands.rc (only works when experiment opened)", _bl),
