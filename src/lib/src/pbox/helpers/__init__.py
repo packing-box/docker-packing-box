@@ -2,6 +2,8 @@
 """
 This subpackage contains code supporting other subpackages, including helper constants, functions and classes.
 """
+from .archive import *
+from .archive import __all__ as _archive
 from .args import *
 from .args import __all__ as _args
 from .commands import *
@@ -24,5 +26,5 @@ from .utils import *
 from .utils import __all__ as _utils
 
 
-__all__ = _args + _cmds + _data + _entities + _fig + _files + _formats + _items + _rendering + _utils
+__all__ = _archive + _args + _cmds + _data + _entities + _fig + _files + _formats + _items + _rendering + _utils
 

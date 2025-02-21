@@ -9,8 +9,8 @@ from .utils import pd
 __all__ = ["data_to_temp_file", "edit_file", "file_or_folder_or_dataset", "find_files_in_folder", "Locator", "Path"]
 
 
-set_exception("BadSchemeError", "ValueError")
-set_exception("NotAnExperimentError", "ValueError")
+set_exception("BadSchemeError")
+set_exception("NotAnExperimentError")
 
 
 class Locator(Path):
