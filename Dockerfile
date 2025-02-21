@@ -50,19 +50,14 @@ RUN apt-get -y install apt-transport-https apt-utils \
                        libdwarf-dev libcairo2-dev libdbus-1-dev libegl1-mesa-dev libfreetype6-dev libfuse-dev \
                        libgl1-mesa-dev libglib2.0-dev libglu1-mesa-dev libpulse-dev libssl-dev libsvm-dev libsvm-java \
                        libtiff5-dev libudev-dev libxcursor-dev libxkbfile-dev libxml2-dev libxrandr-dev
-# install Rust
-RUN curl https://sh.rustup.rs -sSf | bash -s -- -y
-# initialize Go
-RUN go mod init pbox &
 # install useful tools
 RUN apt-get -y install colordiff colortail cython3 dos2unix dosbox git golang kmod less ltrace meson nasm tree strace \
  && apt-get -y install iproute2 nftables nodejs npm python3-setuptools python3-pip rubygems swig vim weka yarnpkg \
- && apt-get -y install bc curl ffmpeg imagemagick pev psmisc tesseract-ocr unrar unzip wget x11-apps zstd \
+ && apt-get -y install bc curl ffmpeg imagemagick pev psmisc tesseract-ocr unrar unzip wget wimtools x11-apps zstd \
  && apt-get -y install bats binutils-dev binwalk dwarfdump ent foremost jq tmate tmux visidata xdotool xterm xvfb \
  && wget -qO /tmp/bat.deb https://github.com/sharkdp/bat/releases/download/v0.18.2/bat-musl_0.18.2_amd64.deb \
  && dpkg -i /tmp/bat.deb \
- && rm -f /tmp/bat.deb \
- && go install github.com/antonmedv/fx@latest
+ && rm -f /tmp/bat.deb
 # install wine (for running Windows software on Linux)
 RUN dpkg --add-architecture i386 \
  && wget -O /etc/apt/keyrings/winehq-archive.key https://dl.winehq.org/wine-builds/winehq.key \
@@ -122,6 +117,12 @@ RUN pip3 install --user --no-warn-script-location --ignore-installed --break-sys
  && rm -f /home/user/.local/lib/python3.11/site-packages/unicorn/lib \
  && pip3 uninstall -y --break-system-packages unicorn \
  && pip3 install --user --no-warn-script-location --ignore-installed --break-system-packages unicorn
+# install Rust (user-level
+RUN curl https://sh.rustup.rs -sSf | bash -s -- -y
+# initialize Go
+RUN go mod init pbox &
+# install user-level tools
+RUN go install github.com/antonmedv/fx@latest
 # +--------------------------------------------------------------------------------------------------------------------+
 # |                                     CUSTOMIZE THE BOX (refine the terminal)                                        |
 # +--------------------------------------------------------------------------------------------------------------------+
