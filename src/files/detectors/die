@@ -6,8 +6,9 @@ from pboxtools import *
 def parse(output, **kwargs):
     r = []
     for l in output.splitlines():
+        l = re.sub(r"\x1b\[0\;?\d*m", "", l)
         with suppress(AttributeError):
-            r.append(re.search(r"^[^:]+:\s+(?:packer|protector):\s+(.+)", l).group(1))
+            r.append(re.search(r"^[^:]+\s+(?:Packer|Protector):\s+(.+)", l).group(1))
     return r
 
 

@@ -263,7 +263,18 @@ def _init_base():
             obin, ubin = Path("~/.opt/bin", create=True, expand=True), Path("~/.local/bin", create=True, expand=True)
             result, rm, wget = None, True, False
             self.__cwd = os.getcwd()
+            # expand commands
+            cmds = []
             for cmd in self.install:
+                cmd, arg = list(cmd.items())[0]
+                if isinstance(arg, list):
+                    cmd = [cmd] * len(arg)
+                else:
+                    cmd, arg = [cmd], [arg]
+                for c, a in zip(cmd, arg):
+                    cmds.append({c: a})
+            # now iterate over expanded commands
+            for cmd in cmds:
                 if isinstance(result, Path) and not result.exists():
                     self.logger.critical(f"Last command's result does not exist ({result}) ; current: {cmd}")
                     return
