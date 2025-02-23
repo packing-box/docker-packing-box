@@ -27,6 +27,8 @@ def __init_macho():
     MachOSection = get_section_class("MachOSection",
         flags="flags",
         flags_str=_p(lambda s: "".join(["", v][getattr(s, f"is_{_rn(k)}")] for k, v in _FLAGS.items())),
+        is_code=lambda s: s.flags & 0x80000000 > 0 or s.flags & 0x00000400 > 0,
+        is_data=lambda s: s.flags & 0x80000000 == 0 and s.flags & 0x00000400 == 0,
         raw_data_size=_p(lambda s: len(s.content)),
         virtual_size="size",
         FLAGS=sec_flags,
@@ -51,14 +53,6 @@ def __init_macho():
         @property
         def entrypoint_section(self):
             return MachOSection(self.section_from_offset(self._parsed.entrypoint), self)
-        
-        @property
-        def is_code(self):
-            return self.flags & 0x80000000 > 0 or self.flags & 0x00000400 > 0
-        
-        @property
-        def is_data(self):
-            return self.flags & 0x80000000 == 0 and self.flags & 0x00000400 == 0
     
     MachO.__name__ = "MachO"
     MachO.SECTION_FLAGS = sec_flags

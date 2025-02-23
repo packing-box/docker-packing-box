@@ -35,6 +35,8 @@ def __init_elf():
     ELFSection = get_section_class("ELFSection",
         flags="flags",
         flags_str=_p(lambda s: "".join(["", v][getattr(s, f"is_{_rn(k)}")] for k, v in _FLAGS.items())),
+        is_code=lambda s: s.flags & 0x4 > 0,
+        is_data=lambda s: s.flags & 0x1 > 0 and s.flags & 0x2 > 0 and s.flags & 0x4 == 0,
         raw_data_size=_p(lambda s: len(s.content)),
         virtual_size="size",
         FLAGS=sec_flags,
@@ -59,14 +61,6 @@ def __init_elf():
         @property
         def entrypoint_section(self):
             return ELFSection(self.section_from_offset(self._parsed.entrypoint), self)
-        
-        @property
-        def is_code(self):
-            return self.flags & 0x4 > 0
-        
-        @property
-        def is_data(self):
-            return self.flags & 0x1 > 0 and self.flags & 0x2 > 0 and self.flags & 0x4 == 0
     
     ELF.__name__ = "ELF"
     ELF.SECTION_FLAGS = sec_flags
