@@ -59,11 +59,11 @@ def add_API_to_IAT(*args):
             if library.name.lower() == lib_name.lower():
                 logger.debug(">> adding API import...")
                 library.add_entry(api)
-                parsed._build_config.update(imports=True, patch_imports=patch_imports)
+                parsed._build_cfg.update(imports=True, patch_imports=patch_imports)
                 return
         add_lib_to_IAT(lib_name)(parsed, logger)
         parsed.get_import(lib_name).add_entry(api)
-        parsed._build_config.update(imports=True, patch_imports=patch_imports)
+        parsed._build_cfg.update(imports=True, patch_imports=patch_imports)
     return _add_API_to_IAT
 
 
@@ -73,7 +73,7 @@ def add_lib_to_IAT(library):
     def _add_lib_to_IAT(parsed, logger):
         logger.debug(">> adding library...")
         parsed.add_library(library)
-        parsed._build_config['imports'] = True
+        parsed._build_cfg['imports'] = True
     return _add_lib_to_IAT
 
 
@@ -100,7 +100,7 @@ def add_section(name, section_type=None, characteristics=None, data=b""):
         s.characteristics = characteristics or parsed.SECTION_CHARACTERISTICS['MEM_READ'] | \
                                                parsed.SECTION_CHARACTERISTICS['MEM_EXECUTE']
         parsed.add_section(s, section_type or parsed.SECTION_TYPES['UNKNOWN'])
-        parsed._build_config['overlay'] = True
+        parsed._build_cfg['overlay'] = True
     return _add_section
 
 

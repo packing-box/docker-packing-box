@@ -1,5 +1,6 @@
 # -*- coding: UTF-8 -*-
 import builtins
+import statistics
 from tinyscript import inspect, itertools, logging, random, re, string
 from tinyscript.helpers import get_terminal_size, is_file, is_folder, is_generator, is_iterable, reduce, \
                                set_exception, txt_terminal_render, zeropad, Path, TempPath
@@ -19,6 +20,10 @@ _EMPTY_DICT = {}
 _EVAL_NAMESPACE = {k: getattr(builtins, k) for k in ["abs", "all", "any", "divmod", "float", "hash", "hex", "id", "int",
                                                      "list", "next", "oct", "ord", "pow", "range", "range2", "round",
                                                      "set", "str", "sum", "tuple", "type"]}
+for k in dir(statistics):
+    if not k.startswith("_") and isinstance(getattr(statistics, k), type(lambda: 0)):
+        _EVAL_NAMESPACE[k] = getattr(statistics, k)
+_EVAL_NAMESPACE['avg'] = _EVAL_NAMESPACE['fmean']
 _WL_EXTRA_NODES = ("arg", "arguments", "keyword", "lambda")
 
 

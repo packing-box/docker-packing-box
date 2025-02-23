@@ -42,8 +42,7 @@ def __init_pe():
     )
     
     class PE(Binary):
-        _build_config = BuildConfig("dos_stub", "imports", "overlay", "relocations", "resources", "tls",
-                                    "patch_imports")
+        _build_cfg = BuildConfig("dos_stub", "imports", "overlay", "relocations", "resources", "tls", "patch_imports")
         
         def __iter__(self):
             for s in self.sections:
@@ -54,9 +53,9 @@ def __init_pe():
         
         def _get_builder(self):
             builder = lief.PE.Builder(self._parsed)
-            for instruction, flag in list(self._build_config.items()):
+            for instruction, flag in list(self._build_cfg.items()):
                 getattr(builder, instruction if instruction.startswith("patch") else f"build_{instruction}")(flag)
-                del self._build_config[instruction]
+                del self._build_cfg[instruction]
             builder.build_overlay(False)  # build_overlay(True) fails when adding a section to the binary
             return builder
         

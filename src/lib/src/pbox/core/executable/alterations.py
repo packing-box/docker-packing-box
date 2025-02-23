@@ -33,7 +33,7 @@ class Alteration(dict2):
             before = [_ for _ in f.read()]
         # incremental build function
         def _build(p, b, n=1):
-            l.debug(f"> rebuilding binary (build config: {parsed._build_config})...")
+            l.debug(f"> rebuilding binary (build config: {parsed._build_cfg})...")
             a, _log = p.build(), getattr(l, {'error': "error", 'warn': "warning"}.get(self.fail, "debug"))
             if not a:
                 _log(f"{parsed.path}: build failed")

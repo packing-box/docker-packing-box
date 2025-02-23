@@ -7,7 +7,7 @@ Conventions:
    NB: wrappers can be themselves decorated with the supported_parsers(...) function to restrict their scope to only
         specific parsers they are compatible with
  - modifers' wrappers have keyword-arguments only and do not return anything ; if a new build is required, build
-    instructions shall be set in the parsed._build_config dictionary
+    instructions shall be set in the parsed._build_cfg dictionary
  - modifiers are named starting with a verb and describe the action performed
 """
 from .elf import *
