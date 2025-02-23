@@ -103,12 +103,14 @@ PE-Bear:
   source: https://github.com/hasherezade/pe-bear-releases
 
 PEdump:
-  description: 
+  description: Dump windows PE files using Ruby.
   formats:
     - PE
   install:
     - git: <<source>>
-    - gem: pedump
+    - exec:
+        - mv $TMP/pedump/bin/pedump $BIN/pedump
+        - chmod +x $BIN/pedump
   source: https://github.com/zed-0xff/pedump
   status: ok
 
