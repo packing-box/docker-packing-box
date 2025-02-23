@@ -1,7 +1,7 @@
 # -*- coding: UTF-8 -*-
 import builtins
 import statistics
-from tinyscript import inspect, itertools, logging, random, re, string
+from tinyscript import functools, inspect, itertools, logging, random, re, string
 from tinyscript.helpers import get_terminal_size, is_file, is_folder, is_generator, is_iterable, reduce, \
                                set_exception, txt_terminal_render, zeropad, Path, TempPath
 from tinyscript.helpers.expressions import WL_NODES
@@ -35,6 +35,17 @@ _repeatn  = lambda s, n: (s * (n // len(s) + 1))[:n]
 _sec_name = lambda s: getattr(s, "real_name", getattr(s, "name", s))
 _size     = lambda exe, ratio=.1, blocksize=512: round(int(exe['size'] * ratio) / blocksize + .5) * blocksize
 _val      = lambda o: getattr(o, "value", o)
+
+
+def _fail_safe(f):
+    # useful e.g. when using a function like 'avg' or 'max' and the input is an empty list
+    @functools.wraps(f)
+    def __wrapper(*args, **kwargs):
+        try:
+            return f(*args, **kwargs)
+        except:
+            return
+    return __wrapper
 
 
 def _randbytes(n, unique=True):
@@ -88,7 +99,7 @@ class dict2(dict):
     
     def __call__(self, data, silent=False, **kwargs):
         d = {k: getattr(random, k) for k in ["choice", "randint", "randrange", "randstr"]}
-        d.update({'apply': _apply, 'concatn': _concatn, 'len': _len, 'max': _max, 'min': _min,
+        d.update({'apply': _apply, 'concatn': _concatn, 'failsafe': _fail_safe, 'len': _len, 'max': _max, 'min': _min,
                   'printable': string.printable, 'randbytes': _randbytes, 'repeatn': _repeatn, 'select': _select(),
                   'select_section_name': _select(_sec_name), 'size': _size, 'value': _val, 'zeropad': zeropad})
         d.update(_EVAL_NAMESPACE)
@@ -98,31 +109,33 @@ class dict2(dict):
         def _exec(expr):
             try:
                 d.pop('__builtins__', None)  # security issue ; ensure builtins are removed !
+                # replace marker "*" before function names by failsafe(...)
+                expr = re.sub(r"([a-zA-Z][a-zA-Z0-9_-]*)\*\(", r"failsafe(\1)(", expr)
+                # now execute
                 r = eval2(expr, d, {}, whitelist_nodes=WL_NODES + _WL_EXTRA_NODES)
                 if len(kwargs) == 0:  # means no parameter provided
                     return r
             except ForbiddenNodeError as e:  # this error type shall always be reported
-                dict2._logger.warning(f"Bad expression: {expr}")
+                dict2._logger.warning(f"[{self.name}] Bad expression:\n{expr}")
                 dict2._logger.error(f"{e}")
                 raise
             except NameError as e:
-                if not silent:
-                    name = str(e).split("'")[1]
-                    dict2._logger.debug(f"'{name}' is either not computed yet or mistaken")
+                name = str(e).split("'")[1]
+                dict2._logger.debug(f"'{name}' is either not computed yet or mistaken")
                 raise
             except Exception as e:
+                getattr(dict2._logger, ["warning", "debug"][silent])(f"[{self.name}] Bad expression:\n{expr}")
                 if not silent:
-                    dict2._logger.warning(f"Bad expression: {expr}")
                     dict2._logger.exception(e)
-                    w = get_terminal_size()[0]
-                    dict2._logger.debug("Variables:\n- %s" % \
-                        "\n- ".join(string.shorten(f"{k}({type(v).__name__})={v}", w - 2) for k, v in d.items()))
+                w = get_terminal_size()[0]
+                dict2._logger.debug("Variables:\n- %s" % \
+                    "\n- ".join(string.shorten(f"{k}({type(v).__name__})={v}", w - 2) for k, v in d.items()))
                 raise
             try:
                 return r(**kwargs)
             except Exception as e:
+                getattr(dict2._logger, ["warning", "debug"][silent])(f"Bad function: {result}")
                 if not silent:
-                    dict2._logger.warning(f"Bad function: {result}")
                     dict2._logger.error(str(e))
         # now execute expression(s) ; support for multiple expressions must be explicitely enabled for the class
         if not getattr(self.__class__, "_multi_expr", False) and isinstance(self.result, (list, tuple)):

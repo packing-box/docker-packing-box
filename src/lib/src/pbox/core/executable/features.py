@@ -31,6 +31,10 @@ class Feature(dict2):
     def dependencies(self):
         return list(set(x for x in re.split(r"[\s\.\,\-\+\[\]\(\)]", self.result or "") if x in Features))
     
+    @cached_property
+    def fail(self):
+        return self.get('fail', "error")
+    
     # 'parser' parameter in the YAML config has precedence on the globally configured parser
     @cached_property
     def parser(self):
@@ -84,7 +88,7 @@ class Features(dict, metaclass=MetaBase):
                 # add already computed features
                 d.update(self)
                 try:
-                    v = feature(d)
+                    v = feature(d, silent=feature.fail in ["continue", "warning"])
                     self[n] = bool(v) if feature.boolean else v
                 except NameError:
                     bad = False
@@ -110,6 +114,14 @@ class Features(dict, metaclass=MetaBase):
                     todo.append(feature)
                 except ForbiddenNodeError:  # already handled in dict2.__call__
                     continue
+                except Exception as e:
+                    if feature.fail == "error":
+                        raise
+                    elif feature.fail == "warning":
+                        l.warn(f"{feature.name}: {e}")
+                    elif feature.fail == "continue":
+                        l.debug(f"{feature.name}: {e}")
+                        self[n] = None
             # once converged, ensure that we did not leave a feature that should not be kept
             do_not_keep = []
             for name in self:
@@ -153,8 +165,7 @@ class Features(dict, metaclass=MetaBase):
                 # consider features for most specific formats first, then intermediate format classes and finally the
                 #  collapsed format class "All"
                 for fmt in flist:
-                    expr = r.get(fmt)
-                    if expr is not None:
+                    if (expr := r.get(fmt)) is not None:
                         if len(values) > 0:
                             if not all(isinstance(x, (list, set, tuple, range, range2)) or is_gen(x) for x in values):
                                 values = [values]
@@ -191,6 +202,15 @@ class Features(dict, metaclass=MetaBase):
                             for subfmt in expand_formats(fmt):
                                 ft.registry.setdefault(subfmt, {})
                                 ft.registry[subfmt][feat.name] = feat
+                # remove formats for which it is specified (e.g. "Mach-O: null") that there is no result to compute
+                try:
+                    for fmt in flist:
+                        if fmt in r.keys() and (expr := r.get(fmt)) is None:
+                            for subfmt in expand_formats(fmt):
+                                for feat in f:
+                                    ft.registry[subfmt].pop(feat.name, None)
+                except NameError:
+                    pass
             l.debug(f"{len(Features.names())} features loaded")
         elif warn:
             l.warning(f"Features already loaded")
