@@ -28,7 +28,6 @@ def __init_pe():
         characteristics="characteristics",
         flags="characteristics",
         flags_str=_p(lambda s: "".join(["", v][getattr(s, f"is_{_rn(k)}")] for k, v in _FLAGS.items())),
-        is_code_section=_p(lambda s: s.type.value),
         raw_data_size="size",
         real_name="name",
         virtual_size="virtual_size",
@@ -80,6 +79,14 @@ def __init_pe():
         @property
         def imported_dlls(self):
             return {dll.name for dll in self._parsed.imports}
+        
+        @property
+        def is_code(self):
+            return self.characteristics & 0x00000020 > 0 or self.characteristics & 0x20000000 > 0
+        
+        @property
+        def is_data(self):
+            return not self.is_code and (characteristics & 0x00000040 > 0 or characteristics & 0x00000080 > 0)
         
         @property
         def machine(self):

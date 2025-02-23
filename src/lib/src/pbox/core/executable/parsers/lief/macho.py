@@ -50,7 +50,15 @@ def __init_macho():
         
         @property
         def entrypoint_section(self):
-            return self.section_from_offset(self._parsed.entrypoint)
+            return MachOSection(self.section_from_offset(self._parsed.entrypoint), self)
+        
+        @property
+        def is_code(self):
+            return self.flags & 0x80000000 > 0 or self.flags & 0x00000400 > 0
+        
+        @property
+        def is_data(self):
+            return self.flags & 0x80000000 == 0 and self.flags & 0x00000400 == 0
     
     MachO.__name__ = "MachO"
     MachO.SECTION_FLAGS = sec_flags

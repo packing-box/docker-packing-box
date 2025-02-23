@@ -128,6 +128,18 @@ class AbstractParsedExecutable(ABC, CustomReprMixin, GetItemMixin):
         return self.path.bytes
     
     @property
+    def code_sections(self):
+        for s in self:
+            if s.is_code:
+                yield s
+    
+    @property
+    def data_sections(self):
+        for s in self:
+            if s.is_data:
+                yield s
+    
+    @property
     def empty_name_sections(self):
         return [s for s in self if _rn(s) == ""]
     
