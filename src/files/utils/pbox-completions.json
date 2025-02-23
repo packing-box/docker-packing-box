@@ -1,4 +1,8 @@
 {
+  "alteration": {
+    "browse|export|inspect|show": null,
+    "select": "FILES:yml"
+  },
   "dataset": {
     "*": "`list-datasets`",
     "convert": "`list-datasets-with-files`",
@@ -30,6 +34,10 @@
     [{"compress|open": "`list-experiments`",
       "purge": "ALL `list-experiments`"}, "_NAME = None"]
   ],
+  "feature": {
+    "browse|export|inspect|show": null,
+    "select": "FILES:yml"
+  },
   "model": {
     "*": "`list-models`",
     "list": null,
