@@ -58,6 +58,8 @@ RUN apt-get -y install colordiff colortail cython3 dos2unix dosbox git golang km
  && wget -qO /tmp/bat.deb https://github.com/sharkdp/bat/releases/download/v0.18.2/bat-musl_0.18.2_amd64.deb \
  && dpkg -i /tmp/bat.deb \
  && rm -f /tmp/bat.deb
+# install .NET runtime (necessary for ilspycmd)
+RUN apt-get -y install dotnet-sdk-8.0
 # install wine (for running Windows software on Linux)
 RUN dpkg --add-architecture i386 \
  && wget -O /etc/apt/keyrings/winehq-archive.key https://dl.winehq.org/wine-builds/winehq.key \
@@ -117,6 +119,8 @@ RUN pip3 install --user --no-warn-script-location --ignore-installed --break-sys
  && rm -f /home/user/.local/lib/python3.11/site-packages/unicorn/lib \
  && pip3 uninstall -y --break-system-packages unicorn \
  && pip3 install --user --no-warn-script-location --ignore-installed --break-system-packages unicorn
+# install ILSpyCmd
+RUN dotnet tool install --global ilspycmd
 # install Rust (user-level
 RUN curl https://sh.rustup.rs -sSf | bash -s -- -y
 # initialize Go

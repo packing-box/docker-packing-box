@@ -307,6 +307,6 @@ export PYTHONSTARTUP="$HOME/.pythonrc.py"
 export GEM_HOME="$HOME/.gem"
 
 # add relevant folders to PATH
-for FOLDER in go/bin .cargo/bin .gem/bin .local/bin .opt/tools .opt/utils .opt/bin; do
+for FOLDER in .dotnet/tools go/bin .cargo/bin .gem/bin .local/bin .opt/tools .opt/utils .opt/bin; do
   pathprepend $HOME/$FOLDER
 done

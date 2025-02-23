@@ -131,7 +131,6 @@ def get_data(exe_format):
     # first, get the group (simply use exe_format if it is precisely a group)
     data, group = {}, get_format_group(exe_format)
     c1, c2 = config.default('data'), config['data']
-    #TODO: test loop on 'data_folders'
     data_folders = [c1] if c1.is_samepath(c2) else [c1, c2]
     for cfg in data_folders:
         # consider most specific data first
