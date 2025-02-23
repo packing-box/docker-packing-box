@@ -38,6 +38,8 @@ def __init_macho():
     
     class MachO(Binary):
         checksum = 0
+        DATA = "__data"
+        TEXT = "__text"
         
         def __iter__(self):
             for s in self.sections:
@@ -52,7 +54,7 @@ def __init_macho():
         
         @property
         def entrypoint_section(self):
-            return MachOSection(self.section_from_offset(self._parsed.entrypoint), self)
+            return MachOSection(self.section_from_offset(self.entrypoint), self)
     
     MachO.__name__ = "MachO"
     MachO.SECTION_FLAGS = sec_flags

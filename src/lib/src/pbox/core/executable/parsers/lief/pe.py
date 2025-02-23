@@ -30,8 +30,7 @@ def __init_pe():
         flags_str=_p(lambda s: "".join(["", v][getattr(s, f"is_{_rn(k)}")] for k, v in _FLAGS.items())),
         is_code=lambda s: s.flags & 0x20 > 0,  # IMAGE_SCN_CNT_CODE ; IMAGE_SCN_MEM_EXECUTE (0x20000000) not considered
                                                #  as the flag could be changed at runtime to make the section executable
-        is_data=lambda s: s.flags & 0x40 > 0 or \  # IMAGE_SCN_CNT_INITIALIZED_DATA
-                          s.flags & 0x80 > 0,      # IMAGE_SCN_CNT_UNINITIALIZED_DATA
+        is_data=lambda s: s.flags & 0x40 > 0 or s.flags & 0x80 > 0,  # IMAGE_SCN_CNT_(UN)INITIALIZED_DATA
         raw_data_size="size",
         real_name="name",
         virtual_size="virtual_size",
@@ -43,6 +42,8 @@ def __init_pe():
     
     class PE(Binary):
         _build_cfg = BuildConfig("dos_stub", "imports", "overlay", "relocations", "resources", "tls", "patch_imports")
+        DATA = ".data"
+        TEXT = ".text"
         
         def __iter__(self):
             for s in self.sections:
@@ -61,7 +62,7 @@ def __init_pe():
         
         @property
         def checksum(self):
-            return self._parsed.optional_header.computed_checksum
+            return self._parsed.optional_header.checksum
         
         @property
         def entrypoint(self):

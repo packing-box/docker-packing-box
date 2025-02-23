@@ -27,6 +27,11 @@ def supported_parsers(*parsers):
     return _wrapper
 
 
+class NullSection(GetItemMixin):
+    def __getattr__(self, name):
+        return None
+
+
 class AbstractParsedExecutable(ABC, CustomReprMixin, GetItemMixin):
     def __getitem__(self, name):
         try:
@@ -74,7 +79,7 @@ class AbstractParsedExecutable(ABC, CustomReprMixin, GetItemMixin):
         modifier(self.parsed, **kw)
         self.build()
     
-    def section(self, section, original=False):
+    def section(self, section, original=False, null=False):
         if isinstance(section, (bytes, str)):
             name = ensure_str(section)
             if original:
@@ -88,6 +93,8 @@ class AbstractParsedExecutable(ABC, CustomReprMixin, GetItemMixin):
                         if hasattr(s, "real_name"):
                             s.real_name = real_name
                         return s
+            if null:
+                return NullSection()
             raise ValueError(f"no section named '{name}'")
         elif isinstance(section, GetItemMixin):
             if original:
@@ -134,6 +141,10 @@ class AbstractParsedExecutable(ABC, CustomReprMixin, GetItemMixin):
                 yield s
     
     @property
+    def data_section(self):
+        return self.section(self.DATA, null=True)
+    
+    @property
     def data_sections(self):
         for s in self:
             if s.is_data:
@@ -155,6 +166,13 @@ class AbstractParsedExecutable(ABC, CustomReprMixin, GetItemMixin):
     def known_packer_sections(self):
         d = get_data(self.format)['COMMON_PACKER_SECTION_NAMES']
         return [s for s in self if _rn(s) in d]
+    
+    @property
+    def last_section(self):
+        try:
+            return [s for s in self][-1]
+        except IndexError:
+            return NullSection()
     
     @property
     def non_standard_sections(self):
@@ -193,6 +211,10 @@ class AbstractParsedExecutable(ABC, CustomReprMixin, GetItemMixin):
     def standard_sections(self):
         d = [""] + get_data(self.format)['STANDARD_SECTION_NAMES']
         return [s for s in self if _rn(s) in d]
+    
+    @property
+    def text_section(self):
+        return self.section(self.TEXT, null=True)
     
     # ------------------------------------------- mandatory concrete methods -------------------------------------------
     @abstractmethod

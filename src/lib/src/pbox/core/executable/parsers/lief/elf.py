@@ -46,6 +46,8 @@ def __init_elf():
     
     class ELF(Binary):
         checksum = 0
+        DATA = ".data"
+        TEXT = ".text"
         
         def __iter__(self):
             for s in self.sections:
