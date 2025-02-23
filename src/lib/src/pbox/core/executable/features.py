@@ -174,12 +174,15 @@ class Features(dict, metaclass=MetaBase):
                                     l.error(f"name:  {name}")
                                     l.error(f"value: {val}")
                                     raise
-                                d = p['description']
                                 try:
-                                    p['description'] = d % val
+                                    p['comment'] = p['comment'] % val
+                                except (KeyError, TypeError):
+                                    pass
+                                try:
+                                    p['description'] = (d := p['description']) % val
                                 except TypeError:
-                                    l.error(f"description: {name}")
-                                    l.error(f"value:       {val}")
+                                    l.error(f"{field}: {d}")
+                                    l.error(f"{'value:'.ljust(len(field))}  {val}")
                                     raise
                                 f.append(Feature(p, name=n, result=e, logger=l))
                         else:

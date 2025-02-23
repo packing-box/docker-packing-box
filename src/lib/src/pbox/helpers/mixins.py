@@ -17,7 +17,12 @@ class GetItemMixin:
         if not isinstance(name, str):
             return super(GetItemMixin, self).__getitem__(name)
         if not name.startswith("_"):
-            return getattr(self, name)
+            try:
+                name, path = name.split(".", 1)
+                self[name]  # force patching the target object with the __getitem__ method
+                return getattr(self, name).__getitem__(path)
+            except ValueError:
+                return getattr(self, name)
         raise KeyNotAllowedError(name)
 
 
