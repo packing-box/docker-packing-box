@@ -9,7 +9,7 @@ from ....helpers.mixins import *
 lazy_load_module("bintropy")
 
 
-__all__ = ["get_section_class", "supported_parsers", "AbstractParsedExecutable"]
+__all__ = ["get_part_class", "supported_parsers", "AbstractParsedExecutable", "GetItemMixin"]
 
 
 _rb = lambda s: bytes(getattr(s, "tobytes", lambda: s)())
@@ -29,7 +29,19 @@ def supported_parsers(*parsers):
 
 class NullSection(GetItemMixin):
     def __getattr__(self, name):
-        return None
+        # do not consider returning "" for 'name' as it would mean empty section name
+        return "" if name in re.search(r"^.*_str$", name) else \
+               -1 if re.search(r"(_address|_?alignment|characteristics|flags|index|_?offset|_?size)$", name) else None
+
+
+class PartsList(list):
+    def __contains__(self, name_or_part):
+        if isinstance(name_or_part, str):
+            return name_or_part in map(lambda x: x.name, self)
+        elif any(name_or_part.__class__.__name__.endswith(x) for x in ["Section", "Segment"]) and \
+             hasattr(name_or_part, "name"):
+            return name_or_part.name in map(lambda x: x.name, self)
+        return False
 
 
 class AbstractParsedExecutable(ABC, CustomReprMixin, GetItemMixin):
@@ -116,8 +128,7 @@ class AbstractParsedExecutable(ABC, CustomReprMixin, GetItemMixin):
         return [s.name for s in (sections or self)]
     
     def sections_average_entropy(self, *sections):
-        e = [s.entropy for s in (sections or self)]
-        return sum(e) / len(e)
+        return sum(e := [s.entropy for s in (sections or self)]) / len(e)
     
     @property
     def _section_class(self):
@@ -136,9 +147,7 @@ class AbstractParsedExecutable(ABC, CustomReprMixin, GetItemMixin):
     
     @property
     def code_sections(self):
-        for s in self:
-            if s.is_code:
-                yield s
+        return PartsList(s for s in self if s.is_code)
     
     @property
     def data_section(self):
@@ -146,13 +155,11 @@ class AbstractParsedExecutable(ABC, CustomReprMixin, GetItemMixin):
     
     @property
     def data_sections(self):
-        for s in self:
-            if s.is_data:
-                yield s
+        return PartsList(s for s in self if s.is_data)
     
     @property
     def empty_name_sections(self):
-        return [s for s in self if _rn(s) == ""]
+        return PartsList(s for s in self if _rn(s) == "")
     
     @property
     def format(self):
@@ -165,7 +172,7 @@ class AbstractParsedExecutable(ABC, CustomReprMixin, GetItemMixin):
     @property
     def known_packer_sections(self):
         d = get_data(self.format)['COMMON_PACKER_SECTION_NAMES']
-        return [s for s in self if _rn(s) in d]
+        return PartsList(s for s in self if _rn(s) in d)
     
     @property
     def last_section(self):
@@ -177,7 +184,7 @@ class AbstractParsedExecutable(ABC, CustomReprMixin, GetItemMixin):
     @property
     def non_standard_sections(self):
         d = [""] + get_data(self.format)['STANDARD_SECTION_NAMES']
-        return [s for s in self if _rn(s) not in d]
+        return PartsList(s for s in self if _rn(s) not in d)
     
     @property
     def real_section_names(self):
@@ -210,11 +217,17 @@ class AbstractParsedExecutable(ABC, CustomReprMixin, GetItemMixin):
     @property
     def standard_sections(self):
         d = [""] + get_data(self.format)['STANDARD_SECTION_NAMES']
-        return [s for s in self if _rn(s) in d]
+        return PartsList(s for s in self if _rn(s) in d)
     
     @property
     def text_section(self):
         return self.section(self.TEXT, null=True)
+    
+    @property
+    def unknown_sections(self):
+        d = [""] + get_data(self.format)['STANDARD_SECTION_NAMES'] + \
+                   get_data(self.format)['COMMON_PACKER_SECTION_NAMES']
+        return PartsList(s for s in self if _rn(s) not in d)
     
     # ------------------------------------------- mandatory concrete methods -------------------------------------------
     @abstractmethod
@@ -233,18 +246,18 @@ class AbstractParsedExecutable(ABC, CustomReprMixin, GetItemMixin):
         raise NotImplementedError("checksum")
 
 
-def get_section_class(name, **mapping):
-    slots = DEFAULT_SECTION_SLOTS[:]
+def get_part_class(clsname, **mapping):
+    slots = DEFAULT_SECTION_SLOTS[:] if clsname.endswith("Section") else DEFAULT_SEGMENT_SLOTS[:]
     for attr in mapping.keys():
         if attr not in slots:
             slots.append(attr)
     
-    class AbstractSection(CustomReprMixin, GetItemMixin):
-        """ Abstract representation of a binary's section.
+    class AbstractPart(CustomReprMixin, GetItemMixin):
+        """ Abstract representation of a binary's section or segment.
         
-        NB: Simple namespace to hold section information. Referencing a lief.PE.Section directly is dangerous, because
-             it can be modified by alterations, which will break things. Also, if different parsers are used in
-             subsequent alterations, a common format is required.
+        NB: Simple namespace to hold section information. Referencing a a native class (e.g. lief.PE.Section) directly
+             is dangerous, because it can be modified by alterations, which will break things. Also, if different
+             parsers are used in subsequent alterations, a common format is required.
         """
         __slots__ = ["binary"] + slots
         
@@ -280,21 +293,27 @@ def get_section_class(name, **mapping):
         
         @property
         def slack_space(self):
-            return max(0, self.raw_data_size - self.virtual_size)
+            return max(0, getattr(self, "raw_data_size", getattr(self, "physical_size")) - self.virtual_size)
         
         @property
         def is_standard(self):
             if self.binary is None:
                 return
-            sn = lambda s: getattr(s, "real_name", s.name)
-            return sn(self) in map(sn, self.binary.standard_sections)
+            std_field = "standard_" + ["sections", "segments"][self.__class__.__name__.endswith('Segment')]
+            return (sn := lambda s: getattr(s, "real_name", s.name))(self) in map(sn, getattr(self.binary, std_field))
+        
+        def sections_with_slack_space(self, length=1):
+            return {s for s in self if s.virtual_size - s.raw_data_size >= length}
+        
+        def sections_with_slack_space_entry_jump(self, offset=0):
+            return self.sections_with_slack_space(6 + offset)
     
     for attr, value in mapping.items():
         if isinstance(value, cached_property):
-            setattr(AbstractSection, attr, value)
-            getattr(AbstractSection, attr).__set_name__(AbstractSection, attr)
+            setattr(AbstractPart, attr, value)
+            getattr(AbstractPart, attr).__set_name__(AbstractPart, attr)
         elif isinstance(value, type(lambda: 0)):
-            setattr(AbstractSection, attr, value)
-    AbstractSection.__name__ = name
-    return AbstractSection
+            setattr(AbstractPart, attr, value)
+    AbstractPart.__name__ = clsname
+    return AbstractPart
 

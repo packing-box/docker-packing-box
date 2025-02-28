@@ -24,7 +24,7 @@ def __init_pe():
     sec_chars = {k: v for k, v in getattr(lief.PE.Section.CHARACTERISTICS, "_member_map_").items()}
     sec_types = {k: v for k, v in getattr(lief.PE.SECTION_TYPES, "_member_map_").items()}
     is_ = {f'is_{_rn(k)}': _make_property(k) for k in _FLAGS}
-    PESection = get_section_class("PESection",
+    PESection = get_part_class("PESection",
         characteristics="characteristics",
         flags="characteristics",
         flags_str=_p(lambda s: "".join(["", v][getattr(s, f"is_{_rn(k)}")] for k, v in _FLAGS.items())),
@@ -46,7 +46,7 @@ def __init_pe():
         TEXT = ".text"
         
         def __iter__(self):
-            for s in self.sections:
+            for s in self._parsed.sections:
                 s = PESection(s, self)
                 if hasattr(self, "_real_section_names"):
                     s.real_name = self.real_section_names.get(s.name, s.name)
@@ -74,7 +74,17 @@ def __init_pe():
         
         @property
         def iat(self):
-            return self._parsed.data_directory(lief.PE.DataDirectory.TYPES.IMPORT_TABLE)
+            class IAT(GetItemMixin):
+                __slots__ = ["rva", "section", "size", "type"]
+                
+                def __init__(self2):
+                    iat = self._parsed.data_directory(lief.PE.DataDirectory.TYPES.IMPORT_TABLE)
+                    for attr in self2.__slots__:
+                        if attr == "section":
+                            self2.section = PESection(iat.section, self)
+                            continue
+                        setattr(self2, attr, getattr(iat, attr))
+            return IAT()
         
         @property
         def imported_apis(self):
@@ -88,11 +98,9 @@ def __init_pe():
         def machine(self):
             return self._parsed.header.machine.value
         
-        def sections_with_slack_space(self, length=1):
-            return {s for s in self if s.virtual_size - len(s.content) >= length}
-        
-        def sections_with_slack_space_entry_jump(self, offset=0):
-            return self.sections_with_slack_space(6 + offset)
+        @property
+        def sections(self):
+            return list(s for x in self)
     
     PE.__name__ = "PE"
     PE.SECTION_CHARACTERISTICS = sec_chars
