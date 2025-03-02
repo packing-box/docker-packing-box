@@ -28,9 +28,10 @@ def __init_pe():
         characteristics="characteristics",
         flags="characteristics",
         flags_str=_p(lambda s: "".join(["", v][getattr(s, f"is_{_rn(k)}")] for k, v in _FLAGS.items())),
-        is_code=lambda s: s.flags & 0x20 > 0,  # IMAGE_SCN_CNT_CODE ; IMAGE_SCN_MEM_EXECUTE (0x20000000) not considered
-                                               #  as the flag could be changed at runtime to make the section executable
-        is_data=lambda s: s.flags & 0x40 > 0 or s.flags & 0x80 > 0,  # IMAGE_SCN_CNT_(UN)INITIALIZED_DATA
+        is_code=_p(lambda s: s.flags & 0x20 > 0),  # IMAGE_SCN_CNT_CODE ; IMAGE_SCN_MEM_EXECUTE (0x20000000) not
+                                                   #  considered as the flag could be changed at runtime to make the
+                                                   #  section executable
+        is_data=lambda s: _p(s.flags & 0x40 > 0 or s.flags & 0x80 > 0),  # IMAGE_SCN_CNT_(UN)INITIALIZED_DATA
         raw_data_size="size",
         real_name="name",
         virtual_size="virtual_size",

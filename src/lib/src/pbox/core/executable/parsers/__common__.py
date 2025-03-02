@@ -30,7 +30,7 @@ def supported_parsers(*parsers):
 class NullSection(GetItemMixin):
     def __getattr__(self, name):
         # do not consider returning "" for 'name' as it would mean empty section name
-        return "" if name in re.search(r"^.*_str$", name) else \
+        return "" if re.search(r"^.*_str$", name) else \
                -1 if re.search(r"(_address|_?alignment|characteristics|flags|index|_?offset|_?size)$", name) else None
 
 
