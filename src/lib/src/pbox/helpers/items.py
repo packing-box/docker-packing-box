@@ -24,6 +24,7 @@ for k in dir(statistics):
     if not k.startswith("_") and isinstance(getattr(statistics, k), type(lambda: 0)):
         _EVAL_NAMESPACE[k] = getattr(statistics, k)
 _EVAL_NAMESPACE['avg'] = _EVAL_NAMESPACE['fmean']
+_EXPLODE_QUERY_FIELDS = ["tags"]
 _WL_EXTRA_NODES = ("arg", "arguments", "keyword", "lambda")
 
 
@@ -99,9 +100,10 @@ class dict2(dict):
     
     def __call__(self, data, silent=False, **kwargs):
         d = {k: getattr(random, k) for k in ["choice", "randint", "randrange", "randstr"]}
-        d.update({'apply': _apply, 'concatn': _concatn, 'failsafe': _fail_safe, 'len': _len, 'max': _max, 'min': _min,
-                  'printable': string.printable, 'randbytes': _randbytes, 'repeatn': _repeatn, 'select': _select(),
-                  'select_section_name': _select(_sec_name), 'size': _size, 'value': _val, 'zeropad': zeropad})
+        d.update({'apply': _apply, 'concatn': _concatn, 'failsafe': _fail_safe, 'find': str.find, 'len': _len,
+                  'max': _max, 'min': _min, 'printable': string.printable, 'randbytes': _randbytes, 'repeatn': _repeatn,
+                  'select': _select(), 'select_section_name': _select(_sec_name), 'size': _size, 'value': _val,
+                  'zeropad': zeropad})
         d.update(_EVAL_NAMESPACE)
         d.update(data)
         kwargs.update(getattr(self, "parameters", {}))
@@ -156,20 +158,25 @@ class MetaBase(type):
                     yield name
                     temp.append(name)
     
-    def _select(self, format="All", query=None, fields=None, index="name", raw=False, dataframe=False, split_on=None,
-                **kw):
-        """ Select a subset based on a Pandas query and return it as a dictionary. """
+    def _filter(self, format="All", query=None, fields=None, index="name", **kw):
+        """ Filter a subset of items based on a Pandas query and return the filtered dataframe. """
         _l = self.logger
+        # from the registry, based on the required formats, collect field names from all items
+        field_names = []
+        for i, c in enumerate(expand_formats(format)):
+            for record in self.registry.get(c, {}).values():
+                for k in dict(record).keys():
+                    if k not in field_names:
+                        field_names.append(k)
         # from the registry, based on the required formats, build a DataFrame combining all items
         for i, c in enumerate(expand_formats(format)):
             d = {}
             for record in self.registry.get(c, {}).values():
-                for k, v in dict(record).items():  # dict(...) converts the dict2 instance to its full version
-                    if k not in d:
-                        d[k] = []
-                        for _ in range(len(d[index])-1):
-                            d[k].append(None)
-                    d[k].append(str(v))
+                r = dict(record)  # dict(...) converts the dict2 instance to its full version
+                for k in field_names:
+                    d.setdefault(k, [])
+                    v = r.get(k)
+                    d[k].append(v if k in _EXPLODE_QUERY_FIELDS else str(v))
             n = len(d[index])
             for k, l in d.items():
                 if (n2 := len(l)) < n:
@@ -180,38 +187,62 @@ class MetaBase(type):
             if index not in fields:
                 fields = [index] + fields
             df = df[fields]
+        # explode based on tags
+        for field in _EXPLODE_QUERY_FIELDS:
+            if field in df.columns:
+                _l.debug(f"Exploding the dataframe based on the '{field}' field")
+                df = df.explode(field)
         # now filter the resulting DataFrame with the given query
         if query is not None and query.lower() != "all":
             try:
                 df = df.query(query)
-            except SyntaxError as e:
-                _l.error(f"Bad Pandas query expression: {e}")
-                _l.warning("No entry filtered")
             except Exception as e:
-                if Path(inspect.getfile(e.__class__)).dirname.parts[-2:] == ('pandas', 'errors') or \
-                   isinstance(e, TypeError):
+                if isinstance(e, (KeyError, NameError, SyntaxError, TypeError, ValueError)) or \
+                   Path(inspect.getfile(e.__class__)).dirname.parts[-2:] == ('pandas', 'errors'):
                     _l.error(f"Bad Pandas query expression: {e}")
-                    _l.warning("No entry filtered")
+                    _l.warning("No entry filtered ; aborting...")
+                    return None, []
                 else:
                     raise
         if len(df) == 0:
             _l.warning("No data")
-            return
-        _l.debug(f"Dataframe queried:\n{df}")
-        if dataframe:
-            return df
+            return None, []
+        df = df.drop_duplicates(index)
+        # then collect dependencies too
+        deps = {}
+        for i, c in enumerate(expand_formats(format)):
+            for name, record in self.registry.get(c, {}).items():
+                if name not in df.name.values:
+                    continue
+                deps.setdefault(name, [])
+                for dep in getattr(record, "dependencies", []):
+                    if dep not in deps[name]:
+                        deps[name].append(dep)
+        _l.debug(f"Dataframe queried:\n{df.describe()}\n{df}")
+        return df, deps
+    
+    def _select(self, format="All", query=None, fields=None, index="name", raw=False, split_on=None, **kw):
+        """ Select a subset based on a Pandas query and return it as a dictionary. """
+        df, all_deps = self._filter(format=format, query=query, fields=fields, index=index, **kw)
+        deps_list = sorted(set(x for l in all_deps.values() for x in l))
         # only keep the interesting parts of the configuration file based on the filtered DataFrame's list of names
-        d = {k: v for k, v in load_yaml_config(self._source) if k in df[[index]].values}
-        # if split_on is defined, collect possible values
+        nmap = getattr(self, "names_map", {})
+        values = set(nmap.get(k, k) for k in df[index].values)
+        d = {k: v for k, v in load_yaml_config(self._source) if k in values}
+        d2 = {k: v for k, v in load_yaml_config(self._source) if k in deps_list and k not in d.keys()}
+        # if split_on is defined (e.g. split_on="category" to make a "[...].yml" folder with one "[value].yml" file per
+        #  'catgegory' value), collect possible values
         if split_on is not None:
             try:
                 splitv = set(v[split_on] for v in d.values())
+                all_deps = {}  # reset collected dependencies as, in this case, they are handled through 'd2' as a
+                               #  separate config
             except KeyError:
                 _l.warning(f"No field '{split_on}' ; cannot split")
                 split_on = None
         for config in ([d] if split_on is None else \
-                       [{k: v for k, v in d.items() if v[split_on] == s} for s in splitv]):
-            # collect values in the selected items to rebuild the defaults
+                       [{k: v for k, v in d.items() if v[split_on] == s} for s in splitv] + [d2]):
+            # collect values in the selected items for rebuilding the defaults
             attrs = {}
             for k, v in config.items():
                 for attr, val in v.items():
@@ -221,15 +252,39 @@ class MetaBase(type):
             # compute the defaults based on collected values
             defaults = {}
             for attr, vals in attrs.items():
-                if len(vals) == 1:
-                    val = vals[0]
-                    if sum(1 for v in config.values() if val in v.values()) == len(config):
-                        defaults[attr] = val
-                        for v in config.values():
-                            v.pop(attr, None)
+                if len(vals) >= 1:
+                    for val in vals:
+                        if (nval := sum(1 for v in config.values() if val in v.values())) >= .7 * len(config):
+                            defaults[attr] = val
+                            for v in config.values():
+                                if nval == len(config) or v.get(attr) == val:
+                                    v.pop(attr, None)
+            # compute dependencies if no split required ; otherwise, 'd2' holds the dependencies to be handled as a
+            #  separate config
+            deps = {}
+            if len(all_deps) > 0:
+                for k in config.keys():
+                    for dep in all_deps.get(k, []):
+                        try:
+                            deps_list.remove(dep)
+                        except ValueError:
+                            continue
+                        try:
+                            deps[dep] = {k: v for k, v in d2[dep].items() if k not in defaults.keys() or \
+                                                                             v != defaults[k]}
+                            deps[dep]['keep'] = False
+                        except KeyError:
+                            continue
+            deps = {k: deps[k] for k in sorted(deps.keys())}
+            # special case: config has only 1 item, hence its attributes get moved to defaults ; set it back
+            if len(config) == 1:
+                config, defaults = {list(config.keys())[0]: defaults}, {}
+            # display if raw, otherwise yield items
             if not raw:
-                yield defaults, config
+                yield defaults, config, deps
             from yaml import dump, SafeDumper
+            SafeDumper.add_representer(range, lambda dumper, data: dumper.represent_data(str(data)))
+            SafeDumper.add_representer(range2, lambda dumper, data: dumper.represent_data(str(data)))
             # custom dumper for inserting blank lines between top-level objects
             class CustomDumper(SafeDumper):
                 # inspired by https://stackoverflow.com/a/44284819/3786245
@@ -237,8 +292,12 @@ class MetaBase(type):
                     super().write_line_break(data)
                     if len(self.indents) == 1:
                         super().write_line_break()
-            yield (dump({'defaults': defaults}, width=float("inf")).rstrip() + "\n\n\n" if len(defaults) > 0 else "") +\
-                  dump(config, Dumper=CustomDumper, width=float("inf")).rstrip(), defaults.get(split_on)
+            _h = lambda s: f"{'#'*120}\n#{s.upper().center(118)}#\n{'#'*120}\n"
+            yield _h("feature set") + \
+                  (dump({'defaults': defaults}, width=float("inf")).rstrip() + "\n\n\n" if len(defaults) > 0 else "") +\
+                  dump(config, Dumper=CustomDumper, width=float("inf")).rstrip() + \
+                  ("\n\n\n" + _h("dependencies") + dump(deps, Dumper=CustomDumper, width=float("inf")).rstrip() \
+                   if split_on is None and len(deps) > 0 else ""), defaults.get(split_on)
     
     def export(self, output="output.csv", format="All", query=None, fields=None, index="name", **kw):
         """ Export items from the registry based on the given executable format, filtered with the given query, with
@@ -254,7 +313,7 @@ class MetaBase(type):
             kw.update(sep=";", index=False)
         getattr(df.reset_index(), "to_" + EXPORT_FORMATS.get(ext, ext))(output, **kw)
 
-    def select(self, output=None, format="All", query=None, split_on=None, **kw):
+    def select(self, output=None, format="All", query=None, fields=None, split_on=None, **kw):
         """ Select a subset based on a Pandas query and either display or dump it. """
         if split_on is not None and output is None:
             output = "features.yml"
@@ -265,7 +324,7 @@ class MetaBase(type):
                 return
         if split_on is not None:
             dst.mkdir()
-        for cfg, name in self._select(format, query, raw=True, split_on=split_on, **kw):
+        for cfg, name in self._select(format=format, query=query, fields=fields, raw=True, split_on=split_on, **kw):
             if output is None:
                 print(txt_terminal_render(cfg, pad=(1, 2), syntax="yaml"))
             else:

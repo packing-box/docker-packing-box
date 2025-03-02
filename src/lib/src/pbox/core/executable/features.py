@@ -13,12 +13,18 @@ lazy_load_module("yaml")
 __all__ = ["Features"]
 
 
+_NAME_REGEX = re.compile(r"[a-zA-Z0-9][a-zA-Z0-9<>%]*(?:_[a-zA-Z0-9][a-zA-Z0-9<>%]*)*")
+_SPLIT_REGEX = re.compile(r"[\s\.\,\-\+\[\]\(\)]")
+
+
 class Feature(dict2):
     def __init__(self, *args, **kwargs):
         super(Feature, self).__init__(*args, **kwargs)
         self['boolean'] = any(self['name'].startswith(p) for p in ["is_", "has_"])
+        self.setdefault('alias', [])
         self.setdefault('keep', True)
         self.setdefault('significant', False)
+        self.setdefault('tags', [])
     
     def __call__(self, data, *args, **kwargs):
         self._exe = data.get('executable')
@@ -29,7 +35,7 @@ class Feature(dict2):
     
     @cached_property
     def dependencies(self):
-        return list(set(x for x in re.split(r"[\s\.\,\-\+\[\]\(\)]", self.result or "") if x in Features))
+        return list(set(x for x in _SPLIT_REGEX.split(self.result or "") if x in Features))
     
     @cached_property
     def fail(self):
@@ -52,6 +58,7 @@ class Features(dict, metaclass=MetaBase):
     NB: On the contrary of abstractions (e.g. Packer, Detector), Features lazily computes its registry.
     """
     boolean_only = False
+    names_map    = {}
     registry     = None
     
     def __init__(self, exe=None):
@@ -199,6 +206,8 @@ class Features(dict, metaclass=MetaBase):
                         else:
                             f = [Feature(params, name=name, result=expr, logger=l)]
                         for feat in f:
+                            if feat.name != name:
+                                ft.names_map[feat.name] = name
                             for subfmt in expand_formats(fmt):
                                 ft.registry.setdefault(subfmt, {})
                                 ft.registry[subfmt][feat.name] = feat

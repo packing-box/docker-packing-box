@@ -364,7 +364,7 @@ class Executable(Path):
     def features(self):
         Features()  # lazily populate Features.registry at first instantiation
         if self.format is not None:
-            return {n: f.description for n, f in Features.registry[self.format].items()}
+            return {n: f.description for n, f in Features.registry[self.format].items() if f.keep}
     
     @cached_property
     def filetype(self):
