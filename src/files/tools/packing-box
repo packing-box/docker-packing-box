@@ -5,7 +5,7 @@ from tinyscript import *
 
 
 __script__      = "Packing-Box administration tool"
-__version__     = "1.3.1"
+__version__     = "1.3.2"
 __doc__         = """
 This utility aims to facilitate detectors|packers|unpackers' setup|test according to the related YAML data file.
 """
@@ -45,7 +45,8 @@ def _set_subparsers(parent, *items):
             p.add_argument("-f", "--file", default=[], action="extend", nargs="*", help="file to test the %s on" % i)
             p.add_argument("-k", "--keep", action="store_true", help="keep test files")
             if i not in ["alterations", "features"]:
-                p.add_argument("--boolean", action="store_true", help="only consider packed or not packed labels")
+                p.add_argument("--binary", dest="multiclass", action="store_false",
+                               help="only consider packed or not packed labels")
 
 
 if __name__ == '__main__':

@@ -249,7 +249,8 @@ def __init():
                     continue
                 lst_func = (lambda r, s: utils.list_configfile_keys(f, r, s)) if f.stem.startswith("alteration") else \
                            getattr(utils, f'list_all_{f.stem}', lambda r, s: utils.list_configfile_keys(f, r, s))
-                cfg.append([f.stem, "\n".join(wrap(", ".join(lst_func(True, not f.stem.startswith("alteration")))))])
+                lst = lst_func(True, not f.stem.startswith("alteration"))
+                cfg.append([f"{f.stem} ({len(lst)})", "\n".join(wrap(", ".join(lst)))])
             if len(cfg) > 0:
                 render(Section(f"Configurations ({len(cfg)})"), Table(cfg, column_headers=["Name", "Entries"]))
             _tree("data")

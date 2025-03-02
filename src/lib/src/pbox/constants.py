@@ -109,6 +109,7 @@ bi.STATUS   = lazy_object(__init({
 
 # binary parsing
 bi.DEFAULT_SECTION_SLOTS = ["name", "size", "offset", "content", "virtual_address"]
+bi.DEFAULT_SEGMENT_SLOTS = ["content", "flags", "virtual_address", "virtual_size"]
 bi.RECURSION_LIMIT = sys.getrecursionlimit()
 
 

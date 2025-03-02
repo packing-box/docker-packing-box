@@ -18,6 +18,7 @@ __examples__    = [
     "compute test.exe",
     "export --features-set my-cumstom-features.yml --format ELF --output csv",
     "select --format PE -q 'significant == \"True\"' --output significant-features.yml",
+    "select --features-set my-cumstom-features.yml --query 'tags == \"some-tag\"'",
     "show custom-features.yml",
 ]
 

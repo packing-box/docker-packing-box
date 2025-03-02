@@ -79,7 +79,9 @@ def _nj(s, v):
 def _rp(s, v):
     v = Path(str(v), expand=True).absolute()
     if not v.exists():
-        raise ValueError(v)
+        e = ValueError(v)
+        e.setdefault = True
+        raise e
     return v
 _rp.__name__ = "path"
 

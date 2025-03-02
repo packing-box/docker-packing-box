@@ -165,7 +165,12 @@ class Config:
             func = o[3] if len(o) >= 4 else lambda s, v, *a: str(v)
             # then, check for modified values (loaded from ~/.packing-box.conf) saved into self.__config
             if self.__config.has_section(s) and option in self.__config[s]:
-                return func(self, self.__config[s][option])
+                try:
+                    return func(self, self.__config[s][option])
+                except Exception as e:
+                    if getattr(e, "setdefault", False):
+                        return self.default(option)
+                    raise e
             if isinstance(o, tuple) and len(o) > 4:
                 # special 5-tuple format: (..., overrides)
                 #  list of overrides gives the precedence to values from particular config keys if they are set ;

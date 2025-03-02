@@ -63,7 +63,7 @@ if __name__ == '__main__':
     add_argument(test, "true-class")
     train = sparsers.add_parser("train", category="create/modify/delete", help="train a model on the given dataset")
     train.add_argument("dataset", type=Dataset.load, help="dataset for training the model")
-    train.add_argument("-a", "--algorithms-set", metavar="YAML", type=ts.file_exists, default=config['algorithms'],
+    train.add_argument("-a", "--algorithms-set", metavar="YAML", type=yaml_config, default=str(config['algorithms']),
                        help="algorithms set's YAML definition")
     train.add_argument("-A", "--algorithm", choices=[a.name for a in Algorithm.registry], default="dt", metavar="ALGO",
                        help="machine learning algorithm to be used\n- %s\n * supports Grid Search cross-validation\n" %\

@@ -119,13 +119,18 @@ def list_config_keys(return_list=False, sort=True):
     return __output(["--" + opt.replace("_", "-") for opt, _ in config.items()], return_list, sort)
 
 
-def list_configfile_keys(cfgfile, return_list=False, sort=True):
+def list_configfile_keys(cfgfile, return_list=False, sort=True, list_all=False):
     with open(str(cfgfile)) as fp:
         yaml_str = "\n".join(l for l in fp.readlines() if len(l.split(":")) > 1 and \
                                                           not re.match(r"\!{1,2}", l.split(":", 1)[1].lstrip()))
     cfg = yaml.safe_load(yaml_str.replace("!!python", "")) or {}
     for v in cfg.values():
         v.setdefault('order', 0)
+    if not list_all:
+        cfg.pop('defaults', None)
+        for k, v in list(cfg.items()):
+            if not v.get('keep', True):
+                cfg.pop(k)
     def_order = max(cfg.values(), key=lambda x: x['order'])['order'] + 1
     l = [f"{k}{['', ' (%d)' % v['order']][v['order'] > 0]}" \
          for k, v in sorted(cfg.items(), key=lambda x: x[1]['order'] or def_order)]

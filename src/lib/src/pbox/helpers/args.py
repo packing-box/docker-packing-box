@@ -31,7 +31,7 @@ def add_argument(parser, *names, **kwargs):
                                 help="alteration identifiers")
         elif name == "alterations-set":
             parser.add_argument("-a", "--alterations-set", metavar="YAML", default=str(config['alterations']),
-                                type=file_exists, help="alterations set's YAML definition")
+                                type=yaml_config, help="alterations set's YAML definition")
         elif name == "binary":
             parser.add_argument("-b", "--binary", dest="multiclass", action="store_false",
                                 help="process features using binary classification (1:True/0:False/-1:Unlabelled)")

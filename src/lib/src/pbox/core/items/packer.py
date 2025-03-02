@@ -122,8 +122,7 @@ def __init_ezuri():
         
         def run(self, executable, **kwargs):
             """ This packer prompts for parameters. """
-            P = subprocess.PIPE
-            p = subprocess.Popen(["ezuri"], stdout=P, stderr=P, stdin=P)
+            p = subprocess.Popen(["ezuri"], stdout=subprocess.PIPE, stderr=subprocess.PIPE, stdin=subprocess.PIPE)
             executable = Executable(executable)
             self.logger.debug(f"inputs: src/dst={executable}, procname={executable.stem}")
             out, err = p.communicate((f"{executable}\n{executable}\n{executable.stem}\n"

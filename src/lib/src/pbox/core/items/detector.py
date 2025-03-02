@@ -157,15 +157,10 @@ def __init():
                 if not kwargs.get('verbose', False):
                     l.warning(f"'{executable}' has a format not supported by {self.cname}")
                 return
-            if multiclass:
-                if label2 == NOT_PACKED:
-                    msg = "{} is not packed".format(executable)
-                else:
-                    msg = "{} is packed with {}".format(executable, label2)
-            else:
-                msg = "{} is {}packed".format(executable, ["not ", ""][label2])
+            msg = (f"{executable} is not packed" if label2 == NOT_PACKED else f"{executable} is packed with {label2}") \
+                  if multiclass else f"{executable} is {['not ', ''][label2]}packed"
             if label != NOT_LABELLED:
-                msg += " ({})".format("not packed" if label in ["", True] else "packed" if label is True else label)
+                msg += f" ({'not packed' if label in ['', True] else 'packed' if label is True else label})"
             (l.warning if label == NOT_LABELLED else [l.failure, l.success][label == label2])(msg)
     # ensure it initializes only once (otherwise, this loops forever)
     if not __initialized:
