@@ -68,6 +68,7 @@ class BintropyClassifier(BaseEstimator, ClassifierMixin):
         y_pred : array of shape (n_samples,)
             The predicted labels (0 or 1).
         """
+        check_is_fitted(self, attributes=["average_entropy_threshold_", "highest_entropy_threshold_"])
         average_entropies, highest_entropies = X[:, 0], X[:, 1]
         y_pred = (highest_entropies >= self.highest_entropy_threshold_) & \
                  (average_entropies >= self.average_entropy_threshold_)
@@ -88,6 +89,7 @@ class BintropyClassifier(BaseEstimator, ClassifierMixin):
         proba : array of shape (n_samples, 2)
             The class probabilities of the input samples.
         """
+        check_is_fitted(self, attributes=["average_entropy_threshold_", "highest_entropy_threshold_"])
         average_entropies, highest_entropies = X[:, 0], X[:, 1]
         P_packed = np.clip((highest_entropies - self.highest_entropy_threshold_ + \
                             average_entropies - self.average_entropy_threshold_) / 2, 0, 1)

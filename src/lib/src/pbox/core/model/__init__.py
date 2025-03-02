@@ -166,7 +166,17 @@ class BaseModel(Entity):
         params = cls.parameters.get('static', cls.parameters if cls.labelling == "none" else {})
         classifier = cls.base(**params)
         if hasattr(classifier, "_feature_names"):
-            self._data = self._data[classifier._feature_names]
+            try:
+                self._data = self._data[classifier._feature_names]
+            except KeyError:
+                missing = []
+                for name in sorted(classifier._feature_names):
+                    try:
+                        self._data[name]
+                    except KeyError:
+                        missing.append(name)
+                l.error(f"Missing features in the input dataset:\n- {'\n- '.join(missing)}")
+                return False
         # if data has to be unlabelled, force values for column 'label'
         if unlabelled:
             self._target['label'] = NOT_LABELLED
@@ -188,12 +198,19 @@ class BaseModel(Entity):
         l.debug("> remove 0-variance features")
         selector = VarianceThreshold()
         selector.fit(self._data)
-        self._data = self._data[self._data.columns[selector.get_support(indices=True)]]
-        removed = [f for f in self._features.keys() if f not in self._data]
-        self._features = {k: v for k, v in self._features.items() if k in self._data.columns}
-        if len(removed) > 0:
-            self.logger.debug("> features removed:\n- %s" % "\n- ".join(sorted(removed)))
-            self._metadata['dataset']['dropped-features'] = removed
+        kept_features = self._data.columns[selector.get_support(indices=True)]
+        no_variance = [f for f in self._features.keys() if f not in kept_features]
+        # if the list of features is imposed by the algorithm, just display a warning for zero-variance features
+        if hasattr(classifier, "_feature_names"):
+            if len(no_variance) > 0:
+                self.logger.warning("> features with no variance:\n- %s" % "\n- ".join(sorted(no_variance)))
+        else:
+            self._data = self._data[kept_features]
+            self._features = {k: v for k, v in self._features.items() if k in self._data.columns}
+            if len(no_variance) > 0:
+                self.logger.debug("> features removed:\n- %s" % "\n- ".join(sorted(no_variance)))
+                self._metadata['dataset'].setdefault('dropped-features', [])
+                self._metadata['dataset']['dropped-features'].extend(no_variance)
         if mi_select:
             from sklearn.feature_selection import SelectKBest, mutual_info_classif
             l.debug("> apply mutual information feature selection")
@@ -209,7 +226,8 @@ class BaseModel(Entity):
             self._features = {k: v for k, v in self._features.items() if k in selected_features}
             if len(removed) > 0:
                 self.logger.debug("> features removed:\n- %s" % "\n- ".join(sorted(removed)))
-                self._metadata['dataset']['dropped-features'] = removed
+                self._metadata['dataset'].setdefault('dropped-features', [])
+                self._metadata['dataset']['dropped-features'].extend(removed)
         class Dummy: pass
         self._train, self._test = Dummy(), Dummy()
         ds.logger.debug("> split data and target vectors to train and test subsets")
@@ -622,6 +640,12 @@ class Model(BaseModel):
         # now fit the (best) classifier and predict labels
         l.debug("> fitting the classifier...")
         self.pipeline.fit(self._train.data, self._train.target.values.ravel())
+        hp = []
+        for attr in dir(classifier := self.pipeline.steps[-1][1]):
+            if any(attr.endswith(x) for x in ["threshold_", "_y0_", "_y1_"]):
+                hp.append((attr, getattr(classifier, attr)))
+        if len(hp) > 0:
+            l.debug("> hyper-parameters set:\n- " + "\n- ".join(f"{n}: {v}" for n, v in hp))
         Pipeline.silent = True
         l.debug("> making predictions...")
         predict = self.pipeline.predict if hasattr(self.pipeline.steps[-1][1], "predict") else self.pipeline.fit_predict

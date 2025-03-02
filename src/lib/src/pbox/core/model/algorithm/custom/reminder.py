@@ -57,6 +57,7 @@ class REMINDerClassifier(BaseEstimator, ClassifierMixin):
         y_pred : array of shape (n_samples,)
             The predicted labels (0 or 1).
         """
+        check_is_fitted(self, attributes=["entropy_threshold_"])
         is_ep_in_w_section, entropy_ep_section = X[:, 0], X[:, 1]
         y_pred = (is_ep_in_w_section == True) & (entropy_ep_section >= self.entropy_threshold_)
         return y_pred.astype(int)

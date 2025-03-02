@@ -42,7 +42,6 @@ class PHADClassifier(BaseEstimator, ClassifierMixin):
         self : object
             Fitted estimator.
         """
-        from math import floor
         # (1) compute Euclidian distances of X's rows to the null vector (not-packed characteristics are all 0's) for
         #      label 1 (packed)
         d = np.sort(np.linalg.norm(X[y == 1], axis=1))
@@ -74,6 +73,7 @@ class PHADClassifier(BaseEstimator, ClassifierMixin):
         y_pred : array of shape (n_samples,)
             The predicted labels (0 or 1).
         """
+        check_is_fitted(self, attributes=["threshold_"])
         return (np.linalg.norm(X, axis=1) > self.threshold_).astype(int)
     
     def predict_proba(self, X):
@@ -94,6 +94,7 @@ class PHADClassifier(BaseEstimator, ClassifierMixin):
             Returns an array where each row represents the probabilities of the sample being below and above the
             threshold, respectively.
         """
+        check_is_fitted(self, attributes=["threshold_"])
         d = np.linalg.norm(X, axis=1)
         proba_above = np.clip((d - self.threshold_) / np.max(d - self.threshold_), 0, 1)
         proba_below = 1 - proba_above
