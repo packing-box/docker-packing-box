@@ -25,7 +25,6 @@ DAStub
 .depack
 .e
 .eagle
-.edata
 .enigma1
 .enigma2
 !EPack
@@ -84,7 +83,6 @@ nsp2
 .Packer!
 packerBY
 .PACKMAN
-.pdata
 PEPACK!!
 pebundle
 PEBundle
