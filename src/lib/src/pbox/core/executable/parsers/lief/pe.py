@@ -66,6 +66,16 @@ def __init_pe():
             return self._parsed.optional_header.checksum
         
         @property
+        def data_directories(self):
+            class DataDirectory(GetItemMixin):
+                __slots__ = ["has_section", "rva", "section", "size", "type"]
+                def __init__(self2, dd):
+                    for attr in self2.__slots__:
+                        setattr(self2, attr, getattr(dd, attr))
+            for dd in self._parsed.data_directories:
+                yield DataDirectory(dd)
+        
+        @property
         def entrypoint(self):
             return self._parsed.rva_to_offset(self._parsed.optional_header.addressof_entrypoint)
         
@@ -77,7 +87,6 @@ def __init_pe():
         def iat(self):
             class IAT(GetItemMixin):
                 __slots__ = ["rva", "section", "size", "type"]
-                
                 def __init__(self2):
                     iat = self._parsed.data_directory(lief.PE.DataDirectory.TYPES.IMPORT_TABLE)
                     for attr in self2.__slots__:
@@ -96,12 +105,23 @@ def __init_pe():
             return {dll.name for dll in self._parsed.imports}
         
         @property
+        def imports(self):
+            class Import(GetItemMixin):
+                __slots__ = ["directory", "entries", "forwarder_chain", "iat_directory", "import_address_table_rva",
+                             "import_lookup_table_rva", "name", "timedatestamp"]
+                def __init__(self2, lief_import):
+                    for attr in self2.__slots__:
+                        setattr(self2, attr, getattr(lief_import, attr))
+            for imp in self._parsed.imports:
+                yield Import(imp)
+        
+        @property
         def machine(self):
             return self._parsed.header.machine.value
         
         @property
         def sections(self):
-            return list(s for x in self)
+            return list(s for s in self)
     
     PE.__name__ = "PE"
     PE.SECTION_CHARACTERISTICS = sec_chars
