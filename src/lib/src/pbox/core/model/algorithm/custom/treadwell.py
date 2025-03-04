@@ -4,8 +4,8 @@ from sklearn.base import BaseEstimator, ClassifierMixin
 from sklearn.utils.validation import check_is_fitted
 
 
-DEFAULT_WEIGHTS   = np.array([1, .5, 1, 1, 5, 5, 5, 5, 5, 5, 3, 3, 7, 3])
-RISK_COEFFICIENTS = np.array([5, 1,  2, 2, 3, 4, 4, 4, 2, 3, 2, 2, 3, 2])
+DEFAULT_WEIGHTS   = np.array([6,  6, 12, 50, 20, 100, 35, 100])
+RISK_COEFFICIENTS = np.array([10, 1, 5,  10, 5,  10,  10, 10])
 THRESHOLD_FROM_STUDY = 3.
 
 
@@ -14,32 +14,29 @@ class AroraClassifier(BaseEstimator, ClassifierMixin):
     
     def __init__(self, confidence=.99, weights=None, risk_coefficients=None):
         """
-        A classifier based on the heuristics-based static analysis approach of Arora et al.
-         (https://dx.doi.org/10.14257/ijsia.2013.7.5.24)
+        A classifier based on the risk score based static analysis approach of Treadwell et al.
+         (https://ieeexplore.ieee.org/document/5137328)
         
         Parameters
         ----------
         confidence : float, default=.99
             The confidence level for computing the threshold of the risk score, based on the not-packed label.
         
-        weights : {list} of length 14
-            The list of weights for the 14 features. By default, this is set to the values found by the authors of this
+        weights : {list} of length 8
+            The list of weights for the 8 features. By default, this is set to the values found by the authors of this
              method.
         
-        risk_coefficients : {list} of length 14
-            The list of risk coefficients for the 14 features. By default, this is set to the values found by the
+        risk_coefficients : {list} of length 8
+            The list of risk coefficients for the 8 features. By default, this is set to the values found by the
              authors of this method.
         """
         self.confidence = confidence
         self.weights = DEFAULT_WEIGHTS if weights is None else weights
         self.risk_coefficients = RISK_COEFFICIENTS if risk_coefficients is None else risk_coefficients
         # features, in the order specified in the paper to match to the weights and risk coefficients
-        self._feature_names = ["number_known_packer_section_names", "has_section_name_not_known",
-                               "number_sections_name_not_printable", "number_sections_name_empty",
-                               "has_no_code_section", "has_code_section_not_x", "has_wx_section", "is_data_section_x",
-                               "has_code_data_section", "is_ep_section_not_code_or_not_x", "is_ep_in_tls_section",
-                               "has_less_than_20_imports", "is_iat_in_non_standard_section",
-                               "highest_section_entropy_normalized"]
+        self._feature_names = ["has_non_standard_section", "has_known_packer_section_names",
+                               "is_ep_not_in_text_section", "has_tls_data_directory_entry", "has_dll_with_no_export",
+                               "has_known_packer_section_names", "is_import_functions_count<=2", "is_iat_malformed"]
         if isinstance(self.weights, dict):
             self.weights = np.array([self.weights[f] for f in self._feature_names])
         if isinstance(self.risk_coefficients, dict):
@@ -47,7 +44,7 @@ class AroraClassifier(BaseEstimator, ClassifierMixin):
     
     def _compute_scores(self, X):
         """ Risk computation method. """
-        return np.sqrt(np.sum((np.array(X, dtype = "float") * self.weights) ** self.risk_coefficients, axis=1))
+        return np.sum((np.array(X, dtype = "float") * self.weights * self.risk_coefficients, axis=1) / sum(self.weights)
     
     def fit(self, X, y):
         """
@@ -55,12 +52,11 @@ class AroraClassifier(BaseEstimator, ClassifierMixin):
         
         Parameters
         ----------
-        X : {array-like, sparse matrix} of shape (n_samples, 14)
+        X : {array-like, sparse matrix} of shape (n_samples, 8)
             The training input samples. Each sample shall have fourteen columns:
-            "has_code_data_section", "has_code_section_not_x", "has_few_imports", "has_known_packer_section_names",
-            "has_no_code_section", "has_section_name_empty", "has_section_name_not_known",
-            "has_section_name_not_printable", "has_wx_section", "highest_section_entropy", "is_data_section_x",
-            "is_ep_in_tls_section", "is_ep_section_not_code_or_not_x" and "is_iat_in_non_standard_section".
+            "has_non_standard_section", "has_known_packer_section_names", "is_ep_not_in_text_section",
+            "has_tls_data_directory_entry", "has_dll_with_no_export", "has_known_packer_section_names",
+            "is_import_functions_count<=2", "is_iat_malformed".
         
         y : array-like of shape (n_samples,)
             The target values (class labels in classification).
@@ -85,12 +81,11 @@ class AroraClassifier(BaseEstimator, ClassifierMixin):
         
         Parameters
         ----------
-        X : {array-like, sparse matrix} of shape (n_samples, 14)
-            The input samples. Each sample shall have fourteen columns:
-            "has_code_data_section", "has_code_section_not_x", "has_few_imports", "has_known_packer_section_names",
-            "has_no_code_section", "has_section_name_empty", "has_section_name_not_known",
-            "has_section_name_not_printable", "has_wx_section", "highest_section_entropy", "is_data_section_x",
-            "is_ep_in_tls_section", "is_ep_section_not_code_or_not_x" and "is_iat_in_non_standard_section".
+        X : {array-like, sparse matrix} of shape (n_samples, 8)
+            The training input samples. Each sample shall have fourteen columns:
+            "has_non_standard_section", "has_known_packer_section_names", "is_ep_not_in_text_section",
+            "has_tls_data_directory_entry", "has_dll_with_no_export", "has_known_packer_section_names",
+            "is_import_functions_count<=2", "is_iat_malformed".
         
         Returns
         -------
