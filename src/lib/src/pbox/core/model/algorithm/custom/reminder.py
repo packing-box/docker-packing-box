@@ -9,7 +9,7 @@ class REMINDerClassifier(BaseEstimator, ClassifierMixin):
     
     def __init__(self, confidence=0.9999):
         """
-        A classifier based on Bintropy heuristic using block entropy metrics.
+        A classifier based on REMINDer heuristic of Han et al. using EP section executable flag and entropy.
         
         Parameters
         ----------

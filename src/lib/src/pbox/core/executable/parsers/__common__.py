@@ -12,6 +12,10 @@ lazy_load_module("bintropy")
 __all__ = ["get_part_class", "supported_parsers", "AbstractParsedExecutable", "GetItemMixin"]
 
 
+_ATTR_REGEX = re.compile(r"(_address|_?alignment|characteristics|flags|index|_?offset|_?size)$")
+_GETI_REGEX = re.compile(r"^(?!has_)(|[a-z]+_)(configuration|header)$")
+_STR_REGEX  = re.compile(r"^.*_str$")
+
 _rb = lambda s: bytes(getattr(s, "tobytes", lambda: s)())
 _rn = lambda s: ensure_str(getattr(s, "real_name", s.name)).split("\0")[0]
 
@@ -30,8 +34,7 @@ def supported_parsers(*parsers):
 class NullSection(GetItemMixin):
     def __getattr__(self, name):
         # do not consider returning "" for 'name' as it would mean empty section name
-        return "" if re.search(r"^.*_str$", name) else \
-               -1 if re.search(r"(_address|_?alignment|characteristics|flags|index|_?offset|_?size)$", name) else None
+        return "" if _STR_REGEX.search(name) else -1 if _ATTR_REGEX.search(name) else None
 
 
 class PartsList(list):
@@ -48,7 +51,8 @@ class AbstractParsedExecutable(ABC, CustomReprMixin, GetItemMixin):
     def __getitem__(self, name):
         try:
             v = super().__getitem__(name)
-            if re.search(r"^(|[a-z]+_)(configuration|header)$", name, re.I) and not hasattr(v, "__getitem__"):
+            if (_GETI_REGEX.search(name, re.I) or getattr(self, "_getitem_regex", r"^$").search(name)) and \
+               not hasattr(v, "__getitem__"):
                 setattr(v.__class__, "__getitem__", GetItemMixin.__getitem__.__get__(v, v.__class__))
         except AttributeError:
             if hasattr(self, "path") and hasattr(self.path, name):
@@ -82,10 +86,14 @@ class AbstractParsedExecutable(ABC, CustomReprMixin, GetItemMixin):
     
     @cached_result
     def bytes_after_entrypoint(self, n):
-        r = self.entrypoint_section.content[:n]
-        if isinstance(r, memoryview):
-            r = r.tobytes()
-        return zeropad(n)([_ for _ in r[:n]])
+        return zeropad(n)([_ for _ in _rb(self.entrypoint_section.content[:n])])
+    
+    def entropy_sections(self, sections):
+        if sections is not None and not isinstance(sections, list):
+            sections = [sections]
+        if sections is None or len(sections) == 0:
+            return
+        return bintropy.entropy(b"".join(_rb((self.section(s) if isinstance(s, str) else s).content) for s in sections))
     
     def modify(self, modifier, **kw):
         modifier(self.parsed, **kw)
@@ -276,8 +284,15 @@ def get_part_class(clsname, **mapping):
                     value = tmp
                 setattr(self, attr, value)
         
+        def __len__(self):
+            return self.size
+        
         def block_entropy(self, blocksize=256, ignore_half_block_zeros=False, ignore_half_block_same_byte=True):
             return bintropy.entropy(_rb(self.content), blocksize, ignore_half_block_zeros, ignore_half_block_same_byte)
+        
+        @property
+        def bytes(self):
+            return _rb(self.content)
         
         @property
         def block_entropy_256B(self):
