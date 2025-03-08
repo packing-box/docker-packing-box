@@ -157,7 +157,7 @@ class Features(dict, metaclass=MetaBase):
             src = ft.source  # WARNING! this line must appear BEFORE ft.registry={} because the first time that the
                              #           source attribute is called, it is initialized and the registry is reset to None
             l.debug(f"loading features from {src}...")
-            ft.registry = {}
+            ft._registry = {}
             # important note: the 'keep' parameter is not considered here as some features may be required for computing
             #                  others but not kept in the final data, hence required in the registry yet
             flist = [f for l in [["All"], [f for f in FORMATS.keys() if f != "All"], expand_formats("All")] for f in l]

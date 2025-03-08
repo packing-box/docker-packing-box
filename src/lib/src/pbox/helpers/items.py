@@ -14,7 +14,7 @@ lazy_load_module("yaml")
 set_exception("NotInstantiable", "TypeError")
 
 
-__all__ = ["dict2", "load_yaml_config", "Item", "MetaBase", "MetaItem"]
+__all__ = ["dict2", "load_yaml_config", "Item", "MetaBase", "MetaItem", "References"]
 
 _EMPTY_DICT = {}
 _EVAL_NAMESPACE = {k: getattr(builtins, k) for k in ["abs", "all", "any", "divmod", "float", "hash", "hex", "id", "int",
@@ -148,7 +148,10 @@ class dict2(dict):
 
 class MetaBase(type):
     """ This metaclass allows to iterate names over the class-bound registry of the underlying abstraction.
-         It also adds a class-level 'source' attribute that can be used to reset the registry. """
+         It also adds a class-level 'source' attribute that can be used to reset the registry. It also provides a few
+         methods to select or export items from the registry.
+        Important note: if a class holds this metaclass and has _has_registry=False, then this class shall be a 
+                         dictinoary as it is considered as the registry itself. """
     def __iter__(self):
         self()  # trigger registry's lazy initialization
         temp = []
@@ -160,18 +163,19 @@ class MetaBase(type):
     
     def _filter(self, format="All", query=None, fields=None, index="name", **kw):
         """ Filter a subset of items based on a Pandas query and return the filtered dataframe. """
-        _l = self.logger
+        _l, has_deps = self.logger, False
         # from the registry, based on the required formats, collect field names from all items
         field_names = []
-        for i, c in enumerate(expand_formats(format)):
-            for record in self.registry.get(c, {}).values():
+        for i, c in enumerate(expand_formats(format) if has_reg else [None]):
+            for record in self.registry.values():
+                has_deps = has_deps or hasattr(record, "dependencies") and len(record.dependencies) > 0
                 for k in dict(record).keys():
                     if k not in field_names:
                         field_names.append(k)
         # from the registry, based on the required formats, build a DataFrame combining all items
-        for i, c in enumerate(expand_formats(format)):
+        for i, c in enumerate(expand_formats(format) if has_reg else [None]):
             d = {}
-            for record in self.registry.get(c, {}).values():
+            for record in self.registry.values():
                 r = dict(record)  # dict(...) converts the dict2 instance to its full version
                 for k in field_names:
                     d.setdefault(k, [])
@@ -209,15 +213,16 @@ class MetaBase(type):
             return None, []
         df = df.drop_duplicates(index)
         # then collect dependencies too
-        deps = {}
-        for i, c in enumerate(expand_formats(format)):
-            for name, record in self.registry.get(c, {}).items():
-                if name not in df.name.values:
-                    continue
-                deps.setdefault(name, [])
-                for dep in getattr(record, "dependencies", []):
-                    if dep not in deps[name]:
-                        deps[name].append(dep)
+        if has_deps:
+            deps = {}
+            for i, c in enumerate(expand_formats(format) if has_reg else [None]):
+                for name, record in self.registry.items():
+                    if name not in df.name.values:
+                        continue
+                    deps.setdefault(name, [])
+                    for dep in getattr(record, "dependencies", []):
+                        if dep not in deps[name]:
+                            deps[name].append(dep)
         _l.debug(f"Dataframe queried:\n{df.describe()}\n{df}")
         return df, deps
     
@@ -315,8 +320,9 @@ class MetaBase(type):
 
     def select(self, output=None, format="All", query=None, fields=None, split_on=None, **kw):
         """ Select a subset based on a Pandas query and either display or dump it. """
+        cname = self.__name__.lower()
         if split_on is not None and output is None:
-            output = "features.yml"
+            output = f"{cname}.yml"
         if output is not None:
             dst = Locator(f"conf://{output}", new=True)
             if dst.is_samepath(self._source):
@@ -328,7 +334,7 @@ class MetaBase(type):
             if output is None:
                 print(txt_terminal_render(cfg, pad=(1, 2), syntax="yaml"))
             else:
-                with (dst if split_on is None else dst.joinpath(f"{name or 'features'}.yml")).open('wt') as f:
+                with (dst if split_on is None else dst.joinpath(f"{name or cname}.yml")).open('wt') as f:
                     f.write(cfg)
     
     def test(self, files=None, keep=False, **kw):
@@ -375,6 +381,10 @@ class MetaBase(type):
         return self._logger
     
     @property
+    def registry(self):
+        return getattr(self, "_registry", None) if getattr(self, "_has_registry", True) else self
+    
+    @property
     def source(self):
         if not hasattr(self, "_source"):
             self.source = None  # use the default source from 'config'
@@ -386,7 +396,28 @@ class MetaBase(type):
         if hasattr(self, "_source") and self._source == p:
             return
         self._source = p
-        self.registry = None  # reset the registry
+        if getattr(self, "_has_registry", True):
+            self._registry = None  # reset the registry
+
+
+class References(dict, metaclass=MetaBase):
+    _has_registry = False
+    
+    def __init__(self):
+        try:
+            self.__initialized
+        except AttributeError:
+            for name, params in load_yaml_config(self.__class__.source):
+                self[name] = params
+            self.__initialized = True
+    
+    @classmethod
+    def show(cls, **kw):
+        """ Show an overview of the references. """
+        from ...helpers.utils import pd
+        cls.logger.debug(f"computing references overview...")
+        #TODO
+        #render(Section(f"Counts"), Table([list(counts.values())], column_headers=formats))
 
 
 def _apply(f):
@@ -445,7 +476,6 @@ def _init_metaitem():
             def _setattr(i, d):
                 for k, v in d.items():
                     if k in ["source", "status"]:
-                        
                         setattr(i, k := f"_{k}", v)
                     elif hasattr(i, "parent") and k in ["install", "references", "steps"]:
                         nv = []
@@ -662,6 +692,18 @@ def load_yaml_config(cfg, no_defaults=(), parse_defaults=True):
                         #     keep:   false
                         #     source: <unknown>
                         params.setdefault(default, value)
+        for params in config.values():
+            if 'references' in params:
+                tags = params.get('tags', [])
+                for i, ref in enumerate(lst := params['references']):
+                    try:
+                        key = re.match(r"<(.*)?>$", ref).group(1)
+                        lst[i] = References().get(key, ref)
+                        tags.extend(lst[i].get('tags', []))
+                    except (AttributeError, TypeError):
+                        pass
+                if len(tags) > 0:
+                    params['tags'] = sorted(list(set(tags)))
         return config
     # local function for merging child configurations
     def _merge(config, k, v, keep=False):

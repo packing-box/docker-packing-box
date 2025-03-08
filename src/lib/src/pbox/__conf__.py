@@ -135,7 +135,8 @@ bi.config = Config("packing-box",
             'store_loop_cut_info':    ("true", "BOOL", "keep loop cut information in node instances", _bl),
         },
         'definitions': {k: opt_tuple(k) for k in \
-             ['algorithms', 'alterations', 'analyzers', 'detectors', 'features', 'packers', 'scenarios', 'unpackers']},
+             ['algorithms', 'alterations', 'analyzers', 'detectors', 'features', 'packers', 'references', 'scenarios',
+              'unpackers']},
         'logging': {
             'lief_logging': ("false", "BOOL", "display LIEF logging messages", _bl),
             'wine_errors':  ("false", "BOOL", "display Wine errors", _bl),

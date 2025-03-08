@@ -211,7 +211,7 @@ class Alterations(list, metaclass=MetaBase):
     
     @classmethod
     def show(cls, **kw):
-        """ Show an overview of the features. """
+        """ Show an overview of the alterations. """
         from ...helpers.utils import pd
         cls.logger.debug(f"computing alterations overview...")
         formats = list(Alterations.registry.keys())
