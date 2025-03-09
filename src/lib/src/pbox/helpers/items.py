@@ -10,7 +10,6 @@ from .files import Locator
 from .formats import expand_formats, format_shortname
 from .utils import pd
 
-lazy_load_module("yaml")
 set_exception("NotInstantiable", "TypeError")
 
 
@@ -26,6 +25,40 @@ for k in dir(statistics):
 _EVAL_NAMESPACE['avg'] = _EVAL_NAMESPACE['fmean']
 _EXPLODE_QUERY_FIELDS = ["tags"]
 _WL_EXTRA_NODES = ("arg", "arguments", "keyword", "lambda")
+
+
+def __init_yaml(yaml):
+    # Custom Dumper to save special objects
+    class CustomDumper(yaml.SafeDumper):
+        def represent_list(self, data):
+            args = [yaml.representer.SafeRepresenter.represent_data(self, item) for item in data]
+            return yaml.SequenceNode(tag="tag:yaml.org,2002:seq", value=args,
+                                     flow_style=all(not isinstance(x, (str, list, range, range2)) for x in data))
+        # Represent range as: !!python/object/new:range [start, stop]
+        def represent_range(self, data):
+            args = [yaml.ScalarNode(tag="tag:yaml.org,2002:int", value=str(data.start)),
+                    yaml.ScalarNode(tag="tag:yaml.org,2002:int", value=str(data.stop))]
+            if data.step != 1:
+                args.append(yaml.ScalarNode(tag="tag:yaml.org,2002:int", value=str(data.step)))
+            return yaml.SequenceNode(tag="tag:yaml.org,2002:python/object/new:range", value=args, flow_style=True)
+        # Represent range2 as: !!python/object/apply:range2 [start, stop, step]
+        def represent_range2(self, data):
+            # Represent range as a flow-style list (one line)
+            ff = lambda v: f"{v:.16g}" if '.' in str(v) or 'e' in str(v) else f"{v}."
+            args = [yaml.ScalarNode(tag="tag:yaml.org,2002:float", value=str(arg)) for arg in \
+                    [ff(data.start), ff(data.stop), ff(data.step)]]
+            return yaml.SequenceNode(tag="tag:yaml.org,2002:python/object/apply:range2", value=args, flow_style=True)
+        # inspired by https://stackoverflow.com/a/44284819/3786245
+        def write_line_break(self, data=None):
+            super().write_line_break(data)
+            if len(self.indents) == 1:
+                super().write_line_break()
+    yaml.add_representer(list, CustomDumper.represent_list, Dumper=CustomDumper)
+    yaml.add_representer(range, CustomDumper.represent_range, Dumper=CustomDumper)
+    yaml.add_representer(range2, CustomDumper.represent_range2, Dumper=CustomDumper)
+    yaml.CustomDumper = CustomDumper
+    return yaml
+lazy_load_module("yaml", postload=__init_yaml)
 
 
 _concatn  = lambda l, n: reduce(lambda a, b: a[:n]+b[:n], l, stop=lambda x: len(x) > n)
@@ -155,38 +188,33 @@ class MetaBase(type):
     def __iter__(self):
         self()  # trigger registry's lazy initialization
         temp = []
-        for base in self.registry.values():
+        for base in (self.registry.values() if getattr(self, "_has_registry", True) else [self]):
             for name in base.keys():
                 if name not in temp:
                     yield name
                     temp.append(name)
     
-    def _filter(self, format="All", query=None, fields=None, index="name", **kw):
+    def _filter(self, format="All", query=None, fields=None, index="name", merge_deps=False, **kw):
         """ Filter a subset of items based on a Pandas query and return the filtered dataframe. """
-        _l, has_deps = self.logger, False
+        _l, has_deps, has_reg = self.logger, False, getattr(self, "_has_registry", True)
         # from the registry, based on the required formats, collect field names from all items
         field_names = []
-        for i, c in enumerate(expand_formats(format) if has_reg else [None]):
-            for record in self.registry.values():
+        for c in (expand_formats(format) if has_reg else [None]):
+            for record in self.registry.get(c, self.registry).values():
                 has_deps = has_deps or hasattr(record, "dependencies") and len(record.dependencies) > 0
                 for k in dict(record).keys():
                     if k not in field_names:
                         field_names.append(k)
+        _l.debug(f"Fields found: {', '.join(field_names)}")
         # from the registry, based on the required formats, build a DataFrame combining all items
         for i, c in enumerate(expand_formats(format) if has_reg else [None]):
             d = {}
-            for record in self.registry.values():
+            for record in self.registry.get(c, self.registry).values():
                 r = dict(record)  # dict(...) converts the dict2 instance to its full version
                 for k in field_names:
                     d.setdefault(k, [])
-                    v = r.get(k)
-                    d[k].append(v if k in _EXPLODE_QUERY_FIELDS else str(v))
-            n = len(d[index])
-            for k, l in d.items():
-                if (n2 := len(l)) < n:
-                    for _ in range(n-n2):
-                        l.append(None)
-            df = pd.DataFrame.from_dict(d) if i == 0 else df.combine_first(pd.DataFrame.from_dict(d))
+                    d[k].append(r.get(k) if k in _EXPLODE_QUERY_FIELDS else str(r.get(k)))
+            df = pd.DataFrame.from_dict(d) if i == 0 else pd.concat([df, pd.DataFrame.from_dict(d)], ignore_index=True)
         if fields:
             if index not in fields:
                 fields = [index] + fields
@@ -205,36 +233,47 @@ class MetaBase(type):
                    Path(inspect.getfile(e.__class__)).dirname.parts[-2:] == ('pandas', 'errors'):
                     _l.error(f"Bad Pandas query expression: {e}")
                     _l.warning("No entry filtered ; aborting...")
-                    return None, []
+                    return None, {}
                 else:
                     raise
         if len(df) == 0:
             _l.warning("No data")
-            return None, []
+            return None, {}
         df = df.drop_duplicates(index)
+        _l.debug(f"Dataframe queried:\n{df.describe()}\n{df}")
         # then collect dependencies too
         if has_deps:
             deps = {}
-            for i, c in enumerate(expand_formats(format) if has_reg else [None]):
-                for name, record in self.registry.items():
+            for c in (expand_formats(format) if has_reg else [None]):
+                for name, record in self.registry.get(c, self.registry).items():
                     if name not in df.name.values:
                         continue
                     deps.setdefault(name, [])
                     for dep in getattr(record, "dependencies", []):
                         if dep not in deps[name]:
                             deps[name].append(dep)
-        _l.debug(f"Dataframe queried:\n{df.describe()}\n{df}")
+        # if requested, merge the dependencies in the dataframe
+        if merge_deps:
+            d, reg = {}, self.registry.get(c, self.registry)
+            for dep in sorted(set(x for l in deps.values() for x in l)):
+                r = dict(reg[name])
+                for k in field_names:
+                    d.setdefault(k, [])
+                    d[k].append(r.get(k) if k in _EXPLODE_QUERY_FIELDS else str(r.get(k)))
+            df = pd.concat([df, pd.DataFrame.from_dict(d)], ignore_index=True)
         return df, deps
     
-    def _select(self, format="All", query=None, fields=None, index="name", raw=False, split_on=None, **kw):
+    def _select(self, format="All", query=None, fields=None, index="name", text=False, split_on=None, **kw):
         """ Select a subset based on a Pandas query and return it as a dictionary. """
         df, all_deps = self._filter(format=format, query=query, fields=fields, index=index, **kw)
+        if df is None:
+            return
         deps_list = sorted(set(x for l in all_deps.values() for x in l))
         # only keep the interesting parts of the configuration file based on the filtered DataFrame's list of names
         nmap = getattr(self, "names_map", {})
         values = set(nmap.get(k, k) for k in df[index].values)
-        d = {k: v for k, v in load_yaml_config(self._source) if k in values}
-        d2 = {k: v for k, v in load_yaml_config(self._source) if k in deps_list and k not in d.keys()}
+        d = {k: v for k, v in load_yaml_config(self._source, auto_tag=False) if k in values}
+        d2 = {k: v for k, v in load_yaml_config(self._source, auto_tag=False) if k in deps_list and k not in d.keys()}
         # if split_on is defined (e.g. split_on="category" to make a "[...].yml" folder with one "[value].yml" file per
         #  'catgegory' value), collect possible values
         if split_on is not None:
@@ -284,32 +323,34 @@ class MetaBase(type):
             # special case: config has only 1 item, hence its attributes get moved to defaults ; set it back
             if len(config) == 1:
                 config, defaults = {list(config.keys())[0]: defaults}, {}
-            # display if raw, otherwise yield items
-            if not raw:
+            # return a string if text is requested, otherwise yield items
+            if not text:
                 yield defaults, config, deps
-            from yaml import dump, SafeDumper
-            SafeDumper.add_representer(range, lambda dumper, data: dumper.represent_data(str(data)))
-            SafeDumper.add_representer(range2, lambda dumper, data: dumper.represent_data(str(data)))
-            # custom dumper for inserting blank lines between top-level objects
-            class CustomDumper(SafeDumper):
-                # inspired by https://stackoverflow.com/a/44284819/3786245
-                def write_line_break(self, data=None):
-                    super().write_line_break(data)
-                    if len(self.indents) == 1:
-                        super().write_line_break()
+            from yaml import dump, CustomDumper
             _h = lambda s: f"{'#'*120}\n#{s.upper().center(118)}#\n{'#'*120}\n"
-            yield _h("feature set") + \
-                  (dump({'defaults': defaults}, width=float("inf")).rstrip() + "\n\n\n" if len(defaults) > 0 else "") +\
-                  dump(config, Dumper=CustomDumper, width=float("inf")).rstrip() + \
-                  ("\n\n\n" + _h("dependencies") + dump(deps, Dumper=CustomDumper, width=float("inf")).rstrip() \
-                   if split_on is None and len(deps) > 0 else ""), defaults.get(split_on)
+            # compose the YAML configuration
+            l1, l2 = len(config), len(df)
+            count = [f"{l1} {self.__name__.lower()}", f"{l1} definitions, {l2} {self.__name__.lower()}"][l1 != l2]
+            cfg = _h(f"{self.__name__} set ({count})")
+            # - put the defaults first, if any
+            cfg += dump({'defaults': defaults}, Dumper=CustomDumper, width=float("inf")).rstrip() + "\n\n\n" \
+                   if len(defaults) > 0 else ""
+            # - then write the collected items
+            cfg += dump(config, Dumper=CustomDumper, default_style=None, width=float("inf")).rstrip()
+            # - finally, add dependencies, if any
+            cfg += "\n\n\n" + _h("dependencies") + dump(deps, Dumper=CustomDumper, width=float("inf")).rstrip() \
+                   if split_on is None and len(deps) > 0 else ""
+            # if data was split (e.g. on 'category'), then yield the name of the config as the value from the split
+            #  field (e.g. defaults['category'] => "header")
+            yield cfg, defaults.get(split_on)
     
     def export(self, output="output.csv", format="All", query=None, fields=None, index="name", **kw):
         """ Export items from the registry based on the given executable format, filtered with the given query, with
              only the selected fields, to the given output format. """
         if output in EXPORT_FORMATS.keys():
             output = f"{self.__name__.lower()}-export.{output}"
-        kw, df = {}, self._select(format, query, fields, dataframe=True)
+        kw = {}
+        df, _ = self._filter(format=format, query=query, fields=fields, index=index, merge_deps=True, **kw)
         if (ext := Path(output).extension[1:]) != "pickle":
             kw['index'] = False
         if ext in ["json", "yml"]:
@@ -330,7 +371,7 @@ class MetaBase(type):
                 return
         if split_on is not None:
             dst.mkdir()
-        for cfg, name in self._select(format=format, query=query, fields=fields, raw=True, split_on=split_on, **kw):
+        for cfg, name in self._select(format=format, query=query, fields=fields, text=True, split_on=split_on, **kw):
             if output is None:
                 print(txt_terminal_render(cfg, pad=(1, 2), syntax="yaml"))
             else:
@@ -379,6 +420,14 @@ class MetaBase(type):
             self._logger = logging.getLogger(n)
             logging.setLogger(n)
         return self._logger
+    
+    @property
+    def names(self):
+        try:
+            return self.__names
+        except AttributeError:
+            self.__names = set(sorted(x for x in self))
+        return self.__names
     
     @property
     def registry(self):
@@ -650,7 +699,7 @@ def _init_item():
 lazy_load_object("Item", _init_item)
 
 
-def load_yaml_config(cfg, no_defaults=(), parse_defaults=True):
+def load_yaml_config(cfg, no_defaults=(), parse_defaults=True, auto_tag=True):
     """ Load a YAML configuration, either as a single file or a folder with YAML files (in this case, loading
          defaults.yml in priority to get the defaults first). """
     from copy import deepcopy
@@ -692,18 +741,21 @@ def load_yaml_config(cfg, no_defaults=(), parse_defaults=True):
                         #     keep:   false
                         #     source: <unknown>
                         params.setdefault(default, value)
-        for params in config.values():
-            if 'references' in params:
-                tags = params.get('tags', [])
-                for i, ref in enumerate(lst := params['references']):
-                    try:
-                        key = re.match(r"<(.*)?>$", ref).group(1)
-                        lst[i] = References().get(key, ref)
-                        tags.extend(lst[i].get('tags', []))
-                    except (AttributeError, TypeError):
-                        pass
-                if len(tags) > 0:
-                    params['tags'] = sorted(list(set(tags)))
+        # handle the references attributes by checking if the "<...>" pattern is present and replace "..." with the
+        #  related reference dictionary from References()
+        if auto_tag:
+            for params in config.values():
+                if 'references' in params:
+                    tags = params.get('tags', [])
+                    for i, ref in enumerate(lst := params['references']):
+                        try:
+                            key = re.match(r"<(.*)?>$", ref).group(1)
+                            lst[i] = References().get(key, ref)
+                            tags.extend(lst[i].get('tags', []))
+                        except (AttributeError, TypeError):
+                            pass
+                    if len(tags) > 0:
+                        params['tags'] = sorted(list(set(tags)))
         return config
     # local function for merging child configurations
     def _merge(config, k, v, keep=False):
