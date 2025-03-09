@@ -67,7 +67,7 @@ def __init_pe():
         
         @property
         def data_directories(self):
-            class DataDirectory(GetItemMixin):
+            class DataDirectory(CustomReprMixin, GetItemMixin):
                 __slots__ = ["has_section", "rva", "section", "size", "type"]
                 def __init__(self2, dd):
                     for attr in self2.__slots__:
@@ -85,7 +85,7 @@ def __init_pe():
         
         @property
         def iat(self):
-            class IAT(GetItemMixin):
+            class IAT(CustomReprMixin, GetItemMixin):
                 __slots__ = ["rva", "section", "size", "type"]
                 def __init__(self2):
                     iat = self._parsed.data_directory(lief.PE.DataDirectory.TYPES.IMPORT_TABLE)
@@ -106,7 +106,7 @@ def __init_pe():
         
         @property
         def imports(self):
-            class Import(GetItemMixin):
+            class Import(CustomReprMixin, GetItemMixin):
                 __slots__ = ["directory", "entries", "forwarder_chain", "iat_directory", "import_address_table_rva",
                              "import_lookup_table_rva", "name", "timedatestamp"]
                 def __init__(self2, lief_import):
@@ -118,6 +118,21 @@ def __init_pe():
         @property
         def machine(self):
             return self._parsed.header.machine.value
+        
+        @property
+        def resources(self):
+            class ResourceDirectory(CustomReprMixin, GetItemMixin):
+                __slots__ = ["characteristics", "depth", 'id', "name", "numberof_id_entries", "numberof_name_entries",
+                             "time_date_stamp"]
+                def __init__(self2, rd):
+                    self2.__rd = rd
+                    for attr in self2.__slots__:
+                        setattr(self2, attr, getattr(rd, attr))
+                @property
+                def childs(self2):
+                    for child in self2.__rd.childs:
+                        yield ResourceDirectory(child)
+            return ResourceDirectory(self._parsed.resources)
         
         @property
         def sections(self):
