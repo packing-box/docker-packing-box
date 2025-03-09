@@ -9,12 +9,13 @@ from ....helpers.mixins import *
 lazy_load_module("bintropy")
 
 
-__all__ = ["get_part_class", "supported_parsers", "AbstractParsedExecutable", "GetItemMixin"]
+__all__ = ["get_part_class", "supported_parsers", "AbstractParsedExecutable", "CustomReprMixin", "GetItemMixin"]
 
 
-_ATTR_REGEX = re.compile(r"(_address|_?alignment|characteristics|flags|index|_?offset|_?size)$")
-_GETI_REGEX = re.compile(r"^(?!has_)(|[a-z]+_)(configuration|header)$")
-_STR_REGEX  = re.compile(r"^.*_str$")
+_ATTR_REGEX = re.compile(r"(_address|_?alignment|characteristics|flags|index|_?offset|_?size)$", re.I)
+_DEF_REGEX  = re.compile(r"^$")
+_GETI_REGEX = re.compile(r"^(?!has_)(|[a-z]+_)(configuration|header)$", re.I)
+_STR_REGEX  = re.compile(r"^.*_str$", re.I)
 
 _rb = lambda s: bytes(getattr(s, "tobytes", lambda: s)())
 _rn = lambda s: ensure_str(getattr(s, "real_name", s.name)).split("\0")[0]
@@ -51,7 +52,7 @@ class AbstractParsedExecutable(ABC, CustomReprMixin, GetItemMixin):
     def __getitem__(self, name):
         try:
             v = super().__getitem__(name)
-            if (_GETI_REGEX.search(name, re.I) or getattr(self, "_getitem_regex", r"^$").search(name)) and \
+            if (_GETI_REGEX.search(name) or getattr(self, "_getitem_regex", _DEF_REGEX).search(name)) and \
                not hasattr(v, "__getitem__"):
                 setattr(v.__class__, "__getitem__", GetItemMixin.__getitem__.__get__(v, v.__class__))
         except AttributeError:

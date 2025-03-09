@@ -151,7 +151,7 @@ class Alterations(list, metaclass=MetaBase):
                                 dsbcnt += 1
             # consider re-enabling only alterations for which there is no more than one alteration per format ;
             #  if multiple alterations on the same format, leave these disabled
-            reenable = Alterations.names()
+            reenable = Alterations.names
             for fmt, alts in a.registry.items():
                 if len(alts) > 1:
                     for alt in alts.keys():
@@ -170,7 +170,7 @@ class Alterations(list, metaclass=MetaBase):
                     if found:
                         break
                 dsbcnt -= 1
-            tot = len(Alterations.names())
+            tot = len(Alterations.names)
             l.debug(f"{tot} alterations loaded ({tot-dsbcnt} enabled)")
         if exe is not None:
             d = a.registry[exe.format]
@@ -220,14 +220,6 @@ class Alterations(list, metaclass=MetaBase):
         for fmt in formats:
             counts[fmt] = len(Alterations.registry[fmt])
         render(Section(f"Counts"), Table([list(counts.values())], column_headers=formats))
-    
-    @staticmethod
-    def names(format="All"):
-        Alterations(None)  # force registry initialization
-        l = []
-        for c in expand_formats(format):
-            l.extend(list(Alterations.registry.get(c, {}).keys()))
-        return sorted(list(set(l)))
 
 
 def grid(modifier, params_grid, **eval_data):

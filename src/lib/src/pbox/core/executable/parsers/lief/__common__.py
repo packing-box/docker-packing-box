@@ -4,7 +4,7 @@ from tinyscript.helpers import Path
 from ..__common__ import *
 
 
-__all__ = ["get_part_class", "lief", "Binary", "BuildConfig", "GetItemMixin", "_make_property"]
+__all__ = ["get_part_class", "lief", "Binary", "BuildConfig", "CustomReprMixin", "GetItemMixin", "_make_property"]
 
 
 def __init_CS2CS_MODE():

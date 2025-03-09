@@ -7,8 +7,6 @@ from tinyscript.report import *
 
 from ...helpers import dict2, expand_formats, get_data, load_yaml_config, pd, render, MetaBase
 
-lazy_load_module("yaml")
-
 
 __all__ = ["Features"]
 
@@ -35,7 +33,7 @@ class Feature(dict2):
     
     @cached_property
     def dependencies(self):
-        return list(set(x for x in _SPLIT_REGEX.split(self.result or "") if x in Features))
+        return list(set(x for x in _SPLIT_REGEX.split(self.result or "") if x in Features.names))
     
     @cached_property
     def fail(self):
@@ -220,7 +218,7 @@ class Features(dict, metaclass=MetaBase):
                                     ft.registry[subfmt].pop(feat.name, None)
                 except NameError:
                     pass
-            l.debug(f"{len(Features.names())} features loaded")
+            l.debug(f"{len(Features.names)} features loaded")
         elif warn:
             l.warning(f"Features already loaded")
     
@@ -259,12 +257,4 @@ class Features(dict, metaclass=MetaBase):
                     counts[val].append(len(reg if val == ud else reg.query(f"{k} == '{val}'")))
             render(Section(f"Counts per {descr}"), Table([[c] + v for c, v in counts.items()],
                                                          column_headers=[descr.title()] + formats))
-    
-    @staticmethod
-    def names(format="All"):
-        Features(None)  # force registry initialization
-        l = []
-        for c in expand_formats(format):
-            l.extend(list(Features.registry.get(c, {}).keys()))
-        return sorted(list(set(l)))
 

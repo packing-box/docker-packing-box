@@ -47,7 +47,7 @@ class AroraClassifier(BaseEstimator, ClassifierMixin):
     
     def _compute_scores(self, X):
         """ Risk computation method. """
-        return np.sqrt(np.sum((np.array(X, dtype = "float") * self.weights) ** self.risk_coefficients, axis=1))
+        return np.sqrt(np.sum((np.array(X, dtype="float") * self.weights) ** self.risk_coefficients, axis=1))
     
     def fit(self, X, y):
         """

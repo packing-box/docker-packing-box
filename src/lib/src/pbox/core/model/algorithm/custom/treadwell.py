@@ -9,7 +9,7 @@ RISK_COEFFICIENTS = np.array([10, 1, 5,  10, 5,  10,  10, 10])
 THRESHOLD_FROM_STUDY = 3.
 
 
-class AroraClassifier(BaseEstimator, ClassifierMixin):
+class TreadwellClassifier(BaseEstimator, ClassifierMixin):
     classes_ = np.array([0, 1])  # binary classifier
     
     def __init__(self, confidence=.99, weights=None, risk_coefficients=None):
@@ -44,7 +44,7 @@ class AroraClassifier(BaseEstimator, ClassifierMixin):
     
     def _compute_scores(self, X):
         """ Risk computation method. """
-        return np.sum((np.array(X, dtype = "float") * self.weights * self.risk_coefficients, axis=1) / sum(self.weights)
+        return np.sum(np.array(X, dtype="float") * self.weights * self.risk_coefficients, axis=1) / sum(self.weights)
     
     def fit(self, X, y):
         """
