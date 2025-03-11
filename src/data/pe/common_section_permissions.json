@@ -1,0 +1,25 @@
+{
+    ".text": ["MEM_READ", "MEM_EXECUTE", "CNT_CODE"],
+    ".data": ["MEM_READ", "MEM_WRITE", "CNT_INITIALIZED_DATA"],
+    ".rdata": ["MEM_READ", "CNT_INITIALIZED_DATA"],
+    ".rsrc": ["MEM_READ", "CNT_INITIALIZED_DATA"],
+    ".reloc": ["MEM_READ", "CNT_INITIALIZED_DATA", "MEM_DISCARDABLE"],
+    ".bss": ["MEM_READ", "MEM_WRITE", "CNT_UNINITIALIZED_DATA"],
+    ".tls": ["MEM_READ", "MEM_WRITE", "CNT_INITIALIZED_DATA"],
+    ".idata": ["MEM_READ", "CNT_INITIALIZED_DATA"],
+    ".edata": ["MEM_READ", "CNT_INITIALIZED_DATA"],
+    ".debug": ["MEM_READ", "CNT_INITIALIZED_DATA"],
+    ".pdata": ["MEM_READ", "CNT_INITIALIZED_DATA"],
+    
+    ".crt": ["MEM_READ", "MEM_WRITE", "CNT_INITIALIZED_DATA"],
+    ".tls$": ["MEM_READ", "MEM_WRITE", "CNT_INITIALIZED_DATA"],
+    ".import": ["MEM_READ", "CNT_INITIALIZED_DATA"],
+    ".textbss": ["MEM_READ", "MEM_WRITE", "CNT_UNINITIALIZED_DATA"],
+    ".sxdata": ["MEM_READ", "CNT_INITIALIZED_DATA"],
+    ".arch": ["MEM_READ", "CNT_INITIALIZED_DATA"],
+    ".bind": ["MEM_READ", "CNT_INITIALIZED_DATA"],
+    ".cormeta": ["MEM_READ", "CNT_INITIALIZED_DATA"],
+    ".drectve": ["MEM_READ", "CNT_INITIALIZED_DATA"],
+    ".gfids": ["MEM_READ", "CNT_INITIALIZED_DATA"],
+    ".gljmp": ["MEM_READ", "CNT_INITIALIZED_DATA"]
+}
