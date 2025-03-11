@@ -133,10 +133,6 @@ def __init_pe():
                     for child in self2.__rd.childs:
                         yield ResourceDirectory(child)
             return ResourceDirectory(self._parsed.resources)
-        
-        @property
-        def sections(self):
-            return list(s for s in self)
     
     PE.__name__ = "PE"
     PE.SECTION_CHARACTERISTICS = sec_chars

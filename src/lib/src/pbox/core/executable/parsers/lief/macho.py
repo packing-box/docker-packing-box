@@ -75,10 +75,6 @@ def __init_macho():
             return [l.name for l in self._parsed.libraries]
         
         @property
-        def sections(self):
-            return [MachOSection(s, self) for s in self._parsed.sections]
-        
-        @property
         def segments(self):
             return [MachOSegment(s, self) for s in self._parsed.segments]
     

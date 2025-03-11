@@ -1,4 +1,5 @@
 # -*- coding: UTF-8 -*-
+import weakref
 from abc import ABC, abstractmethod
 from tinyscript import functools, re
 from tinyscript.helpers import ensure_str, execute, is_generator, zeropad
@@ -104,7 +105,7 @@ class AbstractParsedExecutable(ABC, CustomReprMixin, GetItemMixin):
         if isinstance(section, (bytes, str)):
             name = ensure_str(section)
             if original:
-                for s1, s2 in zip(self, self.sections):
+                for s1, s2 in zip(self, self._parsed.sections):
                     if ensure_str(s1.name) == name:
                         return s2                    
             else:
@@ -119,9 +120,12 @@ class AbstractParsedExecutable(ABC, CustomReprMixin, GetItemMixin):
             raise ValueError(f"no section named '{name}'")
         elif isinstance(section, GetItemMixin):
             if original:
-                for s1, s2 in zip(self, self.sections):
-                    if ensure_str(s1.name) == ensure_str(section.name):
-                        return s2
+                try:
+                    return section._original
+                except AttributeError:
+                    for s1, s2 in zip(self, self._parsed.sections):
+                        if ensure_str(s1.name) == ensure_str(section.name):
+                            return s2
                 # should not happen ; this would mean that the input section does not come from the current executable
                 raise ValueError(f"no section named '{section.name}'")
             else:
@@ -129,12 +133,11 @@ class AbstractParsedExecutable(ABC, CustomReprMixin, GetItemMixin):
                     section.real_name = self.real_section_names.get(section.name, section.name)
                 return section
         elif hasattr(section, "name"):
-            return self.section(section.name, original)
+            return section
         raise ValueError(".section(...) only supports a section name or a parsed section object as input")
     
     def section_names(self, *sections):
-        sections = sections[0] if len(sections) == 1 and isinstance(sections, (list, tuple)) else sections
-        return [s.name for s in (sections or self)]
+        return [s if isinstance(s, str) else s.name for s in (sections or self)]
     
     def sections_average_entropy(self, *sections):
         return sum(e := [s.entropy for s in (sections or self)]) / len(e)
@@ -142,13 +145,9 @@ class AbstractParsedExecutable(ABC, CustomReprMixin, GetItemMixin):
     @property
     def _section_class(self):
         try:
-            first = self.sections[0] if isinstance(self.sections, (list, tuple)) and len(self.sections) > 0 else \
-                    next(self.sections) if is_generator(self.sections) else None
-        except StopIteration:
-            first = None
-        if first is None:
+            return type(self.sections[0])
+        except IndexError:
             raise ParserError("Could not determine original section class")
-        return type(first)
     
     @property
     def code(self):
@@ -224,6 +223,10 @@ class AbstractParsedExecutable(ABC, CustomReprMixin, GetItemMixin):
         return self._real_section_names
     
     @property
+    def sections(self):
+        return list(s for s in self)
+    
+    @property
     def standard_sections(self):
         d = [""] + get_data(self.format)['STANDARD_SECTION_NAMES']
         return PartsList(s for s in self if _rn(s) in d)
@@ -269,17 +272,26 @@ def get_part_class(clsname, **mapping):
              parsers are used in subsequent alterations, a common format is required.
         """
         __slots__ = ["binary"] + slots
+        _instances = weakref.WeakValueDictionary()
         
-        def __init__(self, section, binary=None):
+        def __new__(cls, parent, name):
+            key = (id(parent), name)
+            if key in cls._instances:
+                return cls._instances[key]
+            cls._instances[key] = i = super().__new__(cls)
+            return i
+        
+        def __init__(self, name, binary=None):
             for attr in self.__slots__:
                 if attr == "binary":
                     self.binary = binary
+                    self._original = self.binary.section(name, original=True)
                     continue
                 value = mapping.get(attr, attr)
                 if isinstance(value, (type(lambda: 0), cached_property)):
                     continue
                 if isinstance(value, str):
-                    tmp = section
+                    tmp = name
                     for token in value.split("."):
                         tmp = getattr(tmp, token, None)
                     value = tmp

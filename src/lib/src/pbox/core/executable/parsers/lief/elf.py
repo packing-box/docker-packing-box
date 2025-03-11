@@ -76,10 +76,6 @@ def __init_elf():
             return ELFSection(self.section_from_offset(self._parsed.entrypoint), self)
         
         @property
-        def sections(self):
-            return [ELFSection(s, self) for s in self._parsed.sections]
-        
-        @property
         def segments(self):
             return [ELFSegment(s, self) for s in self._parsed.segments]
     
