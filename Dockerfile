@@ -116,7 +116,7 @@ RUN python3 -m pip install --user --upgrade --break-system-packages pip
 RUN pip3 install --user --no-warn-script-location --ignore-installed --break-system-packages \
         capstone jinja2 meson poetry pythonnet thefuck tinyscript tldr vt-py \
  && pip3 install --user --no-warn-script-location --ignore-installed --break-system-packages \
-        angr capa pandas pydl8.5 scikit-learn weka \
+        angr capa lightgbm pandas pydl8.5 scikit-learn weka \
  && rm -f /home/user/.local/lib/python3.11/site-packages/unicorn/lib \
  && pip3 uninstall -y --break-system-packages unicorn \
  && pip3 install --user --no-warn-script-location --ignore-installed --break-system-packages unicorn
