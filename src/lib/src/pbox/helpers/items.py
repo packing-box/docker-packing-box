@@ -133,10 +133,10 @@ class dict2(dict):
     
     def __call__(self, data, silent=False, **kwargs):
         d = {k: getattr(random, k) for k in ["choice", "randint", "randrange", "randstr"]}
-        d.update({'apply': _apply, 'concatn': _concatn, 'failsafe': _fail_safe, 'find': str.find, 'len': _len,
-                  'max': _max, 'min': _min, 'printable': string.printable, 'randbytes': _randbytes, 'repeatn': _repeatn,
-                  'select': _select(), 'select_section_name': _select(_sec_name), 'size': _size, 'value': _val,
-                  'zeropad': zeropad})
+        d.update({'apply': _apply, 'concatn': _concatn, 'failsafe': _fail_safe, 'find': str.find,
+                  'hex2bytes': bytearray.fromhex, 'len': _len, 'lower': lambda s: s.lower(), 'max': _max, 'min': _min,
+                  'printable': string.printable, 'randbytes': _randbytes, 'repeatn': _repeatn, 'select': _select(),
+                  'select_section_name': _select(_sec_name), 'size': _size, 'value': _val, 'zeropad': zeropad})
         d.update(_EVAL_NAMESPACE)
         d.update(data)
         kwargs.update(getattr(self, "parameters", {}))

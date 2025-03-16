@@ -52,7 +52,7 @@ RUN apt-get -y install apt-transport-https apt-utils \
                        libtiff5-dev libudev-dev libxcursor-dev libxkbfile-dev libxml2-dev libxrandr-dev
 # install useful tools
 RUN apt-get -y install colordiff colortail cython3 dos2unix dosbox git golang kmod less ltrace meson nasm tree strace \
- && apt-get -y install iproute2 nftables nodejs npm rubygems swig vim weka yarnpkg \
+ && apt-get -y install gcab genisoimage iproute2 nftables nodejs npm rubygems swig vim weka yarnpkg \
  && apt-get -y install python3-pip python3-pygraphviz python3-setuptools \
  && apt-get -y install bc curl ffmpeg imagemagick pev psmisc tesseract-ocr unrar unzip wget wimtools x11-apps zstd \
  && apt-get -y install bats binutils-dev binwalk dwarfdump ent foremost jq tmate tmux visidata xdotool xterm xvfb \
