@@ -15,7 +15,7 @@ from ...helpers import *
 lazy_load_module("bintropy")
 
 
-__all__ = ["is_exe", "Executable"] + _alter + _features
+__all__ = ["is_exe", "is_elf", "is_macho", "is_pe", "Executable"] + _alter + _features
 
 _N_SECTIONS = re.compile(r", \d+ sections$")
 _METHOD = """def {name}(self, *args, **kwargs):
@@ -23,7 +23,10 @@ _METHOD = """def {name}(self, *args, **kwargs):
     kwargs['img_name'] = self._filename(**kwargs)
     return {name}(*args, **kwargs)
 """
-is_exe = lambda e: Executable(e).format is not None
+is_exe   = lambda e: Executable(e).format is not None
+is_elf   = lambda e: is_exe(e) and Executable(e).group == "ELF"
+is_macho = lambda e: is_exe(e) and Executable(e).group == "Mach-O"
+is_pe    = lambda e: is_exe(e) and Executable(e).group == "PE"
 
 
 class Executable(Path):

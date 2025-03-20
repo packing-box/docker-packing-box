@@ -90,11 +90,6 @@ class Archive(Path):
                 except FileExistsError:
                     self._dst._created = False
             getattr(self, "extract", getattr(self, "mount", lambda: 0))()
-        else:
-            try:
-                getattr(self, "write")()
-            except AttributeError:
-                raise NotImplementedError(f"'{self.__class__.__name__}' has no 'write' method")
         return self
     
     def __exit__(self, *args, **kwargs):
@@ -111,7 +106,7 @@ class CABArchive(Archive):
     signature = lambda bytes: bytes[:4] == b"MSCF" and bytes[24:26] == b"\x03\x01"  # magic bytes and fixed version
     
     def extract(self):
-        execute_and_log(f"gcab -x \"{self}\" -n \"{self._dst}\"")
+        execute_and_log(f"gcab -x \"{self}\" -nC \"{self._dst}\"")
     
     def write(self):
         execute_and_log(f"gcab -c \"{self}\" \"{self._src}\"/*")
@@ -133,13 +128,13 @@ class GZArchive(Archive):
     signature = lambda bytes: bytes[:2] == b"\x1f\x8b"
     tool = "gzip"
     
-    def _write(self):
-        execute_and_log(f"tar cf \"{self.stem}.tar\" --directory=\"{self._src}\" .")
-        execute_and_log(f"{self.tool} \"{self.stem}.tar\"")
-    
     def extract(self):
         self._dst.mkdir(exist_ok=True)
         execute_and_log(f"tar xf \"{self}\" --directory=\"{self._dst}\"")
+    
+    def write(self):
+        execute_and_log(f"tar cf \"{self.stem}.tar\" --directory=\"{self._src}\" .")
+        execute_and_log(f"{self.tool} \"{self.stem}.tar\"")
 
 
 class BZ2Archive(GZArchive):
@@ -159,7 +154,7 @@ class WIMArchive(Archive):
         execute_and_log(f"wimlib-imagex extract \"{self}\" 1 --dest-dir \"{self._dst}\"")
     
     def write(self):
-        execute_and_log(f"wimlib-imagex capture \"{self._dst}\" \"{self}\"")
+        execute_and_log(f"wimlib-imagex capture \"{self._src}\" \"{self}\"")
 
 
 class ZIPArchive(Archive):

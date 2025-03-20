@@ -1,0 +1,27 @@
+#!/usr/bin/python3
+# -*- coding: UTF-8 -*-
+from tinyscript import *
+from pbox.core.executable import *
+from pbox.helpers.archive import filter_archive
+
+
+FILTERS = {
+    'exe':     is_exe,
+    'elf':     is_elf,
+    'elf-exe': lambda p: is_elf(p) and "executable" in Executable(p).filetype,
+    'elf-so':  lambda p: is_elf(p) and "shared object" in Executable(p).filetype,
+    'macho':   is_macho,
+    'pe':      is_pe,
+    'pe-dll':  lambda p: is_pe(p) and p.extension == ".dll",
+    'pe-exe':  lambda p: is_pe(p) and p.extension == ".exe",
+}
+
+
+if __name__ == '__main__':
+    parser.add_argument("input", type=ts.file_exists, help="path of source archive")
+    parser.add_argument("output", type=ts.file_does_not_exist, help="path of destination archive")
+    parser.add_argument("-f", dest="filter", choices=list(FILTERS.keys()), default="exe",
+                        help="function for archive filtering")
+    initialize()
+    filter_archive(args.input, args.output, FILTERS[args.filter], logger)
+
