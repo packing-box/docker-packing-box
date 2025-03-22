@@ -2,26 +2,44 @@
 # -*- coding: UTF-8 -*-
 from tinyscript import *
 from pbox.core.executable import *
-from pbox.helpers.archive import filter_archive
+from pbox.helpers.archive import filter_archive, _ARCHIVE_CLASSES
 
+
+__script__  = "FilterArchive"
+__version__ = "1.0"
+__doc__     = f"""
+This tool allows to filter out archives or images of different formats based on a predefined filter function.
+  Important note: It supports nested archives.
+  Supported formats: {",".join(sorted([cls.__name__[:-7] for cls in _ARCHIVE_CLASSES]))}
+"""
 
 FILTERS = {
-    'exe':     is_exe,
-    'elf':     is_elf,
-    'elf-exe': lambda p: is_elf(p) and "executable" in Executable(p).filetype,
-    'elf-so':  lambda p: is_elf(p) and "shared object" in Executable(p).filetype,
-    'macho':   is_macho,
-    'pe':      is_pe,
-    'pe-dll':  lambda p: is_pe(p) and p.extension == ".dll",
-    'pe-exe':  lambda p: is_pe(p) and p.extension == ".exe",
+    'exe':     ("executables only", is_exe),
+    'elf':     ("ELF only", is_elf),
+    'elf-exe': ("ELF of type executable", lambda p: is_elf(p) and "executable" in Executable(p).filetype),
+    'elf-so':  ("ELF of type shared object", lambda p: is_elf(p) and "shared object" in Executable(p).filetype),
+    'macho':   ("Mach Objects", is_macho),
+    'pe':      ("PE only", is_pe),
+    'pe-dll':  ("PE with extension DLL", lambda p: is_pe(p) and p.extension.lower() == ".dll"),
+    'pe-exe':  ("PE with extension EXE", lambda p: is_pe(p) and p.extension.lower() == ".exe"),
 }
+
+
+def threshold(v):
+    if 0 <= (v := int(v)) <= 100:
+        return v
+    raise ValueError("Bad threshold value (should belong to [0, 100])")
 
 
 if __name__ == '__main__':
     parser.add_argument("input", type=ts.file_exists, help="path of source archive")
     parser.add_argument("output", type=ts.file_does_not_exist, help="path of destination archive")
-    parser.add_argument("-f", dest="filter", choices=list(FILTERS.keys()), default="exe",
-                        help="function for archive filtering")
+    maxl = max(map(len, FILTERS.keys()))
+    funcs = "\n   - ".join(("{: <%d}" % maxl).format(n) + f": {x[0]}" for n, x in FILTERS.items())
+    parser.add_argument("-f", "--filter", choices=list(FILTERS.keys()), default="exe", metavar="F",
+                        help="function for archive filtering", note=f"F is any of\n   - {funcs}")
+    parser.add_argument("-s", "--similarity-threshold", type=threshold, help="threshold (percentage) for similarity",
+                        note="files with a similarity score strictly above this threshold are discarded")
     initialize()
-    filter_archive(args.input, args.output, FILTERS[args.filter], logger)
+    filter_archive(args.input, args.output, FILTERS[args.filter][1], args.similarity_threshold, logger)
 

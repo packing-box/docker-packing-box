@@ -1,5 +1,5 @@
 # -*- coding: UTF-8 -*-
-from tinyscript import re
+from tinyscript import hashlib, re
 from tinyscript.helpers import execute_and_log, set_exception, Path, TempPath
 
 
@@ -9,59 +9,85 @@ __all__ = ["filter_archive", "read_archive"]
 set_exception("BadFileFormat", "OSError")
 
 
-def filter_archive(path, output, filter_func=None, logger=None):
-    tp, out = TempPath(prefix="output_", length=16), Path(output)
-    for fp in read_archive(path, filter_func=filter_func, logger=logger):
-        np = tp.joinpath(getattr(fp, "_parent", Path("."))).joinpath(*fp.relative_to(fp._dst).parts)
+def filter_archive(path, output, filter_func=None, similarity_threshold=None, logger=None, keep_files=False):
+    from spamsum import match
+    from .files import ssdeep
+    tp, out, ssdeeps, cnt = TempPath(prefix="output_", length=16), Path(output), {}, 0
+    for fp in read_archive(path, filter_func=filter_func, logger=logger, keep_files=keep_files):
+        rp = fp.relative_to(fp._dst)
+        if similarity_threshold is not None:
+            h1, discard = ssdeep(fp), None
+            for h2, f2 in ssdeeps.items():
+                if (score := match(h1, h2)) > similarity_threshold:
+                    discard = f2
+                    break
+            if discard is not None:
+                if logger:
+                    logger.debug(f"Discarded \"{rp}\" because of similarity ({score}%) with \"{f2}\"")
+                continue
+            ssdeeps[h1] = str(rp)
+        np = tp.joinpath(getattr(fp, "_parent", Path("."))).joinpath(*rp.parts)
         np.dirname.mkdir(parents=True, exist_ok=True)
         fp.copy(np)
+        cnt += 1
     arch_cls, exts = None, []
     for cls in _ARCHIVE_CLASSES:
-        if out.extension.lower() == (ext := f".{cls.__name__[:-7].lower()}"):
+        if out.extension.split(".")[-1].lower() == (ext := cls.__name__[:-7].lower()):
             arch_cls = cls
         exts.append(ext)
     if arch_cls is None:
         raise ValueError(f"Output's extension shall be one of: {'|'.join(exts)}")
     with arch_cls(out, source=tp) as arch:
         arch.write()
+    if logger:
+        logger.info(f"Filtered {cnt} files out of {path}")
 
 
-def read_archive(path, destination=None, filter_func=None, logger=None):
+def read_archive(path, destination=None, filter_func=None, logger=None, origin=None, keep_files=False):
     p = None
     for cls in _ARCHIVE_CLASSES:
         try:
             p = cls(path, test=True)
             if logger:
-                logger.debug(f"Found {cls.__name__[:-7]}: {p}")
+                logger.info(f"Found {cls.__name__[:-7]}: {p}")
             break
         except BadFileFormat:
             pass
     if p is None:
         raise BadFileFormat("Unsuppored archive type")
-    with cls(path, destination=destination) as p:
+    cnt = 0
+    with cls(path, destination=destination, keep_files=keep_files) as p:
+        origin = origin or Path(f"[{p.filename}:{hashlib.sha256_file(p)}]")
         for fp in p._dst.walk():
-            if logger:
-                logger.debug(fp)
             if not fp.is_file():
                 continue
             fp._dst = p._dst
+            fp.origin = origin
             if callable(filter_func) and filter_func(fp):
+                if logger:
+                    logger.debug(origin.joinpath(fp.relative_to(p._dst)))
                 yield fp
+                cnt += 1
                 continue
-            if filter_func is None:
-                yield fp
             try:
-                for sfp in read_archive(fp, None, filter_func, logger):
+                for sfp in read_archive(fp, None, filter_func, logger, origin.joinpath(fp.relative_to(fp._dst))):
                     sfp._parent = fp.relative_to(fp._dst)
                     yield sfp
             except BadFileFormat:
-                pass
+                if filter_func is None:
+                    if logger:
+                        logger.debug(origin.joinpath(fp.relative_to(p._dst)))
+                    yield fp
+                    cnt += 1
+    if logger:
+        logger.info(f"Selected {cnt} files from {origin}")
 
 
 class Archive(Path):
     def __new__(cls, *parts, **kwargs):
         p = super(Archive, cls).__new__(cls, *parts, **kwargs)
         p.mode = 'wr'[(tst := kwargs.get('test', False)) or p.exists()]
+        p.__keep = kwargs.get('keep_files', False)
         if p.mode == 'r':
             if (src := kwargs.get('source')) is not None:
                 raise FileExistsError(f"Archive '{p}' already exists")
@@ -95,7 +121,7 @@ class Archive(Path):
     def __exit__(self, *args, **kwargs):
         if self.mode == 'r':
             getattr(self, "unmount", lambda: 0)()
-            if (p := self._dst)._created:
+            if (p := self._dst)._created and not self.__keep:
                 p.remove()
     
     def write(self):
@@ -110,18 +136,6 @@ class CABArchive(Archive):
     
     def write(self):
         execute_and_log(f"gcab -c \"{self}\" \"{self._src}\"/*")
-
-
-class ISOArchive(Archive):
-    signature = lambda bytes: all(bytes[n:n+5] == b"CD001" for n in [0x8001, 0x8801, 0x9001])
-    
-    def extract(self):
-        execute_and_log(f"7z x \"{self}\" -o\"{self._dst}\"")
-        # IMPORTANT NOTE: ISO cannot be mounted within a Docker box unless this gets run with full administrative
-        #                  privileges, hence using extraction with 7zip instead, which may take a while
-    
-    def write(self):
-        execute_and_log(f"genisoimage -o \"{self}\" \"{self._src}\"", silent=["-input-charset not specified"])
 
 
 class GZArchive(Archive):
@@ -147,11 +161,23 @@ class XZArchive(GZArchive):
     tool = "xz"
 
 
+class ISOArchive(Archive):
+    signature = lambda bytes: all(bytes[n:n+5] == b"CD001" for n in [0x8001, 0x8801])  # 0x9001
+    
+    def extract(self):
+        execute_and_log(f"7z x \"{self}\" -o\"{self._dst}\"")
+        # IMPORTANT NOTE: ISO cannot be mounted within a Docker box unless this gets run with full administrative
+        #                  privileges, hence using extraction with 7zip instead, which may take a while
+    
+    def write(self):
+        execute_and_log(f"genisoimage -o \"{self}\" \"{self._src}\"", silent=["-input-charset not specified"])
+
+
 class WIMArchive(Archive):
     signature = lambda bytes: bytes[:8] == b"MSWIM\0\0\0" or bytes[:8] == b"WLPWM\0\0\0"
     
     def extract(self):
-        execute_and_log(f"wimlib-imagex extract \"{self}\" 1 --dest-dir \"{self._dst}\"")
+        execute_and_log(f"wimlib-imagex extract \"{self}\" 1 --dest-dir \"{self._dst}\"", silent=["[WARNING] "])
     
     def write(self):
         execute_and_log(f"wimlib-imagex capture \"{self._src}\" \"{self}\"")
@@ -167,6 +193,7 @@ class ZIPArchive(Archive):
         execute_and_log(f"zip -r 9 \"{self}\" \"{self._src}\"")
 
 
-_ARCHIVE_CLASSES = [cls for cls in globals().values() if hasattr(cls, "__base__") and cls.__base__ is Archive]
+_ARCHIVE_CLASSES = [cls for cls in globals().values() if hasattr(cls, "__base__") and \
+                                                         cls.__base__.__name__.endswith("Archive")]
 __all__.extend([cls.__name__ for cls in _ARCHIVE_CLASSES])
 

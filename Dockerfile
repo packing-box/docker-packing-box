@@ -52,7 +52,7 @@ RUN apt-get -y install apt-transport-https apt-utils \
                        libtiff5-dev libudev-dev libxcursor-dev libxkbfile-dev libxml2-dev libxrandr-dev
 # install useful tools
 RUN apt-get -y install colordiff colortail cython3 dos2unix dosbox git golang kmod less ltrace meson nasm tree strace \
- && apt-get -y install gcab genisoimage iproute2 nftables nodejs npm rubygems swig vim weka yarnpkg \
+ && apt-get -y install gcab genisoimage iproute2 nftables nodejs npm rubygems ssdeep swig vim weka yarnpkg \
  && apt-get -y install python3-pip python3-pygraphviz python3-setuptools \
  && apt-get -y install bc curl ffmpeg imagemagick pev psmisc tesseract-ocr unrar unzip wget wimtools x11-apps zstd \
  && apt-get -y install bats binutils-dev binwalk dwarfdump ent foremost jq tmate tmux visidata xdotool xterm xvfb \
@@ -119,7 +119,8 @@ RUN pip3 install --user --no-warn-script-location --ignore-installed --break-sys
         angr capa lightgbm pandas pydl8.5 scikit-learn weka \
  && rm -f /home/user/.local/lib/python3.11/site-packages/unicorn/lib \
  && pip3 uninstall -y --break-system-packages unicorn \
- && pip3 install --user --no-warn-script-location --ignore-installed --break-system-packages unicorn
+ && pip3 install --user --no-warn-script-location --ignore-installed --break-system-packages unicorn \
+ && pip3 install --user --break-system-packages git+https://github.com/freakboy3742/pyspamsum
 # install ILSpyCmd
 RUN dotnet tool install --global ilspycmd
 # install Rust (user-level

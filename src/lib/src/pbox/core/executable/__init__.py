@@ -169,6 +169,10 @@ class Executable(Path):
     def block_entropy(self, blocksize=0, ignore_half_block_zeros=False, ignore_half_block_same_byte=True):
         return bintropy.entropy(self.read_bytes(), blocksize, ignore_half_block_zeros, ignore_half_block_same_byte)
     
+    def compare(self, file2):
+        from ...helpers.files import compare_files
+        return compare_files(self, file2)
+    
     def copy(self, extension=False, overwrite=False):
         # NB: 'dest' is not instantiated with the Executable class as it does not exist yet
         dest = Path(str(self.destination) + ["", self.extension.lower()][extension])
@@ -429,4 +433,9 @@ class Executable(Path):
     @cached_property
     def size(self):
         return super(Executable, self).size
+    
+    @cached_property
+    def ssdeep(self):
+        from ...helpers.files import ssdeep
+        return ssdeep(self)
 
