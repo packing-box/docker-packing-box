@@ -282,24 +282,40 @@ class Dataset(Entity):
         """ Walk the sources for random in-scope executables. """
         l = self.logger
         [l.info, l.debug][silent]("Searching for executables...")
-        m, candidates, packers = 0, [], [p.name for p in item_packer.Packer.registry]
+        m, candidates, packers, remove_after = 0, [], [p.name for p in item_packer.Packer.registry], []
         for cat, srcs in (sources or self.sources).items():
-            if all(c not in expand_formats(cat) for c in self._formats_exp):
+            exp_cat = expand_formats(cat)
+            if all(c not in exp_cat for c in self._formats_exp):
                 continue
             for src in srcs:
-                for exe in Path(src, expand=True).walk(filter_func=lambda x: x.is_file(), sort=False):
-                    exe = Executable(exe)
+                for path in Path(src, expand=True).walk(filter_func=lambda x: x.is_file(), sort=False):
+                    exe = Executable(path)
                     exe._dataset = self
-                    if exe.format is None or exe.format not in self._formats_exp or exe.stem in packers:
-                        continue  # ignore unrelated files and packers themselves
-                    if walk_all:
-                        yield exe
+                    if exe.format is not None and exe.format not in self._formats_exp or exe.stem in packers:
+                        continue  # ignore non-selected executables or packers themselves
+                    if exe.format is None:
+                        if not is_archive(path, l):
+                            continue  # ignore unrelated files
+                        for exe in read_archive(path, filter_func=lambda p: p.format in self._formats_exp,
+                                                logger=[l, None][silent], path_cls=Executable, keep_files=True):
+                            if exe._dst not in remove_after:
+                                remove_after.append(exe._dst)
+                            exe._dataset = self
+                            if walk_all:
+                                yield exe
+                            else:
+                                candidates.append(exe)
                     else:
-                        candidates.append(exe)
+                        if walk_all:
+                            yield exe
+                        else:
+                            candidates.append(exe)
         if len(candidates) > 0 and not walk_all:
             random.shuffle(candidates)
             for exe in candidates:
                 yield exe
+        for r in remove_after:
+            r.remove()
     
     @backup
     def alter(self, new_name=None, packed_only=False, percentage=1., query=None, alteration=None, **kw):

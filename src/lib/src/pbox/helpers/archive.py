@@ -3,7 +3,7 @@ from tinyscript import hashlib, re
 from tinyscript.helpers import execute_and_log, set_exception, Path, TempPath
 
 
-__all__ = ["filter_archive", "read_archive"]
+__all__ = ["filter_archive", "get_archive_class", "is_archive", "read_archive"]
 
 
 set_exception("BadFileFormat", "OSError")
@@ -43,24 +43,35 @@ def filter_archive(path, output, filter_func=None, similarity_threshold=None, lo
         logger.info(f"Filtered {cnt} files out of {path}")
 
 
-def read_archive(path, destination=None, filter_func=None, logger=None, origin=None, keep_files=False):
-    p = None
+def get_archive_class(path, logger=None):
     for cls in _ARCHIVE_CLASSES:
         try:
             p = cls(path, test=True)
             if logger:
                 logger.info(f"Found {cls.__name__[:-7]}: {p}")
-            break
+            return cls
         except BadFileFormat:
             pass
-    if p is None:
-        raise BadFileFormat("Unsuppored archive type")
+    raise BadFileFormat("Unsuppored archive type")
+
+
+def is_archive(path, logger=None):
+    try:
+        get_archive_class(path, logger)
+        return True
+    except BadFileFormat:
+        return False
+
+
+def read_archive(path, destination=None, filter_func=None, logger=None, path_cls=None, origin=None, keep_files=False):
     cnt = 0
-    with cls(path, destination=destination, keep_files=keep_files) as p:
+    with get_archive_class(path, logger)(path, destination=destination, keep_files=keep_files) as p:
         origin = origin or Path(f"[{p.filename}:{hashlib.sha256_file(p)}]")
         for fp in p._dst.walk():
             if not fp.is_file():
                 continue
+            if path_cls is not None:
+                fp = path_cls(fp)
             fp._dst = p._dst
             fp.origin = origin
             if callable(filter_func) and filter_func(fp):
@@ -70,7 +81,8 @@ def read_archive(path, destination=None, filter_func=None, logger=None, origin=N
                 cnt += 1
                 continue
             try:
-                for sfp in read_archive(fp, None, filter_func, logger, origin.joinpath(fp.relative_to(fp._dst))):
+                for sfp in read_archive(fp, None, filter_func, logger, path_cls,
+                                        origin.joinpath(fp.relative_to(fp._dst))):
                     sfp._parent = fp.relative_to(fp._dst)
                     yield sfp
             except BadFileFormat:
