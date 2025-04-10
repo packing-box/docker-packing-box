@@ -102,6 +102,7 @@ bi.STATUS   = lazy_object(__init({
                             'installed':     ("☑", "orange"),
                             'not installed': ("☒", "red"),
                             'ok':            ("☑", "green"),
+                            'test':          ("☐", "grey"),
                             'todo':          ("☐", "grey"),
                             'useless':       ("ⓘ", "grey"),
                         }))

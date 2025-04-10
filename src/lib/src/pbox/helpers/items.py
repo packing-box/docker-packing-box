@@ -62,6 +62,8 @@ lazy_load_module("yaml", postload=__init_yaml)
 
 
 _concatn  = lambda l, n: reduce(lambda a, b: a[:n]+b[:n], l, stop=lambda x: len(x) > n)
+_isin     = lambda s, l: s in l  # used with expressions, for avoiding error with '"..." in [...]' when loading as YAML
+_last     = lambda o, sep=".": str(o).split(sep)[-1]
 _len      = lambda i: sum(1 for _ in i) if is_generator(i) else len(i)
 _max      = lambda l, *a, **kw: None if len(l2 := [x for x in l if x is not None]) == 0 else max(l2, *a, **kw)
 _min      = lambda l, *a, **kw: None if len(l2 := [x for x in l if x is not None]) == 0 else min(l2, *a, **kw)
@@ -134,8 +136,9 @@ class dict2(dict):
     def __call__(self, data, silent=False, **kwargs):
         d = {k: getattr(random, k) for k in ["choice", "randint", "randrange", "randstr"]}
         d.update({'apply': _apply, 'concatn': _concatn, 'failsafe': _fail_safe, 'find': str.find,
-                  'hex2bytes': bytearray.fromhex, 'len': _len, 'lower': lambda s: s.lower(), 'max': _max, 'min': _min,
-                  'printable': string.printable, 'randbytes': _randbytes, 'repeatn': _repeatn, 'select': _select(),
+                  'hex2bytes': bytearray.fromhex, 'isin': _isin, 'last': _last, 'len': _len,
+                  'lower': lambda s: s.lower(), 'max': _max, 'min': _min, 'printable': string.printable,
+                  'randbytes': _randbytes, 'repeatn': _repeatn, 'select': _select(),
                   'select_section_name': _select(_sec_name), 'size': _size, 'value': _val, 'zeropad': zeropad})
         d.update(_EVAL_NAMESPACE)
         d.update(data)

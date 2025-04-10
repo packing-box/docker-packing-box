@@ -97,6 +97,9 @@ class AbstractParsedExecutable(ABC, CustomReprMixin, GetItemMixin):
             return
         return bintropy.entropy(b"".join(_rb((self.section(s) if isinstance(s, str) else s).content) for s in sections))
     
+    def has_section(self, name_or_section):
+        return getattr(name, "name", name) in self.section_names()
+    
     def modify(self, modifier, **kw):
         modifier(self.parsed, **kw)
         self.build()
@@ -285,7 +288,11 @@ def get_part_class(clsname, **mapping):
             for attr in self.__slots__:
                 if attr == "binary":
                     self.binary = binary
-                    self._original = self.binary.section(name, original=True)
+                    try:
+                        self._original = self.binary.section(name, original=True)
+                    except:
+                        print("DEBUG", name)
+                        raise
                     continue
                 value = mapping.get(attr, attr)
                 if isinstance(value, (type(lambda: 0), cached_property)):

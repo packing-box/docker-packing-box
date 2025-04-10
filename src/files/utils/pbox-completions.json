@@ -1,7 +1,7 @@
 {
   "alteration": {
-    "browse|export|inspect|show": null,
-    "select": "FILES:yml"
+    "browse|export|inspect": null,
+    "select|show": "FILES:yml"
   },
   "dataset": {
     "*": "`list-datasets`",
@@ -35,8 +35,9 @@
       "purge": "ALL `list-experiments`"}, "_NAME = None"]
   ],
   "feature": {
-    "browse|export|inspect|show": null,
-    "select": "FILES:yml"
+    "compute": "FILES:*",
+    "export": null,
+    "select|show": "FILES:yml"
   },
   "model": {
     "*": "`list-models`",
