@@ -77,10 +77,12 @@ datasets/
 experiments*/
 /*.png
 /*.exe
+/*.elf
 *.EXE
 /*.xlsx
 /*.csv
 /*.bak
+/*.asm
 
 # config files
 #src/conf/*.yml
