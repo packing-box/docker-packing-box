@@ -103,6 +103,7 @@ PESHiELD
 .petite
 petite
 #.pinclie  # used by packager for creating an installer
+.Polyene
 ProCrypt
 .profile
 .q
