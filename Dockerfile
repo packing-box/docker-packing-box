@@ -10,7 +10,7 @@ ARG UBIN=$HOME/.local/bin \
     PBOX=$UOPT/tools/packing-box \
     FILES=src/files
 # start creating the box
-FROM ubuntu:rolling AS base
+FROM ubuntu:24.04 AS base
 LABEL org.opencontainers.image.authors="alexandre.dhondt@gmail.com"  \
       org.opencontainers.image.created="Feb 5, 2021" \
       org.opencontainers.image.licenses="GPL-3.0" \
@@ -65,7 +65,7 @@ RUN apt-get -y install dotnet-sdk-8.0
 # install wine (for running Windows software on Linux)
 RUN dpkg --add-architecture i386 \
  && wget -O /etc/apt/keyrings/winehq-archive.key https://dl.winehq.org/wine-builds/winehq.key \
- && wget -NP /etc/apt/sources.list.d/ https://dl.winehq.org/wine-builds/ubuntu/dists/jammy/winehq-jammy.sources \
+ && wget -NP /etc/apt/sources.list.d/ https://dl.winehq.org/wine-builds/ubuntu/dists/noble/winehq-noble.sources \
  && apt-get update \
  && apt-get -y install --install-recommends winehq-stable wine32 winetricks \
  && mkdir /opt/wine-stable/share/wine/gecko \
@@ -117,7 +117,7 @@ RUN python3 -m pip install --user --upgrade --break-system-packages pip
 RUN pip3 install --user --no-warn-script-location --ignore-installed --break-system-packages \
         capstone jinja2 meson poetry pythonnet thefuck tinyscript tldr vt-py \
  && pip3 install --user --no-warn-script-location --ignore-installed --break-system-packages \
-        angr capa lightgbm pandas pydl8.5 scikit-learn weka \
+        angr capa lightgbm pandas pydl8.5 scikit-learn scikit-learn-extra weka \
  && rm -f /home/user/.local/lib/python3.11/site-packages/unicorn/lib \
  && pip3 uninstall -y --break-system-packages unicorn \
  && pip3 install --user --no-warn-script-location --ignore-installed --break-system-packages unicorn \
