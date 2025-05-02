@@ -12,6 +12,9 @@ This tool allows to filter out archives or images of different formats based on 
   Important note: It supports nested archives.
   Supported formats: {",".join(sorted([cls.__name__[:-7] for cls in _ARCHIVE_CLASSES]))}
 """
+__examples__ = [
+    "Win10_22H2_English_x64v1.iso output.iso -f pe-exe -s 90",
+]
 
 FILTERS = {
     'exe':     ("executables only", is_exe),
