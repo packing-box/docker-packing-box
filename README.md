@@ -35,15 +35,14 @@ Building the image:
 
 Starting it up with the current working directory mounted as `/mnt/share` in the container:
 
-### Linux
-```bash
-# docker run -it -h packing-box -v `pwd`:/mnt/share dhondta/packing-box
-```
 ### Windows
 ```powershell
 # docker run -it -h packing-box -v ${pwd}:/mnt/share dhondta/packing-box
 ```
-```console
+### Linux
+```bash
+# docker run -it -h packing-box -v `pwd`:/mnt/share dhondta/packing-box
+
 ┌──[user@packing-box]──[/mnt/share]────────           ────[172.17.0.2]──[12:34:56]──[0.12]────
 $ 
 ```
