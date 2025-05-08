@@ -1,17 +1,28 @@
 #!/usr/bin/python3
 # -*- coding: UTF-8 -*-
+from die import database_path, scan_file, ScanFlags
 from pboxtools import *
+
+
+def execute(name, **kwargs):
+    try:
+        return json.loads(scan_file(kwargs['path'], ScanFlags.RESULT_AS_JSON, str(database_path / "db"))), ""
+    except Exception as e:
+        return "", str(e)
 
 
 def parse(output, **kwargs):
     r = []
-    for l in output.splitlines():
-        l = re.sub(r"\x1b\[0\;?\d*m", "", l)
-        with suppress(AttributeError):
-            r.append(re.search(r"^[^:]+\s+(?:Packer|Protector):\s+(.+)", l).group(1))
+    for d in output.get('detects', []):
+        for v in d.get('values', []):
+            if v['type'] == "Packer":
+                n = v['name']
+                if vs := v.get('version'):
+                    n += " " + vs
+                r.append(n)
     return r
 
 
 if __name__ == "__main__":
-    run("DIE", parse_func=parse)
+    run("DIE", exec_func=execute, parse_func=parse)
 

@@ -72,20 +72,8 @@ DIE:
   formats:
     - All
   install:
-    - gitr: https://github.com/horsicq/DIE-engine.git
-    - cd:   $TMP/die-engine
-    - exec:
-      - wget -q https://raw.githubusercontent.com/horsicq/DIE-engine/5ce44b7a9551804f93b2f9ade6d71f4f1fc6922c/build_lin64.sh
-      - chmod +x build_lin64.sh
-      - ./build_lin64.sh 2>/dev/null
-      - find $TMP/die-engine/release -type f -exec tar xzf {} -C $OPT \;
-      - tar xf $TMP/die.tar.xz -C $OPT/die_lin64_portable
-      - cp $TMP/die-engine/release_version.txt $OPT/die_lin64_portable/
-      - sed -i 's/\"\?\$\*\"\?/\"\$\*\"/g' $OPT/die_lin64_portable/diec.sh
-    - rm: $TMP/die-engine
+    - pip: die-python
   license: mit
-  silent:
-    - "\\+{1,2} ([a-z]{2,12}|[A-Z]+([-_][A-Z]+)*)"
   source:  https://github.com/horsicq/Detect-It-Easy
   status:  ok
   version: $OPT/die_lin64_portable/release_version.txt
