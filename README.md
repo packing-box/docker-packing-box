@@ -105,7 +105,7 @@ The *PREPARE* phase, especially *dataset generation*, is achieved with the [`dat
 
 **Operation** | **Description** | **Command**
 :---:| --- | ---
-**`make`** ![](https://raw.githubusercontent.com/packing-box/docker-packing-box/main/docs/pages/imgs/dataset-operations-make.png) | Make a new dataset, either fully packed or mixed with not-packed samples | `# dataset make dataset -c PE -n 200 -s /path/to/pe`
+**`make`** ![](https://raw.githubusercontent.com/packing-box/docker-packing-box/main/docs/pages/imgs/dataset-operations-make.png) | Make a new dataset, either fully packed or mixed with not-packed samples | `# dataset make dataset -f PE -n 200 -s /path/to/pe`
 **`merge`** ![](https://raw.githubusercontent.com/packing-box/docker-packing-box/main/docs/pages/imgs/dataset-operations-merge.png) | Merge two datasets | `# dataset merge dataset dataset2`
 **`select`** ![](https://raw.githubusercontent.com/packing-box/docker-packing-box/main/docs/pages/imgs/dataset-operations-select.png) | Select a subset of a dataset to create a new one | `# dataset select dataset dataset2 -q "format == 'PE32'"`
 **`update`** ![](https://raw.githubusercontent.com/packing-box/docker-packing-box/main/docs/pages/imgs/dataset-operations-update.png) | Update a dataset with new samples given their labels | `# dataset update dataset -l labels.json -s folder-of-executables`
