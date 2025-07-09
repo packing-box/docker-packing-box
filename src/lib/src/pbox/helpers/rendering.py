@@ -42,7 +42,8 @@ def render(*elements, **kw):
         for e in elements:
             if hasattr(e, "md"):
                 if isinstance(e, Table):
-                    opt = {'show_header': True, 'header_style': "bold", 'highlight': True}
+                    opt = {'show_header': True, 'show_footer': e.column_footers is not None,
+                           'header_style': "bold", 'highlight': True}
                     if e.title is not None:
                         opt['title'] = e.title
                         opt['title_justify'] = "left"
@@ -50,8 +51,9 @@ def render(*elements, **kw):
                     if getattr(e, "borderless", True):
                         opt['box'] = SIMPLE_HEAD
                     table = RichTable(**opt)
-                    for col in e.column_headers:
-                        table.add_column(col, justify="center")
+                    for i, col in enumerate(e.column_headers):
+                        table.add_column(col, justify="center",
+                                         footer=e.column_footers[i] if e.column_footers is not None else None)
                     for row in e.data:
                         if not all(set(str(cell).strip()) == {"-"} for cell in row):
                             table.add_row(*[RichText(str(cell), justify="left") if cell not in _STATUS_CONV else \

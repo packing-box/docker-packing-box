@@ -38,6 +38,7 @@ class Scores:
         self._log = dataset.logger
         self.__fbf = file_balance_fields
         self.__st = similarity_threshold
+        self.__w = _WEIGHTS
     
     @save_figure
     def plot(self, **kw):
@@ -47,8 +48,8 @@ class Scores:
         # custom color depending on the [0., 1.] scale of the overall score with a colormap from red to green
         color = LinearSegmentedColormap.from_list("score", ["red", "yellow", "green"])(self.overall)
         # format data according to individual scores and weighted scores (as they contribute to the overall score)
-        data = [{m: getattr(self, m) for m in _WEIGHTS.keys() if getattr(self, m) is not None},
-                {m: getattr(self, m) * w for m, w in _WEIGHTS.items() if getattr(self, m) is not None}]
+        data = [{m: getattr(self, m) for m in self.__w.keys() if getattr(self, m) is not None},
+                {m: getattr(self, m) * w for m, w in self.__w.items() if getattr(self, m) is not None}]
         # create the radar chart, starting from the north and clockwise
         fig, ax = plt.subplots(figsize=(4, 4), subplot_kw={'polar': True})
         ax.set_theta_zero_location('N')
@@ -73,8 +74,8 @@ class Scores:
             scores = list(d.values())
             scores += scores[:1]
             ax.fill(angles, scores, color=c1, alpha=.6), ax.plot(angles, scores, color=c2, linewidth=2)
-        ax.set_xticklabels(labels, **kw['xlabel-font'])
         ax.set_xticks(angles[:-1])
+        ax.set_xticklabels(labels, **kw['xlabel-font'])
         ax.set_yticklabels([])
         plt.legend([Line2D([0], [0], c="silver", lw=3), Line2D([0], [0], c=color, lw=3)],
                    ["Non-weighted scores", "Contribution to overall score"],
@@ -82,11 +83,29 @@ class Scores:
         plt.tight_layout(rect=[0, 0, 1, 1. - kw['suptitle-font']['fontsize'] / h_pixels])
         return f"{self._ds.basename}/quality"
     
-    @cached_property
+    @property
     def overall(self):
-        scores = {getattr(self, m): w for m, w in _WEIGHTS.items() \
+        scores = {getattr(self, m): w for m, w in self.__w.items() \
                   if self._log.debug(f"computing {m}...") or getattr(self, m) is not None}
         return np.average(list(scores.keys()), weights=list(scores.values()))
+    
+    @property
+    def scores(self):
+        return {m: v for m in self.__w.keys() if (v := getattr(self, m)) is not None}
+    
+    @property
+    def weights(self):
+        return {m: w for m, w in self.__w.items() if getattr(self, m) is not None}
+    
+    @weights.setter
+    def weights(self, weights):
+        if not isinstance(weights, dict):
+            self._log.error("weights shall be a dictionary with metric names as keys and weights as values")
+            return
+        for m in _WEIGHTS.keys():
+            if m not in weights:
+                self._log.warning(f"weight '{m}' not found in the input dictionary")
+        self.__w = weights
     
     # ----------------------------------------------- INDIVIDUAL METRICS -----------------------------------------------
     @cached_property

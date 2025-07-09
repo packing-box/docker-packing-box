@@ -18,6 +18,7 @@ __examples__    = [
     "alter my-dataset --packed-only",
     "alter my-dataset --percentage 30",
     "alter my-dataset --query \"label == '-'\"",
+    "assess my-dataset --similarity-threshold .8 --plot",
     "browse my-dataset --query \"label == 'upx'\"",
     "convert my-dataset --new-name my-fileless-dataset",
     "export my-dataset --format packed-samples --output my-dataset-files -n 100",
@@ -61,9 +62,14 @@ if __name__ == '__main__':
     alter.add_argument("-n", "--new-name", help="name for the new altered dataset",
                        note="if None, the original dataset is altered")
     agroup = alter.add_mutually_exclusive_group()
-    agroup.add_argument("-p", "--percentage", type=percentage, help="percentage of samples to be altered")
+    agroup.add_argument("-p", "--percentage", type=percentage, default=1., help="percentage of samples to be altered")
     add_argument(agroup, "query", default=None)
     agroup.add_argument("--packed-only", action="store_true", help="alter packed samples only")
+    assess = add_argument(cmds.add_parser("assess", category="read",
+                                          help="show the quality assesment scores of the target dataset"), "dsname")
+    assess.add_argument("--plot", action="store_true", help="also plot a radar chart of the quality scores")
+    assess.add_argument("-s", "--similarity-threshold", type=percentage2, default=.9,
+                        help="threshold for comparing samples using ssdeep")
     browse = add_argument(cmds.add_parser("browse", category="read",
                                           help="compute features and browse the resulting data"), "dsname")
     bgroup = browse.add_mutually_exclusive_group()

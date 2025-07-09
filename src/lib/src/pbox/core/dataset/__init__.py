@@ -3,6 +3,7 @@ from tinyscript import colored, hashlib, json, os, random, time
 from tinyscript.helpers import confirm, human_readable_size, slugify, Path, TempPath
 from tinyscript.report import *
 
+from .scoring import *
 from .visualization import *
 from ..executable import *
 from ..items import Detector
@@ -364,6 +365,21 @@ class Dataset(Entity):
         self._metadata['altered'] = sum(1 for x in set(h for hl in self._alterations.values() for h in hl)) / len(self)
         self.__change = True
         self._save()
+    
+    def assess(self, file_balance_fields=("format", "signature", "size"), similarity_threshold=.9, plot=False, **kw):
+        """ Assesss the quality of a dataset by computing some metrics. """
+        self.logger.debug("computing quality scores...")
+        s = Scores(self, file_balance_fields=file_balance_fields, similarity_threshold=similarity_threshold)
+        if len(self) > 0:
+            l = max(map(len, s.scores.keys()))
+            render(Section("Dataset quality"),
+                   Table([[m.replace("_", " ").title(), f"{v:.3f}", s.weights[m]] for m, v in sorted(s.scores.items())],
+                         column_headers=["Name", "Score", "Weight"],
+                         column_footers=["Overall", f"{s.overall:.3f}", ""]))
+            if plot:
+                s.plot()
+        else:
+            self.logger.warning("Empty dataset")
     
     def browse(self, query=None, no_feature=False, **kw):
         if not no_feature:

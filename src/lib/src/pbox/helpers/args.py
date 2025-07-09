@@ -7,7 +7,8 @@ from .formats import expand_formats
 
 
 __all__ = ["add_argument", "characteristic_identifier", "expand_parameters", "figure_options", "filter_args",
-           "item_exists", "legend_location", "percentage", "scenario_identifier", "set_yaml", "yaml_config"]
+           "item_exists", "legend_location", "percentage", "percentage2", "scenario_identifier", "set_yaml",
+           "yaml_config"]
 
 
 def _fix_args(f):
@@ -256,6 +257,13 @@ def percentage(p):
     p = float(p)
     if 0. <= p <= 100.:
         return p / 100.
+    raise ValueError
+
+
+def percentage2(p):
+    p = float(p)
+    if 0. <= p <= 1.:
+        return p
     raise ValueError
 
 
