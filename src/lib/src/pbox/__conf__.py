@@ -11,6 +11,7 @@ from .helpers.config import *
 
 filterwarnings("ignore", "Trying to unpickle estimator DecisionTreeClassifier")
 filterwarnings("ignore", "Behavior when concatenating bool-dtype and numeric-dtype arrays is deprecated")
+filterwarnings("ignore", "Cluster 1 is empty!")
 simplefilter("ignore", DeprecationWarning)
 simplefilter("ignore", FutureWarning)
 simplefilter("ignore", ResourceWarning)

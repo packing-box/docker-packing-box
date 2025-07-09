@@ -63,6 +63,7 @@ bi.STATUS_ENABLED = lazy_object(lambda: [s for s in STATUS.keys() if s not in ST
 
 
 # terminal
+bi.ACRONYMS = ["cfg"]
 bi.COLORMAP = {
     'red':        (255, 0,   0),
     'lightCoral': (240, 128, 128),
@@ -118,7 +119,7 @@ bi.RECURSION_LIMIT = sys.getrecursionlimit()
 bi.ANGR_ENGINES = ["default", "pcode", "vex"]
 bi.CFG_ALGORITHMS = ["emulated", "fast"]
 bi.DATA_EXTENSIONS = [".json", ".txt"]
-bi.EXE_METADATA = ["realpath", "format", "signature", "size", "ctime", "mtime"]
+bi.EXE_METADATA = ["realpath", "format", "signature", "size", "ctime", "mtime"]  # , "ssdeep"
 bi.FORMATS = {
     'All':    ["ELF", "Mach-O", "PE"],
     'ELF':    ["ELF32", "ELF64"],

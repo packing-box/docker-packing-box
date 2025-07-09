@@ -51,7 +51,7 @@ def _characteristic_scatter_plot(dataset, characteristic=None, multiclass=True, 
                 else:
                     kw['c'] = {-1: "gray", 0: "green", 1: "red"}[value]
             plt.scatter(X_reduced[X[characteristic] == value, 0], X_reduced[X[characteristic] == value, 1], **kw)
-            plt.legend(loc='upper left', bbox_to_anchor=(1, 1), fontsize=fsize)  
+            plt.legend(loc='upper left', bbox_to_anchor=(1, 1), fontsize=fsize)
     return f"{dataset.basename}/characteristic/{prefix}{characteristic}{suffix}"
 
 

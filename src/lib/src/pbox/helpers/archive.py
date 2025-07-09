@@ -15,10 +15,11 @@ def filter_archive(path, output, filter_func=None, similarity_threshold=None, lo
     tp, out, ssdeeps, cnt = TempPath(prefix="output_", length=16), Path(output), {}, 0
     for fp in read_archive(path, filter_func=filter_func, logger=logger, keep_files=keep_files):
         rp = fp.relative_to(fp._dst)
+        # similarity_threshold=None means do not filter anything
         if similarity_threshold is not None:
             h1, discard = ssdeep(fp), None
             for h2, f2 in ssdeeps.items():
-                if (score := match(h1, h2)) > similarity_threshold:
+                if (score := match(h1, h2)) >= similarity_threshold:
                     discard = f2
                     break
             if discard is not None:

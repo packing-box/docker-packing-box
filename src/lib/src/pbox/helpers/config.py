@@ -232,7 +232,7 @@ class Config:
         from .rendering import render
         r = []
         for s in self.itersections():
-            r.append(Section(s.name.capitalize()))
+            r.append(Section(s.name.upper() if s.name in ACRONYMS else s.name.capitalize()))
             mlen = max(map(len, s.keys()))
             r.append(List(list(map(lambda opt: f"{opt.ljust(mlen)} = {self[opt]}", s.keys()))))
         render(*r)

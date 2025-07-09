@@ -28,6 +28,7 @@ def configure_style(**kw):
     kw['suptitle-font'] = {'fontfamily': kw.pop('suptitle_font_family', config['font_family']),
                            'fontsize': kw.pop('suptitle_font_size', int(config['font_size'] * 1.2)),
                            'fontweight': kw.pop('suptitle_font_weight', "normal")}
+    kw['legend-font'] = {'fontsize': kw.pop('legend_font_size', int(config['font_size'] * .8))}
     for p in "xy":
         kw[f'{p}label-font'] = {'fontfamily': kw.pop(f'{p}label_font_family', config['font_family']),
                                 'fontsize': kw.pop(f'{p}label_font_size', config['font_size']),

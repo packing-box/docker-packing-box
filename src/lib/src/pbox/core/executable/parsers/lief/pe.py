@@ -120,6 +120,19 @@ def __init_pe():
             return self._parsed.header.machine.value
         
         @property
+        def portability(self):
+            score = 1.0
+            if ".reloc" not in self.section_names():
+                score -= 0.3
+            if not self._parsed.header.characteristics & 0x40:
+                score -= 0.3
+            if not self._parsed.has_imports:
+                score -= 0.2
+            if self._parsed.optional_header.subsystem.value not in [2, 3]:
+                score -= 0.2
+            return score
+        
+        @property
         def resources(self):
             class ResourceDirectory(CustomReprMixin, GetItemMixin):
                 __slots__ = ["characteristics", "depth", 'id', "name", "numberof_id_entries", "numberof_name_entries",

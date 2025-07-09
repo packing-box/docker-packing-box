@@ -327,15 +327,19 @@ def get_part_class(clsname, **mapping):
             return bintropy.entropy(_rb(self.content))
         
         @property
-        def slack_space(self):
-            return max(0, getattr(self, "raw_data_size", getattr(self, "physical_size")) - self.virtual_size)
-        
-        @property
         def is_standard(self):
             if self.binary is None:
                 return
             std_field = "standard_" + ["sections", "segments"][self.__class__.__name__.endswith('Segment')]
             return (sn := lambda s: getattr(s, "real_name", s.name))(self) in map(sn, getattr(self.binary, std_field))
+        
+        @property
+        def portability(self):
+            return 1.
+        
+        @property
+        def slack_space(self):
+            return max(0, getattr(self, "raw_data_size", getattr(self, "physical_size")) - self.virtual_size)
         
         def sections_with_slack_space(self, length=1):
             return {s for s in self if s.virtual_size - s.raw_data_size >= length}
