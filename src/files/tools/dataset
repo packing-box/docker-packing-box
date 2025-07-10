@@ -18,7 +18,7 @@ __examples__    = [
     "alter my-dataset --packed-only",
     "alter my-dataset --percentage 30",
     "alter my-dataset --query \"label == '-'\"",
-    "assess my-dataset --similarity-threshold .8 --plot",
+    "assess my-dataset --similarity-threshold 80 --plot",
     "browse my-dataset --query \"label == 'upx'\"",
     "convert my-dataset --new-name my-fileless-dataset",
     "export my-dataset --format packed-samples --output my-dataset-files -n 100",
@@ -68,7 +68,7 @@ if __name__ == '__main__':
     assess = add_argument(cmds.add_parser("assess", category="read",
                                           help="show the quality assesment scores of the target dataset"), "dsname")
     assess.add_argument("--plot", action="store_true", help="also plot a radar chart of the quality scores")
-    assess.add_argument("-s", "--similarity-threshold", type=percentage2, default=.9,
+    assess.add_argument("-s", "--similarity-threshold", type=percentage2, default=90,
                         help="threshold for comparing samples using ssdeep")
     browse = add_argument(cmds.add_parser("browse", category="read",
                                           help="compute features and browse the resulting data"), "dsname")
@@ -127,8 +127,7 @@ if __name__ == '__main__':
                       help="number of executables for the output dataset")
     make.add_argument("-p", "--packer", action="extend", nargs="*", type=lambda p: Packer.get(p),
                       help="packer to be used")
-    make.add_argument("-s", "--source-dir", action="extend", nargs="*", type=lambda p: ts.Path(p, expand=True),
-                      help="executables source directory to be included")
+    add_argument(make, "source-dir", "similarity-threshold")
     merge = cmds.add_parser("merge", category="create/modify/delete", help="merge two datasets")
     add_argument(merge, "dsname")
     add_argument(merge, "dsname", argname="name2", help="name of the dataset to merge")
@@ -204,8 +203,7 @@ if __name__ == '__main__':
     add_argument(update, "labels")
     add_argument(update, "number", dest="n")
     update.add_argument("-r", "--refresh", action="store_true", help="refresh labels of already existing executables")
-    update.add_argument("-s", "--source-dir", action="extend", nargs="*", type=lambda p: ts.Path(p, expand=True),
-                        help="executables source directory to be included")
+    add_argument(update, "source-dir", "similarity-threshold")
     view = cmds.add_parser("view", category="read", help="view executables filtered from a dataset")
     add_argument(view, "dsname", "query")
     initialize(noargs_action="usage")

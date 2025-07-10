@@ -1,5 +1,6 @@
 # -*- coding: UTF-8 -*-
 from tinyscript import functools, inspect, re
+from tinyscript.helpers import Path
 from tinyscript.helpers.data.types import *
 
 from .files import Locator
@@ -119,6 +120,12 @@ def add_argument(parser, *names, **kwargs):
         elif name == "reduction-algorithm":
             parser.add_argument("-a", "--reduction-algorithm", metavar="ALGO", default="PCA", choices=("ICA", "PCA"),
                                 help="dimensionality reduction algorithm")
+        elif name == "similarity-threshold":
+            parser.add_argument("-t", "--similarity-threshold", type=percentage2,
+                                help="threshold for excluding similar samples", note="belongs to ]0,100]")
+        elif name == "source-dir":
+            parser.add_argument("-s", "--source-dir", action="extend", nargs="*", type=lambda p: Path(p, expand=True),
+                                help="executables source directory to be included")
         elif name == "title":
             parser.add_argument("-t", "--title", help="title for the figure", note="if not specified, it is generated")
         elif name == "true-class":
@@ -254,15 +261,13 @@ def model_exists(force=False):
 
 
 def percentage(p):
-    p = float(p)
-    if 0. <= p <= 100.:
+    if 0. <= (p := float(p)) <= 100.:
         return p / 100.
     raise ValueError
 
 
 def percentage2(p):
-    p = float(p)
-    if 0. <= p <= 1.:
+    if 0. <= (p := float(p)) <= 100.:
         return p
     raise ValueError
 

@@ -279,11 +279,24 @@ class Dataset(Entity):
             self.path.joinpath("files").remove()
         self.__change = False
     
-    def _walk(self, walk_all=False, sources=None, silent=False):
+    def _walk(self, walk_all=False, sources=None, silent=False, similarity_threshold=None):
         """ Walk the sources for random in-scope executables. """
         l = self.logger
         [l.info, l.debug][silent]("Searching for executables...")
-        m, candidates, packers, remove_after = 0, [], [p.name for p in item_packer.Packer.registry], []
+        m, candidates, packers, remove_after, ssdeeps = 0, [], [p.name for p in item_packer.Packer.registry], [], set()
+        # inner function for checking for similar files
+        def _is_similar(e):
+            if similarity_threshold is None:
+                return
+            from spamsum import match
+            if e.ssdeep in ssdeeps:
+                return e.ssdeep
+            for s in ssdeeps:
+                if match(e.ssdeep, s) >= similarity_threshold:
+                    ssdeeps.add(e.ssdeep)
+                    return s
+            ssdeeps.add(e.ssdeep)
+        # walk input sources
         for cat, srcs in (sources or self.sources).items():
             exp_cat = expand_formats(cat)
             if all(c not in exp_cat for c in self._formats_exp):
@@ -301,12 +314,18 @@ class Dataset(Entity):
                                                 logger=[l, None][silent], path_cls=Executable, keep_files=True):
                             if exe._dst not in remove_after:
                                 remove_after.append(exe._dst)
+                            if (s := _is_similar(exe)) is not None:
+                                l.debug(f"discarded similar file {exe} (ref: {s})")
+                                continue  # ignore files with similarity above the given threshold
                             exe._dataset = self
                             if walk_all:
                                 yield exe
                             else:
                                 candidates.append(exe)
                     else:
+                        if (s := _is_similar(exe)) is not None:
+                            l.debug(f"discarded similar file {exe} (ref: {s})")
+                            continue  # ignore files with similarity above the given threshold
                         if walk_all:
                             yield exe
                         else:
@@ -366,7 +385,7 @@ class Dataset(Entity):
         self.__change = True
         self._save()
     
-    def assess(self, file_balance_fields=("format", "signature", "size"), similarity_threshold=.9, plot=False, **kw):
+    def assess(self, file_balance_fields=("format", "signature", "size"), similarity_threshold=90, plot=False, **kw):
         """ Assesss the quality of a dataset by computing some metrics. """
         self.logger.debug("computing quality scores...")
         s = Scores(self, file_balance_fields=file_balance_fields, similarity_threshold=similarity_threshold)
@@ -558,10 +577,13 @@ class Dataset(Entity):
             dataset.update(sp, do_not_backup=True, **kw)
     
     @backup
-    def make(self, n=0, formats=["All"], balance=False, packer=None, pack_all=False, **kw):
+    def make(self, n=0, formats=["All"], balance=False, packer=None, pack_all=False, similarity_threshold=None, **kw):
         """ Make n new samples in the current dataset among the given binary formats, balanced or not according to
              the number of distinct packers. """
         l, self.formats = self.logger, formats  # this triggers creating self._formats_exp
+        if len(self._formats_exp) == 0:
+            l.warning("no valid executable format input")
+            return
         # select enabled and non-failing packers among the input list
         packers = [p for p in (packer or item_packer.Packer.registry) if p in item_packer.Packer.registry and \
                                                                          p.check(*self._formats_exp, silent=False)]
@@ -581,14 +603,14 @@ class Dataset(Entity):
         l.info(f"Selected packers:   {','.join(['All'] if packer is None else [p.__class__.__name__ for p in packer])}")
         self._metadata['sources'] = list(set(map(str, self._metadata.get('sources', []) + sources)))
         if n == 0:
-            n = len(list(self._walk(n <= 0, silent=True)))
+            n = len(list(self._walk(n <= 0, silent=True, similarity_threshold=similarity_threshold)))
         # get executables to be randomly packed or not
         n1 = self._metadata.get('executables', 0)
         CBAD, CGOOD = n // 3, n // 3
         i, cbad, cgood = 0, {p: CBAD for p in packers}, {p: CGOOD for p in packers}
         with progress_bar(target=self.basename) as progress:
             pbar = progress.add_task("", total=None if n <= 0 else n)
-            for exe in self._walk(n <= 0):
+            for exe in self._walk(n <= 0, similarity_threshold=similarity_threshold):
                 label = short_label = NOT_PACKED
                 to_be_packed = pack_all or random.randint(0, len(packers) if balance else 1)
                 # check 1: are there already samples enough?
@@ -826,10 +848,13 @@ class Dataset(Entity):
             self.logger.warning("Empty dataset")
     
     @backup
-    def update(self, source_dir=None, formats=["All"], n=0, labels=None, detect=False, **kw):
+    def update(self, source_dir=None, formats=["All"], n=0, labels=None, detect=False, similarity_threshold=None, **kw):
         """ Update the dataset with a folder of binaries, detecting used packers if 'detect' is set to True.
              If labels are provided, they are used instead of applying packer detection. """
         l, self.formats, labels = self.logger, formats, Dataset.labels_from_file(labels)
+        if len(self._formats_exp) == 0:
+            l.warning("No valid executable format input")
+            return
         if detect and not self._files:  # case of FilelessDataset ; cannot detect as files are not included
             l.warning("Label detection works only if the files are available")
             return
@@ -840,8 +865,7 @@ class Dataset(Entity):
             source_dir = [source_dir]
         def _update(e):
             # precedence: input dictionary of labels > dataset's own labels > detection (if enabled) > discard
-            h = e.hash
-            lbl = labels.get(h) or NOT_LABELLED
+            lbl = labels.get(h := e.hash) or NOT_LABELLED
             # executable does not exist yet => create it without a label
             try:
                 self._data[self._data.hash == h].iloc[0]
@@ -868,12 +892,14 @@ class Dataset(Entity):
             self._metadata.setdefault('formats', [])
             self._metadata['sources'] = list(set(map(str, self._metadata.get('sources', []) + source_dir)))
             if n > 0:
-                files = [p for p in self._walk(True, {'All': source_dir}, True)]
+                files = [p for p in self._walk(True, {'All': source_dir}, True,
+                                               similarity_threshold=similarity_threshold)]
                 random.shuffle(files)
                 files, total = files[:n], n
             else:
-                files = self._walk(True, {'All': source_dir}, silent)
-                total = sum(1 for _ in self._walk(True, {'All': source_dir}, True))
+                files = self._walk(True, {'All': source_dir}, silent, similarity_threshold=similarity_threshold)
+                total = sum(1 for _ in self._walk(True, {'All': source_dir}, True,
+                                                  similarity_threshold=similarity_threshold))
             found = False
             with progress_bar(target=self.basename) as p:
                 for exe in p.track(files, total=total):
