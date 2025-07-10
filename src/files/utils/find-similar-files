@@ -1,0 +1,64 @@
+#!/usr/bin/python3
+# -*- coding: UTF-8 -*-
+import logging
+import os
+from argparse import ArgumentParser, RawTextHelpFormatter
+from spamsum import match
+from subprocess import Popen, PIPE
+from sys import exit
+
+
+def ssdeep(path):
+    p = Popen(["ssdeep", path], stdout=PIPE, stderr=PIPE)
+    out, _ = p.communicate()
+    if b"No such file or directory" in out:
+        raise OSError("File does not exist")
+    return out.decode().split("\n")[1].split(",")[0]
+
+
+def threshold(v):
+    if 0 < (v := float(v)) <= 100:
+        return v
+    raise ValueError("Bad threshold value (should belong to ]0, 100])")
+
+
+if __name__ == '__main__':
+    parser = ArgumentParser(formatter_class=RawTextHelpFormatter, add_help=False)
+    parser.add_argument("folder", help="target folder")
+    parser.add_argument("reference", help="reference file")
+    parser.add_argument("-s", "--sort", action="store_true", help="sort by decreasing entropy")
+    parser.add_argument("-t", "--threshold", default=90., type=threshold, help="similarity threshold (default: 90.)")
+    extra = parser.add_argument_group("extra arguments")
+    extra.add_argument("-h", "--help", action="help", help="show this help message and exit")
+    extra.add_argument("-v", "--verbose", action="store_true", help="display debug information")
+    a = parser.parse_args()
+    logging.basicConfig(format="[%(levelname)s] %(message)s")
+    a.logger = logging.getLogger()
+    a.logger.setLevel([logging.INFO, logging.DEBUG][a.verbose])
+    try:
+        if os.path.isdir(a.folder):
+            if os.path.isfile(a.reference):
+                tmp, ref = [], ssdeep(a.reference)
+                for root, dirs, files in os.walk(a.folder):
+                    for f in files:
+                        f = os.path.join(root, f)
+                        s = match(ref, ssdeep(f))
+                        m = (s, f)
+                        if a.sort:
+                            if s >= a.threshold:
+                                tmp.append(m)
+                            else:
+                                a.logger.debug("%.02f\t%s" % m)
+                        else:
+                            [a.logger.debug, print][s >= a.threshold]("%.02f\t%s" % m)
+                for m in sorted(tmp, key=lambda x: -float(x[0])):
+                    print("%.02f\t%s" % m)
+            else:
+                a.logger.error("bad reference file")
+                exit(1)
+        else:
+            a.logger.error("bad target folder")
+            exit(1)
+    except KeyboardInterrupt:
+        exit(0)
+

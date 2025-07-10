@@ -21,6 +21,16 @@ findsha256() {
   fi
 }
 
+# simple tool for finding files by ssdeep
+findssdeep() {
+  if [ "$1" = "" ] || [ "$*" = "-h" ] || [ "$*" = "--help" ]; then
+    echo "Usage: findssdeep folder hash"
+  else
+    find $1 -type f -exec -exec ssdeep {} \; | grep -v ssdeep | cut -d',' -f1 | grep $2
+    find $1 -name data.csv -exec grep -i $2 {} \; | cut -d';' -f'1 2' --output-delimiter='  '
+  fi
+}
+
 # find an executable
 __findexec() {
   if [ "$*" = "-h" ] || [ "$*" = "--help" ]; then

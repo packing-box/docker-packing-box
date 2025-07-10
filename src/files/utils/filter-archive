@@ -29,9 +29,9 @@ FILTERS = {
 
 
 def threshold(v):
-    if 0 <= (v := int(v)) <= 100:
+    if 0 < (v := float(v)) <= 100:
         return v
-    raise ValueError("Bad threshold value (should belong to [0, 100])")
+    raise ValueError("Bad threshold value (should belong to ]0, 100])")
 
 
 if __name__ == '__main__':
