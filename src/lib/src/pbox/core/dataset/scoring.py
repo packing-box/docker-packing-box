@@ -174,9 +174,10 @@ class Scores:
         # start computing similarity
         ssdeeps, similar_files = {}, 0
         for p, s in _iter():
-            for s2 in ssdeeps.keys():
+            for s2, p2 in ssdeeps.items():
                 if match(s, s2) >= self.__st:
                     similar_files += 1
+                    self._log.debug(f"{s2} ({p2}) similar to {s} ({p})")
             if s not in ssdeeps:
                 ssdeeps[s] = p
         return 1. - similar_files / len(self._ds)

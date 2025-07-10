@@ -105,7 +105,7 @@ def collapse_formats(*formats, **kw):
 @functools.lru_cache(maxsize=None)
 def expand_formats(*formats, **kw):
     """ 2-depth dictionary-based expansion function for resolving a list of executable formats. """
-    selected = []
+    selected, valid = [], [x for l in FORMATS.values() for x in l]
     for f in formats:                    # depth 1: e.g. All => ELF,PE OR ELF => ELF32,ELF64
         for sf in FORMATS.get(f, [f]):   # depth 2: e.g. ELF => ELF32,ELF64
             if kw.get('once', False):
@@ -114,7 +114,7 @@ def expand_formats(*formats, **kw):
                 for ssc in FORMATS.get(sf, [sf]):
                     if ssc not in selected:
                         selected.append(ssc)
-    return selected
+    return [x for x in selected if x in valid]
 
 
 @functools.lru_cache(maxsize=None)

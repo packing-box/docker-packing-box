@@ -22,11 +22,11 @@ def filter_archive(path, output, filter_func=None, similarity_threshold=None, lo
                 if (score := match(h1, h2)) >= similarity_threshold:
                     discard = f2
                     break
+            ssdeeps[h1] = str(rp)
             if discard is not None:
                 if logger:
                     logger.debug(f"Discarded \"{rp}\" because of similarity ({score}%) with \"{f2}\"")
                 continue
-            ssdeeps[h1] = str(rp)
         np = tp.joinpath(getattr(fp, "_parent", Path("."))).joinpath(*rp.parts)
         np.dirname.mkdir(parents=True, exist_ok=True)
         fp.copy(np)
