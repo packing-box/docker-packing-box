@@ -129,7 +129,7 @@ def add_argument(parser, *names, **kwargs):
         elif name == "title":
             parser.add_argument("-t", "--title", help="title for the figure", note="if not specified, it is generated")
         elif name == "true-class":
-            parser.add_argument("-T", "--true-class", metavar="CLASS", help="class to be considered as True")
+            parser.add_argument("-T", "--true-class", metavar="CLASS", nargs="+", help="class to be considered as True")
         elif name == "xpname":
             parser.add_argument("name", type=experiment_exists(kwargs.get('force', False)),
                                 help=kwargs.get('help', "name of the experiment"), **params)
@@ -200,7 +200,7 @@ def experiment_exists(force=False):
 def feature_identifier(name):
     from pbox.core.executable import Features
     Features(None)
-    names = Features.names()
+    names = Features.names
     if name not in names:
         regex = re.compile(name.replace(".*", "*").replace("*", ".*"))
         for n in names:

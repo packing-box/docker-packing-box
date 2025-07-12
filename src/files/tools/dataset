@@ -148,6 +148,7 @@ if __name__ == '__main__':
     plot_feat.add_argument("-n", "--num-values", default=0, type=ts.pos_int, note="0 means all",
                            help="limit number of most occurring distict feature values in plot")
     add_argument(plot_feat_, "true-class")
+    plot_feat.add_argument("--true-class-alias", help="alias for true class values to be plotted")
     add_argument(plot_feat, "title")
     figure_options(plot_feat)
     plot_featcomp = pcmds.add_parser("features-compare", help="compare feature difference with other datasets")
