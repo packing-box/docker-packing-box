@@ -86,13 +86,13 @@ def _workspace(folder):
         return _subwrapper
     return _wrapper
 
-
 for item in ["alterations", "features", "scenarios"]:
-    f1 = _configfile(item)(lambda cfg: sorted(list(x for x in cfg.keys() if not x.startswith("abstract_"))))
+    f1 = _configfile(item)(lambda cfg: sorted(list(x for x in cfg.keys() if not x.startswith("abstract_") and \
+                                                                            x != "defaults")))
     f1.__doc__ = " List all %s available in the current workspace. " % item
     globals()['list_all_%s' % item] = f1
     f2 = _configfile(item)(lambda cfg: sorted([x for x, data in cfg.items() if not x.startswith("abstract_") and \
-                                                            data.get('keep' if item == "features" else 'apply', True)]))
+                                        x != "defaults" and data.get('keep' if item == "features" else 'apply', True)]))
     f2.__doc__ = " List enabled %s available in the current workspace. " % item
     globals()['list_enabled_%s' % item] = f2
 for item in ["analyzers", "detectors", "packers", "unpackers"]:
