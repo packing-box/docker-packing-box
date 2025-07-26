@@ -283,19 +283,19 @@ class Dataset(Entity):
         """ Walk the sources for random in-scope executables. """
         l = self.logger
         [l.info, l.debug][silent]("Searching for executables...")
-        m, candidates, packers, remove_after, ssdeeps = 0, [], [p.name for p in item_packer.Packer.registry], [], set()
+        m, candidates, packers, remove_after, hashes = 0, [], [p.name for p in item_packer.Packer.registry], [], set()
         # inner function for checking for similar files
         def _is_similar(e):
             if similarity_threshold is None:
                 return
             from spamsum import match
-            if e.ssdeep in ssdeeps:
-                return e.ssdeep
-            for s in ssdeeps:
-                if match(e.ssdeep, s) >= similarity_threshold:
-                    ssdeeps.add(e.ssdeep)
-                    return s
-            ssdeeps.add(e.ssdeep)
+            if e.fuzzy_hash in hashes:
+                return e.fuzzy_hash
+            for h in hashes:
+                if match(e.fuzzy_hash, h) >= similarity_threshold:
+                    hashes.add(e.fuzzy_hash)
+                    return h
+            hashes.add(e.fuzzy_hash)
         # walk input sources
         for cat, srcs in (sources or self.sources).items():
             exp_cat = expand_formats(cat)
@@ -505,6 +505,7 @@ class Dataset(Entity):
         if self._files:
             for exe in self.files.listdir(is_exe):
                 h = exe.basename
+                #FIXME: possibly dead code ; see the definition of "is_exe"
                 if Executable(exe).format is None:  # unsupported or bad format (e.g. Bash script)
                     del self[h]
                 elif h not in self._data.hash.values:
@@ -521,6 +522,9 @@ class Dataset(Entity):
                         self[exe] = (labels[h], True)
                     elif detect:
                         self[exe] = (list(Detector.detect(exe))[0][1], True)
+        #TODO: include outliers filtering
+        #TODO: include removal of similar files
+        #TODO: ...
         self._save()
     
     def get(self, query=None, **kw):
@@ -738,7 +742,7 @@ class Dataset(Entity):
             d.update(self._features)
             self._features = d
         self._save()
-   
+    
     def plot(self, subcommand=None, **kw):
         """ Plot something about the dataset. """
         # ensure input dataset(s) have their features computed before plotting

@@ -391,6 +391,10 @@ class Executable(Path):
         return best_fmt
     
     @cached_property
+    def fuzzy_hash(self):
+        return globals()[config['fuzzy_hash_algorithm'].replace("-", "_")](self)
+    
+    @cached_property
     def group(self):
         return get_format_group(self.format)
     
@@ -433,9 +437,4 @@ class Executable(Path):
     @cached_property
     def size(self):
         return super(Executable, self).size
-    
-    @cached_property
-    def ssdeep(self):
-        from ...helpers.files import ssdeep
-        return ssdeep(self)
 

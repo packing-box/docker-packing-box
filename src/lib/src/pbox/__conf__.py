@@ -103,6 +103,13 @@ def _vh(s, v):
 _vh.__name__ = "hash algorithm"
 
 
+def _vs(s, v):
+    if v not in ["mrsh", "sdhash", "ssdeep", "tlsh"]:
+        raise ValueError(f"'{v}' is not a valid similiraty algorithm")
+    return v
+_vs.__name__ = "similarity algorithm"
+
+
 opt_tuple = lambda k: (f"conf/{k}.yml", "PATH", f"path to {k} YAML definition", _rp, ["workspace", PBOX_HOME], True)
 psr_tuple = lambda f: (None, "PARSER", f"name of the module for parsing {f} executables", _st, "default_parser")
 
@@ -143,11 +150,14 @@ bi.config = Config("packing-box",
             'wine_errors':  ("false", "BOOL", "display Wine errors", _bl),
         },
         'others': {
-            'autocommit':     ("false", "BOOL", "auto-commit in commands.rc (only works when experiment opened)", _bl),
-            'data':           ("data", "PATH", "path to executable formats' related data, relative to the workspace",
-                               _rp, ["workspace", PBOX_HOME], True),
-            'hash_algorithm': ("sha256", "ALGORITHM", "hashing algorithm for identifying samples", _vh),
-            'vt_api_key':     ("", "API_KEY", "VirusTotal's RESTful API key"),
+            'autocommit':           ("false", "BOOL", "auto-commit in commands.rc (only works when experiment opened)",
+                                     _bl),
+            'data':                 ("data", "PATH", "path to executable formats' related data, relative to the "
+                                     "workspace", _rp, ["workspace", PBOX_HOME], True),
+            'hash_algorithm':       ("sha256", "ALGORITHM", "hashing algorithm for identifying samples", _vh),
+            'min_str_len':          ("4", "LENGTH", "minimal string length", _it),
+            'fuzzy_hash_algorithm': ("ssdeep", "ALGORITHM", "algorithm for computing samples' fuzzy hash", _vs),
+            'vt_api_key':           ("", "API_KEY", "VirusTotal's RESTful API key"),
         },
         'parsers': {
             'default_parser': ("lief", "PARSER", "name of the module for parsing any format of executable"),

@@ -339,7 +339,7 @@ def get_part_class(clsname, **mapping):
         
         @property
         def slack_space(self):
-            return max(0, getattr(self, "raw_data_size", getattr(self, "physical_size")) - self.virtual_size)
+            return max(0, getattr(self, "physical_size", getattr(self, "raw_data_size")) - self.virtual_size)
         
         def sections_with_slack_space(self, length=1):
             return {s for s in self if s.virtual_size - s.raw_data_size >= length}
