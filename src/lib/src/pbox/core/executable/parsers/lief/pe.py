@@ -120,17 +120,62 @@ def __init_pe():
             return self._parsed.header.machine.value
         
         @property
+        def paths(self):
+            from re import findall
+            data = b""
+            for s in self._parsed.sections:
+                if s.virtual_size == 0 or not s.has_characteristic(lief.PE.Section.CHARACTERISTICS.MEM_READ):
+                    continue
+                data += bytes(s.content)
+            r = [p.decode("utf-8", errors="ignore") for p in \
+                 findall(rb"[a-zA-Z]:\\(?:[^\\\x00\r\n]+\\)*[^\\\x00\r\n]*", data)]
+            r += [p.decode("utf-16le", errors="ignore") for p in \
+                  findall(rb"(?:[a-zA-Z]\x00:\x00\\(?:[^\x00\\]+\\)*[^\x00\\]*)", data)]
+            return r
+        
+        @property
         def portability(self):
-            score = 1.0
-            if ".reloc" not in self.section_names():
-                score -= 0.3
-            if not self._parsed.header.characteristics & 0x40:
-                score -= 0.3
-            if not self._parsed.has_imports:
-                score -= 0.2
-            if self._parsed.optional_header.subsystem.value not in [2, 3]:
-                score -= 0.2
-            return score
+            score = 1.
+            # architecture
+            if self.header.machine not in [lief.PE.Header.MACHINE_TYPES.I386, lief.PE.Header.MACHINE_TYPES.AMD64]:
+                score -= .2
+            # OS version
+            if self.optional_header.major_operating_system_version > 6:
+                score -= .1
+            # subsystem
+            if self.optional_header.subsystem not in [lief.PE.OptionalHeader.SUBSYSTEM.WINDOWS_CUI, \
+                                                      lief.PE.OptionalHeader.SUBSYSTEM.WINDOWS_GUI]:
+                score -= .1
+            # relocations
+            if not self.has_relocations or sum(1 for _ in self.relocations) == 0:
+                score -= .1
+            # suspicious imports
+            if len([d for d in self.imports if d.name and (d.name.startswith("C:\\") or \
+                                                           d.name.startswith("\\\\") or \
+                                                           d.name.lower().endswith(".ocx"))]):
+                score -= .1
+            # ASLR support
+            if lief.PE.OptionalHeader.DLL_CHARACTERISTICS.DYNAMIC_BASE not in self.header.characteristics_list:
+                score -= .075
+            # DEP support
+            if lief.PE.OptionalHeader.DLL_CHARACTERISTICS.NX_COMPAT not in self.header.characteristics_list:
+                score -= .075
+            # manifest
+            if not self.has_resources or not any(r.name == "MANIFEST" for r in self.resources.childs):
+                score -= .05
+            # privileges
+            if "requireAdministrator" in self.resources_manager.manifest:
+                score -= .05
+            # signature
+            if not self.has_signatures:
+                score -= .05
+            # TLS callbacks
+            if self.has_tls and self.tls and self.tls.callbacks:
+                score -= .05  # potentially risky for Wine/emulation
+            # hardcoded paths
+            if len(self.paths) > 0:
+                score -= .05
+            return round(max(0., min(1., score)), 3)
         
         @property
         def resources(self):
@@ -146,6 +191,16 @@ def __init_pe():
                     for child in self2.__rd.childs:
                         yield ResourceDirectory(child)
             return ResourceDirectory(self._parsed.resources)
+        
+        @property
+        def strings(self):
+            from re import findall
+            with self.path.open('rb') as f:
+                data = f.read()
+            r = [s.decode("utf-8", errors="ignore") for s in findall(rb"[ -~]{%d,}" % config['min_str_len'], data)]
+            r += [s.decode("utf-16le", errors="ignore") for s in \
+                  findall(rb"(?:[\x20-\x7E]\x00){%d,}" % config['min_str_len'], data)]
+            return r
     
     PE.__name__ = "PE"
     PE.SECTION_CHARACTERISTICS = sec_chars
