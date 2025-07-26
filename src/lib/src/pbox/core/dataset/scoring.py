@@ -110,12 +110,12 @@ class Scores:
     # ----------------------------------------------- INDIVIDUAL METRICS -----------------------------------------------
     @cached_property
     def completeness(self):
-        """ Score based on the completeness of metadata (absence of missing values). """
+        """ (Generic) Score based on the completeness of metadata (absence of missing values). """
         return 1. - (self._ds._data.isnull().mean().mean())
     
     @cached_property
     def consistency(self):
-        """Score based on consistency: missing files from data.csv, corrupted files, missing labels. """
+        """ (Generic) Score based on consistency: missing files from data.csv, corrupted files, missing labels. """
         scores, l = [], len(self._ds)
         if self._ds._files:
             scores.append(1. - len([h for h in self._ds._data.hash if not self._ds.files.joinpath(h).is_file()]) / l)
@@ -125,7 +125,7 @@ class Scores:
     
     @cached_property
     def file_balance(self):
-        """Score based on architecture, file type, and file size distribution."""
+        """ (Specific) Score based on architecture, file type, and file size distribution."""
         try:
             return sum(balance(self._ds, f) for f in self.__fbf) / len(self.__fbf)
         except TypeError:
@@ -133,12 +133,12 @@ class Scores:
     
     @cached_property
     def label_balance(self):
-        """ Score based on balance between different labels. """
+        """ (Generic) Score based on balance between different labels. """
         return balance(self._ds, "label")
     
     @cached_property
     def outliers(self):
-        """Score based on files with suspicious size or modified dates. """
+        """ (Specific) Score based on files with suspicious size or modified dates. """
         l = len(self._ds)
         suspicious_size  = 1. - (((s := self._ds._data.get("size")) < 1024).sum() + (s > 100 * 1024 * 1024).sum()) / l
         suspicious_mtime = 1. - (pd.to_datetime(self._ds._data.mtime, errors="coerce").dt.year < 2000).sum() / l
@@ -146,7 +146,7 @@ class Scores:
     
     @cached_property
     def portability(self):
-        """ Score based on the presence of .reloc sections and other portability-related PE fields. """
+        """ (Specific) Score based on the presence of .reloc sections and other portability-related PE fields. """
         portabilities = []
         if self._ds._files:
             for exe in self._ds:
@@ -157,34 +157,34 @@ class Scores:
     
     @cached_property
     def similarity(self):
-        """ Score based on file similarity using ssdeep. """
+        """ (Specific) Score based on file similarity using fuzzy hashing. """
         from spamsum import match
-        # local iterator for (path, ssdeep), depending on wether ssdeep is part of data.csv
+        # local iterator for (path, fuzzy_hash), depending on wether fuzzy_hash is part of data.csv
         def _iter():
             try:
-                for p, s in zip(self._ds._data.realpath, self._ds._data.ssdeep):
+                for p, s in zip(self._ds._data.realpath, self._ds._data.fuzzy_hash):
                     yield p, s
             except AttributeError:
                 if self._ds._files:
                     for exe in self._ds:
-                        yield exe.realpath, exe.ssdeep
+                        yield exe.realpath, exe.fuzzy_hash
                 else:
                     self._log.warning("cannot compute similarity as it requires files")
                     return
         # start computing similarity
-        ssdeeps, similar_files = {}, 0
+        hashes, similar_files = {}, 0
         for p, s in _iter():
-            for s2, p2 in ssdeeps.items():
+            for s2, p2 in hashes.items():
                 if match(s, s2) >= self.__st:
                     similar_files += 1
                     self._log.debug(f"{s2} ({p2}) similar to {s} ({p})")
-            if s not in ssdeeps:
-                ssdeeps[s] = p
+            if s not in hashes:
+                hashes[s] = p
         return 1. - similar_files / len(self._ds)
     
     @cached_property
     def uniqueness(self):
-        """ Score based on how many duplicate files exist (based on the hash used with the Executable abstraction). """
+        """ (Specific) Score based on how many duplicate files exist (based on Executable.hash). """
         hashes, duplicates = set(), 0
         if self._ds._files:
             for exe in self._ds:
