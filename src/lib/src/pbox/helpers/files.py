@@ -6,8 +6,7 @@ from tinyscript.helpers import is_file, is_folder, is_hash, set_exception, Path,
 from .utils import pd
 
 
-__all__ = ["compare_files", "data_to_temp_file", "edit_file", "file_or_folder_or_dataset", "find_files_in_folder",
-           "ssdeep", "Locator", "Path"]
+__all__ = ["data_to_temp_file", "edit_file", "file_or_folder_or_dataset", "find_files_in_folder", "Locator", "Path"]
 
 
 set_exception("BadSchemeError")
@@ -57,11 +56,6 @@ class Locator(Path):
         if p.exists() or kwargs.get('new', False):
             return p
         raise FileNotFoundError(f"[Errno 2] No such {scheme}: '{path}'")
-
-
-def compare_files(file1, file2):
-    from spamsum import match
-    return match(ssdeep(file1), ssdeep(file2))
 
 
 @contextmanager
@@ -178,11 +172,4 @@ def find_files_in_folder(path):
     regex = re.compile(p.basename)
     for fp in Path(p.dirname).listdir(filter_func=lambda x: x.is_file() and regex.search(x.basename)):
         yield fp
-
-
-def ssdeep(path):
-    out = subprocess.check_output(["ssdeep", str(path)]).decode()
-    if "No such file or directory" in out:
-        raise OSError("File does not exist")
-    return out.split("\n")[1].split(",")[0]
 

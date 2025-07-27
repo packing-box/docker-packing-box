@@ -18,6 +18,8 @@ from .files import *
 from .files import __all__ as _files
 from .formats import *
 from .formats import __all__ as _formats
+from .fuzzhash import *
+from .fuzzhash import __all__ as _fh
 from .items import *
 from .items import __all__ as _items
 from .rendering import *
@@ -26,5 +28,5 @@ from .utils import *
 from .utils import __all__ as _utils
 
 
-__all__ = _archive + _args + _cmds + _data + _entities + _fig + _files + _formats + _items + _rendering + _utils
+__all__ = _archive + _args + _cmds + _data + _entities + _fig + _files + _formats + _fh + _items + _rendering + _utils
 

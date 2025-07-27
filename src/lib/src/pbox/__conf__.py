@@ -104,7 +104,7 @@ _vh.__name__ = "hash algorithm"
 
 
 def _vs(s, v):
-    if v not in ["mrsh", "sdhash", "ssdeep", "tlsh"]:
+    if v not in ["mrsh_v2", "sdhash", "ssdeep", "tlsh"]:
         raise ValueError(f"'{v}' is not a valid similiraty algorithm")
     return v
 _vs.__name__ = "similarity algorithm"
