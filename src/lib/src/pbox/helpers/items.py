@@ -427,9 +427,9 @@ class MetaBase(type):
     @property
     def names(self):
         try:
-            return self.__names
+            self.__names
         except AttributeError:
-            self.__names = set(sorted(x for x in self))
+            self.__names = string.sorted_natural(list(set(x for x in self)))
         return self.__names
     
     @property
@@ -502,7 +502,7 @@ def _init_metaitem():
         
         @property
         def names(self):
-            return sorted(x.name for x in self.registry)
+            return string.sorted_natural(list(set(x.name for x in self.registry)))
         
         @property
         def source(self):
@@ -808,8 +808,11 @@ def load_yaml_config(cfg, no_defaults=(), parse_defaults=True, auto_tag=True):
         d = {}
         _update(d, p, {})
     else:
-        with p.open() as f:
-            d = _set(yaml.load(f, Loader=yaml.Loader) or {})
+        try:
+            with p.open() as f:
+                d = _set(yaml.load(f, Loader=yaml.Loader) or {})
+        except FileNotFoundError:
+            raise OSError(f"Did you forget to prepend \"./\" to force a relative path ?")
     # collect properties that are applicable for all the other features
     for name, params in d.items():
         yield name, params

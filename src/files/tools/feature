@@ -34,6 +34,7 @@ if __name__ == '__main__':
                  "executable", "features-set", single=True)
     export = sparsers.add_parser("export", help="export feature definitions to a given format")
     add_argument(export, "expformat", "exeformat", "features-set", "query")
+    add_argument(sparsers.add_parser("list", help="list feature names"), "features-set")
     # plot
     # remove
     select = sparsers.add_parser("select", help="select features from a target set")
@@ -54,6 +55,9 @@ if __name__ == '__main__':
     Features.source = args.config_file = args.features_set
     if args.command == "compute":
         Executable(args.executable, logger=logger).show(False, False, True)
+    elif args.command == "list":
+        for fn in Features.names:
+            print(fn)
     else:
         getattr(Features, args.command)(**vars(args))
 

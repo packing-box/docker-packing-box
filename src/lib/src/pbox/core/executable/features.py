@@ -62,7 +62,9 @@ class Features(dict, metaclass=MetaBase):
     def __init__(self, exe=None):
         ft, l = Features, self.__class__.logger
         ft._load()
-        if exe is not None and exe.format in ft.registry:
+        if exe is not None:
+            if exe.format not in ft.registry:
+                raise BadFileFormat("Features extraction is not supported for this executable format")
             from .extractors import Extractors
             self._rawdata = Extractors(exe)
             todo, counts, reg = deque(), {}, ft.registry[exe.format]

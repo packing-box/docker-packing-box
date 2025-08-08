@@ -23,7 +23,7 @@ class Locator(Path):
         if scheme in ["conf", "data"]:
             if scheme == "conf" and not path.endswith(".yml"):
                 path += ".yml"
-            p = Path(path) if re.match("./[^/]+", path) else config['workspace'].joinpath(scheme, path)
+            return Path(path) if re.match("./[^/]+", path) else config['workspace'].joinpath(scheme, path)
         elif scheme in ["dataset", "model"]:
             from ..core import Dataset, Model
             return locals()[scheme.capitalize()].load(path)

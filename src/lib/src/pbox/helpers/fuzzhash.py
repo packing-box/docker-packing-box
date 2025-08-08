@@ -1,6 +1,6 @@
 # -*- coding: UTF-8 -*-
 from cffi import FFI
-from tinyscript import re, string, subprocess
+from tinyscript import functools, re, string, subprocess
 from tinyscript.helpers import execute, TempPath
 
 
@@ -34,6 +34,17 @@ def _hash_format(h):
 
 def _new_cstr(py_bytes: bytes):
     return _FFI.new("char[]", py_bytes)
+
+
+def _tool_wrapper(f):
+    @functools.wraps(f)
+    def __wrapper(path, **parameters):
+        p = [[f"{['--', '-'][len(k) == 1]}{k.replace('_', '-')}", f"{v}"] for k, v in parameters.items()]
+        out, err = execute([f.__name__.replace("_", "-")] + [x for l in p for x in l] + [str(path)])
+        if err != b"":
+            raise RuntimeError(err.decode())
+        return out.decode().strip()
+    return __wrapper
 
 
 def compare_files(path1, path2, algo="ssdeep"):
@@ -74,22 +85,29 @@ def compare_fuzzy_hashes(hash1, hash2):
     raise RuntimeError("{f1} hashes comparison is not supported ; try 'compare_files' instead")
 
 
+@_tool_wrapper
 def mrsh_v2(path, **parameters):
-    """ MRSH-v2 (Multi-Resolution Similarity Hashes version 2)
+    """ MRSH-v2 (Multi-Resolution Similarity Hashing version 2)
     - Variable-length output: proportional to file size and depending on input parameters
     - Format:                 [input filename]:[file size]:[number of bloom filters]:[block size]:
                                [serialized bloom filters (hex)]
-    - Locality-sensitive:     tolerant to minor changes, insertions, deletions, and reordering
     - Comparison:             similarity score (0-100)
     - Requirements:           any input size, but more effective with larger files
     """
-    parameters = [[f"{['--', '-'][len(k) == 1]}{k.replace('_', '-')}", f"{v}"] for k, v in parameters.items()]
-    out, err = execute(["mrsh-v2"] + [x for l in parameters for x in l] + [str(path)])
-    if err != b"":
-        raise RuntimeError(err.decode())
-    return out.decode().strip()
 
 
+def mvhash_b(path, **parameters):
+    """ MVhash-B
+    - Fixed-length output: typically 160 bits (SHA1), can be longer depending on hash algorithm used
+    - Format:              [input filename]:[file size]:[hash]
+    - Comparison:          Hamming distance (number of differing bits)
+    - Requirements:        any input size
+
+    Note: No implementation found for this one.
+    """
+
+
+@_tool_wrapper
 def sdhash(path, **parameters):
     """ sdhash (Similarity Digest)
     - Variable-length output: depending on the input data’s entropy and content
@@ -97,22 +115,15 @@ def sdhash(path, **parameters):
                                [underlying hash algorithm for chunking]:[block size]:[number of features per block]:
                                [feature mask or bloom filter width/size]:[number of bits per bloom filter]:
                                [feature threshold]:[feature threshold]:[base64-encoded bloom filter(s)]
-    - Locality-sensitive:     insensitive to minor changes
     - Comparison:             similarity score (0-100), NOT matching a percentage of commonality
     - Requirements:           any input size, but effectiveness increases with data size and entropy
     """
-    parameters = [[f"{['--', '-'][len(k) == 1]}{k.replace('_', '-')}", f"{v}"] for k, v in parameters.items()]
-    out, err = execute(["sdhash"] + [x for l in parameters for x in l] + [str(path)])
-    if err != b"":
-        raise RuntimeError(err.decode())
-    return out.decode().strip()
 
 
 def ssdeep(path):
     """ ssdeep (SpamSum Deep)
     - Variable-length output: single line, typically 45-100 characters
     - Format:                 [blocksize]:[hash1]:[hash2]
-    - Locality-sensitive:     designed to find similarity in files with small insertions, deletions, or changes
     - Comparison:             similarity score (0-100)
     - Requirements:           any input size, but more effective with files >1KB
     """
@@ -127,7 +138,6 @@ def tlsh(path):
     """ TLSH (Trend Micro Locality Sensitive Hash)
     - Fixed-length output: standard is 70 characters, can vary with options
     - Format:              upper-case hex
-    - Locality-sensitive:  insensitive to minor changes
     - Comparison:          tlsh.diff provides a distance metric (lower means more similar)
     - Requirements:        input must be at least 256 bytes (by default) to compute a hash ; shorter inputs are rejected
     """
