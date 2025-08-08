@@ -45,16 +45,16 @@ Supervised:
         S: 42                          # random number seed
         I: 50                          # number of iterations
         W: weka.classifiers.trees.J48  # full name of base classifier
-  DL85:
-    base:        !!python/name:pydl85.DL85Classifier
-    description: DL8.5 (optimal decision tree)
-    link:        https://dl85.readthedocs.io/en/latest/
-    multiclass:  false
-    parameters:
-      static:
-        time_limit: 60
-      cv:
-        max_depth: !!python/object/new:range [3, 6]
+#  DL85:
+#    base:        !!python/name:pydl85.DL85Classifier
+#    description: DL8.5 (optimal decision tree)
+#    link:        https://dl85.readthedocs.io/en/latest/
+#    multiclass:  false
+#    parameters:
+#      static:
+#        time_limit: 60
+#      cv:
+#        max_depth: !!python/object/new:range [3, 6]
   DT:
     base:        !!python/name:sklearn.tree.DecisionTreeClassifier
     description: Decision Tree

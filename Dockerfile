@@ -49,7 +49,7 @@ RUN apt-get -y install apt-transport-https apt-utils \
  && apt-get -y install libboost-program-options-dev libboost-system-dev libboost-filesystem-dev libc6-dev-i386 \
                        libdwarf-dev libcairo2-dev libdbus-1-dev libegl1-mesa-dev libfreetype6-dev libfuse-dev \
                        libgl1-mesa-dev libglib2.0-dev libglu1-mesa-dev libpulse-dev libssl-dev libsvm-dev libsvm-java \
-                       libtiff5-dev libudev-dev libxcursor-dev libxkbfile-dev libxml2-dev libxrandr-dev
+                       libtiff5-dev libudev-dev libxcursor-dev libxkbfile-dev libxml2-dev libxrandr-dev libfuzzy-dev
 # install useful tools
 RUN apt-get update \
  && apt-get -y install colordiff colortail cython3 dos2unix dosbox git golang kmod less ltrace meson nasm tree strace \
@@ -117,10 +117,11 @@ RUN python3 -m pip install --user --upgrade --break-system-packages pip
 RUN pip3 install --user --no-warn-script-location --ignore-installed --break-system-packages \
         capstone jinja2 meson poetry pythonnet thefuck tinyscript tldr vt-py \
  && pip3 install --user --no-warn-script-location --ignore-installed --break-system-packages \
-        angr capa lightgbm pandas pydl8.5 scikit-learn scikit-learn-extra weka \
- && rm -f /home/user/.local/lib/python3.11/site-packages/unicorn/lib \
+        angr capa lightgbm pandas scikit-learn scikit-learn-extra weka \
+ && rm -f /home/user/.local/lib/python3.*/site-packages/unicorn/lib \
  && pip3 uninstall -y --break-system-packages unicorn \
  && pip3 install --user --no-warn-script-location --ignore-installed --break-system-packages unicorn
+#  FAILING PACKAGE: pydl8.5
 # install ILSpyCmd
 RUN dotnet tool install --global ilspycmd
 # install Rust (user-level
