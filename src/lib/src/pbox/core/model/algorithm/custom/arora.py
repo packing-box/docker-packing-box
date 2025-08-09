@@ -1,6 +1,7 @@
 # -*- coding: UTF-8 -*-
 import numpy as np
 from sklearn.base import BaseEstimator, ClassifierMixin
+from sklearn.utils._param_validation import ArrayOfLengthN, DictOfLengthAtLeastN, Interval, RealNotInt
 from sklearn.utils.validation import check_is_fitted
 
 
@@ -10,26 +11,78 @@ THRESHOLD_FROM_STUDY = 3.
 
 
 class AroraClassifier(BaseEstimator, ClassifierMixin):
-    classes_ = np.array([0, 1])  # binary classifier
+    """Arora's classifier.
+    
+    This model is based on the static heuristics of Arora et al. (2013).
+    
+    Attributes
+    ----------
+    classes_ : np.array([0, 1])
+        0 is not packed, 1 is packed
+    
+    threshold_ : float, pre-fitted to 3.
+        The threshold of the risk score computed with the 14 features, weights and risk coefficients.
+    
+    Constants
+    ---------
+    _feature_names : [
+            "number_known_packer_section_names",
+            "has_section_name_not_known",
+            "number_sections_name_not_printable",
+            "number_sections_name_empty",
+            "has_no_code_section",
+            "has_code_section_not_x",
+            "has_wx_section",
+            "is_data_section_x",
+            "has_code_data_section",
+            "is_ep_section_not_code_or_not_x",
+            "is_ep_in_tls_section",
+            "has_less_than_20_imports",
+            "is_iat_in_non_standard_section",
+            "highest_section_entropy_normalized",
+        ]
+    
+    Parameters
+    ----------
+    confidence : float, default=.99
+        The confidence level for computing the threshold of the risk score, based on the not-packed label.
+    
+    risk_coefficients : {array-like, dictionary} of length 14 with numbers, default=np.array([5,1,2,2,3,4,4,4,2,3,2,2,3,2])
+        The list of risk coefficients for the 14 features. By default, this is set to the values found by the
+         authors of this method.
+    
+    weights : {array-like, dictionary} of length 14 with numbers, default=np.array([1,.5,1,1,5,5,5,5,5,5,3,3,7,3])
+        The list of weights for the 14 features. By default, this is set to the values found by the authors of this
+         method.
+    
+    References
+    ----------
+    Rohit Arora, Anishka Singh, Himanshu Pareek, Usha Rani Edara,
+    "A Heuristics-based Static Analysis Approach for Detecting Packed PE Binaries",
+    International Journal of Security and Its Applications, 2013.
+    URL: http://article.nadiapub.com/IJSIA/vol7_no5/24.pdf
+    
+    Examples
+    --------
+    >>> from pbox.core.model.algorithm.custom.arora import AroraClassifier
+    >>> from sklearn.datasets import make_classification
+    >>> from sklearn.model_selection import train_test_split
+    >>> X, y = make_classification(n_samples=100, random_state=42, n_features=14, n_redundant=0)
+    >>> X_train, X_test, y_train, y_test = train_test_split(X, y, stratify=y, random_state=42)
+    >>> clf = AroraClassifier().fit(X_train, y_train)
+    >>> clf.predict(X_test[:5, :])
+    array([1, 0, 1, 0, 1])
+    >>> clf.score(X_test, y_test)
+    0.8...
+    """
+    classes_ = np.array([0, 1])
+    _parameter_constraints = {
+        'confidence':        [Interval(RealNotInt, 0., 1., closed="both")],
+        'risk_coefficients': [ArrayOfLengthN(14), DictOfLengthAtLeastN(14), None],
+        'weights':           [ArrayOfLengthN(14), DictOfLengthAtLeastN(14), None],
+    }
     
     def __init__(self, confidence=.99, weights=None, risk_coefficients=None):
-        """
-        A classifier based on the heuristics-based static analysis approach of Arora et al.
-         (https://dx.doi.org/10.14257/ijsia.2013.7.5.24)
-        
-        Parameters
-        ----------
-        confidence : float, default=.99
-            The confidence level for computing the threshold of the risk score, based on the not-packed label.
-        
-        weights : {list} of length 14
-            The list of weights for the 14 features. By default, this is set to the values found by the authors of this
-             method.
-        
-        risk_coefficients : {list} of length 14
-            The list of risk coefficients for the 14 features. By default, this is set to the values found by the
-             authors of this method.
-        """
         self.confidence = confidence
         self.weights = DEFAULT_WEIGHTS if weights is None else weights
         self.risk_coefficients = RISK_COEFFICIENTS if risk_coefficients is None else risk_coefficients
@@ -40,10 +93,12 @@ class AroraClassifier(BaseEstimator, ClassifierMixin):
                                "has_code_data_section", "is_ep_section_not_code_or_not_x", "is_ep_in_tls_section",
                                "has_less_than_20_imports", "is_iat_in_non_standard_section",
                                "highest_section_entropy_normalized"]
+        self._validate_params()
         if isinstance(self.weights, dict):
             self.weights = np.array([self.weights[f] for f in self._feature_names])
         if isinstance(self.risk_coefficients, dict):
             self.risk_coefficients = np.array([self.risk_coefficients[f] for f in self._feature_names])
+        self.threshold_ = THRESHOLD_FROM_STUDY
     
     def _compute_scores(self, X):
         """ Risk computation method. """
@@ -106,11 +161,12 @@ class AroraClassifier(BaseEstimator, ClassifierMixin):
 
         Parameters
         ----------
-        X : {array-like, sparse matrix} of shape (n_samples, 8)
-            The input samples. Each sample shall have eight columns:
-            "number_wx_sections", "number_x_not_code_or_not_x_code_sections", "number_sections_name_not_printable",
-            "has_no_x_section", "is_sum_of_all_sections>file_size", "is_pos_pe_sig<size_of_image_dos_header",
-            "is_ep_not_in_x_section" and "is_ep_not_in_code_section".
+        X : {array-like, sparse matrix} of shape (n_samples, 14)
+            The input samples. Each sample shall have fourteen columns:
+            "has_code_data_section", "has_code_section_not_x", "has_few_imports", "has_known_packer_section_names",
+            "has_no_code_section", "has_section_name_empty", "has_section_name_not_known",
+            "has_section_name_not_printable", "has_wx_section", "highest_section_entropy", "is_data_section_x",
+            "is_ep_in_tls_section", "is_ep_section_not_code_or_not_x" and "is_iat_in_non_standard_section".
         
         Returns
         -------

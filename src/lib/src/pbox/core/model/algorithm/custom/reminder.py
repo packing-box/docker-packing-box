@@ -2,22 +2,65 @@
 import numpy as np
 import scipy.stats as stats
 from sklearn.base import BaseEstimator, ClassifierMixin
+from sklearn.utils._param_validation import Interval, RealNotInt
+from sklearn.utils.validation import check_is_fitted
+
+
+THRESHOLD_FROM_STUDY = 6.85
 
 
 class REMINDerClassifier(BaseEstimator, ClassifierMixin):
-    classes_ = np.array([0, 1])  # binary classifier
+    """Classifier based on Han's REMINDer tool for malware forensics.
+    
+    This model is based on REMINDer heuristic of Han et al. using EP section executable flag and entropy (2009).
+    
+    Attributes
+    ----------
+    classes_ : np.array([0, 1])
+        0 is not packed, 1 is packed
+    
+    entropy_threshold_ : float, pre-fitted to 6.85
+        The threshold of the entropy of the entry point section.
+    
+    Constants
+    ---------
+    _feature_names : ["is_ep_in_w_section", "entropy_ep_section"]
+    
+    Parameters
+    ----------
+    confidence : float, default=0.9999
+        The confidence level for computing the threshold for the entropy of the entry point section.
+    
+    References
+    ----------
+    Seungwon Han, Keungi Lee, Sangjin Lee,
+    "Packed PE File Detection for Malware Forensics",
+    2nd International Conference on Computer Science and its Applications, 2009.
+    URL: https://ieeexplore.ieee.org/document/5404211
+    
+    Examples
+    --------
+    >>> from pbox.core.model.algorithm.custom.reminder import REMINDerClassifier
+    >>> from sklearn.datasets import make_classification
+    >>> from sklearn.model_selection import train_test_split
+    >>> X, y = make_classification(n_samples=100, random_state=42, n_features=2, n_redundant=0)
+    >>> X_train, X_test, y_train, y_test = train_test_split(X, y, stratify=y, random_state=42)
+    >>> clf = REMINDerClassifier().fit(X_train, y_train)
+    >>> clf.predict(X_test[:5, :])
+    array([1, 0, 1, 0, 1])
+    >>> clf.score(X_test, y_test)
+    0.8...
+    """
+    classes_ = np.array([0, 1])
+    _parameter_constraints = {
+        'confidence':  [Interval(RealNotInt, 0., 1., closed="both")],
+    }
     
     def __init__(self, confidence=0.9999):
-        """
-        A classifier based on REMINDer heuristic of Han et al. using EP section executable flag and entropy.
-        
-        Parameters
-        ----------
-        confidence : float, default=0.9999
-            The confidence level for computing the threshold for the entropy of the entry point section.
-        """
         self.confidence = confidence
         self._feature_names = ["is_ep_in_w_section", "entropy_ep_section"]
+        self._validate_params()
+        self.entropy_threshold_ = THRESHOLD_FROM_STUDY
     
     def fit(self, X, y):
         """

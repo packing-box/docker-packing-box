@@ -1,6 +1,7 @@
 # -*- coding: UTF-8 -*-
 import numpy as np
 from sklearn.base import BaseEstimator, ClassifierMixin
+from sklearn.utils._param_validation import ArrayOfLengthN, DictOfLengthAtLeastN, Interval, RealNotInt
 from sklearn.utils.validation import check_is_fitted
 
 
@@ -10,26 +11,72 @@ THRESHOLD_FROM_STUDY = 3.
 
 
 class TreadwellClassifier(BaseEstimator, ClassifierMixin):
-    classes_ = np.array([0, 1])  # binary classifier
+    """Treadwell's classifier.
+    
+    This model is based on the static analysis approach of Treadwell et al. using risk scoring (2009).
+    
+    Attributes
+    ----------
+    classes_ : np.array([0, 1])
+        0 is not packed, 1 is packed
+    
+    threshold_ : float, pre-fitted to 3.
+        The threshold of the risk score computed with the 8 features, weights and risk coefficients.
+    
+    Constants
+    ---------
+    _feature_names : [
+            "has_non_standard_section",
+            "has_known_packer_section_names",
+            "is_ep_not_in_text_section",
+            "has_tls_data_directory_entry",
+            "has_dll_with_no_export",
+            "has_known_packer_section_names",
+            "is_import_functions_count<=2",
+            "is_iat_malformed",
+        ]
+    
+    Parameters
+    ----------
+    confidence : float, default=.99
+        The confidence level for computing the threshold of the risk score, based on the not-packed label.
+    
+    risk_coefficients : {array-like, dictionary} of length 8 with numbers, default=np.array([10,1,5,10,5,10,10,10])
+        The list of risk coefficients for the 8 features. By default, this is set to the values found by the
+         authors of this method.
+    
+    weights : {array-like, dictionary} of length 8 with numbers, default=np.array([6,6,12,50,20,100,35,100])
+        The list of weights for the 8 features. By default, this is set to the values found by the authors of this
+         method.
+    
+    References
+    ----------
+    Scott Treadwell, Mian Zhou,
+    "A Heuristic Approach for Detection of Obfuscated Malware",
+    IEEE International Conference on Intelligence and Security Informatics, 2009.
+    URL: https://ieeexplore.ieee.org/document/5137328
+    
+    Examples
+    --------
+    >>> from pbox.core.model.algorithm.custom.treadwell import TreadwellClassifier
+    >>> from sklearn.datasets import make_classification
+    >>> from sklearn.model_selection import train_test_split
+    >>> X, y = make_classification(n_samples=100, random_state=42, n_features=8, n_redundant=0)
+    >>> X_train, X_test, y_train, y_test = train_test_split(X, y, stratify=y, random_state=42)
+    >>> clf = TreadwellClassifier().fit(X_train, y_train)
+    >>> clf.predict(X_test[:5, :])
+    array([1, 0, 1, 1, 1])
+    >>> clf.score(X_test, y_test)
+    0.8...
+    """
+    classes_ = np.array([0, 1])
+    _parameter_constraints = {
+        'confidence':        [Interval(RealNotInt, 0., 1., closed="both")],
+        'risk_coefficients': [ArrayOfLengthN(14), DictOfLengthAtLeastN(14), None],
+        'weights':           [ArrayOfLengthN(14), DictOfLengthAtLeastN(14), None],
+    }
     
     def __init__(self, confidence=.99, weights=None, risk_coefficients=None):
-        """
-        A classifier based on the risk score based static analysis approach of Treadwell et al.
-         (https://ieeexplore.ieee.org/document/5137328)
-        
-        Parameters
-        ----------
-        confidence : float, default=.99
-            The confidence level for computing the threshold of the risk score, based on the not-packed label.
-        
-        weights : {list} of length 8
-            The list of weights for the 8 features. By default, this is set to the values found by the authors of this
-             method.
-        
-        risk_coefficients : {list} of length 8
-            The list of risk coefficients for the 8 features. By default, this is set to the values found by the
-             authors of this method.
-        """
         self.confidence = confidence
         self.weights = DEFAULT_WEIGHTS if weights is None else weights
         self.risk_coefficients = RISK_COEFFICIENTS if risk_coefficients is None else risk_coefficients
@@ -37,10 +84,12 @@ class TreadwellClassifier(BaseEstimator, ClassifierMixin):
         self._feature_names = ["has_non_standard_section", "has_known_packer_section_names",
                                "is_ep_not_in_text_section", "has_tls_data_directory_entry", "has_dll_with_no_export",
                                "has_known_packer_section_names", "is_import_functions_count<=2", "is_iat_malformed"]
+        self._validate_params()
         if isinstance(self.weights, dict):
             self.weights = np.array([self.weights[f] for f in self._feature_names])
         if isinstance(self.risk_coefficients, dict):
             self.risk_coefficients = np.array([self.risk_coefficients[f] for f in self._feature_names])
+        self.threshold_ = THRESHOLD_FROM_STUDY
     
     def _compute_scores(self, X):
         """ Risk computation method. """
