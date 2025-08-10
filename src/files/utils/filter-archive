@@ -3,6 +3,7 @@
 from tinyscript import *
 from pbox.core.executable import *
 from pbox.helpers.archive import filter_archive, _ARCHIVE_CLASSES
+from pbox.helpers.fuzzhash import __all__ as _FHASH
 
 
 __script__  = "FilterArchive"
@@ -28,6 +29,12 @@ FILTERS = {
 }
 
 
+def fuzzy_hash(v):
+    if v in (_fh := list(map(lambda x: x.replace("_", "-"), filter(lambda x: not x.startswith("compare_"), _FHASH)))):
+        return v
+    raise ValueError(f"Bad fuzzy hash algorithm (should be one of {', '.join(_fh)})")
+
+
 def threshold(v):
     if 0 < (v := float(v)) <= 100:
         return v
@@ -39,10 +46,12 @@ if __name__ == '__main__':
     parser.add_argument("output", type=ts.file_does_not_exist, help="path of destination archive")
     maxl = max(map(len, FILTERS.keys()))
     funcs = "\n   - ".join(("{: <%d}" % maxl).format(n) + f": {x[0]}" for n, x in FILTERS.items())
+    parser.add_argument("-a", "--similarity-algorithm", type=fuzzy_hash, default="ssdeep", help="fuzzy hash algorithm")
     parser.add_argument("-f", "--filter", choices=list(FILTERS.keys()), default="exe", metavar="F",
                         help="function for archive filtering", note=f"F is any of\n   - {funcs}")
     parser.add_argument("-s", "--similarity-threshold", type=threshold, help="threshold (percentage) for similarity",
                         note="files with a similarity score strictly above this threshold are discarded")
     initialize()
-    filter_archive(args.input, args.output, FILTERS[args.filter][1], args.similarity_threshold, logger)
+    filter_archive(args.input, args.output, FILTERS[args.filter][1], args.similarity_algorithm,
+                   args.similarity_threshold, logger)
 

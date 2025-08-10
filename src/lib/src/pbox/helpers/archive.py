@@ -2,6 +2,9 @@
 from tinyscript import hashlib, re
 from tinyscript.helpers import execute_and_log, set_exception, Path, TempPath
 
+from .fuzzhash import *
+from .rendering import progress_bar
+
 
 __all__ = ["filter_archive", "get_archive_class", "is_archive", "read_archive"]
 
@@ -9,28 +12,39 @@ __all__ = ["filter_archive", "get_archive_class", "is_archive", "read_archive"]
 set_exception("BadFileFormat", "OSError")
 
 
-def filter_archive(path, output, filter_func=None, similarity_threshold=None, logger=None, keep_files=False):
-    from spamsum import match
-    from .files import ssdeep
-    tp, out, ssdeeps, cnt = TempPath(prefix="output_", length=16), Path(output), {}, 0
-    for fp in read_archive(path, filter_func=filter_func, logger=logger, keep_files=keep_files):
-        rp = fp.relative_to(fp._dst)
-        # similarity_threshold=None means do not filter anything
-        if similarity_threshold is not None:
-            h1, discard = ssdeep(fp), None
-            for h2, f2 in ssdeeps.items():
-                if (score := match(h1, h2)) >= similarity_threshold:
-                    discard = f2
-                    break
-            ssdeeps[h1] = str(rp)
-            if discard is not None:
-                if logger:
-                    logger.debug(f"Discarded \"{rp}\" because of similarity ({score}%) with \"{f2}\"")
-                continue
-        np = tp.joinpath(getattr(fp, "_parent", Path("."))).joinpath(*rp.parts)
-        np.dirname.mkdir(parents=True, exist_ok=True)
-        fp.copy(np)
-        cnt += 1
+def filter_archive(path, output, filter_func=None, similarity_algorithm=None, similarity_threshold=None, logger=None,
+                   keep_files=False):
+    from .fuzzhash import __all__ as _fhash
+    if similarity_algorithm not in \
+       (_fh := list(map(lambda x: x.replace("_", "-"), filter(lambda x: not x.startswith("compare_"), _fhash)))):
+        raise ValueError(f"'{similarity_algorithm}' is not a valid algorithm ; should be one of {', '.join(_fh)}")
+    tp, out, hashes, cnt = TempPath(prefix="output_", length=16), Path(output), {}, 0
+    with progress_bar(target=str(out)) as progress:
+        pbar = progress.add_task("", total=None)
+        for fp in read_archive(path, filter_func=filter_func, logger=logger, keep_files=keep_files):
+            progress.update(pbar, advance=1)
+            rp = fp.relative_to(fp._dst)
+            # similarity_threshold=None means do not filter anything
+            if similarity_threshold is not None:
+                h1, discard = globals()[similarity_algorithm.replace("-", "_")](fp), None
+                for h2, f2 in hashes.items():
+                    try:
+                        score = compare_fuzzy_hashes(h1, h2)
+                    except RuntimeError:
+                        raise
+                        score = compare_files(fp, f2, similarity_algorithm)
+                    if score >= similarity_threshold:
+                        discard = f2
+                        break
+                hashes[h1] = str(fp)
+                if discard is not None:
+                    if logger:
+                        logger.debug(f"Discarded \"{rp}\" because of similarity ({score}%) with \"{f2}\"")
+                    continue
+            np = tp.joinpath(getattr(fp, "_parent", Path("."))).joinpath(*rp.parts)
+            np.dirname.mkdir(parents=True, exist_ok=True)
+            fp.copy(np)
+            cnt += 1
     arch_cls, exts = None, []
     for cls in _ARCHIVE_CLASSES:
         if out.extension.split(".")[-1].lower() == (ext := cls.__name__[:-7].lower()):

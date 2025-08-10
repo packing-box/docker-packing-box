@@ -15,15 +15,14 @@ _FFI.cdef(
     int fuzzy_compare(const char *s1, const char *s2);
     """
 )
-_FUZZ_LIB = _FFI.dlopen("libfuzzy.so")
+_FUZZY_LIB = _FFI.dlopen("libfuzzy.so")
 _FUZZY_MAX_RESULT = 2048
 _HASH_FORMATS_REGEX = {
-    'mrsh-v2': re.compile(r"^.*?(\:[^\:]+){4}$"),
-    'sdhash':  re.compile(r"^sdbf(\:[^\:]+){12}$"),
-    'ssdeep':  re.compile(r"^\d+(\:[^\:]+){2}$"),
     'tlsh':    re.compile(r"^[0-9A-F]{70}$"),
+    'ssdeep':  re.compile(r"^\d+(?:\:[^\:]+){2}$"),
+    'sdhash':  re.compile(r"^sdbf(?:\-[a-z]+)?(?:\:[^\:]+){12,}$"),
+    'mrsh-v2': re.compile(r"^[^:]+(?:\:[^\:]+){4}$"),
 }
-_MINBLOCKS = 8  # as of mrsh_v2.0/header/config.h:21
 
 
 def _hash_format(h):
@@ -51,11 +50,11 @@ def compare_files(path1, path2, algo="ssdeep"):
     if algo not in _HASH_FORMATS_REGEX:
         raise RuntimeError(f"'{algo}' is not a valid fuzzy hashing algorithm")
     if algo == "mrsh-v2":
-        out = subprocess.check_output(["mrsh-v2", "-c", str(path1), str(path2)]).decode().strip()
-        return int(out.split("\n")[-1].split("|")[-1])  # 0-100
+        out = subprocess.check_output(["mrsh-v2", "-c", str(path1), str(path2)], stderr=subprocess.PIPE).decode()
+        return int(out.strip().split("\n")[-1].split("|")[-1] or 0)  # 0-100
     elif algo == "sdhash":
-        out = subprocess.check_output(["sdhash", "-g", str(path1), str(path2)]).decode().strip()
-        return int(out.split("\n")[-1].split("|")[-1])  # 0-100
+        out = subprocess.check_output(["sdhash", "-g", str(path1), str(path2)], stderr=subprocess.PIPE).decode()
+        return int(out.strip().split("\n")[-1].split("|")[-1] or 0)  # 0-100
     else:
         h = lambda p: p.fuzzy_hash if hasattr(p, "fuzzy_hash") else globals()[algo](p)
         return compare_fuzzy_hashes(h(path1), h(path2))
@@ -64,16 +63,17 @@ def compare_files(path1, path2, algo="ssdeep"):
 def compare_fuzzy_hashes(hash1, hash2):
     f1, f2 = _hash_format(h1 := hash1), _hash_format(h2 := hash2)
     if f1 != f2:
-        raise RuntimeError(f"hash formats of '{string.shorten(h1, 20)}' and '{string.shorten(h2, 20)}' do not match")
+        raise RuntimeError(f"hash formats of '{string.shorten(h1, 30)}' ({f1}) and '{string.shorten(h2, 30)}' ({f2}) "
+                           f"do not match")
     if f1 == "sdhash":
         tmp = TempPath(length=32)
         hf1, hf2 = tmp.tempfile(), tmp.tempfile()
         hf1.write_text(h1), hf2.write_text(h2)
-        out = subprocess.check_output(["sdhash", "-c", str(hf1), str(hf2)]).decode().strip()
+        out = subprocess.check_output(["sdhash", "-c", str(hf1), str(hf2)], stderr=subprocess.PIPE).decode()
         tmp.remove()
-        return int(out.split("\n")[-1].split("|")[-1])  # 0-100
+        return int(out.strip().split("\n")[-1].split("|")[-1] or 0)  # 0-100
     elif f1 == "ssdeep":
-        if (score := _FUZZ_LIB.fuzzy_compare(_new_cstr(h1.encode()), _new_cstr(h2.encode()))) < 0:
+        if (score := _FUZZY_LIB.fuzzy_compare(_new_cstr(h1.encode()), _new_cstr(h2.encode()))) < 0:
             raise RuntimeError(f"fuzzy_compare based on ssdeep failed ({score})")
         return score  # 0-100
     elif f1 == "tlsh":
@@ -82,7 +82,7 @@ def compare_fuzzy_hashes(hash1, hash2):
         dist = diff(h1, h2)
         #TODO: distance !!! 0 means identical, similarity decreases when score is increasing => requires calibration
         return dist
-    raise RuntimeError("{f1} hashes comparison is not supported ; try 'compare_files' instead")
+    raise RuntimeError(f"{f1} hashes comparison is not supported ; try 'compare_files' instead")
 
 
 @_tool_wrapper
@@ -128,7 +128,7 @@ def ssdeep(path):
     - Requirements:           any input size, but more effective with files >1KB
     """
     out = _FFI.new(f"char[{_FUZZY_MAX_RESULT}]")
-    r = _FUZZ_LIB.fuzzy_hash_filename(_new_cstr(str(path).encode("utf-8")), out)
+    r = _FUZZY_LIB.fuzzy_hash_filename(_new_cstr(str(path).encode("utf-8")), out)
     if r != 0:
         raise RuntimeError(f"fuzzy_hash_filename with ssdeep failed ({r})")
     return _FFI.string(out).decode("ascii")
