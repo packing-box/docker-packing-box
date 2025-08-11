@@ -388,7 +388,8 @@ class Dataset(Entity):
     def assess(self, file_balance_fields=("format", "signature", "size"), similarity_threshold=90, plot=False, **kw):
         """ Assesss the quality of a dataset by computing some metrics. """
         self.logger.debug("computing quality scores...")
-        s = Scores(self, file_balance_fields=file_balance_fields, similarity_threshold=similarity_threshold)
+        self.__scores = s = Scores(self, file_balance_fields=file_balance_fields,
+                                         similarity_threshold=similarity_threshold)
         if len(self) > 0:
             l = max(map(len, s.scores.keys()))
             render(Section("Dataset quality"),
@@ -1112,6 +1113,13 @@ class Dataset(Entity):
                 if fmt == "All":
                     break
         return r
+    
+    @property
+    def scores(self):
+        try:
+            return self.__scores
+        except AttributeError:
+            return Scores(self)
     
     @property
     def sources(self):

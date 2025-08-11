@@ -31,7 +31,6 @@ def filter_archive(path, output, filter_func=None, similarity_algorithm=None, si
                     try:
                         score = compare_fuzzy_hashes(h1, h2)
                     except RuntimeError:
-                        raise
                         score = compare_files(fp, f2, similarity_algorithm)
                     if score >= similarity_threshold:
                         discard = f2

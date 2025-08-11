@@ -19,17 +19,15 @@ _WEIGHTS = {
 }
 
 
-_isnumber = lambda t: t in (np.float16, np.float32, np.float64, np.float128, np.int8, np.int16, np.int32, np.int64)
-
-
-def balance(dataset, field):
+def balance(dataset, field, margin=None):
     try:
         data = pd.Series([getattr(exe, field) for exe in dataset]) if dataset._files else dataset._data.get(field)
+        data = (data[data != -1] if data.isin([-1, 0, 1]).all() else data[data != NOT_LABELLED]) if field == "label" \
+               else data.dropna()
     except AttributeError:
         dataset.logger.warning(f"field {field} does not exist")
         return
-    return min(data.std() / m if (m := data.mean()) > 0 else 0. / 2, 1.) if _isnumber(data.dtype) else \
-           1. - abs((counts := data.value_counts(normalize=True)).max() - counts.min())
+    return 1. - abs(max(0, (counts := data.value_counts(normalize=True)).max() - counts.min() - 2 * (margin or .0)))
 
 
 class Scores:
@@ -127,14 +125,14 @@ class Scores:
     def file_balance(self):
         """ (Specific) Score based on architecture, file type, and file size distribution."""
         try:
-            return sum(balance(self._ds, f) for f in self.__fbf) / len(self.__fbf)
+            return sum(balance(self._ds, f, config['file_balance_margin']) for f in self.__fbf) / len(self.__fbf)
         except TypeError:
             pass
     
     @cached_property
     def label_balance(self):
         """ (Generic) Score based on balance between different labels. """
-        return balance(self._ds, "label")
+        return balance(self._ds, "label", config['label_balance_margin'])
     
     @cached_property
     def outliers(self):
@@ -158,7 +156,6 @@ class Scores:
     @cached_property
     def similarity(self):
         """ (Specific) Score based on file similarity using fuzzy hashing. """
-        from spamsum import match
         # local iterator for (path, fuzzy_hash), depending on wether fuzzy_hash is part of data.csv
         def _iter():
             try:
@@ -175,7 +172,11 @@ class Scores:
         hashes, similar_files = {}, 0
         for p, s in _iter():
             for s2, p2 in hashes.items():
-                if match(s, s2) >= self.__st:
+                try:
+                    score = compare_fuzzy_hashes(s, s2)
+                except RuntimeError:
+                    score = compare_files(p, p2, config['fuzzy_hash_algorithm'])
+                if score >= self.__st:
                     similar_files += 1
                     self._log.debug(f"{s2} ({p2}) similar to {s} ({p})")
             if s not in hashes:

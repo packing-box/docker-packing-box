@@ -164,7 +164,7 @@ def __init_pe():
             if not self.has_resources or not any(r.name == "MANIFEST" for r in self.resources.childs):
                 score -= .05
             # privileges
-            if "requireAdministrator" in self.resources_manager.manifest:
+            if "requireAdministrator" in getattr(self.resources_manager, "manifest", ""):
                 score -= .05
             # signature
             if not self.has_signatures:

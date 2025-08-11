@@ -46,7 +46,8 @@ if __name__ == '__main__':
     parser.add_argument("output", type=ts.file_does_not_exist, help="path of destination archive")
     maxl = max(map(len, FILTERS.keys()))
     funcs = "\n   - ".join(("{: <%d}" % maxl).format(n) + f": {x[0]}" for n, x in FILTERS.items())
-    parser.add_argument("-a", "--similarity-algorithm", type=fuzzy_hash, default="ssdeep", help="fuzzy hash algorithm")
+    parser.add_argument("-a", "--similarity-algorithm", type=fuzzy_hash, default=config['fuzzy_hash_algorithm'],
+                        help="fuzzy hash algorithm")
     parser.add_argument("-f", "--filter", choices=list(FILTERS.keys()), default="exe", metavar="F",
                         help="function for archive filtering", note=f"F is any of\n   - {funcs}")
     parser.add_argument("-s", "--similarity-threshold", type=threshold, help="threshold (percentage) for similarity",
