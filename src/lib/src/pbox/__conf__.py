@@ -2,7 +2,7 @@
 import builtins as bi
 from functools import cached_property, lru_cache
 from tinyscript import hashlib, logging
-from tinyscript.helpers import classproperty, positive_int, set_exception, slugify, Path
+from tinyscript.helpers import classproperty, positive_float, positive_int, set_exception, slugify, Path
 from warnings import filterwarnings, simplefilter
 
 from .constants import *
@@ -40,8 +40,7 @@ _ae.__name__ = "Angr engine"
 
 
 def _bl(s, v):
-    _v = str(v).lower()
-    if _v in ["true", "yes", "1"]:
+    if (_v := str(v).lower()) in ["true", "yes", "1"]:
         return True
     elif _v in ["false", "no", "0"]:
         return False
@@ -69,17 +68,21 @@ def _fmt(s, v):
 _fmt.__name__ = "image format"
 
 
+def _mg(s, v):
+    if not .0 <= (v := positive_float(v)) <= .5:
+        raise ValueError(f"invalid margin '{v}' ; shall belong to [.0,.5]")
+    return v
+
+
 def _nj(s, v):
-    v = positive_int(v)
-    if v > CPU_COUNT:
+    if (v := positive_int(v)) > CPU_COUNT:
         logging.getLogger().debug(f"This computer has {CPU_COUNT} CPUs ; reducing number of jobs to this value")
         v = CPU_COUNT
     return v
 
 
 def _rp(s, v):
-    v = Path(str(v), expand=True).absolute()
-    if not v.exists():
+    if not (v := Path(str(v), expand=True).absolute()).exists():
         e = ValueError(v)
         e.setdefault = True
         raise e
@@ -89,8 +92,7 @@ _rp.__name__ = "path"
 
 def _sty(s, v):
     import matplotlib.pyplot as plt
-    l = plt.style.available + ["default"]
-    if v not in l:
+    if v not in (l := plt.style.available + ["default"]):
         raise ValueError(f"invalid pyplot style '{v}' ; shall be one of: {'|'.join(l)}")
     return v
 _sty.__name__ = "pyplot style"
@@ -154,9 +156,13 @@ bi.config = Config("packing-box",
                                      _bl),
             'data':                 ("data", "PATH", "path to executable formats' related data, relative to the "
                                      "workspace", _rp, ["workspace", PBOX_HOME], True),
+            'file_balance_margin':  (".2", "MARGIN", "margin for the balance of file-related fields in a dataset "
+                                     "(belongs to [.0,.5])", _mg),
+            'label_balance_margin': (".1", "MARGIN", "margin for the balance of labels in a dataset "
+                                     "(belongs to [.0,.5])", _mg),
             'hash_algorithm':       ("sha256", "ALGORITHM", "hashing algorithm for identifying samples", _vh),
-            'min_str_len':          ("4", "LENGTH", "minimal string length", _it),
             'fuzzy_hash_algorithm': ("ssdeep", "ALGORITHM", "algorithm for computing samples' fuzzy hash", _vs),
+            'min_str_len':          ("4", "LENGTH", "minimal string length", _it),
             'vt_api_key':           ("", "API_KEY", "VirusTotal's RESTful API key"),
         },
         'parsers': {

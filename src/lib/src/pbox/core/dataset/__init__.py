@@ -283,19 +283,21 @@ class Dataset(Entity):
         """ Walk the sources for random in-scope executables. """
         l = self.logger
         [l.info, l.debug][silent]("Searching for executables...")
-        m, candidates, packers, remove_after, hashes = 0, [], [p.name for p in item_packer.Packer.registry], [], set()
+        m, candidates, packers, remove_after, hashes = 0, [], [p.name for p in item_packer.Packer.registry], [], {}
         # inner function for checking for similar files
         def _is_similar(e):
             if similarity_threshold is None:
                 return
-            from spamsum import match
             if e.fuzzy_hash in hashes:
                 return e.fuzzy_hash
-            for h in hashes:
-                if match(e.fuzzy_hash, h) >= similarity_threshold:
-                    hashes.add(e.fuzzy_hash)
+            for h, p in hashes.items():
+                try:
+                    score = compare_fuzzy_hashes(e.fuzzy_hash, h)
+                except RuntimeError:
+                    score = compare_files(e, p, config['fuzzy_hash_algorithm'])
+                if score >= similarity_threshold:
                     return h
-            hashes.add(e.fuzzy_hash)
+            hashes[e.fuzzy_hash] = str(e)
         # walk input sources
         for cat, srcs in (sources or self.sources).items():
             exp_cat = expand_formats(cat)
