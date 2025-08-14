@@ -30,8 +30,12 @@ def filter_archive(path, output, filter_func=None, similarity_algorithm=None, si
                 for h2, f2 in hashes.items():
                     try:
                         score = compare_fuzzy_hashes(h1, h2)
-                    except RuntimeError:
+                    except ValueError:
                         score = compare_files(fp, f2, similarity_algorithm)
+                    except RuntimeError:
+                        if logger:
+                            logger.debug(f"Hash comparison failed: {h1} - {h2}")
+                        continue
                     if score >= similarity_threshold:
                         discard = f2
                         break
