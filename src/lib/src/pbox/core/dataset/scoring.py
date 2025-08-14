@@ -181,7 +181,8 @@ class Scores:
                     self._log.debug(f"{s2} ({p2}) similar to {s} ({p})")
             if s not in hashes:
                 hashes[s] = p
-        return 1. - similar_files / len(self._ds)
+        if len(hashes) > 0:
+            return 1. - similar_files / len(self._ds)
     
     @cached_property
     def uniqueness(self):
