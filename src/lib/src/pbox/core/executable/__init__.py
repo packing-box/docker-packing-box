@@ -69,13 +69,13 @@ class Executable(Path):
     def __new__(cls, *parts, **kwargs):
         h, ds1, ds2 = kwargs.pop('hash', None), kwargs.pop('dataset', None), kwargs.pop('dataset2', None)
         fields, kwargs['expand'], e = ["hash", "label"] + EXE_METADATA, True, parts[0] if len(parts) == 1 else None
-        def _setattrs(exe, hash):
+        def _setattrs(exe, h):
             exe._dataset = ds1
-            exe._destination = ds1.path.joinpath("files", hash or exe.hash)
+            exe._destination = ds1.path.joinpath("files", h or exe.hash)
             # AttributeError: this occurs when the dataset is still empty, therefore holding no 'hash' column
             # IndexError:     this occurs when the executable did not exist in the dataset yet
             with suppress(AttributeError, IndexError):
-                d, meta_fields = ds1._data[ds1._data.hash == hash].iloc[0].to_dict(), EXE_METADATA + ["hash", "label"]
+                d, meta_fields = ds1._data[ds1._data.hash == h].iloc[0].to_dict(), EXE_METADATA + ["hash", "label"]
                 for a in meta_fields:
                     # in some cases, we may instantiate an executable coming from a dataset and pointing on an altered
                     #  sample that has been corrupted ; then it is necessary to recompute the filetype (aka signature)
@@ -90,7 +90,7 @@ class Executable(Path):
                     setattr(exe, "data", f)
             if ds2 is not None and ds2._files:
                 exe._destination = ds2.files.joinpath(h)
-        # case (1) orphan excutable (no dataset)
+        # case (1) orphan executable (no dataset)
         if len(parts) > 0 and all(x is None for x in [h, ds1, ds2]):
             label = kwargs.pop('label', NOT_LABELLED)
             if len(parts) == 1:
@@ -100,6 +100,7 @@ class Executable(Path):
                 elif isinstance(e, Path):
                     self = super(Executable, cls).__new__(cls, e, **kwargs)
                     self.label = label
+                    self._case = "orphan executable"
                     return self
                 parts = str(e).split(os.sep)
                 if parts[0] == "":
@@ -115,10 +116,12 @@ class Executable(Path):
                 return exe
             self = super(Executable, cls).__new__(cls, *parts, **kwargs)
             self.label = label
+            self._case = "orphan executable"
             return self
         # case (2) orphan excutable (dataset to be bound with)
         elif len(parts) > 0 and ds1 is not None and all(x is None for x in [h, ds2]) and not hasattr(e, "_fields"):
             self = super(Executable, cls).__new__(cls, *parts, **kwargs)
+            self._case = f"bound to {ds1.basename} (no field)"
             _setattrs(self)
             return self
         # case (3) dataset-bound by data row
@@ -131,10 +134,11 @@ class Executable(Path):
             except AttributeError:  # 'NoneType|FilelessDataset' object has no attribute 'files'
                 dest = e.realpath
             self = super(Executable, cls).__new__(cls, dest, **kwargs)
+            self._case = f"bound to {ds1.basename} (fields from dictionary)"
             _setattrs(self, e.hash)
             for f in fields:
-                if f in ["format", "signature"]:
-                    continue
+                #if f in ["format", "signature"]:
+                #    continue
                 setattr(self, f, getattr(e, f))
             return self
         # case (4) dataset-bound by hash (when ds2 is None)
@@ -142,6 +146,7 @@ class Executable(Path):
         elif len(parts) == 0 and all(x is not None for x in [h, ds1]):
             exe = ds1.path.joinpath("files", h)
             self = super(Executable, cls).__new__(cls, str(exe), **kwargs)
+            self._case = f"bound to {ds1.basename} ({['copy to ' + ds2.basename, 'by hash'][ds2 is None]})"
             _setattrs(self, h)
             return self
         raise ValueError("Unsupported combination of arguments (see the docstring of the Executable class for more "
@@ -337,7 +342,7 @@ class Executable(Path):
             f = [f"{'**'+n+'**:':<{maxlen+6}}{v}" for n, v in self.data.items()]
             r += [Section("Features"), List(f)]
         render(*r)
-    
+        
     @property
     def bin_label(self):
         return READABLE_LABELS(self.label, True)
@@ -369,21 +374,22 @@ class Executable(Path):
     
     @cached_property
     def features(self):
-        Features()  # lazily populate Features.registry at first instantiation
-        if self.format is not None:
-            return {n: f.description for n, f in Features.registry[self.format].items() if f.keep}
-    
-    @cached_property
-    def filetype(self):
-        from magic import from_file
         try:
-            return _N_SECTIONS.sub("", from_file(str(self)))
-        except OSError:
-            return
+            return self._dataset._features
+        except AttributeError:
+            if self.format is not None:
+                Features()  # lazily populate Features.registry at first instantiation
+                return {n: f.description for n, f in Features.registry[self.format].items() if f.keep}
+    
+    @property
+    def filetype(self):
+        return self.signature
     
     @cached_property
     def format(self):
         best_fmt, l = None, 0
+        if self.filetype is None:
+            raise OSError(f"'{self}' does not exist ({self._case})")
         # NB: the best signature matched is the longest
         for ftype, fmt in SIGNATURES.items():
             if len(ftype) > l and self.filetype is not None and re.search(ftype, self.filetype) is not None:
@@ -430,9 +436,13 @@ class Executable(Path):
     def shortgroup(self):
         return get_format_group(self.format, True)
     
-    @property
+    @cached_property
     def signature(self):
-        return self.filetype
+        from magic import from_file
+        try:
+            return _N_SECTIONS.sub("", from_file(str(self)))
+        except OSError:
+            return
     
     @cached_property
     def size(self):
