@@ -54,7 +54,7 @@ dependencies = [
   "scikit-learn-extra@git+https://github.com/TimotheeMathieu/scikit-learn-extra.git",
   "seaborn",
   "tabulate",
-  "tinyscript>=1.30.19",
+  "tinyscript>=1.30.26",
   "weka",
 ]
 dynamic = ["version"]

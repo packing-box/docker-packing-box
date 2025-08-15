@@ -1,5 +1,5 @@
 # -*- coding: UTF-8 -*-
-from tinyscript import hashlib, re
+from tinyscript import hashlib, re, string
 from tinyscript.helpers import execute_and_log, set_exception, Path, TempPath
 
 from .fuzzhash import *
@@ -34,7 +34,7 @@ def filter_archive(path, output, filter_func=None, similarity_algorithm=None, si
                         score = compare_files(fp, f2, similarity_algorithm)
                     except RuntimeError:
                         if logger:
-                            logger.debug(f"Hash comparison failed: {h1} - {h2}")
+                            logger.debug(f"Hash comparison failed: {string.shorten(h1, 30)} - {string.shorten(h2, 30)}")
                         continue
                     if score >= similarity_threshold:
                         discard = f2

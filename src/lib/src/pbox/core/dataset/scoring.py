@@ -25,7 +25,7 @@ def balance(dataset, field, margin=None):
         data = (data[data != -1] if data.isin([-1, 0, 1]).all() else data[data != NOT_LABELLED]) if field == "label" \
                else data.dropna()
     except AttributeError:
-        dataset.logger.warning(f"field {field} does not exist")
+        warn_once(dataset.logger, f"field {field} does not exist")
         return
     return 1. - abs(max(0, (counts := data.value_counts(normalize=True)).max() - counts.min() - 2 * (margin or .0)))
 
@@ -151,7 +151,7 @@ class Scores:
                 portabilities.append(exe.parsed.portability)
             return sum(portabilities) / len(portabilities) if portabilities else 0.
         else:
-            self._log.warning("cannot compute portability as it requires files")
+            warn_once(self._log, "cannot compute portability as it requires files")
     
     @cached_property
     def similarity(self):
@@ -166,7 +166,7 @@ class Scores:
                     for exe in self._ds:
                         yield exe.realpath, exe.fuzzy_hash
                 else:
-                    self._log.warning("cannot compute similarity as it requires files")
+                    warn_once(self._log, "cannot compute similarity as it requires files")
                     return
         # start computing similarity
         hashes, similar_files = {}, 0
@@ -196,5 +196,5 @@ class Scores:
                     hashes.add(exe.hash)
             return 1 - duplicates / len(self._ds)
         else:
-            self._log.warning("cannot compute uniqueness as it requires files")
+            warn_once(self._log, "cannot compute uniqueness as it requires files")
 

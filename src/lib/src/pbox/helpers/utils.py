@@ -7,7 +7,9 @@ lazy_load_module("yaml")
 
 
 __all__ = ["at_interrupt", "benchmark", "bin_label", "bold", "class_or_instance_method", "execute_and_get_values_list",
-           "get_counts", "json", "json_cache", "np", "pd", "shorten_str", "strip_version", "yaml"]
+           "get_counts", "json", "json_cache", "np", "pd", "shorten_str", "strip_version", "warn_once", "yaml"]
+
+_WARN_CACHE = {}
 
 
 bin_label = lambda l: {NOT_LABELLED.lower(): -1, 'false': 0, NOT_PACKED.lower(): 0, 'true': 1, None: None} \
@@ -117,6 +119,17 @@ def strip_version(name):
     if re.match(r"^(\d+\.)*(\d+)([\._]?(\d+|[a-zA-Z]\d*|alpha|beta))?$", name.split("-")[-1]):
         return "-".join(name.split("-")[:-1])
     return name
+
+
+def warn_once(logger, message):
+    """ Simple helper to ensure that the input logger warns the input message only once. """
+    if logger is None:
+        return
+    if (k := id(logger)) not in _WARN_CACHE.keys():
+        _WARN_CACHE.setdefault(k, set())
+    if message not in _WARN_CACHE[k]:
+        logger.warning(message)
+        _WARN_CACHE[k].add(message)
 
 
 # based on: https://stackoverflow.com/questions/28237955/same-name-for-classmethod-and-instancemethod

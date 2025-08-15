@@ -1,5 +1,5 @@
 # -*- coding: UTF-8 -*-
-from tinyscript import functools, re
+from tinyscript import functools, logging, re
 from tinyscript.helpers import Path
 
 
@@ -18,6 +18,8 @@ def __init_plt():
 
 lazy_load_object("mpl", __init_mpl)
 lazy_load_object("plt", __init_plt)
+
+logging.silentLogger("matplotlib.font_manager")
 
 
 def configure_style(**kw):
