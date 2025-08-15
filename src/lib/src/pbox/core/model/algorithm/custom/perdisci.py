@@ -65,11 +65,19 @@ class PerdisciClassifier(MLPClassifier):
     0.8...
     """
     classes_ = np.array([0, 1])
+    _feature_names = [
+        "number_standard_sections",
+        "number_non_standard_sections",
+        "number_x_sections",
+        "number_rwx_sections",
+        "number_addresses_in_iat",
+        "entropy_pe_header",
+        "entropy_code_sections",
+        "entropy_data_sections",
+        "entropy",
+    ]
     
     def __init__(self, **kwargs):
-        self._feature_names = ["number_standard_sections", "number_non_standard_sections", "number_x_sections",
-                               "number_rwx_sections", "number_addresses_in_iat", "entropy_pe_header",
-                               "entropy_code_sections", "entropy_data_sections", "entropy"]
         kwargs.pop("hidden_layer_sizes", None), kwargs.pop("activation", None)
         super().__init__(hidden_layer_sizes=(5, ), activation="logistic", **kwargs)
     

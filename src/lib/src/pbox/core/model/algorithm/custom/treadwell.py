@@ -70,6 +70,17 @@ class TreadwellClassifier(BaseEstimator, ClassifierMixin):
     0.8...
     """
     classes_ = np.array([0, 1])
+    # features, in the order specified in the paper to match to the weights and risk coefficients
+    _feature_names = [
+        "has_non_standard_section",
+        "has_known_packer_section_names",
+        "is_ep_not_in_text_section",
+        "has_tls_data_directory_entry",
+        "has_dll_with_no_export",
+        "has_known_packer_section_names",
+        "is_import_functions_count<=2",
+        "is_iat_malformed",
+    ]
     _parameter_constraints = {
         'confidence':        [Interval(RealNotInt, 0., 1., closed="both")],
         'risk_coefficients': [ArrayOfLengthN(14), DictOfLengthAtLeastN(14), None],
@@ -80,10 +91,6 @@ class TreadwellClassifier(BaseEstimator, ClassifierMixin):
         self.confidence = confidence
         self.weights = DEFAULT_WEIGHTS if weights is None else weights
         self.risk_coefficients = RISK_COEFFICIENTS if risk_coefficients is None else risk_coefficients
-        # features, in the order specified in the paper to match to the weights and risk coefficients
-        self._feature_names = ["has_non_standard_section", "has_known_packer_section_names",
-                               "is_ep_not_in_text_section", "has_tls_data_directory_entry", "has_dll_with_no_export",
-                               "has_known_packer_section_names", "is_import_functions_count<=2", "is_iat_malformed"]
         self._validate_params()
         if isinstance(self.weights, dict):
             self.weights = np.array([self.weights[f] for f in self._feature_names])

@@ -52,13 +52,16 @@ class REMINDerClassifier(BaseEstimator, ClassifierMixin):
     0.8...
     """
     classes_ = np.array([0, 1])
+    _feature_names = [
+        "is_ep_in_w_section",
+        "entropy_ep_section",
+    ]
     _parameter_constraints = {
         'confidence':  [Interval(RealNotInt, 0., 1., closed="both")],
     }
     
     def __init__(self, confidence=0.9999):
         self.confidence = confidence
-        self._feature_names = ["is_ep_in_w_section", "entropy_ep_section"]
         self._validate_params()
         self.entropy_threshold_ = THRESHOLD_FROM_STUDY
     

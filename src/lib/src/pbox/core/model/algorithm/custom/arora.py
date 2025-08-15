@@ -76,6 +76,23 @@ class AroraClassifier(BaseEstimator, ClassifierMixin):
     0.8...
     """
     classes_ = np.array([0, 1])
+    # features, in the order specified in the paper to match to the weights and risk coefficients
+    _feature_names = [
+        "number_known_packer_section_names",
+        "has_section_name_not_known",
+        "number_sections_name_not_printable",
+        "number_sections_name_empty",
+        "has_no_code_section",
+        "has_code_section_not_x",
+        "has_wx_section",
+        "is_data_section_x",
+        "has_code_data_section",
+        "is_ep_section_not_code_or_not_x",
+        "is_ep_in_tls_section",
+        "has_less_than_20_imports",
+        "is_iat_in_non_standard_section",
+        "highest_section_entropy_normalized",
+    ]
     _parameter_constraints = {
         'confidence':        [Interval(RealNotInt, 0., 1., closed="both")],
         'risk_coefficients': [ArrayOfLengthN(14), DictOfLengthAtLeastN(14), None],
@@ -86,13 +103,6 @@ class AroraClassifier(BaseEstimator, ClassifierMixin):
         self.confidence = confidence
         self.weights = DEFAULT_WEIGHTS if weights is None else weights
         self.risk_coefficients = RISK_COEFFICIENTS if risk_coefficients is None else risk_coefficients
-        # features, in the order specified in the paper to match to the weights and risk coefficients
-        self._feature_names = ["number_known_packer_section_names", "has_section_name_not_known",
-                               "number_sections_name_not_printable", "number_sections_name_empty",
-                               "has_no_code_section", "has_code_section_not_x", "has_wx_section", "is_data_section_x",
-                               "has_code_data_section", "is_ep_section_not_code_or_not_x", "is_ep_in_tls_section",
-                               "has_less_than_20_imports", "is_iat_in_non_standard_section",
-                               "highest_section_entropy_normalized"]
         self._validate_params()
         if isinstance(self.weights, dict):
             self.weights = np.array([self.weights[f] for f in self._feature_names])

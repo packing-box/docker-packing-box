@@ -60,16 +60,22 @@ class PHADClassifier(BaseEstimator, ClassifierMixin):
     0.8...
     """
     classes_ = np.array([0, 1])
+    _feature_names = [
+        "number_wx_sections",
+        "number_x_not_code_or_not_x_code_sections",
+        "number_sections_name_not_printable",
+        "has_no_x_section",
+        "is_sum_of_all_sections>file_size",
+        "is_pos_pe_sig<size_of_image_dos_header",
+        "is_ep_not_in_x_section",
+        "is_ep_not_in_code_section",
+    ]
     _parameter_constraints = {
         'confidence':  [Interval(RealNotInt, 0., 1., closed="both")],
     }
     
     def __init__(self, confidence=1.):
         self.confidence = confidence
-        self._feature_names = ["number_wx_sections", "number_x_not_code_or_not_x_code_sections",
-                               "number_sections_name_not_printable", "has_no_x_section",
-                               "is_sum_of_all_sections>file_size", "is_pos_pe_sig<size_of_image_dos_header",
-                               "is_ep_not_in_x_section", "is_ep_not_in_code_section"]
         self._validate_params()
         self.threshold_ = THRESHOLD_FROM_STUDY
     
