@@ -12,7 +12,7 @@ lazy_load_module("seaborn")
 @save_figure
 def _characteristic_scatter_plot(dataset, characteristic=None, multiclass=True, **kw):
     """ Plot a scatter plot of dataset's reduced data, highlighting the selected characteristic. """
-    from ...helpers.figure import plt  # report to get the actual object (cfr lazy loading)
+    from ...helpers.figure import plt  # reimport to get the actual object (cfr lazy loading)
     X, prefix = dataset._data, "bin_" if characteristic == "label" and not multiclass else ""
     if not multiclass:
         X['label'] = X.label.map(LABELS_BACK_CONV).fillna(1).astype('int')
@@ -21,7 +21,7 @@ def _characteristic_scatter_plot(dataset, characteristic=None, multiclass=True, 
     # define plot
     # important note: 'plt' needs to be called BEFORE 'mpl' ; otherwise, further references to
     #                  'matplotlib' will be seen as 'mpl', causing "ModuleNotFoundError: No module named 'mpl'"
-    fig, fsize = plt.figure(figsize=(8, 6)), config['title_font_size'] - 2
+    fig, fsize = plt.figure(figsize=(8, 6)), config['font_size'] - 2
     unique_values = np.unique(X[characteristic]).tolist()
     # put not labelled samples above
     try:
@@ -63,7 +63,7 @@ def _features_bar_chart(dataset, feature=None, num_values=None, multiclass=False
     if feature is None:
         l.warning("No feature provided, stopping.")
         return  # no feature to handle
-    from ...helpers.figure import plt  # report to get the actual object (cfr lazy loading)
+    from ...helpers.figure import plt  # reimport to get the actual object (cfr lazy loading)
     from sklearn.covariance import empirical_covariance
     from sklearn.preprocessing import MinMaxScaler
     scaler = scaler or MinMaxScaler
@@ -178,7 +178,7 @@ def _features_bar_chart(dataset, feature=None, num_values=None, multiclass=False
         plt.bar_label(b, labels=["" if x == 0 else x for x in v], label_type="center", color="white")
     plt.yticks(**({'family': "serif", 'fontsize': 14} if vtype is hex else {'fontsize': 14}))
     plt.legend()
-    return f"{dataset.basename}/features/{['', 'combo-'][len(feature) > 1]}{feature[0]}"
+    return f"{dataset.basename}/features-bar/{['', 'combo-'][len(feature) > 1]}{feature[0]}"
 
 
 @save_figure
@@ -186,7 +186,7 @@ def _features_comparison_heatmap(dataset, datasets=None, feature=None, max_featu
                                  aggregate="byte_[0-9]+_after_ep", **kw):
     """ Plot a heatmap with the diffferences of feature values between a reference dataset (Dataset instance) and the
          given list of datasets (by name). """
-    from ...helpers.figure import plt  # report to get the actual object (cfr lazy loading)
+    from ...helpers.figure import plt  # reimport to get the actual object (cfr lazy loading)
     from sklearn.preprocessing import StandardScaler
     l = dataset.logger
     datasets_feats = {dataset.basename: dataset._data.copy()}
@@ -228,13 +228,35 @@ def _features_comparison_heatmap(dataset, datasets=None, feature=None, max_featu
     plt.title(kw.get('title') or title, **kw['title-font'])
     ax.collections[0].colorbar.set_ticklabels(["Negative", "Negligible", "Positive"])
     plt.tight_layout()
-    return f"{dataset.basename}/features-compare/{'-'.join(datasets_feats)}"
+    return f"{dataset.basename}/features-heatmap/{'-'.join(datasets_feats)}"
+
+
+@save_figure
+def _features_scatter_plot(dataset, multiclass=False, eps=.3, min_samples=100, **kw):
+    """ Plot DBSCAN clustering result in PCA-reduced space. """
+    from sklearn.cluster import DBSCAN
+    X = dataset._data
+    if not multiclass:
+        X['label'] = X.label.map(LABELS_BACK_CONV).fillna(1).astype('int')
+    Xr = reduce_data(X[sorted(dataset._features.keys())], n_components=2, logger=dataset.logger, **kw)
+    fig, fsize = plt.figure(figsize=(8, 6)), config['font_size'] - 2
+    labels = DBSCAN(eps=eps, min_samples=min_samples).fit_predict(Xr)
+    unique_labels = sorted(np.unique(labels).tolist())
+    cm = plt.colormaps[config['colormap_main']].resampled(len(unique_labels))
+    for i, label in enumerate(unique_labels):
+        plt.scatter((cluster_points := Xr[labels == label])[:, 0], cluster_points[:, 1], marker="ox"[label == -1],
+               c=["black" if label == -1 else cm(i)], label="Outlier" if label == -1 else f"Cluster {label}", alpha=0.6)
+    plt.title(kw.get('title') or "DBSCAN on PCA-reduced data", **kw['title-font'])
+    plt.suptitle(f"Outliers of dataset {dataset.name}", **kw['suptitle-font'])
+    plt.legend(loc='upper left', bbox_to_anchor=(1, 1), fontsize=fsize)
+    plt.tight_layout()
+    return f"{dataset.basename}/features-scatter"
 
 
 @save_figure
 def _information_gain_bar_chart(dataset, feature=None, max_features=None, multiclass=False, **kw):
     """ Plot a bar chart of the information gain of features in descending order. """
-    from ...helpers.figure import plt  # report to get the actual object (cfr lazy loading)
+    from ...helpers.figure import plt  # reimport to get the actual object (cfr lazy loading)
     from sklearn.feature_selection import mutual_info_classif as mic
     l = dataset.logger
     feature = filter_features(dataset, feature)
@@ -261,7 +283,7 @@ def _information_gain_bar_chart(dataset, feature=None, max_features=None, multic
     plt.yticks(rotation='horizontal')
     plt.margins(y=1/max_features)
     plt.axvline(x=0, color='k')
-    return f"{dataset.basename}/infogain"
+    return f"{dataset.basename}/infogain-bar"
 
 
 @save_figure
@@ -277,7 +299,7 @@ def _information_gain_comparison_heatmap(dataset, datasets=None, feature=None, m
             'size'   : 10}         
     matplotlib.rc('font', **font) #set the font style created
     #FIXME: remove temp code [END]
-    from ...helpers.figure import plt  # report to get the actual object (cfr lazy loading)
+    from ...helpers.figure import plt  # reimport to get the actual object (cfr lazy loading)
     from sklearn.feature_selection import mutual_info_classif as mic
     from sklearn.impute import SimpleImputer
     l = dataset.logger
@@ -320,13 +342,13 @@ def _information_gain_comparison_heatmap(dataset, datasets=None, feature=None, m
     plt.yticks(fontsize=10)
     plt.tight_layout()
     dataset._temp_df = df
-    return f"{dataset.basename}/infogain-compare/{'-'.join(datasets_feats)}"
+    return f"{dataset.basename}/infogain-heatmap/{'-'.join(datasets_feats)}"
 
 
 @save_figure
 def _labels_pie_chart(dataset, **kw):
     """ Describe the dataset with a pie chart. """
-    from ...helpers.figure import plt  # report to get the actual object (cfr lazy loading)
+    from ...helpers.figure import plt  # reimport to get the actual object (cfr lazy loading)
     l = dataset.logger
     # data preparation
     l.debug("collecting label counts...")
@@ -375,11 +397,12 @@ def _samples_individual_visualization(dataset, query=None, n=0, **kw):
 
 _PLOTS = {
     'characteristic':   _characteristic_scatter_plot,
-    'features':         _features_bar_chart,
-    'features-compare': _features_comparison_heatmap,
-    'infogain':         _information_gain_bar_chart,
-    'infogain-compare': _information_gain_comparison_heatmap,
-    'labels':           _labels_pie_chart,
+    'features-bar':     _features_bar_chart,
+    'features-heatmap': _features_comparison_heatmap,
+    'features-scatter': _features_scatter_plot,
+    'infogain-bar':     _information_gain_bar_chart,
+    'infogain-heatmap': _information_gain_comparison_heatmap,
+    'labels-pie':       _labels_pie_chart,
     'samples':          _samples_individual_visualization,
 }
 
