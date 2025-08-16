@@ -1,7 +1,7 @@
 # -*- coding: UTF-8 -*-
 from cffi import FFI
 from tinyscript import functools, re, string, subprocess
-from tinyscript.helpers import execute, TempPath
+from tinyscript.helpers import execute, Path, TempPath
 
 
 __all__ = ["compare_files", "compare_fuzzy_hashes", "mrsh_v2", "sdhash", "ssdeep", "tlsh"]
@@ -10,9 +10,12 @@ __all__ = ["compare_files", "compare_fuzzy_hashes", "mrsh_v2", "sdhash", "ssdeep
 _FFI = FFI()
 _FFI.cdef(
     """
+    /* libfuzzy-dev */
     int fuzzy_hash_buf(const unsigned char *buf, unsigned int buf_len, char *result);
     int fuzzy_hash_filename(const char *filename, char *result);
     int fuzzy_compare(const char *s1, const char *s2);
+    /* mrsh-lib */
+    int compare_mrsh(const char *hash1, const char *hash2);
     """
 )
 _FUZZY_LIB = _FFI.dlopen("libfuzzy.so")
@@ -23,6 +26,7 @@ _HASH_FORMATS_REGEX = {
     'sdhash':  re.compile(r"^sdbf(?:\-[a-z]+)?(?:\:[^\:]+){12,}$"),
     'mrsh-v2': re.compile(r"^[^:]+(?:\:[^\:]+){4}$"),
 }
+_MRSH_LIB = _FFI.dlopen(str(Path(__file__).dirname.joinpath("libmrsh.so")))
 
 
 def _hash_format(h):
@@ -63,9 +67,11 @@ def compare_files(path1, path2, algo="ssdeep"):
 def compare_fuzzy_hashes(hash1, hash2):
     f1, f2 = _hash_format(h1 := hash1), _hash_format(h2 := hash2)
     if f1 != f2:
-        raise RuntimeError(f"hash formats of '{string.shorten(h1, 30)}' ({f1}) and '{string.shorten(h2, 30)}' ({f2}) "
-                           f"do not match")
-    if f1 == "sdhash":
+        raise ValueError(f"Hash formats of '{string.shorten(h1, 30)}' ({f1}) and '{string.shorten(h2, 30)}' ({f2}) "
+                         f"do not match")
+    if f1 == "mrsh-v2":
+        return _MRSH_LIB.compare_mrsh(_new_cstr(h1.encode()), _new_cstr(h2.encode()))  # 0-100
+    elif f1 == "sdhash":
         tmp = TempPath(length=32)
         hf1, hf2 = tmp.tempfile(), tmp.tempfile()
         hf1.write_text(h1), hf2.write_text(h2)
@@ -82,7 +88,8 @@ def compare_fuzzy_hashes(hash1, hash2):
         dist = diff(h1, h2)
         #TODO: distance !!! 0 means identical, similarity decreases when score is increasing => requires calibration
         return dist
-    raise RuntimeError(f"{f1} hashes comparison is not supported ; try 'compare_files' instead")
+    raise RuntimeError("Unknown hash format" if f1 is None else \
+                       f"{f1} hashes comparison is not supported ; try 'compare_files' instead")
 
 
 @_tool_wrapper
@@ -130,7 +137,7 @@ def ssdeep(path):
     out = _FFI.new(f"char[{_FUZZY_MAX_RESULT}]")
     r = _FUZZY_LIB.fuzzy_hash_filename(_new_cstr(str(path).encode("utf-8")), out)
     if r != 0:
-        raise RuntimeError(f"fuzzy_hash_filename with ssdeep failed ({r})")
+        raise RuntimeError(f"fuzzy_hash_filename of '{path}' with ssdeep failed ({r})")
     return _FFI.string(out).decode("ascii")
 
 

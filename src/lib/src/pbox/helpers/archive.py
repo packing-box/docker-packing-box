@@ -227,7 +227,7 @@ class ISOArchive(Archive):
     signature = lambda bytes: all(bytes[n:n+5] == b"CD001" for n in [0x8001, 0x8801])  # 0x9001
     
     def extract(self):
-        execute_and_log(f"unar \"{self}\" -o\"{self._dst}\"")
+        execute_and_log(f"unar \"{self}\" -o \"{self._dst}\"")
     
     def write(self):
         execute_and_log(f"genisoimage -o \"{self}\" \"{self._src}\"", silent=["-input-charset not specified"])
