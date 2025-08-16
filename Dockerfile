@@ -53,10 +53,10 @@ RUN apt-get -y install apt-transport-https apt-utils \
 # install useful tools
 RUN apt-get update \
  && apt-get -y install colordiff colortail cython3 dos2unix dosbox git golang kmod less ltrace meson nasm tree strace \
- && apt-get -y install gcab genisoimage iproute2 jq nftables nodejs npm rubygems ssdeep swig vim visidata yarnpkg \
- && apt-get -y install python3-pip python3-pygraphviz python3-setuptools \
+ && apt-get -y install gcab genisoimage iproute2 jlha-utils jq nftables nodejs npm rubygems ssdeep swig vim yarnpkg \
+ && apt-get -y install python3-pip python3-pygraphviz python3-setuptools visidata \
  && apt-get -y install bc curl ffmpeg imagemagick pev psmisc tesseract-ocr unrar unzip wget wimtools x11-apps zstd \
- && apt-get -y install bats binutils-dev binwalk dwarfdump ent foremost tmate tmux weka xdotool xterm xvfb \
+ && apt-get -y install bats binutils-dev binwalk dwarfdump ent foremost rpm2cpio tmate tmux weka xdotool xterm xvfb \
  && wget -qO /tmp/b.deb https://github.com/sharkdp/bat/releases/download/v0.25.0/bat_0.25.0_amd64.deb \
  && dpkg -i /tmp/b.deb \
  && rm -f /tmp/b.deb

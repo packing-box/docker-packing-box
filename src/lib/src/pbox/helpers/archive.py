@@ -85,7 +85,7 @@ def read_archive(path, destination=None, filter_func=None, logger=None, path_cls
     cnt = 0
     with get_archive_class(path, logger)(path, destination=destination, keep_files=keep_files) as p:
         origin = origin or Path(f"[{p.filename}:{hashlib.sha256_file(p)}]")
-        for fp in p._dst.walk():
+        for fp in ([p._dst] if p._dst.is_file() else p._dst.walk()):
             if not fp.is_file():
                 continue
             if path_cls is not None:
@@ -122,7 +122,7 @@ class Archive(Path):
             if (src := kwargs.get('source')) is not None:
                 raise FileExistsError(f"Archive '{p}' already exists")
             with p.open('rb') as f:
-                sig = f.read(0x9010)
+                sig = f.read(0x9010)  # ISO has signature pattern up to 0x9001 bytes ("CD001"), hence choosing 0x9010
             if not cls.signature(sig):
                 raise BadFileFormat(f"Not a {cls.__name__[:-7]} file")
             if not tst:
@@ -168,13 +168,27 @@ class CABArchive(Archive):
         execute_and_log(f"gcab -c \"{self}\" \"{self._src}\"/*")
 
 
+class DEBArchive(Archive):
+    signature = lambda bytes: bytes[:8] == b"!<arch>\n"
+    
+    def extract(self):
+        execute_and_log(f"dpkg-deb -R \"{self}\" \"{self._dst}\"")
+    
+    def write(self):
+        execute_and_log(f"dpkg-deb -b \"{self._src}\" \"{self.stem}.deb\"")
+
+
 class GZArchive(Archive):
     signature = lambda bytes: bytes[:2] == b"\x1f\x8b"
     tool = "gzip"
     
     def extract(self):
-        self._dst.mkdir(exist_ok=True)
-        execute_and_log(f"tar xf \"{self}\" --directory=\"{self._dst}\"")
+        if self.extension == ".gz":
+            self._dst = self.dirname.joinpath(self.stem)  # remove the ".gz" extension
+            self._dst._created = True
+            execute_and_log(f"{self.tool} -d \"{self}\"")
+        else:
+            execute_and_log(f"tar xf \"{self}\" --directory=\"{self._dst}\"")
     
     def write(self):
         execute_and_log(f"tar cf \"{self.stem}.tar\" --directory=\"{self._src}\" .")
@@ -201,6 +215,24 @@ class ISOArchive(Archive):
     
     def write(self):
         execute_and_log(f"genisoimage -o \"{self}\" \"{self._src}\"", silent=["-input-charset not specified"])
+
+
+class LZHArchive(Archive):
+    signature = lambda bytes: re.match(rb"\-lh\d\-", bytes[2:7])
+    
+    def extract(self):
+        execute_and_log(f"jlha -xw=\"{self._dst}\" \"{self}\"")
+    
+    def write(self):
+        execute_and_log(f"jlha a \"{self}\" \"{self._src}\"")
+
+
+class RPMArchive(Archive):
+    signature = lambda bytes: bytes[:4] == b"\xed\xab\xee\xdb"
+    
+    def extract(self):
+        execute_and_log(f"rpm2archive \"{self}\"")
+        execute_and_log(f"tar xf \"{self}.tgz\" --directory=\"{self._dst}\"")
 
 
 class WIMArchive(Archive):
