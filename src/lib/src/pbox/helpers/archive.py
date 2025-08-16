@@ -34,7 +34,7 @@ def filter_archive(path, output, filter_func=None, similarity_algorithm=None, si
                         score = compare_files(fp, f2, similarity_algorithm)
                     except RuntimeError:
                         if logger:
-                            logger.debug(f"Hash comparison failed: {string.shorten(h1, 30)} - {string.shorten(h2, 30)}")
+                            logger.debug(f"Hash comparison failed\n{h1}\n{h2}")
                         continue
                     if score >= similarity_threshold:
                         discard = f2

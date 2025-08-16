@@ -127,7 +127,7 @@ def sdhash(path, **parameters):
     """
 
 
-def ssdeep(path):
+def ssdeep(path, error=False):
     """ ssdeep (SpamSum Deep)
     - Variable-length output: single line, typically 45-100 characters
     - Format:                 [blocksize]:[hash1]:[hash2]
@@ -137,7 +137,9 @@ def ssdeep(path):
     out = _FFI.new(f"char[{_FUZZY_MAX_RESULT}]")
     r = _FUZZY_LIB.fuzzy_hash_filename(_new_cstr(str(path).encode("utf-8")), out)
     if r != 0:
-        raise RuntimeError(f"fuzzy_hash_filename of '{path}' with ssdeep failed ({r})")
+        if error:
+            raise RuntimeError(f"fuzzy_hash_filename of '{path}' with ssdeep failed ({r})")
+        return
     return _FFI.string(out).decode("ascii")
 
 
