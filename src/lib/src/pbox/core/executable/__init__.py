@@ -146,7 +146,7 @@ class Executable(Path):
         elif len(parts) == 0 and all(x is not None for x in [h, ds1]):
             exe = ds1.path.joinpath("files", h)
             self = super(Executable, cls).__new__(cls, str(exe), **kwargs)
-            self._case = f"bound to {ds1.basename} ({['copy to ' + ds2.basename, 'by hash'][ds2 is None]})"
+            self._case = f"bound to {ds1.basename} ({'by hash' if ds2 is None else 'copy to ' + ds2.basename})"
             _setattrs(self, h)
             return self
         raise ValueError("Unsupported combination of arguments (see the docstring of the Executable class for more "
@@ -342,7 +342,7 @@ class Executable(Path):
             f = [f"{'**'+n+'**:':<{maxlen+6}}{v}" for n, v in self.data.items()]
             r += [Section("Features"), List(f)]
         render(*r)
-        
+    
     @property
     def bin_label(self):
         return READABLE_LABELS(self.label, True)
