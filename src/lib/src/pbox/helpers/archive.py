@@ -70,7 +70,8 @@ def get_archive_class(path, logger=None):
             return cls
         except BadFileFormat:
             pass
-    raise BadFileFormat("Unsuppored archive type")
+    GenericArchive(path).list()
+    return GenericArchive
 
 
 def is_archive(path, logger=None):
@@ -154,8 +155,25 @@ class Archive(Path):
             if (p := self._dst)._created and not self.__keep:
                 p.remove()
     
+    def extract(self):
+        raise NotImplementedError
+    
     def write(self):
         raise NotImplementedError
+
+
+class GenericArchive(Archive):
+    def extract(self):
+        execute_and_log(f"unar \"{self}\" -o \"{self._src}\"")
+    
+    def list(self):
+        out, _, retc = execute_and_log(f"lsar \"{self}\"")
+        if retc > 0:
+            raise BadFileFormat("Unsuppored archive type")
+        for line in out.splitlines():
+            if line.lstrip(".").rstrip("/") == "":
+                continue
+            yield Path(line)
 
 
 class CABArchive(Archive):
@@ -179,7 +197,7 @@ class DEBArchive(Archive):
 
 
 class GZArchive(Archive):
-    signature = lambda bytes: bytes[:2] == b"\x1f\x8b"
+    signature = lambda bytes: bytes[:2] == b"\x1f\x8b" or bytes[:4] == b"\x28\xb5\x2d\xfd"  # respectively GZ and ZStd
     tool = "gzip"
     
     def extract(self):
@@ -209,9 +227,7 @@ class ISOArchive(Archive):
     signature = lambda bytes: all(bytes[n:n+5] == b"CD001" for n in [0x8001, 0x8801])  # 0x9001
     
     def extract(self):
-        execute_and_log(f"7z x \"{self}\" -o\"{self._dst}\"")
-        # IMPORTANT NOTE: ISO cannot be mounted within a Docker box unless this gets run with full administrative
-        #                  privileges, hence using extraction with 7zip instead, which may take a while
+        execute_and_log(f"unar \"{self}\" -o\"{self._dst}\"")
     
     def write(self):
         execute_and_log(f"genisoimage -o \"{self}\" \"{self._src}\"", silent=["-input-charset not specified"])
@@ -256,6 +272,6 @@ class ZIPArchive(Archive):
 
 
 _ARCHIVE_CLASSES = [cls for cls in globals().values() if hasattr(cls, "__base__") and \
-                                                         cls.__base__.__name__.endswith("Archive")]
+                    cls.__base__.__name__.endswith("Archive") and cls.__name__ != "GenericArchive"]
 __all__.extend([cls.__name__ for cls in _ARCHIVE_CLASSES])
 
