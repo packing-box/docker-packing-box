@@ -79,3 +79,37 @@ def render(*elements, **kw):
     else:
         raise ValueError("Unknown rendering backend")
 
+
+def tree_from_list(paths):
+    """ Helper function for rending a tree of files and folders looking like the output of the 'tree' system tool. """
+    from rich import print as rprint
+    from rich.text import Text
+    from rich.tree import Tree
+    from tinyscript.helpers import Path
+    # build a dictionary
+    d = {}
+    for path in paths:
+        current = d
+        for part in Path(path).absolute().parts:
+            current.setdefault(part, {})
+            current = current[part]
+    parts = ()
+    while len(d) == 1:
+        parts += (list(d.keys())[0], )
+        d = list(d.values())[0]
+    # build a Tree object
+    t = Tree(f"[bold magenta] {Path(*parts)}")
+    # recursive print function
+    def _render_tree(dictionary, tree):
+        for name, subtree in dictionary.items():
+            if len(subtree) == 0:
+                txt = Text(name, "bright_blue")
+                txt.highlight_regex(f"{Path(name).extension}$", "bright_red")
+                tree.add(txt)
+            else:
+                branch = tree.add(f"[bold magenta] {name}")
+                _render_tree(subtree, branch)
+    _render_tree(d, t)
+    # now print
+    return t
+

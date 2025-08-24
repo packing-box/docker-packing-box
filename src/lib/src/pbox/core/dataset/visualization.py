@@ -35,7 +35,7 @@ def _characteristic_scatter_plot(dataset, characteristic=None, multiclass=True, 
     # plot a continuous colorbar if the characteristic is continuous and a legend otherwise 
     if len(unique_values) > 6 and characteristic not in ["format", "label", "signature"]:
         sc = plt.scatter(X_reduced[:, 0], X_reduced[:, 1], c=X[characteristic].to_numpy(), alpha=1.0)
-        bbox = plt.get_position()
+        bbox = sc.get_position()
         width, eps = 0.01, 0.01
         cax = fig.add_axes([bbox.x1 + eps, bbox.y0, width, bbox.height])
         norm = mpl.colors.Normalize(vmin=X[characteristic].min(), vmax=X[characteristic].max())

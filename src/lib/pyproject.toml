@@ -55,6 +55,7 @@ dependencies = [
   "seaborn",
   "tabulate",
   "tinyscript>=1.30.26",
+  "treelib",
   "weka",
 ]
 dynamic = ["version"]

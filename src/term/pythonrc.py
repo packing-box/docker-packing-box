@@ -1,6 +1,7 @@
 #!/usr/bin/python3
 # -*- coding: UTF-8 -*-
 import lief
+from datetime import datetime
 from pbox import *
 from rich import inspect as inspect_pretty, pretty
 from tinyscript import *
@@ -38,4 +39,20 @@ def pick_sample(folder="dataset-packed-pe", packed=False):
             raise IndexError(f"Could not find a matching sample in folder '{folder}'")
         except:
             candidates.remove(f)
+
+
+class Prompt:
+    def __init__(self):
+        self.start = datetime.now()
+    
+    def __str__(self):
+        t = (datetime.now() - self.start).total_seconds()
+        h, remainder = divmod(t, 3600)
+        m, s = divmod(remainder, 60)
+        s, r = str(s).split(".")
+        h, m, s, r = int(h), int(m), int(s), float(f".{r}")
+        return f"\x01\033[36m\x02{h:02d}:{m:02d}:{s:02d}.{r:.3f}\x01\033[0m\x02 >>> "
+
+sys.ps1 = Prompt()
+sys.ps2 = "               \x01\033[35m\x02...\x01\033[0m\x02 "
 
