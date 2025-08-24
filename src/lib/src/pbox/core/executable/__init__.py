@@ -13,6 +13,7 @@ from .parsers import get_parser
 from ...helpers import *
 
 lazy_load_module("bintropy")
+lazy_load_module("exeplot")
 
 
 __all__ = ["is_exe", "is_elf", "is_macho", "is_pe", "Executable"] + _alter + _features
@@ -224,6 +225,13 @@ class Executable(Path):
             if not found:
                 raise ValueError(f"Modifier '{modifier}' does not exist")
         self.parsed.modify(modifier, **kwargs)
+    
+    def ngrams_counts(self, n=1):
+        return exeplot.utils.ngrams_counts(self, n=n)
+    
+    def ngrams_distribution(self, n=1, n_most_common=None, n_exclude_top=0, exclude=None):
+        return exeplot.utils.ngrams_distribution(self, n=n, n_most_common=n_most_common, n_exclude_top=n_exclude_top,
+                                                 exclude=exclude)
     
     def objdump(self, n=0, executable_only=False):
         from subprocess import check_output
