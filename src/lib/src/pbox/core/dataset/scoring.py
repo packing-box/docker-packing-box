@@ -8,14 +8,14 @@ from ...helpers import *
 __all__ = ["balance", "Scores"]
 
 _WEIGHTS = {
-    'completeness':  .5,
+    'completeness':  .4,
     'uniqueness':    .5,
-    'similarity':    1.,
-    'label_balance': 1.,
-    'portability':   1.,
-    'file_balance':  1.,
+    'similarity':    .65,
+    'label_balance': .2,
+    'portability':   0.2,
+    'file_balance':  0.9,
     'consistency':   .5,
-    'outliers':      1.,
+    'outliers':      0.9,
 }
 
 
@@ -83,9 +83,15 @@ class Scores:
     
     @property
     def overall(self):
-        scores = {getattr(self, m): w for m, w in self.__w.items() \
-                  if self._log.debug(f"computing {m}...") or getattr(self, m) is not None}
-        return np.average(list(scores.keys()), weights=list(scores.values()))
+        scores = {}
+        for m, w in self.__w.items():
+            self._log.debug(f"computing {m}...")
+            val = getattr(self, m)
+            if val is not None:
+                scores[m] = val
+
+        return np.average([getattr(self, m) for m in self.__w if getattr(self, m) is not None],
+                  weights=[self.__w[m] for m in self.__w if getattr(self, m) is not None])
     
     @property
     def scores(self):
@@ -137,10 +143,18 @@ class Scores:
     @cached_property
     def outliers(self):
         """ (Specific) Score based on files with suspicious size or modified dates. """
-        l = len(self._ds)
-        suspicious_size  = 1. - (((s := self._ds._data.get("size")) < 1024).sum() + (s > 100 * 1024 * 1024).sum()) / l
-        suspicious_mtime = 1. - (pd.to_datetime(self._ds._data.mtime, errors="coerce").dt.year < 2000).sum() / l
-        return np.average([suspicious_size, suspicious_mtime])
+        if self._ds._files:
+            l = len(self._ds)
+            suspicious_size  = 1. - (((s := self._ds._data.get("size")) < 1024).sum() + (s > 100 * 1024 * 1024).sum()) / l
+            suspicious_mtime = 1. - (pd.to_datetime(self._ds._data.mtime, errors="coerce").dt.year < 2000).sum() / l
+            return np.average([suspicious_size, suspicious_mtime])
+        else:
+            # https://github.com/packing-box/experiments-quality-datasets/blob/main/Final/dbscan_pca.py
+            #Return a number of outliers :
+            #score = max(0, 1 - ((8 * len(outliers)) / len(self._ds))) 
+            #Each outliers weight more as it is a rare occurence and leaving it at one won't really have any impact
+            warn_once(self._log, "Need dbscan to be used") 
+            return 1 #Value from external script
     
     @cached_property
     def portability(self):
@@ -188,6 +202,8 @@ class Scores:
     def uniqueness(self):
         """ (Specific) Score based on how many duplicate files exist (based on Executable.hash). """
         hashes, duplicates = set(), 0
+        excluded_columns = {"hash", "realpath", "ctime", "mtime", "format", "signature"}
+
         if self._ds._files:
             for exe in self._ds:
                 if exe.hash in hashes:
@@ -195,6 +211,24 @@ class Scores:
                 else:
                     hashes.add(exe.hash)
             return 1 - duplicates / len(self._ds)
+        
         else:
-            warn_once(self._log, "cannot compute uniqueness as it requires files")
+            seen_metadata, duplicate_metadata = set(), 0
+            column_names = list(self._ds._data.columns)
+            included_indexes = [
+                i for i, col in enumerate(column_names) if col not in excluded_columns
+            ]
+
+            hashes = list(self._ds._data.hash)
+
+            for h in hashes:
+                row = self._ds[h]
+                metadata_row = tuple(row[i] for i in included_indexes)
+
+            if metadata_row in seen_metadata:
+                duplicate_metadata += 1
+            else:
+                seen_metadata.add(metadata_row)
+
+        return 1 - duplicate_metadata / len(hashes) if hashes else 0
 

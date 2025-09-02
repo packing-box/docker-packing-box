@@ -499,8 +499,8 @@ class Dataset(Entity):
         else:
             raise ValueError(f"Unknown target format ({format})")
     
-    @backup
-    def fix(self, labels=None, detect=False, **kw):
+    @backup    
+    def fix(self, labels=None, detect=False,similarity_threshold=90, **kw):
         """ Make dataset's structure and files match. """
         labels = Dataset.labels_from_file(labels)
         self.logger.debug("dropping duplicates...")
@@ -525,9 +525,150 @@ class Dataset(Entity):
                         self[exe] = (labels[h], True)
                     elif detect:
                         self[exe] = (list(Detector.detect(exe))[0][1], True)
-        #TODO: include outliers filtering
-        #TODO: include removal of similar files
-        #TODO: ...
+
+        # New
+        # Get the score , score < 1 need to be fixed.
+        self.__scores = s = Scores(self,similarity_threshold=similarity_threshold)
+
+        #Define the deletion threshold (max total of 10%)
+        #For file and fileLess have different number
+        #50% of max_nb_del is for similarity as it is most important, 20% port, 30% balance
+        #Uniqueness doesn't have one since really important, delete all duplicate
+        #Consitency high score generally, rare occasion , don't have a threshold
+        max_nb_del = int(len(self) * 0.1)# pick weights depending on whether files are present
+        w = (0.40, 0.10, 0.15, 0.20, 0.05, 0.10) if self._files else (0.00, 0.00, 0.20, 0.30, 0.30, 0.20)
+
+        (similarity_nb_del,
+        portability_nb_del,
+        lbalance_nb_del,
+        fbalance_nb_del,
+        outliers_nb_del,
+        completeness_nb_del) = [int(max_nb_del * v) for v in w]
+        del_count = 0
+
+        self.logger.debug(f"Fix will delete a maximum of {max_nb_del} samples")
+
+        #Fix specifics metrics that needs files
+        if self._files:
+            #Fix portability, remove <portability_nb_del> smallest score
+            if portability_nb_del > 0 and s.scores.get('portability') < 1 :
+                sorted_by_portability = sorted(self, key=lambda exe: exe.parsed.portability or 0)
+                for exe in sorted_by_portability[:portability_nb_del]:
+                    del self[exe.hash]
+                    del_count += 1
+            else:
+                self.logger.info(f"Portability cannot be fixed")
+
+            #Fix similarity,  remove <similarity_nb_del> similar file if exist
+            if similarity_nb_del > 0 and s.scores.get('similarity') < 1 :
+                similar_pairs = []
+
+                exes = list(self)
+                for i, exe1 in enumerate(exes):
+                    for exe2 in exes[i+1:]:
+                        try:
+                            sim_score = compare_fuzzy_hashes(exe1.fuzzy_hash, exe2.fuzzy_hash)
+                        except RuntimeError:
+                            sim_score = compare_files(exe1.realpath, exe2.realpath, config['fuzzy_hash_algorithm'])
+
+                        if sim_score >=  similarity_threshold :
+                            self.logger.info(f"Pairs {sim_score, exe1, exe2}")
+                            similar_pairs.append((sim_score, exe1, exe2))
+
+                # Sort by highest similarity score first
+                similar_pairs.sort(reverse=True)
+                    
+                for _, _, exe2 in similar_pairs[:similarity_nb_del]:
+                    del self[exe2.hash]
+                    del_count += 1
+            else:
+                self.logger.info(f"Similarity cannot be fixed")
+
+        #Fix outliers
+        #Used an extern script to compute the outliers based on https://github.com/packing-box/experiments-quality-datasets/blob/main/Final/dbscan_pca.py
+        if outliers_nb_del > 0 and s.scores.get('outliers') < 1 :
+            self.logger.info(f"Still needs implementations")
+        else:
+            self.logger.info(f"Outliers cannot be fixed")
+
+        
+        #Fix Completeness
+        if completeness_nb_del > 0 and s.scores.get('completeness') < 1 :
+            row_null_ratio = self._data.isnull().mean(axis=1) 
+            ratio_by_hash = dict(zip(self._data['hash'], row_null_ratio))
+            bad_exes = [exe for exe in self if ratio_by_hash.get(exe.hash, 0) > 0]
+            bad_exes.sort(key=lambda e: ratio_by_hash[e.hash], reverse=True)
+
+            # Delete up to N worst rows (like similar_pairs[:similarity_nb_del])
+            for exe in bad_exes[:completeness_nb_del]:
+                del self[exe.hash]
+                del_count += 1
+        else:
+            self.logger.info("Completeness cannot be fixed")
+            
+        #Fix Consistency
+        if s.scores.get('consistency') < 1 :
+            deletions = set()
+            # 1) Missing files referenced in data.csv
+            deletions |= {h for h in self._data['hash'] if not self.files.joinpath(h).is_file()}
+            # 2) Corrupted/unsupported format
+            deletions |= {exe.hash for exe in self if getattr(exe, "format", None) is None}
+            # 3) Missing labels (NaN in dataframe)
+            deletions |= set(self._data.loc[self._data['label'].isnull(), 'hash'])
+
+            for h in list(deletions):
+                del self[h]
+                del_count += 1
+        else:
+            self.logger.info(f"Consistency cannot be fixed")
+
+
+        #Fix Label Balance,  remove <similarity_nb_del> similar file if exist
+        if lbalance_nb_del > 0 and s.scores.get('label_balance') < 1 :
+            packed = [exe for exe in self if exe.label != NOT_LABELLED and exe.label != "-"]
+            not_packed = [exe for exe in self if exe.label == "-"]
+            total = len(packed) + len(not_packed)
+
+            if total > 0:
+                packed_ratio = len(packed) / total
+                margin = config.get("file_balance_margin") or 0.1
+
+                if abs(packed_ratio - 0.5) > margin :
+                    self.logger.info("Fixing label balance...")
+                    majority = packed if len(packed) > len(not_packed) else not_packed
+                    for exe in majority[:lbalance_nb_del]:
+                        del self[exe.hash]
+                        del_count += 1
+        else:
+            self.logger.info(f"Label Balance cannot be fixed")
+    
+        #Fix File Balance,  remove <similarity_nb_del> similar file if exist
+        if fbalance_nb_del > 0 and s.scores.get('file_balance') < 1 :
+            self.logger.debug("Improving File Balance...")
+            candidates = []
+            for field in ("format", "signature", "size"):
+                try:
+                    data = pd.Series([getattr(exe, field) for exe in self]).dropna()
+                    counts = data.value_counts(normalize=True)
+                    if (counts.max() - counts.min()) <= 0.1:
+                        continue
+
+                    dominant = counts.idxmax()
+                    field_candidates = [exe for exe in self if getattr(exe, field) == dominant]
+                    self.logger.info(f"{field}: removing {len(field_candidates)} with {dominant}")
+                    candidates.extend(field_candidates)
+
+                except Exception as e:
+                    warn_once(self.logger, f"Skipping {field}: {e}")
+
+            for exe in candidates[:fbalance_nb_del]:
+                del self[exe.hash]
+                del_count += 1
+        else:
+            self.logger.info(f"File Balance cannot be fixed")
+
+        self.logger.info(f"Fix removed {del_count} samples.")
+
         self._save()
     
     def get(self, query=None, **kw):
