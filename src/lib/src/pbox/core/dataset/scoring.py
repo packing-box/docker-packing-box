@@ -83,15 +83,9 @@ class Scores:
     
     @property
     def overall(self):
-        scores = {}
-        for m, w in self.__w.items():
-            self._log.debug(f"computing {m}...")
-            val = getattr(self, m)
-            if val is not None:
-                scores[m] = val
-
-        return np.average([getattr(self, m) for m in self.__w if getattr(self, m) is not None],
-                  weights=[self.__w[m] for m in self.__w if getattr(self, m) is not None])
+        scores = {getattr(self, m): w for m, w in self.__w.items() \
+                  if self._log.debug(f"computing {m}...") or getattr(self, m) is not None}
+        return np.average(list(scores.keys()), weights=list(scores.values()))
     
     @property
     def scores(self):
