@@ -196,8 +196,6 @@ class Scores:
     def uniqueness(self):
         """ (Specific) Score based on how many duplicate files exist (based on Executable.hash). """
         hashes, duplicates = set(), 0
-        excluded_columns = {"hash", "realpath", "ctime", "mtime", "format", "signature"}
-
         if self._ds._files:
             for exe in self._ds:
                 if exe.hash in hashes:
@@ -205,24 +203,14 @@ class Scores:
                 else:
                     hashes.add(exe.hash)
             return 1 - duplicates / len(self._ds)
-        
         else:
             seen_metadata, duplicate_metadata = set(), 0
-            column_names = list(self._ds._data.columns)
-            included_indexes = [
-                i for i, col in enumerate(column_names) if col not in excluded_columns
-            ]
-
-            hashes = list(self._ds._data.hash)
-
-            for h in hashes:
+            indexes = [i for i, col in enumerate(self._ds._data.columns) if col not in EXE_METADATA + ["hash"]]
+            for h in (hashes := list(self._ds._data.hash)):
                 row = self._ds[h]
-                metadata_row = tuple(row[i] for i in included_indexes)
-
+                metadata_row = tuple(row[i] for i in indexes)
             if metadata_row in seen_metadata:
                 duplicate_metadata += 1
             else:
                 seen_metadata.add(metadata_row)
-
         return 1 - duplicate_metadata / len(hashes) if hashes else 0
-
