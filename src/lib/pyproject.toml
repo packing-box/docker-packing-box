@@ -9,7 +9,7 @@ version = {attr = "pbox.__info__.__version__"}
 where = ["src"]
 
 [tool.setuptools.package-data]
-"*" = ["*.txt", ".so"]
+"*" = ["*.txt", "*.so"]
 
 [tool.system-requirements]
 ubuntu = ["libfuzzy-dev"]

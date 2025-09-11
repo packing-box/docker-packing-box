@@ -1,7 +1,7 @@
 # -*- coding: UTF-8 -*-
 import numpy as np
 import pandas as pd
-from tinyscript import functools
+from tinyscript import functools, re
 from tinyscript.helpers import Path, TempPath
 from weka.classifiers import Classifier, WEKA_CLASSIFIERS
 
@@ -56,10 +56,12 @@ class WekaClassifier(Classifier):
     """ This class implements a binding for using the Decorate algorithm from the Weka framework the same way as
          SkLearn algorithms. """
     def __init__(self, **kwargs):
-        fn = kwargs.pop('feature_names', None)
-        if fn:
+        if fn := kwargs.pop('feature_names', None):
             self._feature_names = list(map(lambda n: n.replace("<", "[lt]").replace(">", "[gt]"), fn))
-        kwargs = {("-" + k if not k.startswith("-") else k): v for k, v in kwargs.items()}
+        for k, v in kwargs.items():
+            if not hasattr(self, k := k.replace("-", "_")):
+                setattr(self, k, v)
+        kwargs = {(f"-{k}" if not k.startswith("-") else k): v for k, v in kwargs.items()}
         super(WekaClassifier, self).__init__(name=self._weka_base, ckargs=kwargs)
     
     @functools.lru_cache
@@ -79,6 +81,7 @@ class WekaClassifier(Classifier):
     @to_arff("train")
     def fit(self, X, y, **kwargs):
         super(WekaClassifier, self).train(kwargs['arff'])
+        return self
     
     @to_arff("test")
     def predict(self, X, **kwargs):

@@ -6,8 +6,9 @@ lazy_load_module("numpy", alias="np")
 lazy_load_module("yaml")
 
 
-__all__ = ["at_interrupt", "benchmark", "bin_label", "bold", "class_or_instance_method", "execute_and_get_values_list",
-           "get_counts", "json", "json_cache", "np", "pd", "shorten_str", "strip_version", "warn_once", "yaml"]
+__all__ = ["at_interrupt", "benchmark", "bin_label", "bold", "class_or_instance_method", "entropy",
+           "execute_and_get_values_list", "get_counts", "json", "json_cache", "np", "pd", "shorten_str",
+           "strip_version", "warn_once", "yaml"]
 
 _WARN_CACHE = {}
 
@@ -46,6 +47,17 @@ def benchmark(f):
         dt = t() - start
         return r, dt
     return _wrapper
+
+
+def entropy(data, k=256, max_entropy=False):
+    if not 0 < k <= 256:
+        raise ValueError("k shall belong to [1,256]")
+    from collections import Counter
+    from math import log2
+    e, t, c = .0, len(data), Counter(data)
+    for p in [n / t for _, n in c.most_common(k)]:
+        e -= p * log2(p)
+    return entropy(range(k)) if e == 0. and max_entropy else e
 
 
 def execute_and_get_values_list(command, offset=1):
