@@ -10,7 +10,7 @@ AVERAGE_ENTROPY_THRESHOLD = 6.677
 HIGHEST_ENTROPY_THRESHOLD = 7.199
 
 
-class BintropyClassifier(BaseEstimator, ClassifierMixin):
+class BintropyClassifier(ClassifierMixin, BaseEstimator):
     """Lyda's Bintropy-based classifier.
     
     This model is based on Bintropy heuristic using block entropy metrics as of Lyda et al. (2007).
@@ -54,13 +54,11 @@ class BintropyClassifier(BaseEstimator, ClassifierMixin):
     Examples
     --------
     >>> from pbox.core.model.algorithm.custom.bintropy import BintropyClassifier
-    >>> from sklearn.datasets import make_classification
-    >>> from sklearn.model_selection import train_test_split
-    >>> X, y = make_classification(n_samples=100, random_state=42, n_features=2, n_redundant=0)
-    >>> X_train, X_test, y_train, y_test = train_test_split(X, y, stratify=y, random_state=42)
+    >>> from pbox.helpers import make_test_dataset
+    >>> X_train, y_train, X_test, y_test = make_test_dataset(2)
     >>> clf = BintropyClassifier().fit(X_train, y_train)
     >>> clf.predict(X_test[:5, :])
-    array([1, 1, 1, 1, 1])
+    array([1, 0, 1, 1, 1])
     >>> clf.score(X_test, y_test)
     0.8...
     """

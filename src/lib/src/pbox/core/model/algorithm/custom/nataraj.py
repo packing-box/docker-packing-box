@@ -38,10 +38,8 @@ class NatarajClassifier(SVC):
     Examples
     --------
     >>> from pbox.core.model.algorithm.custom.nataraj import NatarajClassifier
-    >>> from sklearn.datasets import make_classification
-    >>> from sklearn.model_selection import train_test_split
-    >>> X, y = make_classification(n_samples=100, random_state=42, n_features=5000, n_redundant=0)
-    >>> X_train, X_test, y_train, y_test = train_test_split(X, y, stratify=y, random_state=42)
+    >>> from pbox.helpers import make_test_dataset
+    >>> X_train, y_train, X_test, y_test = make_test_dataset(5000)
     >>> clf = NatarajClassifier().fit(X_train, y_train)
     >>> clf.predict(X_test[:5, :])
     array([0, 0, 1, 1, 1])

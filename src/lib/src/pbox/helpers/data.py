@@ -5,7 +5,7 @@ from tinyscript.helpers import is_function
 from .utils import np, pd
 
 
-__all__ = ["filter_data", "filter_data_iter", "filter_features", "get_data", "pd", "reduce_data"]
+__all__ = ["filter_data", "filter_data_iter", "filter_features", "get_data", "make_test_dataset", "pd", "reduce_data"]
 
 
 def filter_data(df, query=None, feature=None, **kw):
@@ -151,6 +151,22 @@ def get_data(exe_format):
     return data
 
 
+def make_test_dataset(n_features, n_samples=100, n_redundant=0, random_state=42):
+    """  """
+    from sklearn.datasets import make_classification
+    from sklearn.model_selection import train_test_split
+    single_feature = False
+    if n_features == 1:
+        single_feature, n_features = True, 2  # make_classification does not work with n_features=1
+    X, y = make_classification(n_samples=n_samples, n_features=n_features, n_redundant=n_redundant,
+                               random_state=random_state)
+    X, Xt, y, yt = train_test_split(X, y, stratify=y, random_state=random_state)
+    if single_feature:
+        X, Xt = X[:,0] + max(X[:,0]), Xt[:,0] + max(Xt[:,0])  # ensure positive numbers too
+        X, Xt = np.array([[x] for x in X]), np.array([[x] for x in Xt])
+    return X, y, Xt, yt
+
+
 def reduce_data(X, n_components=20, perplexity=30, random_state=42, imputer_strategy="mean", scaler=None,
                 reduction_algorithm="PCA", return_scaled=False, return_suffix=False, return_meta=False, **kw):
     """ Reduce input data to 2 components, using a combination of PCA/ICA and TSNE, first imputing missing values and
@@ -195,5 +211,5 @@ def reduce_data(X, n_components=20, perplexity=30, random_state=42, imputer_stra
         r += (suffix, )
     if return_meta:
         r += (metadata, )
-    return r[0] if len(r) == 0 else r
+    return r[0] if len(r) == 1 else r
 

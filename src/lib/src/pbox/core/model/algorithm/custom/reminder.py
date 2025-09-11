@@ -9,7 +9,7 @@ from sklearn.utils.validation import check_is_fitted
 THRESHOLD_FROM_STUDY = 6.85
 
 
-class REMINDerClassifier(BaseEstimator, ClassifierMixin):
+class REMINDerClassifier(ClassifierMixin, BaseEstimator):
     """Classifier based on Han's REMINDer tool for malware forensics.
     
     This model is based on REMINDer heuristic of Han et al. using EP section executable flag and entropy (2009).
@@ -41,10 +41,8 @@ class REMINDerClassifier(BaseEstimator, ClassifierMixin):
     Examples
     --------
     >>> from pbox.core.model.algorithm.custom.reminder import REMINDerClassifier
-    >>> from sklearn.datasets import make_classification
-    >>> from sklearn.model_selection import train_test_split
-    >>> X, y = make_classification(n_samples=100, random_state=42, n_features=2, n_redundant=0)
-    >>> X_train, X_test, y_train, y_test = train_test_split(X, y, stratify=y, random_state=42)
+    >>> from pbox.helpers import make_test_dataset
+    >>> X_train, y_train, X_test, y_test = make_test_dataset(2)
     >>> clf = REMINDerClassifier().fit(X_train, y_train)
     >>> clf.predict(X_test[:5, :])
     array([1, 0, 1, 0, 1])
