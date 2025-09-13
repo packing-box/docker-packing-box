@@ -7,6 +7,7 @@ from ...helpers import *
 
 __all__ = ["balance", "Scores"]
 
+_FILE_BALANCE_FIELDS = ("format", "signature", "size")
 _WEIGHTS = {
     'completeness':  .5,
     'uniqueness':    .5,
@@ -31,7 +32,7 @@ def balance(dataset, field, margin=None):
 
 
 class Scores:
-    def __init__(self, dataset, file_balance_fields=("format", "signature", "size"), similarity_threshold=1., **kw):
+    def __init__(self, dataset, file_balance_fields=_FILE_BALANCE_FIELDS, similarity_threshold=1., **kw):
         self._ds = dataset
         self._log = dataset.logger
         self.__fbf = file_balance_fields

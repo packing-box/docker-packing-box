@@ -79,8 +79,13 @@ class AbstractParsedExecutable(ABC, CustomReprMixin, GetItemMixin):
             t += w
         return r / (t or 1)
     
-    def average_entropy_k_top_bytes(self, k=100):
-        return sum(s.entropy_k_top_bytes(k) for s in self.sections) / len(self.sections)
+    def average_entropy_k_top_bytes(self, k=100, max_entropy=False):
+        n, e = 0, 0
+        for s in self.sections:
+            e += (e_s := s.entropy_k_top_bytes(k, max_entropy))
+            if e_s > 0.:
+                n += 1
+        return e / n
     
     def block_entropy(self, blocksize=256, ignore_half_block_zeros=False, ignore_half_block_same_byte=True):
         return bintropy.entropy(_rb(self.code), blocksize, ignore_half_block_zeros, ignore_half_block_same_byte)

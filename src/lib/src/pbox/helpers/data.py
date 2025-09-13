@@ -152,7 +152,7 @@ def get_data(exe_format):
 
 
 def make_test_dataset(n_features, n_samples=100, n_redundant=0, random_state=42):
-    """  """
+    """ Make some test data for testing a model. """
     from sklearn.datasets import make_classification
     from sklearn.model_selection import train_test_split
     single_feature = False

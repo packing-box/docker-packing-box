@@ -112,6 +112,7 @@ def mvhash_b(path, **parameters):
 
     Note: No implementation found for this one.
     """
+    raise NotImplementedError
 
 
 @_tool_wrapper
