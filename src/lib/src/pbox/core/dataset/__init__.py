@@ -447,16 +447,15 @@ class Dataset(Entity):
         edit_file(self.path.joinpath("data.csv").absolute(), logger=l)
         self.fix(**kw)
     
-    def export(self, format=None, output=None, **kw):
+    def export(self, output=None, format=None, packed_samples=False, **kw):
         """ Export either packed executables from the dataset to the given output folder or the complete dataset to a
-             given format. """
-        l = self.logger
-        dst = output or self.basename
-        if format == "packed-samples":
+             given format, including archives (so that the dataset can be re-imported in another workspace). """
+        l, dst = self.logger, Path(output or self.basename, create=packed_samples)
+        if packed_samples:
             if not self._files:
                 l.warning("Packed samples can only be exported from a normal dataset (not on a fileless one)")
                 return
-            dst, n = Path(dst, create=True), kw.get('n', 0)
+            n = kw.get('n', 0)
             lst, tmp = [e for e in self if e.label not in [NOT_PACKED, NOT_LABELLED]], []
             if n > len(lst):
                 l.warning(f"{n} packed samples were requested but only {len(lst)} were found")
@@ -473,31 +472,31 @@ class Dataset(Entity):
                     exe.destination.copy(dst.joinpath(fn))
                     tmp.append(fn)
             return
-        if self._files:
-            self._compute_all_features(**kw)
-        fields = ["hash"] + EXE_METADATA
-        fnames = [h for h in self._data.columns if h not in fields + ["label", "Index"]]
-        c = fields[:-1] + fnames + ["label"]
-        d = self._data[c].values.tolist()
-        d.insert(0, c)
-        ext = f".{format}"
-        if not dst.endswith(ext):
-            dst += ext
-        from dsff import DSFF
-        if format == "dsff":
-            l.info(f"Exporting dataset {self.basename} to '{dst}'...")
-            with DSFF(self.basename, 'w+') as f:
-                f.write(d, self._features, self._metadata)
-            Path(self.basename + ext).rename(dst)
-        elif format in ["arff", "csv"]:
-            l.info(f"Exporting dataset {self.basename} to '{dst}'...")
-            with DSFF("<memory>") as f:
-                f.name = self.basename
-                f.write(d, self._features, self._metadata)
-                getattr(f, f"to_{format}")()
-            Path(self.basename + ext).rename(dst)
+        if dst.extension == "":
+            dst = dst.dirname.joinpath(f"{dst.stem}.{format or 'zip'}")
+        if dst.extension in [".arff", ".csv", ".db", ".dsff"]:
+            if self._files:
+                self._compute_all_features(**kw)
+            fields = ["hash"] + EXE_METADATA
+            fnames = [h for h in self._data.columns if h not in fields + ["label", "Index"]]
+            c = fields[:-1] + fnames + ["label"]
+            d = self._data[c].values.tolist()
+            d.insert(0, c)
+            from dsff import DSFF
+            if format == "dsff":
+                l.info(f"Exporting dataset {self.basename} to '{dst}'...")
+                with DSFF(self.basename, 'w+') as f:
+                    f.write(d, self._features, self._metadata)
+                Path(self.basename + ext).rename(dst)
+            elif format in ["arff", "csv"]:
+                l.info(f"Exporting dataset {self.basename} to '{dst}'...")
+                with DSFF("<memory>") as f:
+                    f.name = self.basename
+                    f.write(d, self._features, self._metadata)
+                    getattr(f, f"to_{format}")()
+                Path(self.basename + ext).rename(dst)
         else:
-            raise ValueError(f"Unknown target format ({format})")
+            write_archive(dst, self.path, logger=l, keep_files=True)
     
     @backup
     def fix(self, labels=None, detect=False, **kw):
@@ -535,6 +534,19 @@ class Dataset(Entity):
         self.logger.debug(f"getting samples from {self.basename} based on query '{query}'...")
         for e in filter_data_iter(self._data, query, logger=self.logger, target=self.basename):
             yield Executable(dataset=self, hash=e.hash)
+    
+    def import_(self, archive, name=None, **kw):
+        """ Import a dataset in the workspace from a given archive. """
+        l = self.logger
+        if not is_archive(archive):
+            l.error(f"Unknown archive type ({archive})")
+        else:
+            dst = config['datasets'].joinpath(name or Path(archive).stem)
+            if not Dataset.confirm_overwrite(dst):
+                l.warning(f"Import aborted ('{dst.basename}' already exists)")
+                return
+            for _ in read_archive(archive, dst, keep_files=True, recurse=False):
+                pass
     
     def ingest(self, folder, rename_func=slugify, min_samples=0, max_samples=0, merge=False, prefix="", exclude=None,
                overwrite=None, **kw):
@@ -1005,8 +1017,12 @@ class Dataset(Entity):
     @property
     def name(self):
         """ Get the name of the dataset composed with its list of formats. """
-        fmt, p = getattr(self, "formats", []), self.path.basename
-        return f"{p}({','.join(sorted(collapse_formats(*fmt)))})" if len(fmt) > 0 else self.path.basename
+        fmt = getattr(self, "formats", [])
+        try:
+            n = self.path.basename
+        except AttributeError:
+            n = "<undefined>"
+        return f"{n}({','.join(sorted(collapse_formats(*fmt)))})" if len(fmt) > 0 else n
     
     @property
     def overview(self):

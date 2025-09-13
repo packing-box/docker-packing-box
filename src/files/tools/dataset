@@ -1,11 +1,12 @@
 #!/usr/bin/python3
 # -*- coding: UTF-8 -*-
 from pbox import *
+from pbox.helpers.archive import _WRITEABLE_ARCHIVE_EXTS
 from tinyscript import *
 
 
 __script__       = "Dataset manipulation tool"
-__version__      = "2.6.8"
+__version__      = "2.7.0"
 __contributors__ = [
     {'author': "Romain Jennes", 'reason': "added dataset alterations and adversarial learning capabilities"},
 ]
@@ -86,17 +87,24 @@ if __name__ == '__main__':
     add_argument(cmds.add_parser("edit", category="create/modify/delete", help="edit the data file"), "dsname")
     export = add_argument(cmds.add_parser("export", category="create/modify/delete", help="export packed samples from a"
                                           " dataset or export the dataset to a given format"), "dsname")
-    export.add_argument("-f", "--format", default="dsff", choices=("arff", "csv", "db", "dsff", "packed-samples"),
-                        help="output format")
+    export_exts, arch_exts = ["arff", "csv", "db", "dsff"], [x[1:] for x in _WRITEABLE_ARCHIVE_EXTS]
+    egroup = export.add_mutually_exclusive_group()
+    egroup.add_argument("-f", "--format", metavar="EXT", choices=export_exts + arch_exts, help="target export format")
     add_argument(export, "n-jobs")
-    export.add_argument("-o", "--output", default="export", metavar="F", type=ts.folder_does_not_exist,
-                        help="output folder or file for the export", note="the extension gets added automatically")
+    egroup.add_argument("-o", "--output", metavar="PATH", help="output folder or file for the export",
+                        type=ts.folder_does_not_exist, note=f"dataset extensions: {', '.join(export_exts)}\n     "
+                                                            f"archive extensions: {', '.join(arch_exts)}")
     export_ = export.add_argument_group("option when exporting packed samples", before="extra arguments")
     export_.add_argument("-n", "--number-samples", dest="n", type=ts.pos_int, default=0,
                          help="number of packed samples to be exported")
+    export_.add_argument("--packed-samples", action="store_true", help="export packed samples to the output folder")
     fix = add_argument(cmds.add_parser("fix", category="create/modify/delete", help="fix a corrupted dataset"),
                        "dsname")
     add_argument(fix, "detect", "labels")
+    import_ = cmds.add_parser("import", category="create/modify/delete",
+                              help="import a target archive as a dataset in the current workspace")
+    import_.add_argument("archive", type=ts.file_exists, help="target archive containing the dataset to be imported")
+    import_.add_argument("-n", "--name", help="name of the imported dataset")
     ingest = cmds.add_parser("ingest", category="create/modify/delete",
                              help="ingest samples from a folder into new dataset(s)")
     ingest.add_argument("folder", type=ts.folder_exists, help="target folder with subfolders containing samples")
@@ -223,7 +231,7 @@ if __name__ == '__main__':
     if args.command == "ingest":
         args.rename_func = RENAME_FUNCTIONS[args.rename]
     ds = Dataset(**vars(args))
-    getattr(ds, args.command)(**vars(args))
+    getattr(ds, "import_" if args.command == "import" else args.command)(**vars(args))
     # it may occur that packing fails with a silenced error and that the related executable file remains in the
     #  files subfolder of the dataset while not handled in data.csv, hence creating an inconsistency ;
     #  fixing the dataset right after the make command allows to avoid this inconsistency

@@ -1,12 +1,12 @@
 # -*- coding: UTF-8 -*-
-from tinyscript import hashlib, re, string
+from tinyscript import hashlib, os, re, string
 from tinyscript.helpers import execute_and_log, set_exception, Path, TempPath
 
 from .fuzzhash import *
 from .rendering import progress_bar
 
 
-__all__ = ["filter_archive", "get_archive_class", "is_archive", "read_archive"]
+__all__ = ["filter_archive", "get_archive_class", "is_archive", "read_archive", "write_archive"]
 
 
 set_exception("BadFileFormat", "OSError")
@@ -55,8 +55,7 @@ def filter_archive(path, output, filter_func=None, similarity_algorithm=None, si
         exts.append(ext)
     if arch_cls is None:
         raise ValueError(f"Output's extension shall be one of: {'|'.join(exts)}")
-    with arch_cls(out, source=tp) as arch:
-        arch.write()
+    write_archive(out, tp, archive_class=arch_cls, logger=logger)
     if logger:
         logger.info(f"Filtered {cnt} files out of {path}")
 
@@ -82,10 +81,12 @@ def is_archive(path, logger=None):
         return False
 
 
-def read_archive(path, destination=None, filter_func=None, logger=None, path_cls=None, origin=None, keep_files=False):
+def read_archive(path, destination=None, filter_func=None, logger=None, path_cls=None, origin=None, keep_files=False,
+                 recurse=True):
     cnt = 0
     with get_archive_class(path, logger)(path, destination=destination, keep_files=keep_files) as p:
         origin = origin or Path(f"[{p.filename}:{hashlib.sha256_file(p)}]")
+        # walk files from the target path
         for fp in ([p._dst] if p._dst.is_file() else p._dst.walk()):
             if not fp.is_file():
                 continue
@@ -93,34 +94,49 @@ def read_archive(path, destination=None, filter_func=None, logger=None, path_cls
                 fp = path_cls(fp)
             fp._dst = p._dst
             fp.origin = origin
-            if callable(filter_func) and filter_func(fp):
-                if logger:
-                    logger.debug(origin.joinpath(fp.relative_to(p._dst)))
-                yield fp
-                cnt += 1
+            # if this path is filter, stop here
+            if callable(filter_func) and not filter_func(fp):
                 continue
+            # otherwise, try to recurse archives if relevant
             try:
-                for sfp in read_archive(fp, None, filter_func, logger, path_cls,
-                                        origin.joinpath(fp.relative_to(fp._dst))):
-                    sfp._parent = fp.relative_to(fp._dst)
-                    yield sfp
+                if recurse:
+                    for sfp in read_archive(fp, None, filter_func, logger, path_cls,
+                                            origin.joinpath(fp.relative_to(fp._dst))):
+                        sfp._parent = fp.relative_to(fp._dst)
+                        yield sfp
+                    continue
             except BadFileFormat:
-                if filter_func is None:
-                    if logger:
-                        logger.debug(origin.joinpath(fp.relative_to(p._dst)))
-                    yield fp
-                    cnt += 1
+                pass
+            # if not an archive or no recursion needed, just output the file path
+            if logger:
+                logger.debug(origin.joinpath(fp.relative_to(p._dst)))
+            yield fp
+            cnt += 1
     if logger:
         logger.info(f"Selected {cnt} files from {origin}")
+
+
+def write_archive(path, source=None, logger=None, **kwargs):
+    out, arch_cls = Path(path), kwargs.get("archive_class")
+    # if the archive class is not specified, just base the archive type on the provided extension
+    if arch_cls is None:
+        for cls in _ARCHIVE_CLASSES:
+            if getattr(cls, "base_extension", None) == out.extension:
+                arch_cls = cls
+                break
+    if arch_cls is None:
+        raise ValueError("Unsupported target archive type")
+    with arch_cls(out, source=Path(source or out.dirname.joinpath(out.stem)), **kwargs) as arch:
+        arch.write()
 
 
 class Archive(Path):
     def __new__(cls, *parts, **kwargs):
         p = super(Archive, cls).__new__(cls, *parts, **kwargs)
-        p.mode = 'wr'[(tst := kwargs.get('test', False)) or p.exists()]
+        p.mode = kwargs.get('mode', 'wr'[(tst := kwargs.get('test', False)) or p.exists()])
         p.__keep = kwargs.get('keep_files', False)
-        if p.mode == 'r':
-            if (src := kwargs.get('source')) is not None:
+        if p.mode in 'ar':
+            if p.mode == 'r' and (src := kwargs.get('source')) is not None:
                 raise FileExistsError(f"Archive '{p}' already exists")
             with p.open('rb') as f:
                 sig = f.read(0x9010)  # ISO has signature pattern up to 0x9001 bytes ("CD001"), hence choosing 0x9010
@@ -132,10 +148,11 @@ class Archive(Path):
                 else:
                     p._dst = TempPath(prefix="archive_", length=16)
                     p._dst._created = True
-        else:
-            p._src = Path(kwargs.get('source', "."))
-            if not p._src.exists():
-                raise OSError(f"Folder {p._src} does not exist")
+            if p.mode == 'r':
+                return p
+        p._src = Path(kwargs.get('source', "."))
+        if not p._src.exists():
+            raise OSError(f"Folder {p._src} does not exist")
         return p
     
     def __enter__(self):
@@ -177,6 +194,7 @@ class GenericArchive(Archive):
 
 
 class CABArchive(Archive):
+    base_extension = ".cab"
     signature = lambda bytes: bytes[:4] == b"MSCF" and bytes[24:26] == b"\x03\x01"  # magic bytes and fixed version
     
     def extract(self):
@@ -187,6 +205,7 @@ class CABArchive(Archive):
 
 
 class DEBArchive(Archive):
+    base_extension = ".deb"
     signature = lambda bytes: bytes[:8] == b"!<arch>\n"
     
     def extract(self):
@@ -209,21 +228,25 @@ class GZArchive(Archive):
             execute_and_log(f"tar xf \"{self}\" --directory=\"{self._dst}\"")
     
     def write(self):
-        execute_and_log(f"tar cf \"{self.stem}.tar\" --directory=\"{self._src}\" .")
+        tgt = f"--directory=\"{self._src}\" ." if self._src.is_dir() else f"\"{self._src}\""
+        execute_and_log(f"tar {['', 'r'][self.mode == 'a']}cf \"{self.stem}.tar\" {tgt}")
         execute_and_log(f"{self.tool} \"{self.stem}.tar\"")
 
 
 class BZ2Archive(GZArchive):
+    base_extension = ".tar.gz"
     signature = lambda bytes: bytes[:3] == b"BZh"
     tool = "bzip2"
 
 
 class XZArchive(GZArchive):
+    base_extension = ".tar.xz"
     signature = lambda bytes: bytes[:6] == b"\xfd7zXZ\x00"
     tool = "xz"
 
 
 class ISOArchive(Archive):
+    base_extension = ".iso"
     signature = lambda bytes: all(bytes[n:n+5] == b"CD001" for n in [0x8001, 0x8801])  # 0x9001
     
     def extract(self):
@@ -252,6 +275,7 @@ class RPMArchive(Archive):
 
 
 class WIMArchive(Archive):
+    base_extension = ".wim"
     signature = lambda bytes: bytes[:8] == b"MSWIM\0\0\0" or bytes[:8] == b"WLPWM\0\0\0"
     
     def extract(self):
@@ -262,16 +286,21 @@ class WIMArchive(Archive):
 
 
 class ZIPArchive(Archive):
+    base_extension = ".zip"
     signature = lambda bytes: bytes[:2] == b"PK" and bytes[2:4] in [b"\x03\x04", b"\x05\x06", b"\x07\x08"]
     
     def extract(self):
-        execute_and_log(f"unzip \"{self}\" -d \"{self._dst}\"")
+        execute_and_log(f"unzip -o \"{self}\" -d \"{self._dst}\"")
     
     def write(self):
-        execute_and_log(f"zip -r 9 \"{self}\" \"{self._src}\"")
+        dst, cwd = self.absolute(), os.getcwd()
+        os.chdir(self._src.parent if self._src.is_file() else self._src)
+        execute_and_log(f"zip -r -9 \"{dst}\" " + [".", f"\"{self._src.basename}\""][self._src.is_file()])
+        os.chdir(cwd)
 
 
 _ARCHIVE_CLASSES = [cls for cls in globals().values() if hasattr(cls, "__base__") and \
                     cls.__base__.__name__.endswith("Archive") and cls.__name__ != "GenericArchive"]
+_WRITEABLE_ARCHIVE_EXTS = sorted([cls.base_extension for cls in _ARCHIVE_CLASSES if hasattr(cls, "base_extension")])
 __all__.extend([cls.__name__ for cls in _ARCHIVE_CLASSES])
 
