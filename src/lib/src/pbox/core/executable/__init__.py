@@ -351,6 +351,72 @@ class Executable(Path):
             r += [Section("Features"), List(f)]
         render(*r)
     
+    @cached_result
+    def sliding_window_randomness(self, window_size=32, skip_size=32, pruning_size=50, pruning_heuristic="trunk"):
+        """ Compute Sun/Ebringer-style sliding-window randomness profile with pruning. """
+        if window_size <= 0 or skip_size <= 0:
+            raise ValueError("window_size and skip_size must be positive integers")
+        if pruning_heuristic not in _PRUNING_HEURISTICS:
+            raise ValueError(f"pruning_heuristic shall be one of: {'|'.join(_PRUNING_HEURISTICS)}")
+        data = self.read_bytes()
+        n = len(data)
+        if n == 0:
+            return []
+        # compute frequencies, taking the order of appearance of each character into account
+        freqs, order, cnt = {}, {}, count()
+        for b in data:
+            freqs.setdefault(b, 0)
+            freqs[b] += 1
+            if b not in order:
+                order[b] = next(cnt)
+        # Huffman code lengths e[b]
+        e = [0] * 256
+        #  min-heap of (freq, node); node is (symbol, left, right)
+        heap = [(f, order[b], (b, None, None)) for b, f in sorted(freqs.items(), key=lambda x: (-x[1], -order[x[0]]))]
+        heapq.heapify(heap)
+        if len(heap) == 1: # only one symbol; give it a code length of 1 by convention
+            e[heap[0][2][0]] = 1
+        else:
+            while len(heap) > 1:
+                freq1, i1, node1 = heapq.heappop(heap)
+                freq2, i2, node2 = heapq.heappop(heap)
+                merged = (None, node1, node2)
+                heapq.heappush(heap, (freq1 + freq2, next(cnt), merged))
+            # traverse to compute depths
+            stack = [(heap[0][2], 0)]
+            while stack:
+                node, depth = stack.pop()
+                b, left, right = node
+                if left is None and right is None:
+                    e[b] = depth
+                else:
+                    if left is not None:
+                        stack.append((left, depth + 1))
+                    if right is not None:
+                        stack.append((right, depth + 1))
+        # sliding windows
+        if n < window_size:
+            # If file shorter than w, use a single window over the whole file
+            r_raw = [sum(e[b] for b in data)]
+        else:
+            r_raw = []
+            start = 0
+            while start <= n - window_size:
+                s = 0
+                for j in range(start, start + window_size):
+                    s += e[data[j]]
+                r_raw.append(s)
+                start += skip_size
+        # rescale to [0,1]
+        r_max = max(r_raw)
+        profile = [r / r_max for r in r_raw]
+        # prune the randomness profile according to the input heuristic
+        return profile[:pruning_size] if pruning_heuristic == "first" else \
+               [v for _, v in sorted(enumerate(profile), key=lambda t: (t[1], t[0]))[:pruning_size]] \
+                if pruning_heuristic == "ordered_smallest" else \
+               sorted(profile)[:pruning_size] if pruning_heuristic == "smallest" else \
+               profile[:round(pruning_size / 2 + .5)] + profile[-round(pruning_size / 2):]
+    
     @property
     def bin_label(self):
         return READABLE_LABELS(self.label, True)
