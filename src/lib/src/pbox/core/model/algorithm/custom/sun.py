@@ -1,15 +1,14 @@
 # -*- coding: UTF-8 -*-
 import numpy as np
 from sklearn.base import BaseEstimator, ClassifierMixin
-from sklearn.utils._param_validation import Integral, Interval, StrOptions
+from sklearn.utils._param_validation import StrOptions
 from sklearn.utils.validation import check_is_fitted
 
 
-class BurgessClassifier(ClassifierMixin, BaseEstimator):
-    """Burgess's classifier.
+class SunClassifier(ClassifierMixin, BaseEstimator):
+    """Sun's classifier.
     
-    This model is based on a heuristic using an average of the per-section entropies for the selected K most occuring
-     bytes of Burgess et al. (2014).
+    This model is based on statistical features based on a randomness profile of Sun et al. (2010).
     
     Attributes
     ----------
@@ -18,49 +17,44 @@ class BurgessClassifier(ClassifierMixin, BaseEstimator):
     
     Constants
     ---------
-    _feature_names : ["average_per_section_top_{K}_bytes_entropy"]
-    
-    Parameters
-    ----------
-    K : int belonging to ]0,256], default=100
-        The number of top bytes to be kept in the Shanon entropy computation of each binary's section.
+    _feature_names : ["randomness_profile_value_[0-49]"]
     
     References
     ----------
-    Colin Burgess, Sakir Sezer, Kieran McLaughlin, Eul Gyu Im,
-    "Feature set reduction for the detection of packed executables",
-    ISSC/CIICT, 2014.
+    Li Sun, Steven Versteeg, Serdar Boztas, Trevor Yann
+    "Pattern Recognition Techniques for the Classification of Malware Packers",
+    Information Security and Privacy, 2010.
     
     Examples
     --------
-    >>> from pbox.core.model.algorithm.custom.burgess import BurgessClassifier
+    >>> from pbox.core.model.algorithm.custom.burgess import SunClassifier
     >>> from pbox.helpers import make_test_dataset
-    >>> X_train, y_train, X_test, y_test = make_test_dataset(1)
-    >>> clf = BurgessClassifier().fit(X_train, y_train)
+    >>> X_train, y_train, X_test, y_test = make_test_dataset(50)
+    >>> clf = SunClassifier().fit(X_train, y_train)
     >>> clf.predict(X_test[:5, :])
-    array([1, 0, 1, 0, 0])
+    array([1, 0, 1, 1, 0])
     >>> clf.score(X_test, y_test)
     0.8...
     """
     classes_ = np.array([0, 1])
+    _feature_names = [f"randomness_profile_value_{i}" for i in range(50)]
     _parameter_constraints = {
-        'K':         [Interval(Integral, 0, 256, closed="right")],
-        'algorithm': [StrOptions({"KStar", "SMO"})],
+        'algorithm': [StrOptions({"BFTree", "IBk", "NB", "SMO"})],
     }
     
-    def __init__(self, K=100, algorithm="SMO", **kwargs):
-        from pbox.core.model.algorithm.weka import KStar, SMO
+    def __init__(self, algorithm="IBk", **kwargs):
+        from pbox.core.model.algorithm.weka import BFTree, IBk, NB, SMO
         self.algorithm = algorithm
-        self.K = K
+        if algorithm == "IBk":
+            kwargs.setdefault('K', 1)
         self._validate_params()
         self.__clf = locals()[algorithm](**kwargs)
-        self.__clf._feature_names = [f"average_per_section_top_{K}_bytes_entropy"]
     
     def __getattribute__(self, name):
         if name in ["fit", "predict", "predict_proba"]:
             return super().__getattribute__(name)
         try:
-            return super().__getattribute__("_BurgessClassifier__clf").__getattribute__(name)
+            return super().__getattribute__("_SunClassifier__clf").__getattribute__(name)
         except AttributeError:
             return super().__getattribute__(name)
     
@@ -70,7 +64,7 @@ class BurgessClassifier(ClassifierMixin, BaseEstimator):
         
         Parameters
         ----------
-        X : {array-like, sparse matrix} of shape (n_samples, 1)
+        X : {array-like, sparse matrix} of shape (n_samples, 50)
             Training vectors, where `n_samples` is the number of samples
         
         y : array-like of shape (n_samples,)
@@ -90,7 +84,7 @@ class BurgessClassifier(ClassifierMixin, BaseEstimator):
         
         Parameters
         ----------
-        X : {array-like, sparse matrix} of shape (n_samples, 1)
+        X : {array-like, sparse matrix} of shape (n_samples, 50)
             Testing vectors, where `n_samples` is the number of samples
         
         Returns
@@ -106,12 +100,12 @@ class BurgessClassifier(ClassifierMixin, BaseEstimator):
         
         Parameters
         ----------
-        X : {array-like, sparse matrix} of shape (n_samples, 1)
+        X : {array-like, sparse matrix} of shape (n_samples, 50)
             The input samples. Each sample shall have 1 column: "average_per_section_top_{K}_bytes_entropy".
         
         Returns
         -------
-        probabilities : array, shape (n_samples, 1)
+        probabilities : array, shape (n_samples, 50)
             Returns an array where each row represents the probabilities of the sample being below and above the
             threshold, respectively.
         """

@@ -107,7 +107,7 @@ class TreadwellClassifier(ClassifierMixin, BaseEstimator):
         Parameters
         ----------
         X : {array-like, sparse matrix} of shape (n_samples, 8)
-            The training input samples. Each sample shall have fourteen columns:
+            The training input samples. Each sample shall have eight columns:
             "has_non_standard_section", "has_known_packer_section_names", "is_ep_not_in_text_section",
             "has_tls_data_directory_entry", "has_dll_with_no_export", "has_known_packer_section_names",
             "is_import_functions_count<=2", "is_iat_malformed".
@@ -136,7 +136,7 @@ class TreadwellClassifier(ClassifierMixin, BaseEstimator):
         Parameters
         ----------
         X : {array-like, sparse matrix} of shape (n_samples, 8)
-            The training input samples. Each sample shall have fourteen columns:
+            The training input samples. Each sample shall have eight columns:
             "has_non_standard_section", "has_known_packer_section_names", "is_ep_not_in_text_section",
             "has_tls_data_directory_entry", "has_dll_with_no_export", "has_known_packer_section_names",
             "is_import_functions_count<=2", "is_iat_malformed".
