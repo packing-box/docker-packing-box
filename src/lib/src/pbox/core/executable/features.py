@@ -21,6 +21,7 @@ class Feature(dict2):
         self['boolean'] = any(self['name'].startswith(p) for p in ["is_", "has_"])
         self.setdefault('alias', [])
         self.setdefault('keep', True)
+        self.setdefault('references', [])
         self.setdefault('significant', False)
         self.setdefault('tags', [])
     

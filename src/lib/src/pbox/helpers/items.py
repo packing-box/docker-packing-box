@@ -191,11 +191,34 @@ class MetaBase(type):
     def __iter__(self):
         self()  # trigger registry's lazy initialization
         temp = []
-        for base in (self.registry.values() if getattr(self, "_has_registry", True) else [self]):
+        for base in (self.registry.values() if getattr(self, "_has_registry", True) else [self.registry]):
             for name in base.keys():
                 if name not in temp:
                     yield name
                     temp.append(name)
+    
+    def __getattr__(self, name):
+        try:
+            return self.__dict__[name]
+        except KeyError:
+            if '_source' not in self.__dict__ or name.startswith("_"):
+                raise AttributeError(f"'{self.__name__}' object has no attribute '{name}'") from None
+            temp, has_reg = [], self.__dict__.get('_has_registry', True)
+            reg = self.__dict__.get('_registry') if has_reg else self()
+            for base in (reg.values() if has_reg else [reg]):
+                has_field = False
+                for data in base.values():
+                    if hasattr(data, name) or name in data:
+                        has_field = True
+                        break
+                if not has_field:
+                    raise AttributeError(f"'{self.__name__}' object has no attribute '{name}'") from None
+                for data in base.values():
+                    v = getattr(data, name) if hasattr(data, name) else data.get(name)
+                    for sv in (v if isinstance(v, (list, tuple, set)) else [v]):
+                        if sv is not None and sv not in temp:
+                            temp.append(sv)
+            return sorted(temp)
     
     def _filter(self, format="All", query=None, fields=None, index="name", merge_deps=False, **kw):
         """ Filter a subset of items based on a Pandas query and return the filtered dataframe. """
@@ -232,7 +255,7 @@ class MetaBase(type):
             try:
                 df = df.query(query)
             except Exception as e:
-                if isinstance(e, (KeyError, NameError, SyntaxError, TypeError, ValueError)) or \
+                if isinstance(e, (AttributeError, KeyError, NameError, SyntaxError, TypeError, ValueError)) or \
                    Path(inspect.getfile(e.__class__)).dirname.parts[-2:] == ('pandas', 'errors'):
                     _l.error(f"Bad Pandas query expression: {e}")
                     _l.warning("No entry filtered ; aborting...")
@@ -245,8 +268,8 @@ class MetaBase(type):
         df = df.drop_duplicates(index)
         _l.debug(f"Dataframe queried:\n{df.describe()}\n{df}")
         # then collect dependencies too
+        deps = {}
         if has_deps:
-            deps = {}
             for c in (expand_formats(format) if has_reg else [None]):
                 for name, record in self.registry.get(c, self.registry).items():
                     if name not in df.name.values:
@@ -258,7 +281,7 @@ class MetaBase(type):
         # if requested, merge the dependencies in the dataframe
         if merge_deps:
             d, reg = {}, self.registry.get(c, self.registry)
-            for dep in sorted(set(x for l in deps.values() for x in l)):
+            for name in sorted(set(x for l in deps.values() for x in l)):
                 r = dict(reg[name])
                 for k in field_names:
                     d.setdefault(k, [])
@@ -434,7 +457,7 @@ class MetaBase(type):
     
     @property
     def registry(self):
-        return getattr(self, "_registry", None) if getattr(self, "_has_registry", True) else self
+        return self.__dict__.get('_registry') if self.__dict__.get('_has_registry', True) else self()
     
     @property
     def source(self):
@@ -462,6 +485,17 @@ class References(dict, metaclass=MetaBase):
             for name, params in load_yaml_config(self.__class__.source):
                 self[name] = params
             self.__initialized = True
+    
+    def items(self):
+        for name, data in super().items():
+            d = {'name': name}
+            for k, v in data.items():
+                d[k] = v
+            yield name, d
+    
+    def values(self):
+        for _, data in self.items():
+            yield data
     
     @classmethod
     def show(cls, **kw):
@@ -758,7 +792,7 @@ def load_yaml_config(cfg, no_defaults=(), parse_defaults=True, auto_tag=True):
                         except (AttributeError, TypeError):
                             pass
                     if len(tags) > 0:
-                        params['tags'] = sorted(list(set(tags)))
+                        params['tags'] = string.sorted_natural(list(set(tags)))
         return config
     # local function for merging child configurations
     def _merge(config, k, v, keep=False):
