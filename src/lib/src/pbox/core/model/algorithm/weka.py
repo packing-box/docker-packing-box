@@ -102,9 +102,14 @@ for classifier in WEKA_CLASSIFIERS:
         exec(f"class {name}(WekaClassifier): _weka_base = \"{classifier}\"")
     else:
         break  # already initialized
-    
+
 
 # not part of WEKA_CLASSIFIERS
+class BFTree(WekaClassifier):
+    """ This implements the BFTree algorithm from Weka. """
+    _weka_base = "weka.classifiers.trees.BFTree"
+
+
 class Decorate(WekaClassifier):
     """ This implements the DECORATE algorithm from Weka. """
     _weka_base = "weka.classifiers.meta.Decorate"
