@@ -5,7 +5,7 @@ from tinyscript import ast, itertools, logging, re
 from tinyscript.helpers import is_generator as is_gen, Path
 from tinyscript.report import *
 
-from ...helpers import dict2, expand_formats, get_data, load_yaml_config, pd, render, MetaBase
+from ...helpers import *
 
 
 __all__ = ["Features"]
@@ -163,6 +163,7 @@ class Features(dict, metaclass=MetaBase):
             #                  others but not kept in the final data, hence required in the registry yet
             flist = [f for l in [["All"], [f for f in FORMATS.keys() if f != "All"], expand_formats("All")] for f in l]
             for name, params in load_yaml_config(src):
+                tag_from_references(params)
                 r, values = params.pop('result', {}), params.pop('values', [])
                 # allow to use 'result: ...' instead of 'result:\n  All: ...' to save space
                 if not isinstance(r, dict):

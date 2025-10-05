@@ -13,7 +13,7 @@ from .utils import pd
 set_exception("NotInstantiable", "TypeError")
 
 
-__all__ = ["dict2", "load_yaml_config", "Item", "MetaBase", "MetaItem", "References"]
+__all__ = ["dict2", "load_yaml_config", "tag_from_references", "Item", "MetaBase", "MetaItem", "References"]
 
 _EMPTY_DICT = {}
 _EVAL_NAMESPACE = {k: getattr(builtins, k) for k in ["abs", "all", "any", "divmod", "float", "hash", "hex", "id", "int",
@@ -186,6 +186,12 @@ class MetaBase(type):
     """ This metaclass allows to iterate names over the class-bound registry of the underlying abstraction.
          It also adds a class-level 'source' attribute that can be used to reset the registry. It also provides a few
          methods to select or export items from the registry.
+        
+        This metaclass is fitted for abstractions for which the child items should not be callable as classes.
+            
+        By contrast to MetaItem, setting self.source does not trigger registry recomputation ; this is done lazily at
+         the first instantiation of the class.
+        
         Important note: if a class holds this metaclass and has _has_registry=False, then this class shall be a 
                          dictinoary as it is considered as the registry itself. """
     def __iter__(self):
@@ -245,7 +251,7 @@ class MetaBase(type):
             if index not in fields:
                 fields = [index] + fields
             df = df[fields]
-        # explode based on tags
+        # explode based on pre-defined fields
         for field in _EXPLODE_QUERY_FIELDS:
             if field in df.columns:
                 _l.debug(f"Exploding the dataframe based on the '{field}' field")
@@ -517,14 +523,78 @@ def _apply(f):
 
 def _init_metaitem():
     class MetaItem(type):
+        """ This metaclass uses a list-based registry that contains the child items from the target abstraction.
+             For instance, Detector.registry will hold the list of all the classes that inherit from Detector, by
+             contrast to MetaBase that handles a dictionary-based registry holding subdictionaries of child items that
+             are not directly callable as classes.
+            
+            This metaclass is fitted for abstractions for which the child items should not be callable as classes.
+            
+            By contrast to MetaBase, setting self.source immediately triggers registry recomputation. """
         __fields__ = {}
         
         def __getattribute__(self, name):
+            if name.startswith("_"):
+                return super(MetaItem, self).__getattribute__(name)
             # this masks some attributes for child classes (e.g. Packer.registry can be accessed, but when the registry
             #  of child classes is computed, the child classes, e.g. UPX, won't be able to get UPX.registry)
             if name in ["get", "iteritems", "mro", "registry"] and self._instantiable:
                 raise AttributeError(f"'{self.__name__}' object has no attribute '{name}'")
+            if not self._instantiable and name in [n.lstrip("_") for n in self.__fields__]:
+                temp = []
+                for item in self.registry:
+                    v = getattr(item, name, None)
+                    for sv in (v if isinstance(v, (list, tuple, set)) else [v]):
+                        if isinstance(sv, dict):
+                            for ssv in [f"{k}: {va}" for k, va in sv.items()]:
+                                if ssv is not None and ssv not in temp:
+                                    temp.append(ssv)
+                            continue
+                        if sv is not None and sv not in temp:
+                            temp.append(sv)
+                return sorted(temp)
             return super(MetaItem, self).__getattribute__(name)
+        
+        def _filter(self, query=None, fields=None, index="name", **kw):
+            """ Filter a subset of items based on a Pandas query and return the filtered dataframe. """
+            _l = self.logger
+            # from the registry, based on the required formats, build a DataFrame combining all items
+            for i, record in enumerate(self.registry):
+                d = {index: getattr(record, index)}
+                for k in self.__fields__.keys():
+                    k2 = k.lstrip("_") if k.startswith("_") else k
+                    d.setdefault(k2, [])
+                    d[k2].append(getattr(record, k, None) if k in _EXPLODE_QUERY_FIELDS else \
+                                str(getattr(record, k, None)))
+                df = pd.DataFrame.from_dict(d) if i == 0 else \
+                     pd.concat([df, pd.DataFrame.from_dict(d)], ignore_index=True)
+            if fields:
+                if index not in fields:
+                    fields = [index] + fields
+                df = df[fields]
+            # explode based on pre-defined fields
+            for field in _EXPLODE_QUERY_FIELDS:
+                if field in df.columns:
+                    _l.debug(f"Exploding the dataframe based on the '{field}' field")
+                    df = df.explode(field)
+            # now filter the resulting DataFrame with the given query
+            if query is not None and query.lower() != "all":
+                try:
+                    df = df.query(query)
+                except Exception as e:
+                    if isinstance(e, (AttributeError, KeyError, NameError, SyntaxError, TypeError, ValueError)) or \
+                       Path(inspect.getfile(e.__class__)).dirname.parts[-2:] == ('pandas', 'errors'):
+                        _l.error(f"Bad Pandas query expression: {e}")
+                        _l.warning("No entry filtered ; aborting...")
+                        return None, {}
+                    else:
+                        raise
+            if len(df) == 0:
+                _l.warning("No data")
+                return None, {}
+            df = df.drop_duplicates(index)
+            _l.debug(f"Dataframe queried:\n{df.describe()}\n{df}")
+            return df
         
         @property
         def logger(self):
@@ -782,17 +852,7 @@ def load_yaml_config(cfg, no_defaults=(), parse_defaults=True, auto_tag=True):
         #  related reference dictionary from References()
         if auto_tag:
             for params in config.values():
-                if 'references' in params:
-                    tags = params.get('tags', [])
-                    for i, ref in enumerate(lst := params['references']):
-                        try:
-                            key = re.match(r"<(.*)?>$", ref).group(1)
-                            lst[i] = References().get(key, ref)
-                            tags.extend(lst[i].get('tags', []))
-                        except (AttributeError, TypeError):
-                            pass
-                    if len(tags) > 0:
-                        params['tags'] = string.sorted_natural(list(set(tags)))
+                tag_from_references(params)
         return config
     # local function for merging child configurations
     def _merge(config, k, v, keep=False):
@@ -850,4 +910,18 @@ def load_yaml_config(cfg, no_defaults=(), parse_defaults=True, auto_tag=True):
     # collect properties that are applicable for all the other features
     for name, params in d.items():
         yield name, params
+
+
+def tag_from_references(data):
+    if 'references' in data:
+        tags = data.get('tags', [])
+        for i, ref in enumerate(lst := data['references']):
+            try:
+                key = re.match(r"<(.*)?>$", ref).group(1)
+                lst[i] = References().get(key, ref)
+                tags.extend(lst[i].get('tags', []))
+            except (AttributeError, TypeError):
+                pass
+        if len(tags) > 0:
+            data['tags'] = string.sorted_natural(list(set(tags)))
 
