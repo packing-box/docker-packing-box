@@ -32,6 +32,7 @@ def render(*elements, **kw):
         from rich.box import SIMPLE_HEAD
         from rich.console import Console
         from rich.markdown import Heading, Markdown
+        from rich.measure import Measurement
         from rich.style import Style
         from rich.table import Table as RichTable
         from rich.text import Text as RichText
@@ -39,26 +40,48 @@ def render(*elements, **kw):
         code.replace(Heading.__rich_console__, "text.justify = \"center\"", "")
         _STATUS_CONV = {colored(u, c): RichText(u, style=c) for u, c in zip("☑☑☒☒☐🗗ⓘ☑☒", \
                         ["green", "orange", "red", "magenta", "grey", "cyan", "grey", "grey50", "grey50"])}
+        # inner function to render a table
+        def _render_table(t, first=False):
+            opt = {'show_header': True, 'show_footer': t.column_footers is not None,
+                   'header_style': "bold", 'highlight': True}
+            if t.title is not None:
+                opt['title'] = t.title if first else None
+                opt['title_justify'] = "left"
+                opt['title_style'] = Style(bold=True, color="bright_yellow", italic=False)
+            if getattr(e, "borderless", True):
+                opt['box'] = SIMPLE_HEAD
+            table = RichTable(**opt)
+            for i, col in enumerate(t.column_headers):
+                table.add_column(col, justify="center",
+                                 footer=t.column_footers[i] if t.column_footers is not None else None)
+            for row in t.data:
+                if not all(set(str(cell).strip()) == {"-"} for cell in row):
+                    table.add_row(*[RichText(str(cell), justify="left") if cell not in _STATUS_CONV else \
+                                    _STATUS_CONV[cell] for cell in row])
+            return table
+        # inner function to paginate a broad table
+        def _split_table_by_width(console, table):
+            subtables, start, first = [], 0, True
+            while start < len(cols := table.column_headers):
+                end = start + 1
+                while end <= len(cols):
+                    t = Table([r[start:end] for r in table.data], column_headers=cols[start:end])
+                    if Measurement.get(console, console.options, _render_table(t, first)).maximum >= console.size.width:
+                        end -= 1
+                        break
+                    end += 1
+                if end == start:
+                    end += 1  # at least one column per table
+                t = Table([r[start:end] for r in table.data], column_headers=cols[start:end])
+                subtables.append(_render_table(t, first))
+                start, first = end, False
+            return subtables
+        # start rendering elements from here
         for e in elements:
             if hasattr(e, "md"):
                 if isinstance(e, Table):
-                    opt = {'show_header': True, 'show_footer': e.column_footers is not None,
-                           'header_style': "bold", 'highlight': True}
-                    if e.title is not None:
-                        opt['title'] = e.title
-                        opt['title_justify'] = "left"
-                        opt['title_style'] = Style(bold=True, color="bright_yellow", italic=False)
-                    if getattr(e, "borderless", True):
-                        opt['box'] = SIMPLE_HEAD
-                    table = RichTable(**opt)
-                    for i, col in enumerate(e.column_headers):
-                        table.add_column(col, justify="center",
-                                         footer=e.column_footers[i] if e.column_footers is not None else None)
-                    for row in e.data:
-                        if not all(set(str(cell).strip()) == {"-"} for cell in row):
-                            table.add_row(*[RichText(str(cell), justify="left") if cell not in _STATUS_CONV else \
-                                            _STATUS_CONV[cell] for cell in row])
-                    Console(markup=False).print(table)
+                    for t in _split_table_by_width(console := Console(markup=False), e):
+                        console.print(t)
                 elif isinstance(e, Section):
                     Console().print(Markdown(e.md()), style=Style(bold=True, color="bright_cyan", italic=False))
                 else:

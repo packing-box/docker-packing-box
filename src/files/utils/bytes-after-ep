@@ -1,0 +1,30 @@
+#!/usr/bin/python3
+# -*- coding: UTF-8 -*-
+from tinyscript import *
+from tinyscript.report import *
+from pbox.core.executable import *
+from pbox.helpers import render
+
+
+if __name__ == '__main__':
+    parser.add_argument("executable", nargs="*",
+                        help="executable files or folder of executables to get the bytes after the EP from")
+    parser.add_argument("-b", "--bytes", type=int, default=32, help="number of bytes after the EP to get")
+    parser.add_argument("-s", "--sort", action="store_true", help="sort executables per byte after the EP")
+    initialize()
+    executables = []
+    for exe in args.executable:
+        if (exe := Executable(exe)).is_dir():
+            for exef in exe.walk(base_cls=False):
+                executables.append(exef)
+        elif exe.format is not None:
+            executables.append(exe)
+    data = []
+    for exe in executables:
+        hs = codext.encode(Executable(exe).parsed.bytes_after_entrypoint(args.bytes), "hex")
+        data.append([exe.filename, exe.hash] + [hs[i:i+2] for i in range(0, len(hs), 2)])
+    if args.sort:
+        data = list(sorted(data, key=lambda row: row[2:] + [row[1]]))
+    render(Section("Bytes after the Entry Point"),
+           Table(data, column_headers=["Filename", "Hash"] + [f"B{i}" for i in range(1, args.bytes + 1)]))
+
