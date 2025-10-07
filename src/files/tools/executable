@@ -42,7 +42,9 @@ if __name__ == '__main__':
     add_argument(scan, "executable")
     scan.add_argument("executables", nargs="*", help="executable files to compare with the reference file")
     scan.add_argument("-f", "--force", action="store_true", help="remove cached data for the target executable if any")
-    add_argument(sparsers.add_parser("show", help="show information about the target executable"), "executable")
+    show = sparsers.add_parser("show", help="show information about the target executable")
+    add_argument(show, "executable")
+    show.add_argument("--block-entropies", action="store_true", help="show all the block entropies")
     initialize(noargs_action="usage")
     configure_logging(args.verbose)
     args.logger = logger

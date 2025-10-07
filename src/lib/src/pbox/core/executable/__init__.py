@@ -306,17 +306,20 @@ class Executable(Path):
                 ["Engine", "Version", "Last Update", "Category", "Method", "Result"]][verb]
         render(*[Section("Scan Results"), Table(detections, column_headers=head)])
     
-    def show(self, base_info=True, sections=True, features=False, **kwargs):
+    def show(self, base_info=True, sections=True, features=False, block_entropies=False, **kwargs):
         ds, r = hasattr(self, "_dataset"), []
         if base_info:
+            be, avg_be = self.block_entropy(256)
+            if not block_entropies:
+                be = f"average {avg_be:.3f}, maximum {max(x for x in be if x is not None):.3f}"
             l = [f"**Hash**:          {self.hash}",
                  f"**Filename**:      {Path(self.realpath).basename}",
                  f"**Format**:        {self.format}",
                  f"**Signature**:     {self.signature}",
                  f"**Entry point**:   0x{self.parsed.entrypoint:02X} ({self.parsed.entrypoint_section.name})",
                  f"**Size**:          {human_readable_size(self.size)}",
-                 f"**Entropy**:       {self.entropy}",
-                 f"**Block entropy**: {self.block_entropy(256)}"]
+                 f"**Entropy**:       {self.entropy:.3f}",
+                 f"**Block entropy**: {be}"]
             if ds:
                 l += [f"**Label**:         {self.label}"]
             r += [Section("Base Information"), List(l)]
