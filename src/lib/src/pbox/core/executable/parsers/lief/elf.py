@@ -148,6 +148,11 @@ def __init_elf():
             return [ELFSegment(s, self) for s in self._parsed.segments]
         
         @property
+        def size_of_header(self):
+            return self._parsed.header.program_header_offset + \
+                   self._parsed.header.program_header_size * self._parsed.header.numberof_segments
+        
+        @property
         def symbols(self):
             return list(map(lambda s: s.name, self._parsed.symbols))
     

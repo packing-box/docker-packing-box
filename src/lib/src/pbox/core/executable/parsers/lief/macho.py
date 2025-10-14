@@ -77,6 +77,13 @@ def __init_macho():
         @property
         def segments(self):
             return [MachOSegment(s, self) for s in self._parsed.segments]
+        
+        @property
+        def size_of_header(self):
+            m, M = self._parsed.header.magic, lief.MachO.MACHO_TYPES
+            return self._parsed.fat_offset + self._parsed.header.sizeof_cmds + \
+                   32 if m in (M.MAGIC_64, M.CIGAM_64) else [32, 28][m in (M.MAGIC, M.CIGAM)]
+                   
     
     MachO.__name__ = "MachO"
     MachO.SECTION_FLAGS = sec_flags

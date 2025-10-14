@@ -193,6 +193,10 @@ def __init_pe():
             return ResourceDirectory(self._parsed.resources)
         
         @property
+        def size_of_header(self):
+            return self._parsed.sizeof_headers
+        
+        @property
         def strings(self):
             from re import findall
             with self.path.open('rb') as f:
