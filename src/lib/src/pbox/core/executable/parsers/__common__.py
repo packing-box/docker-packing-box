@@ -72,9 +72,7 @@ class AbstractParsedExecutable(ABC, CustomReprMixin, GetItemMixin):
             t += w
         if overlay:
             # get overlay, first from the eventually-defined attribute "_parsed", otherwise from the current instance
-            o = getattr(getattr(self, "_parsed", self), "overlay", b"")
-            c = _rb(o)
-            w = len(c)
+            w = len(c := _rb(getattr(getattr(self, "_parsed", self), "overlay", b"")))
             r += (bintropy.entropy(c, blocksize, ignore_half_block_zeros)[1] or 0.) * w
             t += w
         return r / (t or 1)
@@ -87,8 +85,10 @@ class AbstractParsedExecutable(ABC, CustomReprMixin, GetItemMixin):
                 n += 1
         return e / n
     
-    def block_entropy(self, blocksize=256, ignore_half_block_zeros=False, ignore_half_block_same_byte=True):
-        return bintropy.entropy(_rb(self.code), blocksize, ignore_half_block_zeros, ignore_half_block_same_byte)
+    def block_entropy(self, blocksize=256, ignore_half_block_zeros=False, ignore_half_block_same_byte=True,
+                      ignore_overlay=False):
+        return bintropy.entropy(_rb(self.content if ignore_overlay else self.bytes), blocksize, ignore_half_block_zeros,
+                                ignore_half_block_same_byte)
     
     def block_entropy_per_section(self, blocksize=256, ignore_half_block_zeros=True, ignore_half_block_same_byte=True):
         return {getattr(s, "real_name", s.name): s.block_entropy(blocksize, ignore_half_block_zeros,
@@ -105,8 +105,19 @@ class AbstractParsedExecutable(ABC, CustomReprMixin, GetItemMixin):
             return
         return bintropy.entropy(b"".join(_rb((self.section(s) if isinstance(s, str) else s).content) for s in sections))
     
+    def fragments(self, fragment_size=1024, n=3, skip_header=True, from_end=False, ignore_overlay=True, pad=False):
+        o = self.size_of_header if not from_end and skip_header else 0
+        d, fs = self.content if ignore_overlay else self.bytes, fragment_size
+        for i in (range(-fs, -1, -fs) if from_end else range(0, n * fs, fs)):
+            yield f + b"\x00" * (fs - l) if pad and (l := len(f := d[o+i:o+i+fs])) < fs else f
+    
     def has_section(self, name_or_section):
         return getattr(name, "name", name) in self.section_names()
+    
+    def lrc_fragments(self, fragment_size=1024, n=3, skip_header=True, from_end=False, ignore_overlay=True, pad=False):
+        for f in self.fragments(fragment_size=fragment_size, n=n, skip_header=skip_header, from_end=from_end,
+                                ignore_overlay=ignore_overlay, pad=pad):
+            yield bytes([(f[i] + f[i+1]) & 0xFF for i in range(len(f)-1)])
     
     def modify(self, modifier, **kw):
         modifier(self.parsed, **kw)
@@ -161,12 +172,12 @@ class AbstractParsedExecutable(ABC, CustomReprMixin, GetItemMixin):
             raise ParserError("Could not determine original section class")
     
     @property
-    def code(self):
-        return self.path.bytes
-    
-    @property
     def code_sections(self):
         return PartsList(s for s in self if s.is_code)
+    
+    @property
+    def content(self):
+        return self.path.bytes[:-l] if (l := len(self._parsed.overlay.tobytes())) > 0 else self.path.bytes
     
     @property
     def data_section(self):

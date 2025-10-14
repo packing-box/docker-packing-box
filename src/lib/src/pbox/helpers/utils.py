@@ -49,12 +49,20 @@ def benchmark(f):
     return _wrapper
 
 
-def entropy(data, k=256, max_entropy=False):
-    if not 0 < k <= 256:
-        raise ValueError("k shall belong to [1,256]")
+def entropy(data, k=None, n=1, step=1, max_entropy=False):
+    """ Generic entropy computation function for n-grams with a step between tokens. """
+    k_max = 256**n
+    if k is None:
+        k = k_max
+    if not 0 < k <= k_max:
+        raise ValueError(f"k shall belong to [1,{k_max}]")
     from collections import Counter
     from math import log2
-    e, t, c = .0, len(data), Counter(data)
+    e, t = 0., len(data)
+    if n > 1 or step > 1:
+        c, t = Counter(data[i:i+n] for i in range(0, t, step)), round(t / step + .5)
+    else:
+        c = Counter(data)
     for p in [n / t for _, n in c.most_common(k)]:
         e -= p * log2(p)
     return entropy(range(k)) if e == 0. and max_entropy else e
