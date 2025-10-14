@@ -8,7 +8,7 @@ from tinyscript.helpers.expressions import WL_NODES
 
 from .files import Locator
 from .formats import expand_formats, format_shortname
-from .utils import pd
+from .utils import entropy, pd
 
 set_exception("NotInstantiable", "TypeError")
 
@@ -135,7 +135,7 @@ class dict2(dict):
     
     def __call__(self, data, silent=False, **kwargs):
         d = {k: getattr(random, k) for k in ["choice", "randint", "randrange", "randstr"]}
-        d.update({'apply': _apply, 'concatn': _concatn, 'failsafe': _fail_safe, 'find': str.find,
+        d.update({'apply': _apply, 'concatn': _concatn, 'ent': entropy, 'failsafe': _fail_safe, 'find': str.find,
                   'hex2bytes': bytearray.fromhex, 'isin': _isin, 'last': _last, 'len': _len,
                   'lower': lambda s: s.lower(), 'max': _max, 'min': _min, 'printable': string.printable,
                   'randbytes': _randbytes, 'repeatn': _repeatn, 'select': _select(),
@@ -848,11 +848,6 @@ def load_yaml_config(cfg, no_defaults=(), parse_defaults=True, auto_tag=True):
                         #     keep:   false
                         #     source: <unknown>
                         params.setdefault(default, value)
-        # handle the references attributes by checking if the "<...>" pattern is present and replace "..." with the
-        #  related reference dictionary from References()
-        if auto_tag:
-            for params in config.values():
-                tag_from_references(params)
         return config
     # local function for merging child configurations
     def _merge(config, k, v, keep=False):
@@ -909,6 +904,10 @@ def load_yaml_config(cfg, no_defaults=(), parse_defaults=True, auto_tag=True):
             raise OSError(f"Did you forget to prepend \"./\" to force a relative path ?")
     # collect properties that are applicable for all the other features
     for name, params in d.items():
+        # handle the references attributes by checking if the "<...>" pattern is present and replace "..." with the
+        #  related reference dictionary from References()
+        if auto_tag:
+            tag_from_references(params)
         yield name, params
 
 

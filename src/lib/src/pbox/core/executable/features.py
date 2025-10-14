@@ -163,7 +163,6 @@ class Features(dict, metaclass=MetaBase):
             #                  others but not kept in the final data, hence required in the registry yet
             flist = [f for l in [["All"], [f for f in FORMATS.keys() if f != "All"], expand_formats("All")] for f in l]
             for name, params in load_yaml_config(src):
-                tag_from_references(params)
                 r, values = params.pop('result', {}), params.pop('values', [])
                 # allow to use 'result: ...' instead of 'result:\n  All: ...' to save space
                 if not isinstance(r, dict):
@@ -213,15 +212,6 @@ class Features(dict, metaclass=MetaBase):
                             for subfmt in expand_formats(fmt):
                                 ft.registry.setdefault(subfmt, {})
                                 ft.registry[subfmt][feat.name] = feat
-                # remove formats for which it is specified (e.g. "Mach-O: null") that there is no result to compute
-                try:
-                    for fmt in flist:
-                        if fmt in r.keys() and (expr := r.get(fmt)) is None:
-                            for subfmt in expand_formats(fmt):
-                                for feat in f:
-                                    ft.registry[subfmt].pop(feat.name, None)
-                except NameError:
-                    pass
             l.debug(f"{len(Features.names)} features loaded")
         elif warn:
             l.warning(f"Features already loaded")
