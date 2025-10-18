@@ -43,7 +43,7 @@ def __init():
         __initialized = True
         # dynamically makes Unpacker's registry of child classes from the default dictionary of unpackers
         #  (~/.packing-box/conf/unpackers.yml)
-        Unpacker.source = None
+        Unpacker.config = None
     return Unpacker
 Unpacker = lazy_object(__init)
 

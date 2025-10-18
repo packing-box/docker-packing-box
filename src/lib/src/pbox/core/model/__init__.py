@@ -755,6 +755,7 @@ class Model(BaseModel):
 
 class DumpedModel(BaseModel):
     STRUCTURE = "*.joblib"
+    _base = Model
     
     def _load(self):
         from sklearn.preprocessing import MinMaxScaler

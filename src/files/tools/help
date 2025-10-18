@@ -92,7 +92,7 @@ if __name__ == '__main__':
                 if args.yaml:
                     print("")
                     yaml, in_block = "", False
-                    with open(cls.source) as f:
+                    with open(cls.config) as f:
                         for l in f:
                             if l.split(":")[0] == subcls.cname:
                                 in_block = True

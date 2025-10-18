@@ -25,18 +25,18 @@ def __init_metaalgo():
             return super(MetaAlgorithm, self).__getattribute__(name)
         
         @property
-        def source(self):
-            if not hasattr(self, "_source"):
-                self.source = None
-            return self._source
+        def config(self):
+            if not hasattr(self, "_config"):
+                self.config = None
+            return self._config
         
-        @source.setter
-        def source(self, path):
+        @config.setter
+        def config(self, path):
             p = Path(str(path or config['algorithms']), expand=True)
-            if hasattr(self, "_source") and self._source == p:
+            if hasattr(self, "_config") and self._config == p:
                 return
             Algorithm.__name__  # force initialization
-            cls, self._source, glob = Algorithm, p, globals()
+            cls, self._config, glob = Algorithm, p, globals()
             # remove the child classes of the former registry from the global scope
             for child in getattr(self, "registry", []):
                 glob.pop(child.cname, None)
@@ -73,7 +73,7 @@ def __init_metaalgo():
                 i._instantiable = True
                 # now set attributes from YAML parameters
                 for k, v in data.items():
-                    setattr(i, "_" + k if k == "source" else k, v)
+                    setattr(i, k, v)
                 glob['__all__'].append(algo)
                 cls.registry.append(i())
     return MetaAlgorithm
@@ -101,15 +101,15 @@ def __init_algo():
             return self.base.__base__ is WekaClassifier
         
         @property
-        def source(self):
-            if not hasattr(self, "_source"):
-                self.__class__._source = ""
-            return self.__class__._source
+        def config(self):
+            if not hasattr(self, "_config"):
+                self.__class__._config = ""
+            return self.__class__._config
     # ensure it initializes only once (otherwise, this loops forever)
     if not __initialized:
         __initialized = True
-        # initialize the registry of algorithms from the default source (~/.packing-box/conf/algorithms.yml)
-        Algorithm.source = None  # needs to be initialized, i.e. for the 'model' tool as the registry is used for
+        # initialize the registry of algorithms from the default config (~/.packing-box/conf/algorithms.yml)
+        Algorithm.config = None  # needs to be initialized, i.e. for the 'model' tool as the registry is used for
     if __cls:                    #  choices, even though the relying YAML config can be tuned via --algorithms-set
         return __cls
     __cls = Algorithm

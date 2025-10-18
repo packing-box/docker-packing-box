@@ -166,7 +166,7 @@ class Entity:
     @classmethod
     def count(cls):
         """ Count existing entity's occurrences from the current workspace. """
-        return sum(1 for _ in Path(config[f'{cls.entity}s']).listdir(cls.check_entity))
+        return len(cls.names)
     
     @classmethod
     def has_empty_structure(cls, folder):
@@ -327,5 +327,9 @@ class Entity:
     
     @classproperty
     def names(cls):
-        return [p.basename for p in Path(config[f'{cls.__name__.lower()}s']).listdir(cls.check)]
+        try:
+            location = config[f"{cls.__name__.lower()}s"]
+        except KeyError:  # try the name of the base class instead (applies to FilelessDataset < Dataset)
+            location = config[f"{getattr(cls, '_base', cls.__base__).__name__.lower()}s"]
+        return [p.basename for p in Path(location).listdir(cls.check)]
 

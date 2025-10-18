@@ -52,7 +52,7 @@ if __name__ == '__main__':
     # compute features registry
     Features()
     # now execute
-    Features.source = args.config_file = args.features_set
+    Features.config = args.config_file = args.features_set
     if args.command == "compute":
         Executable(args.executable, logger=logger).show(False, False, True)
     elif args.command == "list":

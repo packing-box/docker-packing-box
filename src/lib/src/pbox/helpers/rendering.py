@@ -63,7 +63,7 @@ def render(*elements, **kw):
         def _split_table_by_width(console, table):
             subtables, start, first = [], 0, True
             while start < len(cols := table.column_headers):
-                end = start + 1
+                end = (len(cols) if kw.get('force', False) else start) + 1
                 while end <= len(cols):
                     t = Table([r[start:end] for r in table.data], column_headers=cols[start:end])
                     if Measurement.get(console, console.options, _render_table(t, first)).maximum >= console.size.width:

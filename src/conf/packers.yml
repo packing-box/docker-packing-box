@@ -14,7 +14,9 @@ ACProtect:
   status: commercial
 
 Aegis:
-  description: #TODO
+  categories:
+    - cryptor
+  description: Bypass all antivirus solutions.
   formats:
     - PE
   references:

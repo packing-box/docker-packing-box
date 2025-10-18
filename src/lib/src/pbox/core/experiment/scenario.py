@@ -30,18 +30,18 @@ def __init_metascenario():
             return super(MetaScenario, self).__getattribute__(name)
         
         @property
-        def source(self):
-            if not hasattr(self, "_source"):
-                self.source = None
-            return self._source
+        def config(self):
+            if not hasattr(self, "_config"):
+                self.config = None
+            return self._config
         
-        @source.setter
-        def source(self, path):
+        @config.setter
+        def config(self, path):
             p = Path(str(path or config['scenarios']), expand=True)
-            if hasattr(self, "_source") and self._source == p:
+            if hasattr(self, "_config") and self._config == p:
                 return
             Scenario.__name__  # force initialization
-            cls, self._source, glob = Scenario, p, globals()
+            cls, self._config, glob = Scenario, p, globals()
             # remove the child classes of the former registry from the global scope
             for child in getattr(self, "registry", []):
                 glob.pop(child.cname, None)
@@ -56,7 +56,7 @@ def __init_metascenario():
                 i._instantiable = True
                 # now set attributes from YAML parameters
                 for k, v in data.items():
-                    setattr(i, "_" + k if k == "source" else k, v)
+                    setattr(i, k, v)
                 glob['__all__'].append(name)
                 cls.registry.append(i())
     return MetaScenario
@@ -159,15 +159,15 @@ def __init_scenario():
             print("")
         
         @property
-        def source(self):
-            if not hasattr(self, "_source"):
-                self.__class__._source = ""
-            return self.__class__._source
+        def config(self):
+            if not hasattr(self, "_config"):
+                self.__class__._config = ""
+            return self.__class__._config
     # ensure it initializes only once (otherwise, this loops forever)
     if not __initialized:
         __initialized = True
-        # initialize the registry of scenarios from the default source (~/.packing-box/conf/scenarios.yml)
-        Scenario.source = None  # needs to be initialized, i.e. for the 'experiment' tool as the registry is used for
+        # initialize the registry of scenarios from the default config (~/.packing-box/conf/scenarios.yml)
+        Scenario.config = None  # needs to be initialized, i.e. for the 'experiment' tool as the registry is used for
     if __cls:                   #  choices, even though the relying YAML config can be tuned via --scenarios-set
         return __cls
     __cls = Scenario

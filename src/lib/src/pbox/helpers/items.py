@@ -23,7 +23,7 @@ for k in dir(statistics):
     if not k.startswith("_") and isinstance(getattr(statistics, k), type(lambda: 0)):
         _EVAL_NAMESPACE[k] = getattr(statistics, k)
 _EVAL_NAMESPACE['avg'] = _EVAL_NAMESPACE['fmean']
-_EXPLODE_QUERY_FIELDS = ["tags"]
+_EXPLODE_QUERY_FIELDS = ["categories", "formats", "tags"]
 _WL_EXTRA_NODES = ("arg", "arguments", "keyword", "lambda")
 
 
@@ -184,12 +184,12 @@ class dict2(dict):
 
 class MetaBase(type):
     """ This metaclass allows to iterate names over the class-bound registry of the underlying abstraction.
-         It also adds a class-level 'source' attribute that can be used to reset the registry. It also provides a few
+         It also adds a class-level 'config' attribute that can be used to reset the registry. It also provides a few
          methods to select or export items from the registry.
         
         This metaclass is fitted for abstractions for which the child items should not be callable as classes.
             
-        By contrast to MetaItem, setting self.source does not trigger registry recomputation ; this is done lazily at
+        By contrast to MetaItem, setting self.config does not trigger registry recomputation ; this is done lazily at
          the first instantiation of the class.
         
         Important note: if a class holds this metaclass and has _has_registry=False, then this class shall be a 
@@ -207,7 +207,7 @@ class MetaBase(type):
         try:
             return self.__dict__[name]
         except KeyError:
-            if '_source' not in self.__dict__ or name.startswith("_"):
+            if '_config' not in self.__dict__ or name.startswith("_"):
                 raise AttributeError(f"'{self.__name__}' object has no attribute '{name}'") from None
             temp, has_reg = [], self.__dict__.get('_has_registry', True)
             reg = self.__dict__.get('_registry') if has_reg else self()
@@ -222,7 +222,7 @@ class MetaBase(type):
                 for data in base.values():
                     v = getattr(data, name) if hasattr(data, name) else data.get(name)
                     for sv in (v if isinstance(v, (list, tuple, set)) else [v]):
-                        if sv is not None and sv not in temp:
+                        if sv not in [None, ""] and sv not in temp:
                             temp.append(sv)
             return sorted(temp)
     
@@ -304,8 +304,8 @@ class MetaBase(type):
         # only keep the interesting parts of the configuration file based on the filtered DataFrame's list of names
         nmap = getattr(self, "names_map", {})
         values = set(nmap.get(k, k) for k in df[index].values)
-        d = {k: v for k, v in load_yaml_config(self._source, auto_tag=False) if k in values}
-        d2 = {k: v for k, v in load_yaml_config(self._source, auto_tag=False) if k in deps_list and k not in d.keys()}
+        d = {k: v for k, v in load_yaml_config(self._config, auto_tag=False) if k in values}
+        d2 = {k: v for k, v in load_yaml_config(self._config, auto_tag=False) if k in deps_list and k not in d.keys()}
         # if split_on is defined (e.g. split_on="category" to make a "[...].yml" folder with one "[value].yml" file per
         #  'catgegory' value), collect possible values
         if split_on is not None:
@@ -362,7 +362,7 @@ class MetaBase(type):
             _h = lambda s: f"{'#'*120}\n#{s.upper().center(118)}#\n{'#'*120}\n"
             # compose the YAML configuration
             l1, l2 = len(config), len(df)
-            count = [f"{l1} {self.__name__.lower()}", f"{l1} definitions, {l2} {self.__name__.lower()}"][l1 != l2]
+            count = [l1, f"{l1} definitions, {l2} {self.__name__.lower()}"][l1 != l2]
             cfg = _h(f"{self.__name__} set ({count})")
             # - put the defaults first, if any
             cfg += dump({'defaults': defaults}, Dumper=CustomDumper, width=float("inf")).rstrip() + "\n\n\n" \
@@ -385,12 +385,27 @@ class MetaBase(type):
         df, _ = self._filter(format=format, query=query, fields=fields, index=index, merge_deps=True, **kw)
         if (ext := Path(output).extension[1:]) != "pickle":
             kw['index'] = False
-        if ext in ["json", "yml"]:
+        elif ext in ["json", "yml"]:
             kw.update(orient="records", indent=2)
-        if ext == "csv":
+        elif ext == "csv":
             kw.update(sep=";", index=False)
         getattr(df.reset_index(), "to_" + EXPORT_FORMATS.get(ext, ext))(output, **kw)
-
+    
+    def list(self, **kw):
+        """ List all the available items. """
+        from tinyscript.report import Section, Table
+        from .rendering import render
+        self()  # trigger registry's lazy initialization
+        temp, d = [], []
+        for base in (self.registry.values() if getattr(self, "_has_registry", True) else [self.registry]):
+            for name, data in base.items():
+                if name not in temp:
+                    d.append([name, data.get('description', "")])
+                    temp.append(name)
+        render(Section(f"{self.__name__}{['','s'][len(d) > 1]} ({len(d)})"),
+               Table(sorted(d, key=lambda x: string.natural_key()(x[0])), column_headers=["Name", "Description"]),
+               force=True)
+    
     def select(self, output=None, format="All", query=None, fields=None, split_on=None, **kw):
         """ Select a subset based on a Pandas query and either display or dump it. """
         cname = self.__name__.lower()
@@ -398,11 +413,11 @@ class MetaBase(type):
             output = f"{cname}.yml"
         if output is not None:
             dst = Locator(f"conf://{output}", new=True)
-            if dst.is_samepath(self._source):
+            if dst.is_samepath(self._config):
                 self.logger.warning("Destination is identical to source ; aborting...")
                 return
-        if split_on is not None:
-            dst.mkdir()
+            if split_on is not None:
+                dst.mkdir()
         for cfg, name in self._select(format=format, query=query, fields=fields, text=True, split_on=split_on, **kw):
             if output is None:
                 print(txt_terminal_render(cfg, pad=(1, 2), syntax="yaml"))
@@ -413,7 +428,6 @@ class MetaBase(type):
     def test(self, files=None, keep=False, **kw):
         """ Tests on some executable files. """
         from tinyscript.helpers import execute_and_log as run
-        from .formats import expand_formats
         from ..core.executable import Executable
         d = TempPath(prefix=f"{self.__name__.lower()}-tests-", length=8)
         self.__disp = []
@@ -446,6 +460,21 @@ class MetaBase(type):
             d.remove()
     
     @property
+    def config(self):
+        if not hasattr(self, "_config"):
+            self.config = None  # use the default config from 'config'
+        return self._config
+    
+    @config.setter
+    def config(self, path):
+        p = Path(str(path or config[self.__name__.lower()]), expand=True)
+        if hasattr(self, "_config") and self._config == p:
+            return
+        self._config = p
+        if getattr(self, "_has_registry", True):
+            self._registry = None  # reset the registry
+    
+    @property
     def logger(self):
         if not hasattr(self, "_logger"):
             n = self.__name__.lower()
@@ -464,21 +493,6 @@ class MetaBase(type):
     @property
     def registry(self):
         return self.__dict__.get('_registry') if self.__dict__.get('_has_registry', True) else self()
-    
-    @property
-    def source(self):
-        if not hasattr(self, "_source"):
-            self.source = None  # use the default source from 'config'
-        return self._source
-    
-    @source.setter
-    def source(self, path):
-        p = Path(str(path or config[self.__name__.lower()]), expand=True)
-        if hasattr(self, "_source") and self._source == p:
-            return
-        self._source = p
-        if getattr(self, "_has_registry", True):
-            self._registry = None  # reset the registry
 
 
 class References(dict, metaclass=MetaBase):
@@ -488,7 +502,7 @@ class References(dict, metaclass=MetaBase):
         try:
             self.__initialized
         except AttributeError:
-            for name, params in load_yaml_config(self.__class__.source):
+            for name, params in load_yaml_config(self.__class__.config):
                 self[name] = params
             self.__initialized = True
     
@@ -530,7 +544,7 @@ def _init_metaitem():
             
             This metaclass is fitted for abstractions for which the child items should not be callable as classes.
             
-            By contrast to MetaBase, setting self.source immediately triggers registry recomputation. """
+            By contrast to MetaBase, setting self.config immediately triggers registry recomputation. """
         __fields__ = {}
         
         def __getattribute__(self, name):
@@ -547,30 +561,34 @@ def _init_metaitem():
                     for sv in (v if isinstance(v, (list, tuple, set)) else [v]):
                         if isinstance(sv, dict):
                             for ssv in [f"{k}: {va}" for k, va in sv.items()]:
-                                if ssv is not None and ssv not in temp:
+                                if ssv not in [None, ""] and ssv not in temp:
                                     temp.append(ssv)
                             continue
-                        if sv is not None and sv not in temp:
+                        if sv not in [None, ""] and sv not in temp:
                             temp.append(sv)
                 return sorted(temp)
             return super(MetaItem, self).__getattribute__(name)
         
-        def _filter(self, query=None, fields=None, index="name", **kw):
+        def _filter(self, query=None, fields=None, index="cname", **kw):
             """ Filter a subset of items based on a Pandas query and return the filtered dataframe. """
             _l = self.logger
             # from the registry, based on the required formats, build a DataFrame combining all items
             for i, record in enumerate(self.registry):
                 d = {index: getattr(record, index)}
+                if index == "cname":
+                    d['name'] = record.name
                 for k in self.__fields__.keys():
                     k2 = k.lstrip("_") if k.startswith("_") else k
                     d.setdefault(k2, [])
-                    d[k2].append(getattr(record, k, None) if k in _EXPLODE_QUERY_FIELDS else \
-                                str(getattr(record, k, None)))
+                    v = getattr(record, k, None) if k in _EXPLODE_QUERY_FIELDS else str(getattr(record, k, None))
+                    if k == "formats":
+                        v = list(set(x for l in [expand_formats(x) for x in v] for x in l))
+                    d[k2].append(v)
                 df = pd.DataFrame.from_dict(d) if i == 0 else \
                      pd.concat([df, pd.DataFrame.from_dict(d)], ignore_index=True)
             if fields:
                 if index not in fields:
-                    fields = [index] + fields
+                    fields = [index] + ([[], ["name"]][index == "cname"]) + fields
                 df = df[fields]
             # explode based on pre-defined fields
             for field in _EXPLODE_QUERY_FIELDS:
@@ -586,44 +604,132 @@ def _init_metaitem():
                        Path(inspect.getfile(e.__class__)).dirname.parts[-2:] == ('pandas', 'errors'):
                         _l.error(f"Bad Pandas query expression: {e}")
                         _l.warning("No entry filtered ; aborting...")
-                        return None, {}
+                        return None
                     else:
                         raise
             if len(df) == 0:
                 _l.warning("No data")
-                return None, {}
+                return None
             df = df.drop_duplicates(index)
             _l.debug(f"Dataframe queried:\n{df.describe()}\n{df}")
             return df
         
-        @property
-        def logger(self):
-            if not hasattr(self, "_logger"):
-                n = self.__name__.lower()
-                self._logger = logging.getLogger(n)
-                logging.setLogger(n)
-            return self._logger
+        def _select(self, query=None, fields=None, index="cname", text=False, **kw):
+            """ Select a subset based on a Pandas query and return it as a dictionary. """
+            if (df := self._filter(query=query, fields=fields, index=index, **kw)) is None:
+                return
+            # only keep the interesting parts of the configuration file based on the filtered DataFrame's list of names
+            config = {k: v for k, v in load_yaml_config(self._config, auto_tag=False) if k in set(df[index].values)}
+            # collect values in the selected items for rebuilding the defaults
+            attrs = {}
+            for k, v in config.items():
+                for attr, val in v.items():
+                    attrs.setdefault(attr, [])
+                    if val not in attrs[attr]:
+                        attrs[attr].append(val)
+            # compute the defaults based on collected values
+            defaults = {}
+            for attr, vals in attrs.items():
+                if len(vals) >= 1:
+                    for val in vals:
+                        if (nval := sum(1 for v in config.values() if val in v.values())) >= .7 * len(config):
+                            defaults[attr] = val
+                            for v in config.values():
+                                if nval == len(config) or v.get(attr) == val:
+                                    v.pop(attr, None)
+            # special case: config has only 1 item, hence its attributes get moved to defaults ; set it back
+            if len(config) == 1:
+                config, defaults = {list(config.keys())[0]: defaults}, {}
+            # return a string if text is requested, otherwise return items
+            if not text:
+                return defaults, config
+            from yaml import dump, CustomDumper
+            _h = lambda s: f"{'#'*120}\n#{s.upper().center(118)}#\n{'#'*120}\n"
+            # compose the YAML configuration
+            l1, l2 = len(config), len(df)
+            count = [l1, f"{l1} definitions, {l2} {self.__name__}{['','s'][l2 > 1]}"][l1 != l2]
+            cfg = _h(f"{self.__name__}s set ({count})")
+            # - put the defaults first, if any
+            cfg += dump({'defaults': defaults}, Dumper=CustomDumper, width=float("inf")).rstrip() + "\n\n\n" \
+                   if len(defaults) > 0 else ""
+            # - then write the collected items
+            cfg += dump(config, Dumper=CustomDumper, default_style=None, width=float("inf")).rstrip()
+            # if data was split (e.g. on 'category'), then yield the name of the config as the value from the split
+            #  field (e.g. defaults['category'] => "header")
+            return cfg
+        
+        def export(self, output="output.csv", query=None, fields=None, index="name", **kw):
+            """ Export items from the registry filtered with the given query, with only the selected fields, to the
+                 given output format. """
+            if output in EXPORT_FORMATS.keys():
+                output = f"{self.__name__.lower()}-export.{output}"
+            kw = {}
+            df = self._filter(query=query, fields=fields, index=index, **kw)
+            if (ext := Path(output).extension[1:]) != "pickle":
+                kw['index'] = False
+            elif ext in ["json", "yml"]:
+                kw.update(orient="records", indent=2)
+            elif ext == "csv":
+                kw.update(sep=";", index=False)
+            getattr(df.reset_index(), "to_" + EXPORT_FORMATS.get(ext, ext))(output, **kw)
+        
+        def get(self, item, error=True):
+            """ Simple class method for returning the class of an item based on its name (case-insensitive). """
+            for i in self.registry:
+                if i.name == (item.name if isinstance(item, Item) else format_shortname(item, "-")):
+                    return i
+            if error:
+                raise ValueError(f"'{item}' is not defined")
+        
+        def iteritems(self):
+            """ Class-level iterator for returning enabled items. """
+            for i in self.registry:
+                try:
+                    if i.status in i.__class__._enabled:
+                        yield i
+                except AttributeError:
+                    yield i
+        
+        def list(self, **kw):
+            """ List all the available items. """
+            from tinyscript.report import Section, Table
+            from .rendering import render
+            d = [(a.cname, getattr(a, "description", "")) for a in self.registry]
+            render(Section(f"{self.__name__}{['','s'][len(d) > 1]} ({len(d)})"),
+                   Table(sorted(d, key=lambda x: string.natural_key()(x[0])), column_headers=["Name", "Description"]),
+                   force=True)
+        
+        def select(self, output=None, query=None, fields=None, **kw):
+            """ Select a subset based on a Pandas query and either display or dump it. """
+            cname = self.__name__.lower()
+            if output is not None:
+                dst = Locator(f"conf://{output}", new=True)
+                if dst.is_samepath(self._config):
+                    self.logger.warning("Destination is identical to source ; aborting...")
+                    return
+            if cfg := self._select(query=query, fields=fields, text=True, **kw):
+                if output is None:
+                    print(txt_terminal_render(cfg, pad=(1, 2), syntax="yaml"))
+                else:
+                    with dst.open('wt') as f:
+                        f.write(cfg)
         
         @property
-        def names(self):
-            return string.sorted_natural(list(set(x.name for x in self.registry)))
+        def config(self):
+            if not hasattr(self, "_config"):
+                self.config = None
+            return self._config
         
-        @property
-        def source(self):
-            if not hasattr(self, "_source"):
-                self.source = None
-            return self._source
-        
-        @source.setter
-        def source(self, path):
+        @config.setter
+        def config(self, path):
             cfg_key, l = f"{self.__name__.lower()}s", self.logger
             # case 1: self is a parent class among Analyzer, Detector, ... ;
             #          then 'source' means the source path for loading child classes
             try:
                 p = Path(str(path or config[cfg_key]), expand=True)
-                if hasattr(self, "_source") and self._source == p:
+                if hasattr(self, "_config") and self._config == p:
                     return
-                self._source = p
+                self._config = p
             # case 2: self is a child class of Analyzer, Detector, ... ;
             #          then 'source' is an attribute that comes from the YAML definition
             except KeyError:
@@ -631,7 +737,7 @@ def _init_metaitem():
             # now make the registry from the given source path
             def _setattr(i, d):
                 for k, v in d.items():
-                    if k in ["source", "status"]:
+                    if k == "status":
                         setattr(i, k := f"_{k}", v)
                     elif hasattr(i, "parent") and k in ["install", "references", "steps"]:
                         nv = []
@@ -687,7 +793,7 @@ def _init_metaitem():
                             # do not process these keys as they shall be different from an item class to another anyway
                             if k in ["steps", "status"]:
                                 continue
-                            setattr(i, "_" + k if k == "source" else k, v)
+                            setattr(i, k, v)
                     else:
                         raise ValueError(f"'base' set to '{base}' of {item} discarded (bad format)")
                 # check for variants ; the goal is to copy the current item class and to adapt the fields from the
@@ -727,6 +833,18 @@ def _init_metaitem():
                     cnt['var'] += 1
             varcnt = ["", f" ({cnt['var']} variants)"][cnt['var'] > 0]
             l.debug(f"{cnt['tot']} {cfg_key} loaded{varcnt}")
+        
+        @property
+        def logger(self):
+            if not hasattr(self, "_logger"):
+                n = self.__name__.lower()
+                self._logger = logging.getLogger(n)
+                logging.setLogger(n)
+            return self._logger
+        
+        @property
+        def names(self):
+            return string.sorted_natural(list(set(x.name for x in self.registry)))
     return MetaItem
 lazy_load_object("MetaItem", _init_metaitem)
 
@@ -774,34 +892,15 @@ def _init_item():
                 md.append(Section("References"), List(*self.references, **{'ordered': True}))
             return md.md()
         
-        @classmethod
-        def get(cls, item, error=True):
-            """ Simple class method for returning the class of an item based on its name (case-insensitive). """
-            for i in cls.registry:
-                if i.name == (item.name if isinstance(item, Item) else format_shortname(item, "-")):
-                    return i
-            if error:
-                raise ValueError(f"'{item}' is not defined")
-        
-        @classmethod
-        def iteritems(cls):
-            """ Class-level iterator for returning enabled items. """
-            for i in cls.registry:
-                try:
-                    if i.status in i.__class__._enabled:
-                        yield i
-                except AttributeError:
-                    yield i
+        @property
+        def config(self):
+            if self._instantiable and not isinstance(self._config, str):
+                self.__class__._config = ""
+            return self.__class__._config
         
         @property
         def logger(self):
             return self.__class__.logger
-        
-        @property
-        def source(self):
-            if self._instantiable and not isinstance(self._source, str):
-                self.__class__._source = ""
-            return self.__class__._source
     return Item
 lazy_load_object("Item", _init_item)
 

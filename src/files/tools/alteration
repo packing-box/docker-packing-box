@@ -44,6 +44,6 @@ if __name__ == '__main__':
     # compute alterations registry
     Alterations()
     # now execute
-    Alterations.source = args.config_file = args.alterations_set
+    Alterations.config = args.config_file = args.alterations_set
     getattr(Alterations, args.command)(**vars(args))
 

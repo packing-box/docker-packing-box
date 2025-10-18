@@ -107,7 +107,7 @@ def __init():
         __initialized = True
         # dynamically makes Packer's registry of child classes from the default dictionary of packers
         #  (~/.packing-box/conf/packers.yml)
-        Packer.source = None
+        Packer.config = None
     return Packer
 Packer = lazy_object(__init)
 

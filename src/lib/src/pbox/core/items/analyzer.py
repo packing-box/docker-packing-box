@@ -42,7 +42,7 @@ def __init():
         __initialized = True
         # dynamically makes Analyzer's registry of child classes from the default dictionary of analyzers
         #  (~/.packing-box/conf/analyzers.yml)
-        Analyzer.source = None
+        Analyzer.config = None
     return Analyzer
 Analyzer = lazy_object(__init)
 

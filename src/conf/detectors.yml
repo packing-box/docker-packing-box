@@ -24,7 +24,7 @@ ASL:
 
 BinaryObjectScanner:
   command: $OPT/binaryobjectscanner/PackerScan -na -ni -no {path}
-  description: 
+  description: C# protection, packer, and archive scanning library.
   formats:
     - PE
   install:

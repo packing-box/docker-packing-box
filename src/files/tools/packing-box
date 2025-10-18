@@ -116,7 +116,7 @@ if __name__ == '__main__':
         else:
             args.type = args.type.rstrip("s")
             cls = globals()[args.type.capitalize()]
-            cls.source = args.config or config['%ss' % args.type]
+            cls.config = args.config or config['%ss' % args.type]
             for x in cls.registry:
                 if args.all or x.status in x.__class__._enabled:
                     print(x.name if args.name else x.__class__.__name__)
@@ -141,7 +141,7 @@ if __name__ == '__main__':
             cls = args.type.capitalize()
             if args.type in ["alterations", "features"]:
                 cls = globals()[cls]
-                cls.source = args.config
+                cls.config = args.config
                 getattr(cls, args.command)(**vars(args))
             else:
                 reg = globals()[cls].registry

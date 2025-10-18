@@ -129,8 +129,8 @@ class Alterations(list, metaclass=MetaBase):
         a, l = Alterations, self.__class__.logger
         # parse YAML alterations definition once
         if a.registry is None:
-            src = a.source  # WARNING! this line must appear BEFORE a._registry={} because the first time that the
-                            #           source attribute is called, it is initialized and the registry is reset to None
+            src = a.config  # WARNING! this line must appear BEFORE a._registry={} because the first time that the
+                            #           config attribute is called, it is initialized and the registry is reset to None
             l.debug(f"loading alterations from {src}...")
             a.namespaces, a._registry, dsbcnt = {}, {}, 0
             # collect properties that are applicable for all the alterations

@@ -155,8 +155,8 @@ class Features(dict, metaclass=MetaBase):
         ft, l = Features, cls.logger
         # parse YAML features definition once
         if ft.registry is None:
-            src = ft.source  # WARNING! this line must appear BEFORE ft.registry={} because the first time that the
-                             #           source attribute is called, it is initialized and the registry is reset to None
+            src = ft.config  # WARNING! this line must appear BEFORE ft.registry={} because the first time that the
+                             #           config attribute is called, it is initialized and the registry is reset to None
             l.debug(f"loading features from {src}...")
             ft._registry = {}
             # important note: the 'keep' parameter is not considered here as some features may be required for computing

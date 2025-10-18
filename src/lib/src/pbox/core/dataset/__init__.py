@@ -533,7 +533,7 @@ class Dataset(Entity):
         #Consitency high score generally, rare occasion , don't have a threshold
         max_nd = int(len(self) * .1)# pick weights depending on whether files are present
         w = (.4, .1, .15, .20, .05, .1) if self._files else (.0, .0, .2, .3, .3, .2)
-        similarity_nd, portability_nd, lbalance_nd, fbalance_nd, outliers_nd, completeness_nd) = \
+        similarity_nd, portability_nd, lbalance_nd, fbalance_nd, outliers_nd, completeness_nd = \
             [int(max_nd * v) for v in w]
         del_count = 0
         self.logger.debug(f"Fix will delete a maximum of {max_nd} samples")
@@ -1302,62 +1302,44 @@ class Dataset(Entity):
     #       Dataset and FilelessDataset)
     @staticmethod
     def summarize(show=False, hide_files=False, check_func=None):
-        metadata, altered = {}, False
-        for dset in Path(config['datasets']).listdir(check_func or Dataset.check):
-            with dset.joinpath("metadata.json").open() as meta:
-                metadata[dset.basename] = d = json.load(meta)
-                d['size'] = human_readable_size(dset.size)
-                d['files'] = dset.joinpath("files").exists()
-                if 'altered' in d:
-                    altered = True
-        datasets, headers = [], ["Name", "#Executables"] + [[], ["Altered"]][altered] + ["Size"] + \
-                                [["Files"], []][hide_files] + ["Formats", "Packers"]
-        for name, meta in metadata.items():
-            alt_perc = [[], [[f"-", f"{100*meta.get('altered', 0):.02f}%"]['altered' in meta]]][altered]
-            try:
-                row = [name, str(meta['executables'])] + alt_perc + [meta['size']] + \
-                    [[["no", "yes"][meta['files']]], []][hide_files] + [
-                    ",".join(sorted(meta['formats'])),
-                    shorten_str(",".join(f"{n}{{{c}}}" for n, c in sorted(get_counts(meta).items(),
-                                                                          key=lambda x: (-x[1], x[0])))),
-                ]
-            except Exception as err:
-                row = None
-                if show:
-                    if headers[-1] != "Reason":
-                        headers.append("Reason")
-                    row = [name, str(meta.get('executables', colored("?", "red")))] + alt_perc + \
-                        [meta['size']] + [[["no", "yes"][meta['files']]], []][hide_files] + [
-                        colored("?", "red"), colored("?", "red"),
-                        colored(f"{err.__class__.__name__}: {err}", "red")
+        def _make(check_func=None):
+            metadata, altered = {}, False
+            for dset in Path(config['datasets']).listdir(check_func or Dataset.check):
+                with dset.joinpath("metadata.json").open() as meta:
+                    metadata[dset.basename] = d = json.load(meta)
+                    d['size'] = human_readable_size(dset.size)
+                    d['files'] = dset.joinpath("files").exists()
+                    if 'altered' in d:
+                        altered = True
+            datasets, headers = [], ["Name", "#Executables"] + [[], ["Altered"]][altered] + ["Size"] + \
+                                    [["Files"], []][hide_files] + ["Formats", "Packers"]
+            for name, meta in metadata.items():
+                alt_perc = [[], [[f"-", f"{100*meta.get('altered', 0):.02f}%"]['altered' in meta]]][altered]
+                try:
+                    row = [name, str(meta['executables'])] + alt_perc + [meta['size']] + \
+                        [[["no", "yes"][meta['files']]], []][hide_files] + [
+                        ",".join(sorted(meta['formats'])),
+                        shorten_str(",".join(f"{n}{{{c}}}" for n, c in sorted(get_counts(meta).items(),
+                                                                              key=lambda x: (-x[1], x[0])))),
                     ]
-            if row:
-                datasets.append(row)
-        n = len(datasets)
-        if n > 0:
-            return Section(f"Datasets ({n})"), Table(datasets, column_headers=headers)
-        return None, None
-
-
-class FilelessDataset(Dataset):
-    """ Folder structure:
-    
-    [name]
-      +-- data.csv            # metadata and labels of the executable
-      +-- features.json       # dictionary of selected features and their descriptions
-      +-- metadata.json       # simple statistics about the dataset
-      +-- (alterations.json)  # if the dataset was altered, this contains the hashes of the altered executables with the
-                              #  alterations applied
-    """
-    STRUCTURE = ["-files", "data.csv", "features.json", "metadata.json", "alterations.json*"]
-    _files = False
-    
-    #TODO: refactor (dates from pbox structure with 'common' and 'learning' subpackages, each containing respectively
-    #       Dataset and FilelessDataset)
-    @staticmethod
-    def summarize(show=False, hide_files=False):
-        _, table = Dataset.summarize(show, hide_files)
-        _, table2 = Dataset.summarize(show, hide_files, FilelessDataset.check)
+                except Exception as err:
+                    row = None
+                    if show:
+                        if headers[-1] != "Reason":
+                            headers.append("Reason")
+                        row = [name, str(meta.get('executables', colored("?", "red")))] + alt_perc + \
+                            [meta['size']] + [[["no", "yes"][meta['files']]], []][hide_files] + [
+                            colored("?", "red"), colored("?", "red"),
+                            colored(f"{err.__class__.__name__}: {err}", "red")
+                        ]
+                if row:
+                    datasets.append(row)
+            n = len(datasets)
+            if n > 0:
+                return Section(f"Datasets ({n})"), Table(datasets, column_headers=headers)
+            return None, None
+        _, table = _make()
+        _, table2 = _make(FilelessDataset.check)
         t, t2 = [] if table is None else table.data, [] if table2 is None else table2.data
         h, h2 = [] if table is None else table.column_headers, [] if table2 is None else table2.column_headers
         idx, longest_h, shortest_h = [], max([h, h2], key=len), min([h, h2], key=len)
@@ -1374,4 +1356,18 @@ class FilelessDataset(Dataset):
             table = Table(datasets, column_headers=max([h, h2], key=len))
             return [Section(f"Datasets ({len(table.data)})"), table]
         return None, None
+
+
+class FilelessDataset(Dataset):
+    """ Folder structure:
+    
+    [name]
+      +-- data.csv            # metadata and labels of the executable
+      +-- features.json       # dictionary of selected features and their descriptions
+      +-- metadata.json       # simple statistics about the dataset
+      +-- (alterations.json)  # if the dataset was altered, this contains the hashes of the altered executables with the
+                              #  alterations applied
+    """
+    STRUCTURE = ["-files", "data.csv", "features.json", "metadata.json", "alterations.json*"]
+    _files = False
 
