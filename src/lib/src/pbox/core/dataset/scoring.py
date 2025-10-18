@@ -9,14 +9,14 @@ __all__ = ["balance", "Scores"]
 
 _FILE_BALANCE_FIELDS = ("format", "signature", "size")
 _WEIGHTS = {
-    'completeness':  .5,
+    'completeness':  .4,
     'uniqueness':    .5,
-    'similarity':    1.,
-    'label_balance': 1.,
-    'portability':   1.,
-    'file_balance':  1.,
+    'similarity':    .65,
+    'label_balance': .2,
+    'portability':   0.2,
+    'file_balance':  0.9,
     'consistency':   .5,
-    'outliers':      1.,
+    'outliers':      0.9,
 }
 
 
@@ -138,10 +138,18 @@ class Scores:
     @cached_property
     def outliers(self):
         """ (Specific) Score based on files with suspicious size or modified dates. """
-        l = len(self._ds)
-        suspicious_size  = 1. - (((s := self._ds._data.get("size")) < 1024).sum() + (s > 100 * 1024 * 1024).sum()) / l
-        suspicious_mtime = 1. - (pd.to_datetime(self._ds._data.mtime, errors="coerce").dt.year < 2000).sum() / l
-        return np.average([suspicious_size, suspicious_mtime])
+        if self._ds._files:
+            l = len(self._ds)
+            suspicious_size  = 1. - (((s := self._ds._data.get("size")) < 1024).sum() + (s > 100 * 1024 * 1024).sum()) / l
+            suspicious_mtime = 1. - (pd.to_datetime(self._ds._data.mtime, errors="coerce").dt.year < 2000).sum() / l
+            return np.average([suspicious_size, suspicious_mtime])
+        else:
+            # https://github.com/packing-box/experiments-quality-datasets/blob/main/Final/dbscan_pca.py
+            #Return a number of outliers :
+            #score = max(0, 1 - ((8 * len(outliers)) / len(self._ds))) 
+            #Each outliers weight more as it is a rare occurence and leaving it at one won't really have any impact
+            warn_once(self._log, "Need dbscan to be used") 
+            return 1 #Value from external script
     
     @cached_property
     def portability(self):
@@ -197,5 +205,13 @@ class Scores:
                     hashes.add(exe.hash)
             return 1 - duplicates / len(self._ds)
         else:
-            warn_once(self._log, "cannot compute uniqueness as it requires files")
-
+            seen_metadata, duplicate_metadata = set(), 0
+            indexes = [i for i, col in enumerate(self._ds._data.columns) if col not in EXE_METADATA + ["hash"]]
+            for h in (hashes := list(self._ds._data.hash)):
+                row = self._ds[h]
+                metadata_row = tuple(row[i] for i in indexes)
+            if metadata_row in seen_metadata:
+                duplicate_metadata += 1
+            else:
+                seen_metadata.add(metadata_row)
+        return 1 - duplicate_metadata / len(hashes) if hashes else 0
