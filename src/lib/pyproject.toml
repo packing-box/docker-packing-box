@@ -38,7 +38,7 @@ dependencies = [
   "dsff>=1.0.3",
   "exeplot>=0.3.3",
 #  "filebytes",
-  "lief>=0.14.0",
+  "lief>=0.14.0,<0.17",  # pinned under 0.17 because of lief.PE.SECTION_TYPES disappeared
   "malsearch>=0.2.1",
 #  "macholibre@git+https://github.com/aaronst/macholibre.git",
 #  "matplotlib<3.8",  # see: https://github.com/matplotlib/matplotlib/issues/27289
