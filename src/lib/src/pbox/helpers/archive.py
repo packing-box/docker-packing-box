@@ -69,7 +69,7 @@ def get_archive_class(path, logger=None):
             return cls
         except BadFileFormat:
             pass
-    GenericArchive(path).list()
+    next(GenericArchive(path).list())
     return GenericArchive
 
 
@@ -140,7 +140,7 @@ class Archive(Path):
                 raise FileExistsError(f"Archive '{p}' already exists")
             with p.open('rb') as f:
                 sig = f.read(0x9010)  # ISO has signature pattern up to 0x9001 bytes ("CD001"), hence choosing 0x9010
-            if not cls.signature(sig):
+            if cls is not GenericArchive and not cls.signature(sig):
                 raise BadFileFormat(f"Not a {cls.__name__[:-7]} file")
             if not tst:
                 if (p2 := kwargs.get('destination')):
@@ -181,7 +181,7 @@ class Archive(Path):
 
 class GenericArchive(Archive):
     def extract(self):
-        execute_and_log(f"unar \"{self}\" -o \"{self._src}\"")
+        execute_and_log(f"unar \"{self}\" -o \"{self._dst}\"")
     
     def list(self):
         out, _, retc = execute_and_log(f"lsar \"{self}\"")
