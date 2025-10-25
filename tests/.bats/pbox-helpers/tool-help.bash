@@ -19,7 +19,7 @@ run_tool_help() {
   run $TOOL --help
   assert_output --partial $MSG
   assert_output --partial 'positional argument'
-  assert_output --partial 'Usage examples'
+  assert_output --partial 'Usage example'
   CMDS=$(grep _${TOOL}_completions ~/.bash_completion -c 1 -A 7 | grep compgen | cut -d'"' -f 2)
   if [[ ! $CMDS == \`*\` ]]; then
     for CMD in $CMDS; do

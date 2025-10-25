@@ -18,7 +18,6 @@ __examples__ = [
     "setup packer",
     "setup detector peid",
     "setup analyzer gettyp",
-    "show alterations",
     "test packer upx ezuri midgetpack",
     "test -b unpacker upx",
     "workspace view",
