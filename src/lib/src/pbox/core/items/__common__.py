@@ -233,8 +233,9 @@ def _init_base():
                     self._error = "\n".join(l for l in error.splitlines() \
                                             if all(re.search(p, l) is None for p in kw.get('silent', [])))
                     self._error = (self._error + "\n" + outerr).strip()
-                    if self.name in attempt and bmark:
+                    if self.name in attempt and bmark:  # if relevant, seperate the output from the computation time
                         output, dt = shlex.split(output.splitlines()[-1])
+                        dt = float(dt)  # benchmarked time in seconds
                     if retc > 0:
                         if verb:
                             attempt = attempt.replace(" -v", "")

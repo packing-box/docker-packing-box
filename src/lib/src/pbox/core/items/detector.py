@@ -108,9 +108,9 @@ def __init():
                 # step 1: collect strings per packer and suspicions
                 kwargs['silent'] = True
                 for detector in registry:
-                    label = list(detector.detect(exe, **kwargs))[0]
+                    label = list(detector.detect(exe, **kwargs))[0]  # take the first detection from this detector
                     if isinstance(label, (list, tuple)):
-                        label = label[1]
+                        label = label[1]  # (Executable, detected_label, expected_label)
                     results.setdefault(label, 0)
                     results[label] += 1
                     details[detector.name] = label
@@ -129,6 +129,9 @@ def __init():
                     return
                 # try to detect a packer on the input executable
                 label = self.run(exe, **kwargs)
+                if isinstance(label, (list, tuple)):  # when --benchmark is used
+                    self.logger.info(f"Computation time: {label[1]:.06f} seconds")
+                    label = label[0]
                 if kwargs.get('verbose', False):
                     print("")
                 # if packer detection succeeded, we can return packer's label
