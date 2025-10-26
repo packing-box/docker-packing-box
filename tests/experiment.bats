@@ -1,4 +1,6 @@
 #!/usr/bin/env bats
+CREATE_EXP=0
+load ./.init.sh
 
 # NO TEST (interactive commands):
 # ✗ edit
@@ -8,41 +10,16 @@
 # ✗ play
 # ✗ replay
 
-
-setup_file() {
-  export TESTS_DIR="/tmp/tests-`openssl rand -hex 16`"
-  export TEST_DS="DS01"
-  export TEST_MD="MD01"
-  export TEST_XP="XP01"
-  # create a dedicated workspace for the tests
-  echo -en "$TESTS_DIR" > ~/.packing-box/experiments.env
-}
-
-setup() {
-  load '.bats/bats-support/load'
-  load '.bats/bats-assert/load'
-  load '.bats/bats-file/load'
-  load '.bats/pbox-helpers/load'
-}
-
-teardown_file(){
-  # clean up the dedicated workspace
-  run experiment close
-  rm -f ~/.packing-box/experiments.env
-  rm -rf "$TESTS_DIR"
-}
-
-
 # ✓ open
 # ✓ close
 # ✓ purge
 @test "run tool's help" {
   run_tool_help
-  experiment open temp
+  experiment open "$TEST_XP"
   run_tool_help
   experiment close
-  run experiment purge temp
-  refute_output --partial 'temp'
+  run experiment purge "$TEST_XP"
+  refute_output --partial "$TEST_XP"
 }
 
 # ✓ list
