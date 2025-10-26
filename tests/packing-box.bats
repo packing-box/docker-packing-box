@@ -1,10 +1,6 @@
 #!/usr/bin/env bats
 load ./.init.sh
 
-# TODO:
-# ✗ setup
-# ✗ test
-
 @test "run tool's help" {
   run_tool_help
 }
@@ -32,6 +28,22 @@ load ./.init.sh
   for KEY in algorithms alterations analyzers detectors features packers references scenarios unpackers; do
     assert_output --partial "$KEY"
   done
+}
+
+# ✓ setup
+@test "set up some simple items (e.g. UPX and PEiD)" {
+  run packing-box setup packer upx
+  assert_success
+  run packing-box setup detector peid
+  assert_success
+}
+
+# ✓ test
+@test "test some simple items (e.g. UPX and PEiD)" {
+  run packing-box test packer upx
+  assert_success
+  run packing-box test detector peid
+  assert_success
 }
 
 # ✓ workspace

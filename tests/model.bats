@@ -1,4 +1,7 @@
 #!/usr/bin/env bats
+N=20
+CONVERT=1
+load ./.init.sh
 
 # NO TEST (interactive commands):
 # ✗ browse
@@ -8,35 +11,6 @@
 # TODO:
 # ✗ compare
 # ✗ visualize
-
-
-setup_file() {
-  export TESTS_DIR="/tmp/tests-`openssl rand -hex 16`"
-  export TEST_DS="DS01"
-  export TEST_MD="MD01"
-  export TEST_XP="XP01"
-  # create a dedicated workspace for the tests
-  echo -en "$TESTS_DIR" > ~/.packing-box/experiments.env
-  run experiment open "$TEST_XP"
-  # prepare a dataset
-  run dataset make "$TEST_DS" -n 20 -f PE -p upx
-  run dataset convert "$TEST_DS"
-}
-
-setup() {
-  load '.bats/bats-support/load'
-  load '.bats/bats-assert/load'
-  load '.bats/bats-file/load'
-  load '.bats/pbox-helpers/load'
-}
-
-teardown_file(){
-  # clean up the dedicated workspace
-  run experiment close
-  rm -f ~/.packing-box/experiments.env
-  rm -rf "$TESTS_DIR"
-}
-
 
 @test "run tool's help" {
   run_tool_help
@@ -53,6 +27,8 @@ teardown_file(){
 # ✓ test
 # ✓ show
 @test "train a model based on $TEST_DS (RandomForest)" {
+  run dataset list
+  assert_output --partial "$TEST_DS"
   run model train "$TEST_DS" -A rf
   MD_NAME="`list-models`"
   assert_output --partial "Name: $MD_NAME"
@@ -89,3 +65,4 @@ teardown_file(){
   refute_output --partial "$TEST_MD"
   assert_output --partial 'No model found'
 }
+
