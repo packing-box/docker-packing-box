@@ -16,6 +16,7 @@ setup_file() {
     export TEST_DS3="DS03"
     export TEST_MD="MD01"
     export TEST_XP="XP01"
+    export SAMPLES_DIR="$(dirname "$BATS_TEST_FILENAME")/samples"
     # if an experiment was currently open, close it
     if [[ -n "$EXP_DIR" ]]; then
       _disp "Closing the current experiment"

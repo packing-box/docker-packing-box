@@ -12,3 +12,8 @@ load ./.init.sh
   run_tool_help
 }
 
+@test "dummy test" {
+  run ls -lah "$SAMPLES_DIR"
+  assert_output --partial "calc"
+}
+
