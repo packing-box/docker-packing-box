@@ -115,9 +115,9 @@ RUN wget -qO /tmp/dotnet-install.sh https://dot.net/v1/dotnet-install.sh \
 # install/update Python packages (install dl8.5 with root separately to avoid wheel's build failure)
 RUN python3 -m pip install --user --upgrade --break-system-packages pip
 RUN pip3 install --user --no-warn-script-location --ignore-installed --break-system-packages \
-        capstone jinja2 meson poetry pythonnet thefuck tinyscript tldr vt-py \
+        capstone jinja2 meson poetry pythonnet pwntools thefuck tinyscript tldr vt-py \
  && pip3 install --user --no-warn-script-location --ignore-installed --break-system-packages \
-        angr capa lightgbm pandas pydl8.5 scikit-learn scikit-learn-extra weka
+        angr capa lightgbm lmstudio pandas pydl8.5 scikit-learn scikit-learn-extra weka
 # install ILSpyCmd
 RUN dotnet tool install --global ilspycmd
 # install Rust (user-level
