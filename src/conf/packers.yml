@@ -611,7 +611,6 @@ Laturi:
   formats:
     - Mach-O
   source: http://laturi.haxor.fi
-  status: info
 
 LM-X_License_Manager:
   categories:
@@ -819,7 +818,6 @@ PackELF:
   formats:
     - ELF
   source: https://github.com/yzfedora/packelf
-  status: info
 
 Packman:
   categories:
@@ -858,7 +856,6 @@ Pakr:
   formats:
     - Mach-O
   source: https://github.com/iangcarroll/pakr
-  status: info
 
 Papaw:
   categories:
@@ -876,7 +873,6 @@ PatchELF:
   formats:
     - ELF
   source: https://github.com/NixOS/patchelf
-  status: info
 
 PE-Packer:
   categories:
@@ -1015,6 +1011,19 @@ ProCrypt:
     - PE
   references:
     - https://www.hexacorn.com/blog/2012/10/14/random-stats-from-1-2m-samples-pe-section-names
+
+PyPePacker:
+  description: PE packer written in python to reduce the size (gzip compression), encrypt data (RC6 encryption) and reduce data entropy (using EntropyEncoding).
+  formats:
+    - PE
+  install:
+    - pip: pypepacker
+    - ln: $LOC/bin/PyPePacker pypepacker
+  source: https://github.com/mauricelambert/PyPePacker
+  status: ok
+  steps:
+    - pypepacker {{executable}} "{{executable.stem}}" {{key[randint]}}
+    - mv -f {{executable.stem}}_packed{{executable.extension}} {{executable}}
 
 Redhip:
   description: Information stealer packed with different custom packers.
