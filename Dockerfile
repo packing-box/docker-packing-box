@@ -74,11 +74,12 @@ RUN dpkg --add-architecture i386 \
  && wget -O /opt/wine-stable/share/wine/gecko/wine-gecko-2.47.1-x86_64.msi \
          https://dl.winehq.org/wine/wine-gecko/2.47.1/wine-gecko-2.47.1-x86_64.msi
 # install mono (for running .NET apps on Linux)
-RUN apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys 3FA7E0328081BFF6A14DA29AA6A19B38D3D831EF \
- && apt-key export D3D831EF | gpg --dearmour -o /usr/share/keyrings/mono.gpg \
- && apt-key del D3D831EF \
- && echo "deb [arch=amd64 signed-by=/usr/share/keyrings/mono.gpg] https://download.mono-project.com/repo/ubuntu " \
-         "stable-focal main" | tee /etc/apt/sources.list.d/mono.list \
+RUN apt-get install ca-certificates gnupg \
+ && gpg --homedir /tmp --no-default-keyring --keyring gnupg-ring:/usr/share/keyrings/mono.gpg \
+        --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys 3FA7E0328081BFF6A14DA29AA6A19B38D3D831EF \
+ && chmod +r /usr/share/keyrings/mono.gpg \
+ && echo "deb [signed-by=/usr/share/keyrings/mono.gpg] https://download.mono-project.com/repo/ubuntu stable-focal main" \
+    | sudo tee /etc/apt/sources.list.d/mono-official-stable.list \
  && apt-get update \
  && apt-get -y install mono-complete mono-vbnc
 # install MingW
