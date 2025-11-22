@@ -293,12 +293,14 @@ Dragon_Armor:
 ELF-Cryptor:
   description: Simple Polymorphic x86_64 Runtime Code Segment Cryptor.
   formats:
-    - ELF
+    - ELF64
   install:
     - copy: elf_cryptor.py elf-cryptor
     - pip: pwn --no-deps
   source: https://github.com/glen-mac/ELF-Packer
-  status: ok
+  status: broken
+  steps:
+    - elf-cryptor -f {{executable}}
 
 ELF-Packer:
   description: Encrypts 64-bit ELF files that decrypt at runtime.
