@@ -1149,9 +1149,9 @@ class Dataset(Entity):
         src = self._metadata.get('sources', [])
         r = []
         def _shorten(path):
-            p = Path(path)
+            p = Path(path, expand=True)
             for i, s in enumerate(src):
-                s = Path(s).absolute()
+                s = Path(s, expand=True).absolute()
                 if p.is_under(s):
                     return i, str(p.absolute().relative_to(s))
             return -1, path
@@ -1167,11 +1167,11 @@ class Dataset(Entity):
                 # not labelled
                 if e.label == NOT_LABELLED:
                     d[s][0] += 1
-                    l = "?"
+                    l = NOT_LABELLED
                 # not packed
                 elif e.label == NOT_PACKED:
                     d[s][1] += 1
-                    l = "-"
+                    l = NOT_PACKED
                 # packed
                 else:
                     d[s][2] += 1

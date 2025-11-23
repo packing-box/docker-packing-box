@@ -210,6 +210,13 @@ class Executable(Path):
         dump1, dump2 = PE(self).dump_info(), PE(file2).dump_info()
         return "\n".join(udiff(dump1.split('\n'), dump2.split('\n'), legend1 or str(self), legend2 or str(file2), n=n))
     
+    def image(self, grayscale=False):
+        from math import ceil, sqrt
+        from PIL import Image
+        f, m = [3, 1][grayscale], ["RGB", "L"][grayscale]
+        s = int(ceil(sqrt(ceil(len(pixels := self.pixels(grayscale, True))))))
+        return Image.fromarray(np.frombuffer(pixels, dtype=np.uint8).reshape((s, s, f)), mode=m)
+    
     def is_valid(self):
         return self.format is not None
     
@@ -261,6 +268,14 @@ class Executable(Path):
         if self.group == "PE":
             self._parsed.real_section_names  # trigger computation of real names
         return self._parsed
+    
+    def pixels(self, grayscale=False, pad=True):
+        from math import ceil, sqrt
+        size, factor = len(rawbytes := self.read_bytes()), [3, 1][grayscale]
+        if pad:
+            s = int(ceil(sqrt(ceil((size) / factor))))
+            rawbytes += int((s * s * factor) - size) * b'\xff'
+        return [tuple(rawbytes[i:i+factor]) for i in range(0, size, factor)]
     
     def scan(self, executables=(), **kwargs):
         l, verb = self._logger(**kwargs), kwargs.get('verbose', False) and len(executables) == 0
