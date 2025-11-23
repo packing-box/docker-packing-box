@@ -32,11 +32,10 @@ classifiers = [
   "Topic :: Software Development :: Libraries :: Python Modules",
 ]
 dependencies = [
-  "angr",
   "bintropy>=1.5.7",
   "capstone",
   "dsff>=1.0.3",
-  "exeplot>=0.4.0",
+  "exeplot>=0.4",
 #  "filebytes",
   "lief>=0.14.0,<0.17",  # pinned under 0.17 because of lief.PE.SECTION_TYPES disappeared
   "malsearch>=0.2.1",

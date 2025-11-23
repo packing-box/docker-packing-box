@@ -190,6 +190,10 @@ RUN wget https://github.com/packing-box/packer-masking-tool/raw/main/notpacked%2
 COPY --chown=$USER $FILES/utils/_pbox-compgen $UOPT/utils/
 COPY --chown=$USER $FILES/utils/pbox-completions.json $UOPT/utils/
 RUN $UOPT/utils/_pbox-compgen $UOPT/utils/pbox-completions.json -f $HOME/.bash_completion
+# dirty fix to a version issue with 'unicorn'
+RUN rm -rf $HOME/.local/lib/python3.*/site-packages/unicorn* \
+ && pip3 uninstall -y --break-system-packages unicorn \
+ && pip3 install --user --no-warn-script-location --ignore-installed --break-system-packages unicorn
 # ----------------------------------------------------------------------------------------------------------------------
 RUN find $UOPT/bin -type f -exec chmod +x {} \;
 ENV UOPT=$UOPT
