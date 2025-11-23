@@ -66,13 +66,6 @@ pbox-update() {
       pip -qq install --user --no-warn-script-location --break-system-packages --upgrade pip
     fi
     __package_update
-    # fix for bad version of unicorn installed with angr
-    UNICORN_LIB=$(find $HOME/.local/lib/python* -type d -name lib | grep unicorn)
-    if [[ ! -z "$UNICORN_LIB" ]]; then
-      rm -rf $UNICORN_LIB
-      pip -qq uninstall -y --break-system-packages unicorn
-      pip -qq install --user --no-warn-script-location --break-system-packages unicorn
-    fi
     __completion_update
   fi
 }

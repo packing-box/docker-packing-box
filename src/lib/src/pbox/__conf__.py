@@ -3,19 +3,25 @@ import builtins as bi
 from functools import cached_property, lru_cache
 from tinyscript import hashlib, logging
 from tinyscript.helpers import classproperty, positive_float, positive_int, set_exception, slugify, Path
-from warnings import filterwarnings, simplefilter
+from warnings import filterwarnings
 
 from .constants import *
 from .helpers.config import *
 
 
-filterwarnings("ignore", "Trying to unpickle estimator DecisionTreeClassifier")
-filterwarnings("ignore", "Behavior when concatenating bool-dtype and numeric-dtype arrays is deprecated")
-filterwarnings("ignore", "Cluster 1 is empty!")
-filterwarnings("ignore", "Unable to import Axes3D.")
-simplefilter("ignore", DeprecationWarning)
-simplefilter("ignore", FutureWarning)
-simplefilter("ignore", ResourceWarning)
+logging.captureWarnings(True)
+__wlog = logging.getLogger("py.warnings")
+__wlog.setLevel(logging.DEBUG)
+__fh = logging.FileHandler("/tmp/pbox-warnings.log", encoding="utf-8")
+__fh.setLevel(logging.DEBUG)
+__fh.setFormatter(logging.Formatter("%(asctime)s - %(levelname)s - %(message)s"))
+__wlog.addHandler(__fh)
+__wlog.propagate = False
+
+filterwarnings("default", category=DeprecationWarning)
+filterwarnings("default", category=FutureWarning)
+filterwarnings("default", category=ResourceWarning)
+filterwarnings("default", category=UserWarning)
 
 
 bi.cached_property = cached_property
