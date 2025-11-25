@@ -24,9 +24,11 @@ if __name__ == '__main__':
     configure_logging(args.verbose, ("INFO", "DEBUG", "DETAIL"))
     p = ts.Path(args.executable)
     delattr(args, "executable")
+    set_yaml(args)
     if p.is_file():
         args.unpacker.unpack(p.absolute(), **vars(args))
     elif p.is_dir():
+        logger.debug(f"unpacking files from folder {p}...")
         with progress_bar(transient=True) as pb:
             for f in pb.track(p.listdir(is_exe)):
                 args.unpacker.unpack(f.absolute(), **vars(args))

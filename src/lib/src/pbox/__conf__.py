@@ -12,7 +12,7 @@ from .helpers.config import *
 logging.captureWarnings(True)
 __wlog = logging.getLogger("py.warnings")
 __wlog.setLevel(logging.DEBUG)
-__fh = logging.FileHandler("/tmp/pbox-warnings.log", encoding="utf-8")
+__fh = logging.FileHandler(LOG_PYWARNINGS, encoding="utf-8")
 __fh.setLevel(logging.DEBUG)
 __fh.setFormatter(logging.Formatter("%(asctime)s - %(levelname)s - %(message)s"))
 __wlog.addHandler(__fh)

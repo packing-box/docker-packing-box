@@ -179,8 +179,8 @@ def compgen(configs, source, indent=2):
             functions += f"_{n}_completions() {{\n{config.strip().replace('%%','%')}\n}}\n\n"
         else:
             completion_func = _gen_completions(f, config or {}, indent) or ""
-            functions += completion_func + "\n"
-            logger.debug(str(f) + ":\n" + completion_func)
+            functions += f"{completion_func}\n"
+            logger.debug(f"{f}:\n{completion_func}")
         completes += f"complete -o filenames -o bashdefault -F _{n}_completions {n}\n"
     return f"#/usr/bin/env bash\n{functions}{completes}"
 

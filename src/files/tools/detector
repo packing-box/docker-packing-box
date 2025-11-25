@@ -45,16 +45,14 @@ if __name__ == '__main__':
     kw = {'debug': args.verbose > 0, 'verbose': args.verbose > 1, 'multiclass': not args.binary,
           'silent': args.verbose == 0, 'threshold': args.threshold, 'weak': args.weak}
     stats, cmatrix, pbar, errored = {}, {'fn': 0, 'fp': 0, 'tn': 0, 'tp': 0}, None, False
-    single, mc = len(args.detector) == 1, kw['multiclass']
-    logger.name = "detector" if single else "superdetector"
+    logger.name = "detector" if (single := len(args.detector)) == 1 else "superdetector"
     kw['vote'] = v = len(args.detector) == 0
-    single = len(args.detector) == 1
     kw['select'] = lst = [d for d in (args.detector or Detector.registry) if d.check(**kw)]
     if len(lst) == 0:
         sys.exit(0)
-    NL, NP = [-1, NOT_LABELLED][mc], [0, NOT_PACKED][mc]
+    NL, NP = [-1, NOT_LABELLED][mc := kw['multiclass']], [0, NOT_PACKED][mc]
     if not single:
-        logger.info("%s: %s" % (["Detectors", "Superdetector"][v], ", ".join(i.cname for i in lst)))
+        logger.info(f"{['Detectors','Superdetector'][v]}: {', '.join(i.cname for i in lst)}")
     try:
         with progress_bar(transient=True) as p:
             task = p.add_task("", total=None)
@@ -70,14 +68,14 @@ if __name__ == '__main__':
                 p._tasks[task].total = exe.len
                 decision = "not labelled" if r == NL else "not packed" if r == NP else ["packed", r][mc]
                 if not single:
-                    logger.debug("final decision: %s" % decision)
+                    logger.debug(f"final decision: {decision}")
                 if not single and not args.metrics_only:
                     mlen = 0
                     for name in details.keys():
                         mlen = max(mlen, len(name))
                     msg = "Decisions:"
                     for name, label in details.items():
-                        msg += ("\n{: <%d}: {}" % mlen).format(name, label)
+                        msg += f"\n{name: <{mlen}}: {label}"
                     if msg != "Decisions:":
                         logger.warning(msg)
                 if not args.metrics_only and (not args.failures_only or r != l):
@@ -99,9 +97,9 @@ if __name__ == '__main__':
     ns, nc = sum(stats.values()), sum(cmatrix.values())
     rpt = [Section("Detection results: ")]
     if ns > 0:
-        logger.debug("Statistics: %s" % stats)
+        logger.debug(f"Statistics: {stats}")
     if nc > 0:
-        logger.debug("Confusion Matrix: %s" % cmatrix)
+        logger.debug(f"Confusion Matrix: {cmatrix}")
     if args.metrics_only:
         print(",".join(m))
     elif ns == 1:
@@ -110,7 +108,7 @@ if __name__ == '__main__':
         if ns > 0:
             data = []
             for l, c in sorted(stats.items(), key=lambda x: x[0].lower()):
-                data.append([l, c, "%.2f%%" % (100 * c / ns)])
+                data.append([l, c, f"{100 * c / ns:.2f}%"])
             if len(data) > 0:
                 rpt.append(Table(data, column_headers=["Label", "Count", "Percentage"]))
         if nc > 0:

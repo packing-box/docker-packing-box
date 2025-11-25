@@ -33,7 +33,7 @@ if __name__ == '__main__':
         if args.prefix:
             rn(p)
     elif p.is_dir():
-        logger.debug("packing files from folder %s..." % p)
+        logger.debug(f"packing files from folder {p}...")
         with progress_bar(transient=True) as pb:
             for f in pb.track(p.listdir(is_exe)):
                 args.packer.pack(f.absolute(), **vars(args))

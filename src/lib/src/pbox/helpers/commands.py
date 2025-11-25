@@ -1,10 +1,8 @@
 # -*- coding: UTF-8 -*-
-from tinyscript import re, sys
+from tinyscript import logging, re, sys
 from tinyscript.argreparse import ArgumentParser
 from tinyscript.helpers import get_parsers, PathBasedDict as pbdict, Path, PythonPath
 from tinyscript.parser import ProxyArgumentParser
-
-from pprint import pprint
 
 __all__ = ["get_commands"]
 
@@ -41,6 +39,7 @@ def get_commands(tool, cond="", category=None, logger=None):
             parent, child = nparent, nchild
     # cleanup between loading different tools
     ProxyArgumentParser.reset()
+    logging.setLogger("main")
     for k in rm:
         cmds.pop(k, None)
     _COMMANDS.setdefault(tool, {})
