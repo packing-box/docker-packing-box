@@ -5,7 +5,7 @@ from tinyscript import *
 
 
 __script__       = "Feature manipulation tool"
-__version__      = "1.0.0"
+__version__      = "1.0.1"
 __contributors__ = [
     {'author': "Alex Van Mechelen", 'reason': "largely contributed to advanced feature engineering and proposed the "
                                               "creation of this tool"},
@@ -49,10 +49,8 @@ if __name__ == '__main__':
     initialize(noargs_action="usage")
     configure_logging(args.verbose)
     set_yaml(args)
-    # compute features registry
-    Features()
-    # now execute
     Features.config = args.config_file = args.features_set
+    Features()
     if args.command == "compute":
         Executable(args.executable, logger=logger).show(False, False, True)
     elif args.command == "list":
