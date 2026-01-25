@@ -229,7 +229,7 @@ class AbstractParsedExecutable(ABC, CustomReprMixin, GetItemMixin):
                 string_table_offset = pe.header.pointerto_symbol_table + pe.header.numberof_symbols * 18
                 fh.seek(string_table_offset + int(name[1:]))
                 # read the null-terminated string from the file
-                return b"".join(iter(lambda: fh.read(1), b'\x00')).decode("utf-8", errors="ignore")
+                return b"".join(iter(lambda: (b := fh.read(1)) and b != b'' and b or b'\x00', b'\x00')).decode("utf-8", errors="ignore")
             # start parsing section names
             names = [ensure_str(s.name) for s in self]
             from re import match
