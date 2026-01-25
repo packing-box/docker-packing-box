@@ -159,7 +159,7 @@ class dict2(dict):
                 raise
             except NameError as e:
                 name = str(e).split("'")[1]
-                dict2._logger.debug(f"'{name}' is either not computed yet or mistaken")
+                dict2._logger.debug(f"[{self.name}] '{name}' is either not computed yet or mistaken")
                 raise
             except Exception as e:
                 getattr(dict2._logger, ["warning", "debug"][silent])(f"[{self.name}] Bad expression:\n{expr}")

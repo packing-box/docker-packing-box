@@ -3,6 +3,7 @@
 import lief
 from asciistuff import AsciiFile, Banner, Quote
 from datetime import datetime
+from dsff import DSFF
 from pbox import *
 from rich import inspect as inspect_pretty, pretty
 from tinyscript import *

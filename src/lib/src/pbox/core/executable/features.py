@@ -58,7 +58,6 @@ class Features(dict, metaclass=MetaBase):
     """
     boolean_only = False
     names_map    = {}
-    registry     = None
     
     def __init__(self, exe=None):
         ft, l = Features, self.__class__.logger

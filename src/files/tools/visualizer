@@ -5,7 +5,7 @@ from tinyscript import *
 
 
 __script__      = "Visualization tool"
-__version__     = "2.0.5"
+__version__     = "2.0.6"
 __contributors__ = [
     {'author': "Romain Jennes", 'reason': "added visualizations for observing effects of alterations"},
 ]
@@ -17,7 +17,7 @@ __description__ = "Generate a figure with representations of input binaries' sec
 __examples__    = [
     "compare \"PsExec.exe$\" samples-folder \"PsExec.exe$\" altered-samples-folder",
     "features . dataset-packed-pe --label Exe32Pack",
-    "find . dataset-packed-pe --max-not-matching 2 --exclude outliers --do-not-display",
+    "find . dataset-packed-pe --max-not-matching 2 --exclude outliers --no-display",
     "plot \"PsExec.exe$\" PackingData -l not-packed -l MEW -l NSPack -l RLPack -l UPX",
 ]
 
@@ -71,12 +71,12 @@ def find_files_with_labels(folder, pattern, selected=None, nbr_not_selected=None
             if l not in prefixes.keys():
                 for good in prefixes.keys():
                     if good.lower() == l.lower():
-                        logger.debug("Fixed label %s to %s" % (l, good))
+                        logger.debug(f"Fixed label {l} to {good}")
                         selected[selected.index(l)] = good
                         l = None
                         break
                 if l is not None:
-                    logger.error("Bad label: %s" % l)
+                    logger.error(f"Bad label: {l}")
                     error = True
     if error:
         sys.exit(1)
@@ -91,6 +91,7 @@ def find_files_with_labels(folder, pattern, selected=None, nbr_not_selected=None
             available_labels.append(l)
         if re.search(pattern, fp.filename):
             fname = fp.filename[len(prefixes[l]):]
+            print(fp.filename, prefixes[l], fname)
             files.setdefault(fname, {'files': [], 'labels': []})
             files[fname]['labels'].append(l)
             files[fname]['files'].append(fp)
@@ -115,7 +116,7 @@ def find_files_with_labels(folder, pattern, selected=None, nbr_not_selected=None
             continue
         # display valid results
         if disp:
-            file += " (%d/%d)" % (n_good, len_al)
+            file += f" ({n_good}/{len_al})"
         (logger.info if disp else logger.debug)(file)
         for label, found in labels.items():
             l = LABELS.get(label, label)
@@ -133,7 +134,7 @@ def find_files_with_labels(folder, pattern, selected=None, nbr_not_selected=None
                     ndata['files'].append(data['files'][data['labels'].index(label)])
                     ndata['labels'].append(label)
                 except ValueError:
-                    logger.warning("label '%s' not found" % label)
+                    logger.warning(f"label '{label}' not found")
             nfiles[file] = ndata
         files = nfiles
     if n == 0:
@@ -169,17 +170,17 @@ if __name__ == "__main__":
                       help="hyphen-separated pair of locators for the plot's legend")
     plot.add_argument("-n", "--no-title", action="store_true", help="do not generate a title")
     plot.add_argument("-s", "--scale", action="store_true", help="scale plots according to the first binary")
-    rm = add_argument(sparsers.add_parser("remove", category="utils", help="remove files matching the regex with the "
-                                          "input labels"), "folder")
+    add_argument(sparsers.add_parser("remove", category="utils", help="remove files matching the regex with the input "
+                                     "labels"), "folder")
     initialize(noargs_action="usage", autocomplete=True)
     configure_logging(args.verbose)
     if args.command != "compare":
         ff_args = args.folder, args.filename, args.label, getattr(args, "max_not_matching", None)
-        msg = " files from %s matching '%s'%s..." % (args.folder, args.filename,
-                                                     [" with the selected labels", ""][args.label is None])
+        msg = f" files from {args.folder} matching '{args.filename}'" \
+              f"{[' with the selected labels',''][args.label is None]}..."
     LABELS.update(getattr(args, "alias", None) or {})
     if args.command == "features":
-        logger.info("Computing features of" + msg)
+        logger.info(f"Computing features of{msg}")
         for file, data in find_files_with_labels(*ff_args).items():
             logger.info(file)
             files = []
@@ -191,24 +192,23 @@ if __name__ == "__main__":
             with data_to_temp_file(pd.DataFrame(files), prefix="visualizer-features-") as tmp:
                 edit_file(tmp, logger=logger)
     elif args.command == "find":
-        logger.info("Searching for" + msg)
+        logger.info(f"Searching for{msg}")
         for _ in find_files_with_labels(*ff_args, display=args.no_display, exclude=args.exclude, force_display=True,
                                         filter_selected=False).keys():
             pass
     elif args.command == "plot":
         from bintropy import plot
-        logger.info("Collecting" + msg)
+        logger.info(f"Collecting{msg}")
         for file, data in find_files_with_labels(*ff_args).items():
             files, labels = data['files'], data['labels']
             labels = [LABELS.get(l, l) for l in labels]
             imgn = ts.Path(file).stem
-            logger.info("Making plot to %s.%s..." % (imgn, args.format))
+            logger.info(f"Making plot to {imgn}.{args.format}...")
             for f in files:
                 logger.debug(f)
             plot(*files, img_name=imgn, labels=labels, sublabel="size-ep-ent", logger=logger, **vars(args))
     elif args.command == "compare":
-        logger.info("Comparing files matching pattern '%s' to those matching pattern '%s'..." % \
-                    (args.pattern1, args.pattern2))
+        logger.info(f"Comparing files matching pattern '{args.pattern1}' to those matching '{args.pattern2}'...")
         n = sum(1 for _ in find_files_in_folder(args.pattern1))
         for i, files in enumerate(zip(find_files_in_folder(args.pattern1), find_files_in_folder(args.pattern2))):
             f1, f2 = files[0], files[1]
@@ -216,19 +216,19 @@ if __name__ == "__main__":
                 print(Executable.diff_text(str(f1), str(f2), logger=logger, **vars(args)))    
             else:
                 if args.out_file is None:
-                    imgn = "%s_%s.png" % (f1.stem, f2.stem)
+                    imgn = f"{f1.stem}_{f2.stem}.png"
                 elif n > 0:
                     fp = ts.Path(args.out_file)
                     stem, ext = fp.dirname.joinpath(fp.stem), fp.extension
-                    imgn = "%s_%d%s" % (stem, i+1, ext)
+                    imgn = f"{stem}_{i+1}{ext}"
                 else:
                     imgn = args.out_file
-                logger.info("Making plot to %s..." % imgn)
+                logger.info(f"Making plot to {imgn}...")
                 Executable.diff_plot(str(f1), str(f2), img_name=imgn, logger=logger, **vars(args))
     elif args.command == "remove":
-        logger.info("Removing" + msg)
+        logger.info(f"Removing{msg}")
         for file, data in find_files_with_labels(*ff_args, remove=True).items():
-            if ts.confirm("Remove '%s' ?" % file):
+            if ts.confirm(f"Remove '{file}' ?"):
                 for f in data['files']:
                     f.remove()
 

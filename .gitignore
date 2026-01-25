@@ -80,6 +80,9 @@ experiments*/
 /*.csv
 /*.bak
 /*.asm
+/*.arff
+/*.orc
+/*.parquet
 
 # config files
 #src/conf/*.yml
