@@ -87,8 +87,8 @@ class AbstractParsedExecutable(ABC, CustomReprMixin, GetItemMixin):
     
     def block_entropy(self, blocksize=256, ignore_half_block_zeros=False, ignore_half_block_same_byte=True,
                       ignore_overlay=False):
-        return bintropy.entropy(_rb(self.content if ignore_overlay else self.bytes), blocksize, ignore_half_block_zeros,
-                                ignore_half_block_same_byte)
+        return bintropy.entropy(_rb(self.content if ignore_overlay else self.path.bytes), blocksize,
+                                ignore_half_block_zeros, ignore_half_block_same_byte)
     
     def block_entropy_per_section(self, blocksize=256, ignore_half_block_zeros=True, ignore_half_block_same_byte=True):
         return {getattr(s, "real_name", s.name): s.block_entropy(blocksize, ignore_half_block_zeros,
@@ -107,7 +107,7 @@ class AbstractParsedExecutable(ABC, CustomReprMixin, GetItemMixin):
     
     def fragments(self, fragment_size=1024, n=3, skip_header=True, from_end=False, ignore_overlay=True, pad=False):
         o = self.size_of_header if not from_end and skip_header else 0
-        d, fs = self.content if ignore_overlay else self.bytes, fragment_size
+        d, fs = self.content if ignore_overlay else self.path.bytes, fragment_size
         for i in (range(-fs, -1, -fs) if from_end else range(0, n * fs, fs)):
             yield f + b"\x00" * (fs - l) if pad and (l := len(f := d[o+i:o+i+fs])) < fs else f
     
@@ -229,7 +229,8 @@ class AbstractParsedExecutable(ABC, CustomReprMixin, GetItemMixin):
                 string_table_offset = pe.header.pointerto_symbol_table + pe.header.numberof_symbols * 18
                 fh.seek(string_table_offset + int(name[1:]))
                 # read the null-terminated string from the file
-                return b"".join(iter(lambda: (b := fh.read(1)) and b != b'' and b or b'\x00', b'\x00')).decode("utf-8", errors="ignore")
+                return b"".join(iter(lambda: (b := fh.read(1)) and b != b'' and b or b'\x00', b'\x00')) \
+                          .decode("utf-8", errors="ignore")
             # start parsing section names
             names = [ensure_str(s.name) for s in self]
             from re import match
