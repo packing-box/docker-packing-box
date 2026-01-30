@@ -19,7 +19,7 @@ pip-upgrade() {
 
 # packing-box update command (development)
 pbox-update() {
-  wget -q --spider -T 1 http://www.google.com
+  wget -q --spider -T 1 http://www.example.com
   local ret=$? OPT=$HOME/.opt PBWS=$HOME/.packing-box
   __completion_update() {
     printf "${CYA}Regenerating Bash completions...${RST}\n"

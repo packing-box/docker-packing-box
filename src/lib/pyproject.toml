@@ -1,5 +1,14 @@
 [build-system]
-requires = ["setuptools>=61.0"]
+requires = [
+    "build",
+    "pathspec",
+    "pydantic",
+    "pydantic-core",
+    "setuptools>=80.0",
+    "scikit-build-core",
+    "tomli",
+    "wheel",
+]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools.dynamic]
@@ -37,7 +46,8 @@ dependencies = [
   "dsff>=1.0.3",
   "exeplot>=0.4.2",
 #  "filebytes",
-  "lief>=0.14.0,<0.17",  # pinned under 0.17 because of lief.PE.SECTION_TYPES disappeared
+  # pinned under 0.17.0 because of lief.PE.SECTION_TYPES disappeared
+  "lief @ git+https://github.com/lief-project/LIEF.git@0.16.7#subdirectory=api/python",
   "malsearch>=0.2.1",
 #  "macholibre@git+https://github.com/aaronst/macholibre.git",
 #  "matplotlib<3.8",  # see: https://github.com/matplotlib/matplotlib/issues/27289
