@@ -1,0 +1,12 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Packing-Box Documentation
+    url: http://docker-packing-box.readthedocs.io/en/latest/?badge=latest
+    about: Check out the current documentation here.
+  - name: GitHub Community Support
+    url: https://github.com/orgs/packing-box/discussions
+    about: Please ask and answer questions here.
+  - name: GitHub Security Bug Bounty
+    url: https://bounty.github.com/
+    about: Please report security vulnerabilities here.
+

@@ -1,0 +1,39 @@
+name: Bug report
+description: Report a bug
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to fill out this bug report !
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem description
+      description: Clearly explain the problem you are encountering.
+      placeholder: What is going wrong?
+    validations:
+      required: true
+  - type: textarea
+    id: traceback
+    attributes:
+      label: Traceback / Error output
+      description: Paste the full traceback or error output.
+      render: shell
+      placeholder: |
+        Traceback (most recent call last):
+          ...
+    validations:
+      required: false
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps to reproduce
+      description: Provide CLI commands to reproduce the issue.
+      placeholder: |
+        1. command-one --arg
+        2. command-two --flag
+        3. command-three
+    validations:
+      required: true
+

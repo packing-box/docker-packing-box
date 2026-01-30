@@ -1,0 +1,22 @@
+name: Documentation request
+description: Propose a new topic for documentation
+labels: ["documentation"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to propose new documentation !
+        Don't forget to check out the [existing documentation](http://docker-packing-box.readthedocs.io/en/latest/?badge=latest) before requesting.
+  - type: textarea
+    id: summary
+    attributes:
+      label: Documentation summary
+      description: Explain what you think is missing in the current documentation.
+    validations:
+      required: true
+  - type: textarea
+    id: examples
+    attributes:
+      label: Examples
+      description: Eventually describe some examples to be added to support the new documentation.
+
