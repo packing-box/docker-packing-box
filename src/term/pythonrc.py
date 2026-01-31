@@ -76,6 +76,39 @@ def get_sample(hash, folder="dataset-packed-pe", hashtype="sha256"):
     raise OSError(f"Could not find sample with hash '{hash}' in folder '{folder}'")
 
 
+def history(reverse=False, yield_error=True):
+    import codeop
+    import readline
+    # collect blocks of code
+    i, blocks, block = 1, [], ""
+    while i <= readline.get_current_history_length():
+        line = f"{readline.get_history_item(i)}\n"
+        try:
+            codeop.compile_command(block + line, symbol="exec")
+            # valid block happens when there is a non-null block and the current line is back to no indent
+            if block and codeop.compile_command(block, symbol="exec") and re.match(r"^[^\s]", line):
+                blocks.append(block)
+                block = ""
+                continue  # rehandle the current line
+        except Exception as e:
+            # if non-null block while error, this is an incomplete block that can be collected if relevant
+            if block:
+                if yield_error:
+                    blocks.append(block)
+                block = ""
+                continue  # rehandle the current line
+            # if no block but yet there is an error, collect the line if relevant
+            else:
+                if yield_error:
+                    blocks.append(line)
+                block, line = "", ""  # pass the faulty line
+        block += line
+        i += 1
+    # then yield them in the desired order
+    for b in (blocks[::-1] if reverse else blocks):
+        yield b
+
+
 def pick_sample(folder="dataset-packed-pe", packed=False):
     """ Pick a sample randomly from the target dataset folder.
          NB: if the target has 'not-packed' and 'packed' folders, use them to discriminate between not packed and packed
@@ -95,6 +128,18 @@ def pick_sample(folder="dataset-packed-pe", packed=False):
             raise IndexError(f"Could not find a matching sample in folder '{folder}'")
         except:
             candidates.remove(f)
+
+
+def reexec(pattern):
+    import inspect
+    import re
+    for block in history(reverse=True, yield_error=False):
+        if re.search(r"reexec\(.*?\)", block):  # avoid infinite loop
+            continue
+        if re.search(pattern, block):
+            frame = inspect.currentframe().f_back
+            exec(block, frame.f_globals, frame.f_locals)
+            return
 
 
 class Prompt:
