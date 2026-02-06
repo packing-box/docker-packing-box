@@ -594,7 +594,8 @@ def _init_base():
                             try:
                                 tag, idx, pattern = re.match(regex, tag).groups()
                             except AttributeError:
-                                pass
+                                pattern = None
+                            tag = tag if tag == "latest" else f"tags/{tag}"
                             link = f"https://api.github.com/repos{path}/releases/{tag}"
                             resp = json.loads(run(f"curl -Ls {link}")[0])
                             # case 1: https://github.com/username/repo:TAG{pattern} ; get file based on pattern

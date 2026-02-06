@@ -60,8 +60,8 @@ Amber:
   formats:
     - PE
   install:
-    - wget: <<source>>:latest{linux_amd64}
-    - unzip: $OPT/amber
+    - wget: <<source>>:v3.1{linux_amd64}
+    - unzip: $OPT
     - ln: amber
   references:
     - https://pentest.blog/introducing-new-packing-method-first-reflective-pe-packer
