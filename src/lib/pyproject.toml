@@ -68,6 +68,7 @@ dependencies = [
   "tinyscript>=1.30.29",
   "treelib",
   "weka",
+  "shap"
 ]
 dynamic = ["version"]
 

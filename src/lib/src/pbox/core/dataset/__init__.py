@@ -310,7 +310,7 @@ class Dataset(Entity):
                     if exe.format is not None and exe.format not in self._formats_exp or exe.stem in packers:
                         continue  # ignore non-selected executables or packers themselves
                     if exe.format is None:
-                        if not is_archive(path, l):
+                        if not is_archive(path):
                             continue  # ignore unrelated files
                         for exe in read_archive(path, filter_func=lambda p: p.format in self._formats_exp,
                                                 logger=[l, None][silent], path_cls=Executable, keep_files=True):
