@@ -39,6 +39,12 @@ if __name__ == '__main__':
     compare.add_argument("-i", "--include", action="store_true", help="include unformatted models")
     compare.add_argument("-m", "--model", type=Model.load, action="extend", nargs="*",
                          help="model to be added in the comparison")
+    explain = add_argument(sparsers.add_parser("explain", category="read", help="explain the model using SHAP"), "mdname")
+    explain.add_argument("--no-export", dest="export", action="store_false", default=True, help="do not export impact plots")
+    explain.add_argument("--plots", nargs="*", default=None, help="plot types to generate (summary, waterfall, heatmap, decision, force, or 'all')")
+    explain.add_argument("--sample-idx", type=int, default=None, help="sample index for waterfall/force plots")
+    explain.add_argument("--max-display", type=int, default=10, help="max features to display in heatmap")
+    explain.add_argument("--max-samples", type=int, default=None, help="max samples to explain (auto-set to 400 for slow models)")
     edit = sparsers.add_parser("edit", category="create/modify/delete", help="edit the performance log file")
     add_argument(edit, "mdname", force=True)
     listm = sparsers.add_parser("list", category="read", help="list all the models from the workspace")
