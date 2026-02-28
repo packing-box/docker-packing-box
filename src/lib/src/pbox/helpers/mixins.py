@@ -15,7 +15,7 @@ class GetItemMixin:
     """ Allows to call attributes like dictionary keys. """
     def __getitem__(self, name):
         if not isinstance(name, str):
-            return super(GetItemMixin, self).__getitem__(name)
+            return super().__getitem__(name)
         if not name.startswith("_"):
             try:
                 name, path = name.split(".", 1)

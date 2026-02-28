@@ -7,7 +7,7 @@ lazy_load_module("yaml")
 
 
 __all__ = ["at_interrupt", "benchmark", "bin_label", "bold", "class_or_instance_method", "entropy",
-           "execute_and_get_values_list", "get_counts", "json", "json_cache", "np", "pd", "shorten_str",
+           "execute_and_get_values_list", "get_counts", "get_strings", "json", "json_cache", "np", "pd", "shorten_str",
            "strip_version", "warn_once", "yaml"]
 
 _WARN_CACHE = {}
@@ -51,21 +51,17 @@ def benchmark(f):
 
 def entropy(data, k=None, n=1, step=1, max_entropy=False):
     """ Generic entropy computation function for n-grams with a step between tokens. """
+    from exeplot.utils import ngrams_distribution
+    from math import log2
     k_max = 256**n
     if k is None:
         k = k_max
     if not 0 < k <= k_max:
         raise ValueError(f"k shall belong to [1,{k_max}]")
-    from collections import Counter
-    from math import log2
-    e, t = 0., len(data)
-    if n > 1 or step > 1:
-        c, t = Counter(data[i:i+n] for i in range(0, t, step)), round(t / step + .5)
-    else:
-        c = Counter(data)
-    for p in [n / t for _, n in c.most_common(k)]:
-        e -= p * log2(p)
-    return entropy(range(k)) if e == 0. and max_entropy else e
+    e, t = 0., 0 if (l := len(data)) < n else ((l - n) // step) + 1
+    for _, n in ngrams_distribution(data, n, step, k):
+        e -= (p := n / t) * log2(p or 1)
+    return entropy(b"".join(i.to_bytes() for i in range(k))) if e == 0. and max_entropy else e
 
 
 def execute_and_get_values_list(command, offset=1):
@@ -85,6 +81,15 @@ def execute_and_get_values_list(command, offset=1):
             except ValueError:
                 values.append(x)
         return values
+
+
+def get_strings(data):
+    """ Parse UTF-8 and UTF-16 little-endian strings from the given data. """
+    from re import findall
+    r = [s.decode("utf-8", errors="ignore") for s in findall(rb"[ -~]{%d,}" % config['min_str_len'], data)]
+    r += [s.decode("utf-16le", errors="ignore") for s in \
+          findall(rb"(?:[\x20-\x7E]\x00){%d,}" % config['min_str_len'], data)]
+    return r
 
 
 def json_cache(name, key, force=False):

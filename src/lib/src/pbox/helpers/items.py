@@ -8,7 +8,7 @@ from tinyscript.helpers.expressions import WL_NODES
 
 from .files import Locator
 from .formats import expand_formats, format_shortname
-from .utils import entropy, pd
+from .utils import benchmark, entropy, pd
 
 set_exception("NotInstantiable", "TypeError")
 
@@ -16,9 +16,9 @@ set_exception("NotInstantiable", "TypeError")
 __all__ = ["dict2", "load_yaml_config", "tag_from_references", "Item", "MetaBase", "MetaItem", "References"]
 
 _EMPTY_DICT = {}
-_EVAL_NAMESPACE = {k: getattr(builtins, k) for k in ["abs", "all", "any", "divmod", "float", "hash", "hex", "id", "int",
-                                                     "list", "next", "oct", "ord", "pow", "range", "range2", "round",
-                                                     "set", "str", "sum", "tuple", "type"]}
+_EVAL_NAMESPACE = {k: getattr(builtins, k) for k in ["abs", "all", "any", "bool", "divmod", "float", "hash", "hex",
+                                                     "id", "int", "list", "map", "next", "oct", "ord", "pow", "range",
+                                                     "range2", "round", "set", "str", "sum", "tuple", "type"]}
 for k in dir(statistics):
     if not k.startswith("_") and isinstance(getattr(statistics, k), type(lambda: 0)):
         _EVAL_NAMESPACE[k] = getattr(statistics, k)
@@ -62,6 +62,7 @@ lazy_load_module("yaml", postload=__init_yaml)
 
 
 _concatn  = lambda l, n: reduce(lambda a, b: a[:n]+b[:n], l, stop=lambda x: len(x) > n)
+_ent      = lambda s, *a, **kw: entropy(s.encode() if isinstance(s, str) else s, *a, **kw)
 _isin     = lambda s, l: s in l  # used with expressions, for avoiding error with '"..." in [...]' when loading as YAML
 _last     = lambda o, sep=".": str(o).split(sep)[-1]
 _len      = lambda i: sum(1 for _ in i) if is_generator(i) else len(i)
@@ -134,15 +135,17 @@ class dict2(dict):
             raise ValueError(f"{self.name}: 'result' shall be defined")
     
     def __call__(self, data, silent=False, **kwargs):
+        l = dict2._logger
         d = {k: getattr(random, k) for k in ["choice", "randint", "randrange", "randstr"]}
-        d.update({'apply': _apply, 'concatn': _concatn, 'ent': entropy, 'failsafe': _fail_safe, 'find': str.find,
-                  'hex2bytes': bytearray.fromhex, 'isin': _isin, 'last': _last, 'len': _len,
+        d.update({'apply': _apply, 'concatn': _concatn, 'ent': _ent, 'failsafe': _fail_safe, 'find': str.find,
+                  'hex2bytes': bytearray.fromhex, 'isin': _isin, 'joinstr': "".join, 'last': _last, 'len': _len,
                   'lower': lambda s: s.lower(), 'max': _max, 'min': _min, 'printable': string.printable,
                   'randbytes': _randbytes, 'repeatn': _repeatn, 'select': _select(),
                   'select_section_name': _select(_sec_name), 'size': _size, 'value': _val, 'zeropad': zeropad})
         d.update(_EVAL_NAMESPACE)
         d.update(data)
         kwargs.update(getattr(self, "parameters", {}))
+        bm, bmt = kwargs.pop('benchmark', False), kwargs.pop('benchmark_threshold', .0)
         # execute an expression from self.result (can be a single expression or a list of expressions to be chained)
         def _exec(expr):
             try:
@@ -154,31 +157,37 @@ class dict2(dict):
                 if len(kwargs) == 0:  # means no parameter provided
                     return r
             except ForbiddenNodeError as e:  # this error type shall always be reported
-                dict2._logger.warning(f"[{self.name}] Bad expression:\n{expr}")
-                dict2._logger.error(f"{e}")
+                l.warning(f"[{self.name}] Bad expression:\n{expr}")
+                l.error(f"{e}")
                 raise
             except NameError as e:
                 name = str(e).split("'")[1]
-                dict2._logger.debug(f"[{self.name}] '{name}' is either not computed yet or mistaken")
+                l.debug(f"[{self.name}] '{name}' is either not computed yet or mistaken")
                 raise
             except Exception as e:
-                getattr(dict2._logger, ["warning", "debug"][silent])(f"[{self.name}] Bad expression:\n{expr}")
+                getattr(l, ["warning", "debug"][silent])(f"[{self.name}] Bad expression:\n{expr}")
                 if not silent:
-                    dict2._logger.exception(e)
+                    l.exception(e)
                 w = get_terminal_size()[0]
-                dict2._logger.debug("Variables:\n- %s" % \
-                    "\n- ".join(string.shorten(f"{k}({type(v).__name__})={v}", w - 2) for k, v in d.items()))
+                l.debug("Variables:\n- %s" % \
+                        "\n- ".join(string.shorten(f"{k}({type(v).__name__})={v}", w - 2) for k, v in d.items()))
                 raise
             try:
                 return r(**kwargs)
             except Exception as e:
-                getattr(dict2._logger, ["warning", "debug"][silent])(f"Bad function: {result}")
+                getattr(l, ["warning", "debug"][silent])(f"Bad function: {self.result}")
                 if not silent:
-                    dict2._logger.error(str(e))
+                    l.error(str(e))
         # now execute expression(s) ; support for multiple expressions must be explicitely enabled for the class
         if not getattr(self.__class__, "_multi_expr", False) and isinstance(self.result, (list, tuple)):
             raise ValueError(f"List of expressions is not supported for the result of {self.__class__.__name__}")
-        retv = [_exec(result) for result in (self.result if isinstance(self.result, (list, tuple)) else [self.result])]
+        results = self.result if isinstance(self.result, (list, tuple)) else [self.result]
+        if bm:
+            retv, times = list(zip(*[benchmark(_exec)(r) for r in results]))
+            if sum(times)*1000 > bmt:
+                l.info(f"{self.name}:\n{NEWLINE.join(f'  {1000*t:.03f}ms\t    {r}' for r, t in zip(results, times))}")
+        else:
+            retv = [_exec(r) for r in results]
         return retv[0] if len(retv) == 1 else tuple(retv)
 
 
@@ -780,8 +789,7 @@ def _init_metaitem():
                 #  to Unpacker ; e.g. UPX)
                 base = data.get('base')  # detector|packer|unpacker ; DO NOT pop as 'base' is also used for algorithms
                 if isinstance(base, str):
-                    m = re.match(r"(?i)(detector|packer|unpacker)(?:\[(.*?)\])?$", str(base))
-                    if m:
+                    if (m := re.match(r"(?i)(detector|packer|unpacker)(?:\[(.*?)\])?$", str(base))):
                         data.pop('base')
                         base, bcls = m.groups()
                         base, bcls = base.capitalize(), bcls or item

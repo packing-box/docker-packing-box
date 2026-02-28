@@ -16,6 +16,7 @@ for f in ['csv', 'html', 'json', 'pickle', 'xml', 'yml']:
     bi.EXPORT_FORMATS[f] = f
 bi.LOG_FORMATS = ["%(asctime)s [%(levelname)s] %(message)s", "%(asctime)s [%(levelname)-8s] %(name)-18s %(message)s"]
 bi.LOG_PYWARNINGS = "/tmp/pbox-warnings.log"
+bi.NEWLINE = "\n"  # for use in f-strings
 bi.PACKING_BOX_SOURCES = {
     'ELF': ["/usr/bin", "/usr/sbin"],
     'PE':  ["~/.wine32/drive_c/windows", "~/.wine64/drive_c/windows"],
