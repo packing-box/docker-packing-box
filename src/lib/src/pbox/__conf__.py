@@ -140,6 +140,9 @@ bi.config = Config("packing-box",
             'exec_timeout':  ("20", "SECONDS", "execution timeout of items (detectors, packers, ...)", _it),
             'number_jobs':   ("6", "JOBS", "number of jobs to be run in parallel", _nj),
         },
+        'api-keys': {
+            'virustotal_api_key': ("", "API_KEY", "VirusTotal's RESTful API key"),
+        },
         'cfg': {
             'angr_engine':            ("default", "ENGINE", "set the engine for CFG extraction by Angr", _ae),
             'depth_max_iterations':   ("1024", "ITERATIONS", "maximum iterations when determining graph depth", _it),
@@ -150,6 +153,21 @@ bi.config = Config("packing-box",
             'only_opcodes':           ("true", "BOOL", "store only the opcodes of each instruction in the node", _bl),
             'opcode_mnemonics':       ("false", "BOOL", "if only opcodes, store the opcode bytes or mnemonics", _bl),
             'store_loop_cut_info':    ("true", "BOOL", "keep loop cut information in node instances", _bl),
+        },
+        'dataset-explanability': {
+            # source for 100 value : https://openreview.net/pdf?id=L38bbHmRKx
+            'shap-kernel-explainer-samples': ("100", "N_SAMPLES", "number of background samples used by KernelExplainer"
+                                              " to simulate missing values", _it),
+            'max-explanation-samples':       ("300", "N_SAMPLES", "maximum number of samples for which SHAP "
+                                              "explanations are computed", _it),
+            'shap-values-number-samples':    ("2048", "N_SAMPLES", "number of feature coalitions sampled per instance "
+                                              "to approximate Shapley values", _it),
+        },
+        'dataset-quality': {
+            'file_balance_margin':  (".2", "MARGIN", "margin for the balance of file-related fields in a dataset "
+                                     "(belongs to [.0,.5])", _mg),
+            'label_balance_margin': (".1", "MARGIN", "margin for the balance of labels in a dataset "
+                                     "(belongs to [.0,.5])", _mg),
         },
         'definitions': {k: opt_tuple(k) for k in \
              ['algorithms', 'alterations', 'analyzers', 'detectors', 'features', 'packers', 'references', 'scenarios',
@@ -163,14 +181,9 @@ bi.config = Config("packing-box",
                                      _bl),
             'data':                 ("data", "PATH", "path to executable formats' related data, relative to the "
                                      "workspace", _rp, ["workspace", PBOX_HOME], True),
-            'file_balance_margin':  (".2", "MARGIN", "margin for the balance of file-related fields in a dataset "
-                                     "(belongs to [.0,.5])", _mg),
-            'label_balance_margin': (".1", "MARGIN", "margin for the balance of labels in a dataset "
-                                     "(belongs to [.0,.5])", _mg),
             'hash_algorithm':       ("sha256", "ALGORITHM", "hashing algorithm for identifying samples", _vh),
             'fuzzy_hash_algorithm': ("ssdeep", "ALGORITHM", "algorithm for computing samples' fuzzy hash", _vs),
-            'min_str_len':          ("4", "LENGTH", "minimal string length", _it),
-            'vt_api_key':           ("", "API_KEY", "VirusTotal's RESTful API key"),
+            'min_str_len':          ("5", "LENGTH", "minimal string length", _it),
         },
         'parsers': {
             'default_parser': ("lief", "PARSER", "name of the module for parsing any format of executable"),

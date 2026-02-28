@@ -5,18 +5,19 @@ from tinyscript.report import *
 
 from .algorithm import *
 from .algorithm import __all__ as _algo
+from .explain import *
+from .explain import __all__ as _explain
 from .metrics import *
 from .metrics import __all__ as _metrics
 from ..dataset import *
 from ..executable import *
 from ..pipeline import *
 from ...helpers import *
-from .explain import explain_model, _EXPLANATIONS
 
 lazy_load_module("joblib")
 
 
-__all__ = ["DumpedModel", "Model"] + _algo + _metrics
+__all__ = ["DumpedModel", "Model"] + _algo + _explain + _metrics
 
 
 FLOAT_FORMAT = "%.6f"
@@ -434,6 +435,54 @@ class Model(BaseModel):
         self.logger.debug("editing %sperformances.csv..." % ["model's ", "workspace's ."][self.path is None])
         edit_file(self.path or config['models'].joinpath(".performances.csv"), logger=self.logger)
     
+    def explain(self, executable=None, plots=None, sample_idx=0, max_display=10, export=True, max_samples=None, **kw):
+        """ Explain the model and its features via SHAP values. """
+        l, ds = self.logger, executable or self._metadata['dataset']['name']
+        if len(self.pipeline.steps) == 0:
+            l.warning("Model must be trained before explaining")
+            return
+        # prepare data for explanation without training the model
+        kw['data_only'], kw['dataset'] = True, ds
+        if not self._prepare(ds_type="Explanation", **kw):
+            return
+        l.debug(f"Target distribution: {self._target.value_counts().to_dict()}")
+        l.info(f"Computing SHAP explanations for {self.name}...")
+        self._explanation = explain_model(
+            self,
+            self._data,
+            feature_names=sorted(self._features.keys()),
+            max_samples=max_samples,
+            logger=l
+        )
+        self._explanation['y_test'] = self._target.values
+        importance = np.abs(self._explanation['shap_values']).mean(axis=0)
+        if importance.ndim > 1:
+            importance = importance.mean(axis=1)
+        ranked = sorted(zip(sorted(self._features.keys()), importance), key=lambda x: -x[1])
+        l.info("Feature importance (SHAP):")
+        for name, imp in ranked[:10]:
+            l.info(f"  {name}: {imp:.4f}")
+        if not export and plot is None:
+            return self._explanation
+        from .explain import _EXPLANATIONS
+        for p in (["summary"] if plots is None else list(_EXPLANATIONS.keys()) if "all" in plots else plots):
+            for plot_type in (["force_packed", "force_not_packed"] if p == "force" else \
+                              ["waterfall_packed", "waterfall_not_packed"] if p == "waterfall" else [p]):
+                if (plot_func := _EXPLANATIONS.get(plot_type)) is None:
+                    self.logger.warning(f"Unknown model explanation plot type: {plot_type}")
+                    continue
+                if plot_type in ["waterfall_packed", "waterfall_not_packed", "force_packed", "force_not_packed"]:
+                    plot_func(self, max_display=max_display)
+                elif plot_type in ["heatmap", "bar"]:
+                    plot_func(self, max_display=max_display)
+                elif plot_type == "dependence":
+                    top_feature = ranked[0][0]
+                    feature_idx = sorted(self._features.keys()).index(top_feature)
+                    plot_func(self, feature_idx=feature_idx)
+                else:
+                    plot_func(self)
+        return self._explanation
+    
     def preprocess(self, executable=None, query=None, **kw):
         """ Preprocess an input dataset given selected features and display it with visidata for review. """
         kw['data_only'], kw['dataset'] = True, executable or self._metadata['dataset']['name']
@@ -682,87 +731,6 @@ class Model(BaseModel):
         l.info("Parameters:\n- %s" % "\n- ".join(f"{p} = {v}" for p, v in params.items()))
         self._metadata['algorithm']['parameters'] = params
         self._save()
-
-    def explain(self, executable=None, plots=None, sample_idx=0, max_display=10, export=True, max_samples=None, **kw):
-        if self.name is None and self.path is not None:
-            self._name = self.path.stem
-        l, ds = self.logger, executable or self._metadata['dataset']['name']
-        
-        if len(self.pipeline.steps) == 0:
-            l.warning("Model must be trained before explaining")
-            return
-        
-        # Prepare data for explanation without training the model
-        kw['data_only'], kw['dataset'] = True, ds
-        if not self._prepare(ds_type="Explanation", **kw):
-            return
-        l.debug(f"Target distribution: {self._target.value_counts().to_dict()}")
-        l.info(f"Computing SHAP explanations for {self.name}...")
-        
-        self._explanation = explain_model(
-            self,
-            self._data,
-            feature_names=sorted(self._features.keys()),
-            max_samples=max_samples,
-            logger=l
-        )
-        
-        self._explanation['y_test'] = self._target.values
-        
-        importance = np.abs(self._explanation['shap_values']).mean(axis=0)
-        if importance.ndim > 1:
-            importance = importance.mean(axis=1)
-        ranked = sorted(zip(sorted(self._features.keys()), importance), key=lambda x: -x[1])
-        l.info("Feature importance (SHAP):")
-        for name, imp in ranked[:10]:
-            l.info(f"  {name}: {imp:.4f}")
-        
-        if not export:
-            return self._explanation
-
-        output_dir = Path("shap_plots") / self.name
-        output_dir.mkdir(parents=True, exist_ok=True)
-        l.info(f"Saving plots to: {output_dir}")
-
-        if plots is None:
-            plots = ['summary']
-        elif 'all' in plots:
-            plots = list(_EXPLANATIONS.keys())
-        
-        expanded_plots = []
-        for p in plots:
-            if p == 'force': expanded_plots.extend(['force_packed', 'force_not_packed'])
-            elif p == 'waterfall': expanded_plots.extend(['waterfall_packed', 'waterfall_not_packed'])
-            else: expanded_plots.append(p)
-        plots = expanded_plots
-
-        for plot_type in plots:
-            try:
-                plot_func = _EXPLANATIONS[plot_type]
-                
-                filename = output_dir / f"{self.name}_shap-{plot_type}.png"
-                
-                if plot_type in ['waterfall_packed', 'waterfall_not_packed', 'force_packed', 'force_not_packed']:
-                    plot_func(self, max_display=max_display, output_path=str(filename))
-                elif plot_type in ['heatmap', 'bar']:
-                    plot_func(self, max_display=max_display, output_path=str(filename))
-                elif plot_type == 'dependence':
-                    top_feature = ranked[0][0]
-                    feature_idx = sorted(self._features.keys()).index(top_feature)
-                    plot_func(self, feature_idx=feature_idx, output_path=str(filename))
-                else:
-                    plot_func(self, output_path=str(filename))
-                
-                l.debug(f"> saved: {filename}")
-                
-            except KeyError:
-                l.warning(f"Unknown plot type: {plot_type}")
-            except Exception as e:
-                l.warning(f"Failed to generate {plot_type}: {e}")
-                import traceback
-                l.debug(traceback.format_exc())
-        
-        return self._explanation
     
     def visualize(self, export=False, output_dir=".", **kw):
         """ Plot the model for visualization. """

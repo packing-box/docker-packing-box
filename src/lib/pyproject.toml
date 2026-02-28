@@ -2,8 +2,6 @@
 requires = [
     "build",
     "pathspec",
-    "pydantic",
-    "pydantic-core",
     "setuptools>=80.0",
     "scikit-build-core",
     "tomli",
@@ -43,8 +41,8 @@ classifiers = [
 dependencies = [
   "bintropy>=1.5.7",
   "capstone",
-  "dsff>=1.0.3",
-  "exeplot>=0.4.2",
+  "dsff>=1.2.2",
+  "exeplot>=0.5.4",
 #  "filebytes",
   # pinned under 0.17.0 because of lief.PE.SECTION_TYPES disappeared
   "lief @ git+https://github.com/lief-project/LIEF.git@0.16.7#subdirectory=api/python",
@@ -55,6 +53,8 @@ dependencies = [
   "pandas>=2",
   "pefile",
   "peid>=2.0.0",
+  "pydantic",
+  "pydantic-core",
   "pyelftools",
   "pypcode",
   "python-tlsh",
@@ -64,11 +64,11 @@ dependencies = [
 #  "scikit-learn-extra",  # see: https://github.com/scikit-learn-contrib/scikit-learn-extra/issues/180
   "scikit-learn-extra@git+https://github.com/TimotheeMathieu/scikit-learn-extra.git",
   "seaborn",
+  "shap",
   "tabulate",
   "tinyscript>=1.30.29",
   "treelib",
   "weka",
-  "shap"
 ]
 dynamic = ["version"]
 

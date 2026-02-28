@@ -16,8 +16,7 @@ class Entity:
     _classes = {}
     
     def __new__(cls, name=None, load=True, name_check=True, **kwargs):
-        folder = kwargs.pop('folder', None)
-        name = name or folder
+        name = name or kwargs.pop('folder', None)
         for c in cls.entity_classes:
             if c.check(name, **kwargs):
                 cls = c
@@ -32,7 +31,8 @@ class Entity:
             return self
         self.path = None if name is None else cls.path(name)
         if self.path and name_check:
-            config.check(self.name)
+            config.check(name)
+            self._name = name
         _CACHE.setdefault(cls.entity, {})
         # important note: not using __hash__() as some Entity's children may define __eq__() ; in this case, __hash__
         #                  automatically becomes None and causes an Error
