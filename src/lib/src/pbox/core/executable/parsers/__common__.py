@@ -1,11 +1,12 @@
 # -*- coding: UTF-8 -*-
 import weakref
 from abc import ABC, abstractmethod
-from tinyscript import functools, re
+from tinyscript import collections, functools, re
 from tinyscript.helpers import ensure_str, execute, is_generator, zeropad
 
 from ....helpers.data import get_data
 from ....helpers.mixins import *
+from ....helpers.utils import entropy, get_strings, np
 
 lazy_load_module("bintropy")
 
@@ -18,8 +19,9 @@ _DEF_REGEX  = re.compile(r"^$")
 _GETI_REGEX = re.compile(r"^(?!has_)(|[a-z]+_)(configuration|header)$", re.I)
 _STR_REGEX  = re.compile(r"^.*_str$", re.I)
 
+_REGEX_CACHE = {}
+
 _rb = lambda s: bytes(getattr(s, "tobytes", lambda: s)())
-_rn = lambda s: ensure_str(getattr(s, "real_name", s.name)).split("\0")[0]
 
 
 def supported_parsers(*parsers):
@@ -85,14 +87,16 @@ class AbstractParsedExecutable(ABC, CustomReprMixin, GetItemMixin):
                 n += 1
         return e / n
     
+    @cached_result
     def block_entropy(self, blocksize=256, ignore_half_block_zeros=False, ignore_half_block_same_byte=True,
                       ignore_overlay=False):
         return bintropy.entropy(_rb(self.content if ignore_overlay else self.path.bytes), blocksize,
                                 ignore_half_block_zeros, ignore_half_block_same_byte)
     
+    @cached_result
     def block_entropy_per_section(self, blocksize=256, ignore_half_block_zeros=True, ignore_half_block_same_byte=True):
-        return {getattr(s, "real_name", s.name): s.block_entropy(blocksize, ignore_half_block_zeros,
-                                                                 ignore_half_block_same_byte) for s in self}
+        return {s.real_name: s.block_entropy(blocksize, ignore_half_block_zeros, ignore_half_block_same_byte) \
+                for s in self}
     
     @cached_result
     def bytes_after_entrypoint(self, n):
@@ -103,13 +107,13 @@ class AbstractParsedExecutable(ABC, CustomReprMixin, GetItemMixin):
             sections = [sections]
         if sections is None or len(sections) == 0:
             return
-        return bintropy.entropy(b"".join(_rb((self.section(s) if isinstance(s, str) else s).content) for s in sections))
+        return entropy(b"".join((self.section(s) if isinstance(s, str) else s).bytes for s in sections))
     
     def fragments(self, fragment_size=1024, n=3, skip_header=True, from_end=False, ignore_overlay=True, pad=False):
         o = self.size_of_header if not from_end and skip_header else 0
         d, fs = self.content if ignore_overlay else self.path.bytes, fragment_size
-        for i in (range(-fs, -1, -fs) if from_end else range(0, n * fs, fs)):
-            yield f + b"\x00" * (fs - l) if pad and (l := len(f := d[o+i:o+i+fs])) < fs else f
+        for i in (range(len(d) - fs, -1, -fs) if from_end else range(0, n * fs, fs)):
+            yield f + b"\x00" * (fs - l) if (l := len(f := d[o+i:o+i+fs])) < fs and pad else f
     
     def has_section(self, name_or_section):
         return getattr(name, "name", name) in self.section_names()
@@ -132,10 +136,7 @@ class AbstractParsedExecutable(ABC, CustomReprMixin, GetItemMixin):
                         return s2                    
             else:
                 for s in self:
-                    real_name = getattr(self, "real_section_names", {}).get(s.name, s.name)
-                    if ensure_str(s.name) == name or ensure_str(real_name) == name:
-                        if hasattr(s, "real_name"):
-                            s.real_name = real_name
+                    if ensure_str(s.name) == name or ensure_str(s.real_name) == name:
                         return s
             if null:
                 return NullSection()
@@ -151,12 +152,11 @@ class AbstractParsedExecutable(ABC, CustomReprMixin, GetItemMixin):
                 # should not happen ; this would mean that the input section does not come from the current executable
                 raise ValueError(f"no section named '{section.name}'")
             else:
-                if hasattr(section, "real_name"):
-                    section.real_name = self.real_section_names.get(section.name, section.name)
                 return section
         elif hasattr(section, "name"):
             return section
-        raise ValueError(".section(...) only supports a section name or a parsed section object as input")
+        raise ValueError(".section(...) only supports a section name or a parsed section object as input "
+                         f"(got '{type(section)}')")
     
     def section_names(self, *sections):
         return [s if isinstance(s, str) else s.name for s in (sections or self)]
@@ -164,12 +164,33 @@ class AbstractParsedExecutable(ABC, CustomReprMixin, GetItemMixin):
     def sections_average_entropy(self, *sections):
         return sum(e := [s.entropy for s in (sections or self)]) / len(e)
     
+    def strings_count(self, pattern, **options):
+        return len(self.strings_match(pattern, **options))
+    
+    def strings_match(self, pattern, **options):
+        if (regex := _REGEX_CACHE.get(pattern)) is None:
+            re_opts = 0
+            for opt, val in options.items():
+                if getattr(re, opt.upper(), None) is None:
+                    raise ValueError(f"bad 're' option '{opt.upper()}'")
+                re_opts += getattr(re, opt.upper())
+            regex = _REGEX_CACHE[pattern] = re.compile(pattern, re_opts)
+        r = []
+        for s in self.strings:
+            for m in regex.findall(s):
+                r.append(m)
+        return list(set(r)) if options.pop('distinct', False) else r
+    
     @property
     def _section_class(self):
         try:
             return type(self.sections[0])
         except IndexError:
             raise ParserError("Could not determine original section class")
+    
+    @cached_property
+    def bytes_histogram(self):
+        return {b: c for b, c in enumerate(np.bincount(np.frombuffer(self.path.bytes, dtype=np.uint8), minlength=256))}
     
     @property
     def code_sections(self):
@@ -189,7 +210,7 @@ class AbstractParsedExecutable(ABC, CustomReprMixin, GetItemMixin):
     
     @property
     def empty_name_sections(self):
-        return PartsList(s for s in self if _rn(s) == "")
+        return PartsList(s for s in self if s.real_name == "")
     
     @property
     def format(self):
@@ -202,7 +223,7 @@ class AbstractParsedExecutable(ABC, CustomReprMixin, GetItemMixin):
     @property
     def known_packer_sections(self):
         d = get_data(self.format)['COMMON_PACKER_SECTION_NAMES']
-        return PartsList(s for s in self if _rn(s) in d)
+        return PartsList(s for s in self if s.real_name in d)
     
     @property
     def last_section(self):
@@ -214,7 +235,22 @@ class AbstractParsedExecutable(ABC, CustomReprMixin, GetItemMixin):
     @property
     def non_standard_sections(self):
         d = [""] + get_data(self.format)['STANDARD_SECTION_NAMES']
-        return PartsList(s for s in self if _rn(s) not in d)
+        return PartsList(s for s in self if s.real_name not in d)
+    
+    @cached_property
+    def paths(self):
+        r = []
+        for s in self.strings:
+            if "/" not in s or s.startswith("//") and s.endswith("//") or "://" in s and not s.startswith("file://") \
+               or re.search(r"(^[#<>]|\s?/\s+|\[./.\]|[^\\]\s+|%.|/--?|=N/A$)", s) is not None:
+                continue
+            for p in re.findall(r"^(.*/)?(?:$|(.+?)(?:(\.[^.]*$)|$))", s):
+                r.append(p)
+        return list(set(r))
+    
+    @property
+    def portability(self):
+        return 1.
     
     @property
     def real_section_names(self):
@@ -247,12 +283,24 @@ class AbstractParsedExecutable(ABC, CustomReprMixin, GetItemMixin):
     
     @property
     def sections(self):
-        return list(s for s in self)
+        return PartsList(s for s in self)
+    
+    def sections_with_slack_space(self, length=1):
+        return PartsList(s for s in self if s.virtual_size - s.raw_data_size >= length)
+    
+    def sections_with_slack_space_entry_jump(self, offset=0):
+        return self.sections_with_slack_space(6 + offset)
     
     @property
     def standard_sections(self):
         d = [""] + get_data(self.format)['STANDARD_SECTION_NAMES']
-        return PartsList(s for s in self if _rn(s) in d)
+        return PartsList(s for s in self if s.real_name in d)
+    
+    @cached_property
+    def strings(self):
+        with self.path.open('rb') as f:
+            data = f.read()
+        return get_strings(data)
     
     @property
     def text_section(self):
@@ -262,7 +310,12 @@ class AbstractParsedExecutable(ABC, CustomReprMixin, GetItemMixin):
     def unknown_sections(self):
         d = [""] + get_data(self.format)['STANDARD_SECTION_NAMES'] + \
                    get_data(self.format)['COMMON_PACKER_SECTION_NAMES']
-        return PartsList(s for s in self if _rn(s) not in d)
+        return PartsList(s for s in self if s.real_name not in d)
+    
+    @cached_property
+    def urls(self):
+        return list(set(self.strings_match(r"(?:www\.|http://|https://)(?:www\.)*[ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijk"
+                                           r"lmnopqrstuvwxyz0123456789\-._~:/?#\[\]@!$&()*+,;=]+")))
     
     # ------------------------------------------- mandatory concrete methods -------------------------------------------
     @abstractmethod
@@ -282,7 +335,7 @@ class AbstractParsedExecutable(ABC, CustomReprMixin, GetItemMixin):
 
 
 def get_part_class(clsname, **mapping):
-    slots = DEFAULT_SECTION_SLOTS[:] if clsname.endswith("Section") else DEFAULT_SEGMENT_SLOTS[:]
+    slots = DEFAULT_SECTION_SLOTS[:] if (_section := clsname.endswith("Section")) else DEFAULT_SEGMENT_SLOTS[:]
     for attr in mapping.keys():
         if attr not in slots:
             slots.append(attr)
@@ -308,11 +361,8 @@ def get_part_class(clsname, **mapping):
             for attr in self.__slots__:
                 if attr == "binary":
                     self.binary = binary
-                    try:
-                        self._original = self.binary.section(name, original=True)
-                    except:
-                        print("DEBUG", name)
-                        raise
+                    self._original = self.binary.section(name, original=True) if _section else \
+                                     self.binary.segment(name)
                     continue
                 value = mapping.get(attr, attr)
                 if isinstance(value, (type(lambda: 0), cached_property)):
@@ -327,16 +377,24 @@ def get_part_class(clsname, **mapping):
         def __len__(self):
             return self.size
         
+        @cached_result
         def block_entropy(self, blocksize=256, ignore_half_block_zeros=False, ignore_half_block_same_byte=True):
-            return bintropy.entropy(_rb(self.content), blocksize, ignore_half_block_zeros, ignore_half_block_same_byte)
+            return bintropy.entropy(self.bytes, blocksize, ignore_half_block_zeros, ignore_half_block_same_byte)
         
         def entropy_k_top_bytes(self, k=100, max_entropy=False):
             from ....helpers.utils import entropy
-            return entropy(self.content, k, max_entropy)
+            return entropy(self.bytes, k=k, max_entropy=max_entropy)
         
         @property
         def bytes(self):
             return _rb(self.content)
+        
+        @cached_property
+        def bytes_histogram(self):
+            hist = [0] * 256
+            for b in data:
+                hist[b] += 1
+            return {b: c for b, c in enumerate(hist)}
         
         @property
         def block_entropy_256B(self):
@@ -346,30 +404,28 @@ def get_part_class(clsname, **mapping):
         def block_entropy_512B(self):
             return self.block_entropy(512, True)[1]
         
-        @property
+        @cached_property
         def entropy(self):
-            return bintropy.entropy(_rb(self.content))
+            return entropy(self.bytes)
         
         @property
         def is_standard(self):
             if self.binary is None:
                 return
             std_field = "standard_" + ["sections", "segments"][self.__class__.__name__.endswith('Segment')]
-            return (sn := lambda s: getattr(s, "real_name", s.name))(self) in map(sn, getattr(self.binary, std_field))
+            return self.real_name in [s.real_name for s in getattr(self.binary, std_field)]
         
         @property
-        def portability(self):
-            return 1.
+        def real_name(self):
+            return getattr(self.binary, "real_section_names", {}).get(n := ensure_str(s.name), n).split("\0")[0]
         
         @property
         def slack_space(self):
             return max(0, getattr(self, "physical_size", getattr(self, "raw_data_size")) - self.virtual_size)
         
-        def sections_with_slack_space(self, length=1):
-            return {s for s in self if s.virtual_size - s.raw_data_size >= length}
-        
-        def sections_with_slack_space_entry_jump(self, offset=0):
-            return self.sections_with_slack_space(6 + offset)
+        @cached_property
+        def strings(self):
+             return get_strings(self.bytes)
     
     for attr, value in mapping.items():
         if isinstance(value, cached_property):

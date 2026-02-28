@@ -1,5 +1,8 @@
 # -*- coding: UTF-8 -*-
+import re
+
 from .__common__ import *
+from ..__common__ import PartsList
 
 
 __all__ = ["ELF"]
@@ -107,13 +110,6 @@ def __init_elf():
             return self.has_interpreter and re.match(r"/lib(?:64)?/ld-musl.*?\.so\.\d+$", self.interpreter) is not None
         
         @property
-        def paths(self):
-            from re import search
-            return [s for s in self.strings if "/" in s and not (s.startswith("//") and s.endswith("//")) and \
-                                               search(r"(^#|\s?/\s+|\[./.\]|[^\\]\s+|%.|/--?|=N/A$)", s) is None and \
-                                               not ("://" in s and not s.startswith("file://"))]
-        
-        @property
         def portability(self):
             score = 1.
             # architecture
@@ -145,7 +141,7 @@ def __init_elf():
         
         @property
         def segments(self):
-            return [ELFSegment(s, self) for s in self._parsed.segments]
+            return PartsList(ELFSegment(s, self) for s in self._parsed.segments)
         
         @property
         def size_of_header(self):
@@ -157,8 +153,10 @@ def __init_elf():
             return list(map(lambda s: s.name, self._parsed.symbols))
     
     ELF.__name__ = "ELF"
+    ELF.SECTION_CLASS = ELFSection
     ELF.SECTION_FLAGS = sec_flags
     ELF.SECTION_TYPES = sec_types
+    ELF.SEGMENT_CLASS = ELFSegment
     ELF.SEGMENT_FLAGS = seg_flags
     ELF.SEGMENT_TYPES = seg_types
     return ELF

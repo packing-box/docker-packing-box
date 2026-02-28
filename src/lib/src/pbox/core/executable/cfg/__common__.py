@@ -223,7 +223,7 @@ class CFG(GetItemMixin, ResetCachedPropertiesMixin):
         """ Gets a sorted histogram of ngrams. """
         return _sorted_hist([b''.join(map(lambda x: _sha1(x)[:1], ng)) if isinstance(ng, tuple) else ng for ng in \
                              ([ngram for sg in self.subgraphs for ngram in sg.ngrams(n, across_nodes=across_nodes)] \
-                             if all_subgraphs else self.acyclic_graph.ngrams(n, across_nodes=across_nodes))])
+                              if all_subgraphs else self.acyclic_graph.ngrams(n, across_nodes=across_nodes))])
     
     @cached_property
     def nodesize_histogram(self):

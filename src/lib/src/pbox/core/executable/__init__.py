@@ -24,6 +24,8 @@ _METHOD = """def {name}(self, *args, **kwargs):
     kwargs['img_name'] = self._filename(**kwargs)
     return {name}(*args, **kwargs)
 """
+_PRUNING_HEURISTICS = ["first", "ordered_smallest", "smallest", "trunk"]
+
 is_exe   = lambda e: Executable(e).format is not None
 is_elf   = lambda e: is_exe(e) and Executable(e).group == "ELF"
 is_macho = lambda e: is_exe(e) and Executable(e).group == "Mach-O"
@@ -282,9 +284,8 @@ class Executable(Path):
         @json_cache("vt", self.hash, kwargs.get('force', False))
         def _scan():
             from vt import Client
-            k = config['vt_api_key']
-            if k == "":
-                l.warn("'vt_api_key' shall be defined")
+            if (k := config['virustotal_api_key']) == "":
+                l.warn("'virustotal_api_key' shall be defined")
                 return
             try:
                 with Client(k) as c:
@@ -376,12 +377,10 @@ class Executable(Path):
             raise ValueError("window_size and skip_size must be positive integers")
         if pruning_heuristic not in _PRUNING_HEURISTICS:
             raise ValueError(f"pruning_heuristic shall be one of: {'|'.join(_PRUNING_HEURISTICS)}")
-        data = self.read_bytes()
-        n = len(data)
-        if n == 0:
+        if (n := len(data := self.read_bytes())) == 0:
             return []
         # compute frequencies, taking the order of appearance of each character into account
-        freqs, order, cnt = {}, {}, count()
+        freqs, order, cnt = {}, {}, (x for x in range(2**16))
         for b in data:
             freqs.setdefault(b, 0)
             freqs[b] += 1
@@ -390,6 +389,7 @@ class Executable(Path):
         # Huffman code lengths e[b]
         e = [0] * 256
         #  min-heap of (freq, node); node is (symbol, left, right)
+        import heapq
         heap = [(f, order[b], (b, None, None)) for b, f in sorted(freqs.items(), key=lambda x: (-x[1], -order[x[0]]))]
         heapq.heapify(heap)
         if len(heap) == 1: # only one symbol; give it a code length of 1 by convention
@@ -434,7 +434,6 @@ class Executable(Path):
                 if pruning_heuristic == "ordered_smallest" else \
                sorted(profile)[:pruning_size] if pruning_heuristic == "smallest" else \
                profile[:round(pruning_size / 2 + .5)] + profile[-round(pruning_size / 2):]
-    
     @property
     def bin_label(self):
         return READABLE_LABELS(self.label, True)

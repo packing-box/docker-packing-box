@@ -59,7 +59,8 @@ class Features(dict, metaclass=MetaBase):
     boolean_only = False
     names_map    = {}
     
-    def __init__(self, exe=None):
+    def __init__(self, exe=None, benchmark=False, benchmark_threshold=0.):
+        benchmark = benchmark or benchmark_threshold > 0.
         ft, l = Features, self.__class__.logger
         ft._load()
         if exe is not None:
@@ -73,7 +74,7 @@ class Features(dict, metaclass=MetaBase):
                 # compute only if it has the keep=True flag ; otherwise, it will be lazily computed on need
                 if (not ft.boolean_only or ft.boolean_only and feature.boolean) and feature.keep:
                     try:
-                        v = feature(self._rawdata, True)
+                        v = feature(self._rawdata, True, benchmark=benchmark, benchmark_threshold=benchmark_threshold)
                         self[name] = bool(v) if feature.boolean else v
                     except NameError:
                         todo.append(feature)
@@ -95,7 +96,8 @@ class Features(dict, metaclass=MetaBase):
                 # add already computed features
                 d.update(self)
                 try:
-                    v = feature(d, silent=feature.fail in ["continue", "warning"])
+                    v = feature(d, silent=feature.fail in ["continue", "warning"], benchmark=benchmark, 
+                                benchmark_threshold=benchmark_threshold)
                     self[n] = bool(v) if feature.boolean else v
                 except NameError:
                     bad = False
@@ -169,6 +171,11 @@ class Features(dict, metaclass=MetaBase):
                 # allow to use expressions in the 'values' field
                 if isinstance(values, str):
                     values = list(dict2({'result': values})({'get_data': get_data}))
+                # collect exclusions first
+                excl = []
+                for fmt in flist:
+                    if fmt in r.keys() and r[fmt] is None:
+                        excl.extend(expand_formats(fmt))
                 # consider features for most specific formats first, then intermediate format classes and finally the
                 #  collapsed format class "All"
                 for fmt in flist:
@@ -209,6 +216,8 @@ class Features(dict, metaclass=MetaBase):
                             if feat.name != name:
                                 ft.names_map[feat.name] = name
                             for subfmt in expand_formats(fmt):
+                                if subfmt in excl:
+                                    continue
                                 ft.registry.setdefault(subfmt, {})
                                 ft.registry[subfmt][feat.name] = feat
             l.debug(f"{len(Features.names)} features loaded")

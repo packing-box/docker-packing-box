@@ -69,6 +69,10 @@ class Binary(AbstractParsedExecutable):
     def _get_builder(self):
         raise NotImplementedError  # to be implemented per binary format
     
+    def __iter__(self):
+        for s in self._parsed.sections:
+            yield self.SECTION_CLASS(s, self)
+    
     def build(self):
         p = str(self.path)
         builder = self._get_builder()

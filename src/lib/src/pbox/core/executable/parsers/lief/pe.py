@@ -1,4 +1,6 @@
 # -*- coding: UTF-8 -*-
+import re
+
 from .__common__ import *
 
 
@@ -33,7 +35,6 @@ def __init_pe():
                                                    #  section executable
         is_data=_p(lambda s: s.flags & 0x40 > 0 or s.flags & 0x80 > 0),  # IMAGE_SCN_CNT_(UN)INITIALIZED_DATA
         raw_data_size="size",
-        real_name="name",
         virtual_size="virtual_size",
         CHARACTERISTICS=sec_chars,
         FLAGS=sec_chars,
@@ -45,13 +46,6 @@ def __init_pe():
         _build_cfg = BuildConfig("dos_stub", "imports", "overlay", "relocations", "resources", "tls", "patch_imports")
         DATA = ".data"
         TEXT = ".text"
-        
-        def __iter__(self):
-            for s in self._parsed.sections:
-                s = PESection(s, self)
-                if hasattr(self, "_real_section_names"):
-                    s.real_name = self.real_section_names.get(s.name, s.name)
-                yield s
         
         def _get_builder(self):
             builder = lief.PE.Builder(self._parsed)
@@ -86,13 +80,15 @@ def __init_pe():
         @property
         def iat(self):
             class IAT(CustomReprMixin, GetItemMixin):
-                __slots__ = ["rva", "section", "size", "type"]
+                __slots__ = ["entries", "rva", "section", "size", "type"]
                 def __init__(self2):
                     iat = self._parsed.data_directory(lief.PE.DataDirectory.TYPES.IMPORT_TABLE)
                     for attr in self2.__slots__:
                         if attr == "section":
                             self2.section = PESection(iat.section, self)
                             continue
+                        elif attr == "entries":
+                            iat.entries = #TODO
                         setattr(self2, attr, getattr(iat, attr))
             return IAT()
         
@@ -121,17 +117,23 @@ def __init_pe():
         
         @property
         def paths(self):
-            from re import findall
+            r = []
+            for s in self.strings_from_readable_data:
+                for p in re.findall(r"[a-zA-Z]:\\(?:[^\\\x00\r\n]+\\)*[^\\\x00\r\n]*", s):
+                    r.append(p)
+                for p in re.findall(r"(?:[a-zA-Z]\x00:\x00\\(?:[^\x00\\]+\\)*[^\x00\\]*)", s):
+                    r.append(p)
+            return list(set(r))
+        
+        @property
+        def strings_from_readable_data(self):
+            from .....helpers.utils import get_strings
             data = b""
             for s in self._parsed.sections:
                 if s.virtual_size == 0 or not s.has_characteristic(lief.PE.Section.CHARACTERISTICS.MEM_READ):
                     continue
                 data += bytes(s.content)
-            r = [p.decode("utf-8", errors="ignore") for p in \
-                 findall(rb"[a-zA-Z]:\\(?:[^\\\x00\r\n]+\\)*[^\\\x00\r\n]*", data)]
-            r += [p.decode("utf-16le", errors="ignore") for p in \
-                  findall(rb"(?:[a-zA-Z]\x00:\x00\\(?:[^\x00\\]+\\)*[^\x00\\]*)", data)]
-            return r
+            return get_strings(data)
         
         @property
         def portability(self):
@@ -195,19 +197,10 @@ def __init_pe():
         @property
         def size_of_header(self):
             return self._parsed.sizeof_headers
-        
-        @property
-        def strings(self):
-            from re import findall
-            with self.path.open('rb') as f:
-                data = f.read()
-            r = [s.decode("utf-8", errors="ignore") for s in findall(rb"[ -~]{%d,}" % config['min_str_len'], data)]
-            r += [s.decode("utf-16le", errors="ignore") for s in \
-                  findall(rb"(?:[\x20-\x7E]\x00){%d,}" % config['min_str_len'], data)]
-            return r
     
     PE.__name__ = "PE"
     PE.SECTION_CHARACTERISTICS = sec_chars
+    PE.SECTION_CLASS = PESection
     PE.SECTION_TYPES = sec_types
     return PE
 lazy_load_object("PE", __init_pe)

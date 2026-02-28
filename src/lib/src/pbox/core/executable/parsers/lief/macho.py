@@ -1,5 +1,6 @@
 # -*- coding: UTF-8 -*-
 from .__common__ import *
+from ..__common__ import PartsList
 
 
 __all__ = ["MachO"]
@@ -76,7 +77,7 @@ def __init_macho():
         
         @property
         def segments(self):
-            return [MachOSegment(s, self) for s in self._parsed.segments]
+            return PartsList(MachOSegment(s, self) for s in self._parsed.segments)
         
         @property
         def size_of_header(self):
@@ -86,8 +87,10 @@ def __init_macho():
                    
     
     MachO.__name__ = "MachO"
+    MachO.SECTION_CLASS = MachOSection
     MachO.SECTION_FLAGS = sec_flags
     MachO.SECTION_TYPES = sec_types
+    MachO.SEGMENT_CLASS = MachOSegment
     MachO.SEGMENT_FLAGS = seg_flags
     MachO.SEGMENT_TYPES = seg_types
     return MachO
