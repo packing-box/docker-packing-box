@@ -118,6 +118,10 @@ def _vs(s, v):
     return v
 _vs.__name__ = "similarity algorithm"
 
+def _dl(s, v):
+    return tuple(positive_float(x.strip()) for x in str(v).split(","))
+_dl.__name__ = "comma-separated floats"
+
 
 opt_tuple = lambda k: (f"conf/{k}.yml", "PATH", f"path to {k} YAML definition", _rp, ["workspace", PBOX_HOME], True)
 psr_tuple = lambda f: (None, "PARSER", f"name of the module for parsing {f} executables", _st, "default_parser")
@@ -162,6 +166,12 @@ bi.config = Config("packing-box",
                                               "explanations are computed", _it),
             'shap-values-number-samples':    ("2048", "N_SAMPLES", "number of feature coalitions sampled per instance "
                                               "to approximate Shapley values", _it),
+        },
+        'dataset-fuzzing': {
+            'fuzz-top-n':              ("20", "N", "number of features to display in results", _it),
+            'fuzz-deltas':             ("0.10,0.25,0.50,1.00", "DELTAS", "delta percentages for multi-delta analysis", _dl),
+            'fuzz-n-bootstrap':        ("50", "N", "number of bootstrap iterations for confidence intervals", _it),
+            'fuzz-top-k-interactions': ("10", "K", "number of pairwise interactions", _it),
         },
         'dataset-quality': {
             'file_balance_margin':  (".2", "MARGIN", "margin for the balance of file-related fields in a dataset "
