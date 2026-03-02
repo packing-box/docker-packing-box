@@ -607,7 +607,8 @@ class Model(BaseModel):
         )
 
         if export:
-            plot_fuzz_summary(self, self._fuzz_results)
+            plot_fuzz_summary(self._fuzz_results, top_n=top_n,
+                              output_path=str(output_dir / "fuzz_summary.png"), logger=l)
             l.info(f"Fuzzing plots saved to: {output_dir}")
 
         details = self._fuzz_results['details']
@@ -628,7 +629,8 @@ class Model(BaseModel):
             )
             self._fuzz_results['stability'] = stability
             if export:
-                plot_bump_chart(self, stability)
+                plot_bump_chart(stability, top_n=min(top_n, 15),
+                                output_path=str(enhanced_dir / "bump_chart.png"), logger=l)
             self._print_stability_table(stability, top_n=top_n)
 
         if bootstrap:
@@ -639,7 +641,8 @@ class Model(BaseModel):
             )
             self._fuzz_results['bootstrap'] = ci
             if export:
-                plot_bootstrap_ci(self, ci)
+                plot_bootstrap_ci(ci, top_n=top_n,
+                                  output_path=str(enhanced_dir / "bootstrap_ci.png"), logger=l)
             self._print_bootstrap_table(ci, top_n=top_n)
 
         if interactions:
@@ -648,6 +651,7 @@ class Model(BaseModel):
                 model=self, data=data, feature_names=feature_names,
                 fuzz_results=self._fuzz_results,
                 top_k=top_k_interactions, delta_pct=delta,
+                output_path=str(enhanced_dir / "interaction_heatmap.png") if export else None,
                 logger=l,
             )
             self._fuzz_results['interactions'] = inter

@@ -67,6 +67,8 @@ def fuzz_single_feature(data, predict_fn, name, delta_pct=0.1, n_sigma=None):
     if sigma is not None and sigma == 0:
         sigma = 1.0
     results = {'orig': orig, 'feat_orig': backup.values.copy(), 'is_boolean': False}
+    results['mode'] = 'stddev' if n_sigma else 'delta'
+    results['perturbation'] = n_sigma if n_sigma else delta_pct
     for direction, sign in [('up', 1), ('down', -1)]:
         _perturb_column(data, name, backup, delta_pct=delta_pct, n_sigma=n_sigma, sigma=sigma, sign=sign)
         results[direction] = predict_fn(data)
@@ -110,7 +112,10 @@ def plot_fuzz_impact(model, fuzz_result, feature_name, delta_pct):
         plt.suptitle(f'Fuzzing: {feature_name} (boolean flip)', fontsize=14, fontweight='bold')
     else:
         fig, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize=(15, 5))
-        ds = f"{delta_pct*100:.0f}%"
+        if fuzz_result.get('mode') == 'stddev':
+            ds = f"{fuzz_result['perturbation']}σ"
+        else:
+            ds = f"{fuzz_result['perturbation']*100:.0f}%"
         ax1.plot(orig[sort_idx], 'k-', lw=1.5, label='Original')
         ax1.plot(up[sort_idx], 'r-', alpha=0.7, label=f'+{ds}')
         ax1.plot(down[sort_idx], 'b-', alpha=0.7, label=f'-{ds}')
