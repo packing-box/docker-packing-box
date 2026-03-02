@@ -95,7 +95,7 @@ def _max_abs_impact(entry):
     return max(abs(p['mean_up']), abs(p['mean_down']), abs(np['mean_up']), abs(np['mean_down']))
 
 @save_figure
-def plot_fuzz_impact(model, fuzz_result, feature_name, delta_pct):
+def plot_fuzz_impact(model, fuzz_result, feature_name, delta_pct, **kw):
     orig, up, down = fuzz_result['orig'], fuzz_result['up'], fuzz_result['down']
     feat_orig, feat_up, feat_down = fuzz_result['feat_orig'], fuzz_result['feat_up'], fuzz_result['feat_down']
     sort_idx = np.argsort(orig)
@@ -138,7 +138,7 @@ def plot_fuzz_impact(model, fuzz_result, feature_name, delta_pct):
     return f"{model.basename}_fuzz-impact_{feature_name}"
 
 @save_figure
-def plot_fuzz_summary(model, fuzz_results):
+def plot_fuzz_summary(model, fuzz_results, **kw):
     top_n = config['fuzz-top-n']
     details = fuzz_results['details'][:top_n]
     names = [e['name'] for e in details]
@@ -177,9 +177,12 @@ def fuzz_features(model, data, feature_names, delta_pct=0.1, top_n=20, export=Tr
         all_results[name] = result
         bd = compute_impact_per_class(result)
         scores.append({'name': name, 'packed': bd['packed'], 'not_packed': bd['not_packed']})
-        if export: plot_fuzz_impact(model, result, name, delta_pct)
 
     scores.sort(key=_max_abs_impact, reverse=True)
+    if export:
+        top_names = {e['name'] for e in scores[:top_n]}
+        for name in top_names:
+            plot_fuzz_impact(model, all_results[name], name, delta_pct)
     return {'details': scores, 'results': all_results, 'delta_pct': delta_pct}
 
 def multi_delta_stability(model, data, feature_names, deltas=(0.10, 0.25, 0.50, 1.00), logger=None):
@@ -201,7 +204,7 @@ def multi_delta_stability(model, data, feature_names, deltas=(0.10, 0.25, 0.50, 
     return {'rankings': rank_df, 'stability': stability, 'all_results': all_results, 'deltas': deltas}
 
 @save_figure
-def plot_bump_chart(model, stability_result):
+def plot_bump_chart(model, stability_result, **kw):
     top_n = min(config['fuzz-top-n'], 15)
     rank_df, stability = stability_result['rankings'], stability_result['stability']
     top = stability.head(top_n).index.tolist()
@@ -248,7 +251,7 @@ def bootstrap_fuzz_ci(model, data, feature_names, n_bootstrap=100, delta_pct=0.1
     return {'ci_df': ci_df, 'bootstrap_impacts': impacts}
 
 @save_figure
-def plot_bootstrap_ci(model, ci_result):
+def plot_bootstrap_ci(model, ci_result, **kw):
     top_n = config['fuzz-top-n']
     df = ci_result['ci_df'].head(top_n)
     fig, ax = plt.subplots(figsize=(10, max(6, top_n * 0.35)))
