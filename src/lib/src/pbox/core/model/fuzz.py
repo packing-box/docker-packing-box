@@ -7,6 +7,7 @@ import matplotlib.pyplot as plt
 import matplotlib.cm as cm
 from pathlib import Path
 import re
+from ...helpers import *
 
 FEATURE_TYPE_PATTERNS = {
     r'^is_|^has_':                      (None, None, 'bool'),
