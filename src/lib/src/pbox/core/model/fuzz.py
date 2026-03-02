@@ -91,11 +91,11 @@ def _max_abs_impact(entry):
     p, np = entry['packed'], entry['not_packed']
     return max(abs(p['mean_up']), abs(p['mean_down']), abs(np['mean_up']), abs(np['mean_down']))
 
-def plot_fuzz_impact(fuzz_result, feature_name, delta_pct, output_path, logger=None):
+@save_figure
+def plot_fuzz_impact(model, fuzz_result, feature_name, delta_pct):
     orig, up, down = fuzz_result['orig'], fuzz_result['up'], fuzz_result['down']
     feat_orig, feat_up, feat_down = fuzz_result['feat_orig'], fuzz_result['feat_up'], fuzz_result['feat_down']
     sort_idx = np.argsort(orig)
-
     if fuzz_result['is_boolean']:
         fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(10, 5))
         ax1.plot(orig[sort_idx], 'k-', lw=1.5, label='Original')
@@ -104,7 +104,9 @@ def plot_fuzz_impact(fuzz_result, feature_name, delta_pct, output_path, logger=N
         ax1.legend()
         d = up - orig
         ax2.hist(d, bins=50, alpha=0.6, color='red', label=f'Flip: μ={np.mean(d):.4f}')
-        ax2.axvline(0, color='k', ls='--'); ax2.set(xlabel='ΔP(packed)', ylabel='Count'); ax2.legend()
+        ax2.axvline(0, color='k', ls='--')
+        ax2.set(xlabel='ΔP(packed)', ylabel='Count')
+        ax2.legend()
         plt.suptitle(f'Fuzzing: {feature_name} (boolean flip)', fontsize=14, fontweight='bold')
     else:
         fig, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize=(15, 5))
@@ -112,34 +114,44 @@ def plot_fuzz_impact(fuzz_result, feature_name, delta_pct, output_path, logger=N
         ax1.plot(orig[sort_idx], 'k-', lw=1.5, label='Original')
         ax1.plot(up[sort_idx], 'r-', alpha=0.7, label=f'+{ds}')
         ax1.plot(down[sort_idx], 'b-', alpha=0.7, label=f'-{ds}')
-        ax1.set(xlabel='Sample (sorted)', ylabel='P(packed)', ylim=(-0.05, 1.05)); ax1.legend()
-        for d, c, lb in [(up-orig, 'red', f'+{ds}'), (down-orig, 'blue', f'-{ds}')]:
+        ax1.set(xlabel='Sample (sorted)', ylabel='P(packed)', ylim=(-0.05, 1.05))
+        ax1.legend()
+        for d, c, lb in [(up - orig, 'red', f'+{ds}'), (down - orig, 'blue', f'-{ds}')]:
             ax2.hist(d, bins=50, alpha=0.6, color=c, label=f'{lb}: μ={np.mean(d):.4f}')
-        ax2.axvline(0, color='k', ls='--'); ax2.set(xlabel='ΔP(packed)', ylabel='Count'); ax2.legend()
+        ax2.axvline(0, color='k', ls='--')
+        ax2.set(xlabel='ΔP(packed)', ylabel='Count')
+        ax2.legend()
         ax3.scatter(feat_orig, feat_up, alpha=0.3, s=10, c='red', label=f'+{ds}')
         ax3.scatter(feat_orig, feat_down, alpha=0.3, s=10, c='blue', label=f'-{ds}')
         vals = np.concatenate([feat_orig, feat_up, feat_down])
         ax3.plot([vals.min(), vals.max()], [vals.min(), vals.max()], 'k--', alpha=0.5)
-        ax3.set(xlabel='Original Value', ylabel='Fuzzed Value'); ax3.legend()
+        ax3.set(xlabel='Original Value', ylabel='Fuzzed Value')
+        ax3.legend()
         plt.suptitle(f'Fuzzing: {feature_name} (δ={ds})', fontsize=14, fontweight='bold')
-    plt.tight_layout(); plt.savefig(output_path, dpi=150); plt.close()
-    if logger: logger.debug(f"> saved plot: {output_path}")
+    plt.tight_layout()
+    return f"{model.basename}_fuzz-impact_{feature_name}"
 
-def plot_fuzz_summary(fuzz_results, top_n=20, output_path=None, logger=None):
+@save_figure
+def plot_fuzz_summary(model, fuzz_results):
+    top_n = config['fuzz-top-n']
     details = fuzz_results['details'][:top_n]
     names = [e['name'] for e in details]
-    y = np.arange(len(names)); h = 0.35
-    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(16, max(6, len(names)*0.4)), sharey=True)
+    y = np.arange(len(names))
+    h = 0.35
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(16, max(6, len(names) * 0.4)), sharey=True)
     for ax, key, title in [(ax1, 'packed', 'Packed'), (ax2, 'not_packed', 'Not packed')]:
-        ax.barh(y-h/2, [e[key]['mean_up'] for e in details], h, label='+δ', color='red', alpha=0.7)
-        ax.barh(y+h/2, [e[key]['mean_down'] for e in details], h, label='-δ', color='blue', alpha=0.7)
-        ax.axvline(0, color='k', lw=0.5); ax.set_xlabel('Mean ΔP(packed)'); ax.set_title(title); ax.legend()
-    ax1.set_yticks(y); ax1.set_yticklabels(names); ax1.invert_yaxis()
+        ax.barh(y - h/2, [e[key]['mean_up'] for e in details], h, label='+δ', color='red', alpha=0.7)
+        ax.barh(y + h/2, [e[key]['mean_down'] for e in details], h, label='-δ', color='blue', alpha=0.7)
+        ax.axvline(0, color='k', lw=0.5)
+        ax.set_xlabel('Mean ΔP(packed)')
+        ax.set_title(title)
+        ax.legend()
+    ax1.set_yticks(y)
+    ax1.set_yticklabels(names)
+    ax1.invert_yaxis()
     plt.suptitle(f'Feature Sensitivity (Top {top_n})', fontsize=14, fontweight='bold')
     plt.tight_layout()
-    if output_path: plt.savefig(output_path, dpi=150); plt.close()
-    else: plt.close()
-    if logger: logger.debug(f"> saved summary: {output_path}")
+    return f"{model.basename}_fuzz-summary"
 
 def fuzz_features(model, data, feature_names, delta_pct=0.1, top_n=20, export=True,
                   output_dir="fuzz_plots", use_stddev=False, n_sigma=1.0, logger=None):
@@ -159,7 +171,7 @@ def fuzz_features(model, data, feature_names, delta_pct=0.1, top_n=20, export=Tr
         all_results[name] = result
         bd = compute_impact_per_class(result)
         scores.append({'name': name, 'packed': bd['packed'], 'not_packed': bd['not_packed']})
-        if export: plot_fuzz_impact(result, name, delta_pct, out / f"{name}.png", logger)
+        if export: plot_fuzz_impact(model, result, name, delta_pct)
 
     scores.sort(key=_max_abs_impact, reverse=True)
     return {'details': scores, 'results': all_results, 'delta_pct': delta_pct}
@@ -182,7 +194,9 @@ def multi_delta_stability(model, data, feature_names, deltas=(0.10, 0.25, 0.50, 
     stability = stability.sort_values('mean_rank')
     return {'rankings': rank_df, 'stability': stability, 'all_results': all_results, 'deltas': deltas}
 
-def plot_bump_chart(stability_result, top_n=15, output_path=None, logger=None):
+@save_figure
+def plot_bump_chart(model, stability_result):
+    top_n = min(config['fuzz-top-n'], 15)
     rank_df, stability = stability_result['rankings'], stability_result['stability']
     top = stability.head(top_n).index.tolist()
     df = rank_df.loc[top]
@@ -190,19 +204,17 @@ def plot_bump_chart(stability_result, top_n=15, output_path=None, logger=None):
     colors = cm.tab20(np.linspace(0, 1, len(top)))
     x = np.arange(len(df.columns))
     for i, (feat, row) in enumerate(df.iterrows()):
-        ax.plot(x, row.values, marker='o', ms=6, color=colors[i],
-                ls='-', lw=2,
-                alpha=1, label=feat)
-    ax.set_xticks(x); ax.set_xticklabels(df.columns, fontsize=11)
-    ax.set_ylabel('Rank'); ax.set_xlabel('Perturbation magnitude')
+        ax.plot(x, row.values, marker='o', ms=6, color=colors[i], ls='-', lw=2, alpha=1, label=feat)
+    ax.set_xticks(x)
+    ax.set_xticklabels(df.columns, fontsize=11)
+    ax.set_ylabel('Rank')
+    ax.set_xlabel('Perturbation magnitude')
     ax.set_title(f'Rank Stability (Top {top_n})', fontsize=14, fontweight='bold')
-    ax.invert_yaxis(); ax.set_ylim(top_n+1, 0)
+    ax.invert_yaxis()
+    ax.set_ylim(top_n + 1, 0)
     ax.legend(bbox_to_anchor=(1.02, 1), loc='upper left', fontsize=8)
     plt.tight_layout()
-    if output_path: plt.savefig(output_path, dpi=150, bbox_inches='tight')
-    plt.close()
-    if logger and output_path: logger.info(f"Bump chart saved to: {output_path}")
-
+    return f"{model.basename}_fuzz-bump-chart"
 
 def bootstrap_fuzz_ci(model, data, feature_names, n_bootstrap=100, delta_pct=0.1,
                       confidence=0.95, seed=42, logger=None):
@@ -229,26 +241,28 @@ def bootstrap_fuzz_ci(model, data, feature_names, n_bootstrap=100, delta_pct=0.1
     ci_df = ci_df.sort_values('mean_impact', ascending=False).reset_index(drop=True)
     return {'ci_df': ci_df, 'bootstrap_impacts': impacts}
 
-def plot_bootstrap_ci(ci_result, top_n=20, output_path=None, logger=None):
-    from matplotlib.patches import Patch
+@save_figure
+def plot_bootstrap_ci(model, ci_result):
+    top_n = config['fuzz-top-n']
     df = ci_result['ci_df'].head(top_n)
-    fig, ax = plt.subplots(figsize=(10, max(6, top_n*0.35)))
+    fig, ax = plt.subplots(figsize=(10, max(6, top_n * 0.35)))
     y = np.arange(len(df))
     err = [np.clip(df['mean_impact'].values - df['ci_lower'].values, 0, None),
            np.clip(df['ci_upper'].values - df['mean_impact'].values, 0, None)]
     ax.barh(y, df['mean_impact'], xerr=err, alpha=0.7, capsize=3, ecolor='gray')
-    ax.set_yticks(y); ax.set_yticklabels(df['feature']); ax.invert_yaxis()
-    ax.set_xlabel('Max Abs Impact'); ax.axvline(0, color='k', lw=0.5)
+    ax.set_yticks(y)
+    ax.set_yticklabels(df['feature'])
+    ax.invert_yaxis()
+    ax.set_xlabel('Max Abs Impact')
+    ax.axvline(0, color='k', lw=0.5)
     ax.set_title(f'Feature Importance with 95% CI (Top {top_n})', fontsize=14, fontweight='bold')
     plt.tight_layout()
-    if output_path: plt.savefig(output_path, dpi=150, bbox_inches='tight')
-    plt.close()
-    if logger and output_path: logger.info(f"Bootstrap CI plot saved to: {output_path}")
+    return f"{model.basename}_fuzz-bootstrap-ci"
 
 _DIR_COMBOS = [(+1, +1), (+1, -1), (-1, +1), (-1, -1)]
 
 def run_interaction_analysis(model, data, feature_names, fuzz_results,
-                             top_k=10, delta_pct=0.1, output_path=None, logger=None):
+                             top_k=10, delta_pct=0.1, logger=None):
     top_names = [e['name'] for e in fuzz_results['details'][:top_k] if e['name'] in feature_names]
     k = len(top_names)
     data = data[feature_names].apply(pd.to_numeric, errors='coerce').fillna(0).copy()
@@ -257,7 +271,7 @@ def run_interaction_analysis(model, data, feature_names, fuzz_results,
 
     if logger: logger.info(f"Computing pairwise interactions for top {k} features...")
 
-    # Individual impacts per direction
+    # Individual impacts (diagonal)
     indiv = {}
     for i, name in enumerate(top_names):
         for sign in (+1, -1):
@@ -267,7 +281,7 @@ def run_interaction_analysis(model, data, feature_names, fuzz_results,
             data[name] = bak
     diag = np.array([max(indiv[(i, +1)], indiv[(i, -1)]) for i in range(k)])
 
-    # Pairwise
+    # Pairwise impact 
     matrix = np.zeros((k, k))
     for i in range(k):
         for j in range(i+1, k):
@@ -281,31 +295,31 @@ def run_interaction_analysis(model, data, feature_names, fuzz_results,
                 data[top_names[i]] = bak_i; data[top_names[j]] = bak_j
             matrix[i, j] = matrix[j, i] = best
 
-    _plot_interaction_heatmap(matrix, top_names, diag, output_path, logger)
+    plot_interaction_heatmap(model, matrix, top_names, diag)
     return {'matrix': matrix, 'labels': top_names, 'individual_impacts': diag}
 
-def _plot_interaction_heatmap(matrix, labels, diag, output_path=None, logger=None):
+@save_figure
+def plot_interaction_heatmap(model, matrix, labels, diag, **kw):
     k = len(labels)
     display = matrix.copy()
     np.fill_diagonal(display, diag)
-    fig, ax = plt.subplots(figsize=(max(8, k*0.7), max(7, k*0.6)))
+    fig, ax = plt.subplots(figsize=(max(8, k * 0.7), max(7, k * 0.6)))
     im = ax.imshow(display, cmap='YlOrRd', aspect='equal')
     for i in range(k):
-        for j in range(i+1, k):
-            ax.add_patch(plt.Rectangle((j-0.5, i-0.5), 1, 1, fill=True, fc='white', ec='white'))
+        for j in range(i + 1, k):
+            ax.add_patch(plt.Rectangle((j - 0.5, i - 0.5), 1, 1, fill=True, fc='white', ec='white'))
     for i in range(k):
-        for j in range(i+1):
+        for j in range(i + 1):
             v = display[i, j]
             if v > 0.001:
-                tc = 'white' if v > np.max(display)*0.6 else 'black'
+                tc = 'white' if v > np.max(display) * 0.6 else 'black'
                 ax.text(j, i, f'{v:.3f}', ha='center', va='center',
-                        fontsize=max(6, 10-k//4), color=tc, fontweight='bold' if i==j else 'normal')
-    ax.set_xticks(range(k)); ax.set_yticks(range(k))
+                        fontsize=max(6, 10 - k//4), color=tc, fontweight='bold' if i == j else 'normal')
+    ax.set_xticks(range(k))
+    ax.set_yticks(range(k))
     ax.set_xticklabels(labels, rotation=45, ha='right', fontsize=9)
     ax.set_yticklabels(labels, fontsize=9)
     plt.colorbar(im, ax=ax, shrink=0.8, label='Interaction strength')
     ax.set_title('Pairwise Feature Interactions\n(diagonal = individual)', fontsize=14, fontweight='bold')
     plt.tight_layout()
-    if output_path: plt.savefig(output_path, dpi=150, bbox_inches='tight')
-    plt.close()
-    if logger and output_path: logger.info(f"Interaction heatmap saved to: {output_path}")
+    return f"{model.basename}_fuzz-interactions"
