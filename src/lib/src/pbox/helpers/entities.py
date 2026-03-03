@@ -16,7 +16,8 @@ class Entity:
     _classes = {}
     
     def __new__(cls, name=None, load=True, name_check=True, **kwargs):
-        name = name or kwargs.pop('folder', None)
+        folder = kwargs.pop('folder', None)
+        name = name or folder
         for c in cls.entity_classes:
             if c.check(name, **kwargs):
                 cls = c
