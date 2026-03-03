@@ -7,18 +7,19 @@ from .algorithm import *
 from .algorithm import __all__ as _algo
 from .explain import *
 from .explain import __all__ as _explain
+from .fuzz import *
+from .fuzz import __all__ as _fuzz
 from .metrics import *
 from .metrics import __all__ as _metrics
 from ..dataset import *
 from ..executable import *
 from ..pipeline import *
 from ...helpers import *
-from .fuzz import fuzz_features, plot_fuzz_summary, plot_bump_chart, bootstrap_fuzz_ci, plot_bootstrap_ci, multi_delta_stability, run_interaction_analysis, _max_abs_impact
 
 lazy_load_module("joblib")
 
 
-__all__ = ["DumpedModel", "Model"] + _algo + _explain + _metrics
+__all__ = ["DumpedModel", "Model"] + _algo + _explain + _fuzz + _metrics
 
 
 FLOAT_FORMAT = "%.6f"
