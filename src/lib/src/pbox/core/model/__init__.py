@@ -7,6 +7,8 @@ from .algorithm import *
 from .algorithm import __all__ as _algo
 from .explain import *
 from .explain import __all__ as _explain
+from .fuzz import *
+from .fuzz import __all__ as _fuzz
 from .metrics import *
 from .metrics import __all__ as _metrics
 from ..dataset import *
@@ -17,7 +19,7 @@ from ...helpers import *
 lazy_load_module("joblib")
 
 
-__all__ = ["DumpedModel", "Model"] + _algo + _explain + _metrics
+__all__ = ["DumpedModel", "Model"] + _algo + _explain + _fuzz + _metrics
 
 
 FLOAT_FORMAT = "%.6f"
@@ -483,6 +485,176 @@ class Model(BaseModel):
                     plot_func(self)
         return self._explanation
     
+    RESET  = "\033[0m"
+    GREY   = "\033[90m"
+    ORANGE = "\033[38;5;208m"
+    RED    = "\033[91m"
+
+    @staticmethod
+    def _colorize_impact(value_str, abs_val):
+        if abs_val == 0:
+            return f"{Model.GREY}{value_str}{Model.RESET}"
+        elif abs_val >= 0.1:
+            return f"{Model.RED}{value_str}{Model.RESET}"
+        elif abs_val >= 0.05:
+            return f"{Model.ORANGE}{value_str}{Model.RESET}"
+        return value_str
+
+    @staticmethod
+    def _print_fuzz_table(details, top_n, title=None):
+        def fmt(val):
+            plain = f"{val:+.4f}"
+            return plain, Model._colorize_impact(plain, abs(val))
+
+        headers = ["Feature", "Packed +δ", "Packed -δ", "Not-packed +δ", "Not-packed -δ"]
+        rows_plain, rows_colored = [], []
+        for e in details[:top_n]:
+            p, np = e['packed'], e['not_packed']
+            cells = [fmt(p['mean_up']), fmt(p['mean_down']), fmt(np['mean_up']), fmt(np['mean_down'])]
+            rows_plain.append([e['name']] + [c[0] for c in cells])
+            rows_colored.append([e['name']] + [c[1] for c in cells])
+
+        n_cols = len(headers)
+        col_widths = [max(len(h), *(len(r[i]) for r in rows_plain)) + 2 for i, h in enumerate(headers)]
+
+        if title: print(f"\n  {title}")
+        print("".join(f"  {h:<{col_widths[0]}}" if i == 0 else f"{h:>{col_widths[i]}}" for i, h in enumerate(headers)))
+        print(f" {'─' * (sum(col_widths) + 2)}")
+        for rp, rc in zip(rows_plain, rows_colored):
+            print("".join(
+                f"  {rp[i]:<{col_widths[i]}}" if i == 0 else " " * (col_widths[i] - len(rp[i])) + rc[i]
+                for i in range(n_cols)
+            ))
+        print()
+
+    @staticmethod
+    def _print_stability_table(stability_result, top_n):
+        stability = stability_result['stability'].head(top_n)
+        headers = ["Feature", "Mean Rank", "Rank Std", "Range"]
+        rows = []
+        for feat, row in stability.iterrows():
+            range_str = f"{int(row['min_rank'])}-{int(row['max_rank'])}"
+            rows.append([feat, f"{row['mean_rank']:.1f}", f"{row['rank_std']:.1f}", range_str])
+
+        n_cols = len(headers)
+        col_widths = [max(len(h), *(len(r[i]) for r in rows)) + 2 for i, h in enumerate(headers)]
+
+        print(f"\n  Rank Stability Across Delta Values")
+        print("".join(f"  {h:<{col_widths[0]}}" if i == 0 else f"{h:>{col_widths[i]}}" for i, h in enumerate(headers)))
+        print(f" {'─' * (sum(col_widths) + 2)}")
+        for r in rows:
+            print("".join(f"  {r[i]:<{col_widths[i]}}" if i == 0 else f"{r[i]:>{col_widths[i]}}" for i in range(n_cols)))
+        print()
+
+    @staticmethod
+    def _print_bootstrap_table(ci_result, top_n):
+        df = ci_result['ci_df'].head(top_n)
+        headers = ["Feature", "Mean Impact", "95% CI"]
+        rows = []
+        for _, row in df.iterrows():
+            ci = f"[{row['ci_lower']:.4f}, {row['ci_upper']:.4f}]"
+            rows.append([row['feature'], f"{row['mean_impact']:.4f}", ci])
+
+        n_cols = len(headers)
+        col_widths = [max(len(h), *(len(r[i]) for r in rows)) + 2 for i, h in enumerate(headers)]
+
+        print(f"\n  Bootstrap Confidence Intervals")
+        print("".join(f"  {h:<{col_widths[0]}}" if i == 0 else f"{h:>{col_widths[i]}}" for i, h in enumerate(headers)))
+        print(f" {'─' * (sum(col_widths) + 2)}")
+        for r in rows:
+            print("".join(f"  {r[i]:<{col_widths[i]}}" if i == 0 else f"{r[i]:>{col_widths[i]}}" for i in range(n_cols)))
+        print()
+
+    def fuzz(self, executable=None, delta=0.1, export=True, output_dir=None, stddev=False, n_sigma=1.0, multi_delta=False, bootstrap=False, interactions=False, **kw):
+        """ Fuzz the features of the model and analyze their impact on predictions."""
+        top_n = config['fuzz-top-n']
+        deltas = config['fuzz-deltas']
+        n_bootstrap = config['fuzz-n-bootstrap']
+        top_k_interactions = config['fuzz-top-k-interactions']
+
+        if self.name is None and self.path is not None:
+            self._name = self.path.stem
+
+        l, ds = self.logger, executable or self._metadata['dataset']['name']
+
+        if len(self.pipeline.steps) == 0:
+            l.warning("Model must be trained before fuzzing")
+            return
+
+        if not hasattr(self.pipeline, 'predict_proba'):
+            l.error("Fuzzing requires predict_proba function. This model does not provide probability outputs.")
+            return
+
+        kw['data_only'], kw['dataset'] = True, ds
+        if not self._prepare(ds_type="Fuzzing", **kw):
+            return
+
+        l.info(f"Starting fuzzing on {self.name}...")
+
+        data = self._data
+
+        if output_dir is None:
+            output_dir = Path("fuzz_plots") / self.name
+        else:
+            output_dir = Path(output_dir)
+
+        feature_names = sorted(self._features.keys())
+        data = data[feature_names]
+        self._fuzz_results = fuzz_features(
+            model=self, data=data, feature_names=feature_names,
+            delta_pct=delta, top_n=top_n, export=export,
+            output_dir=str(output_dir),
+            use_stddev=stddev, n_sigma=n_sigma, logger=l,
+        )
+
+        if export:
+            plot_fuzz_summary(self, self._fuzz_results)
+            l.info(f"Fuzzing plots saved to: {output_dir}")
+
+        details = self._fuzz_results['details']
+        no_impact = sum(1 for e in details if _max_abs_impact(e) < 0.01)
+        l.info(f"{no_impact} features ({no_impact/len(details):.1%}) had <1% impact on predictions.")
+
+        self._print_fuzz_table(details, top_n, title=f"Fuzzing Analysis: {self.name}")
+
+        enhanced_dir = output_dir / "enhanced"
+        if multi_delta or bootstrap or interactions:
+            enhanced_dir.mkdir(parents=True, exist_ok=True)
+
+        if multi_delta:
+            l.info("Running multi-delta analysis...")
+            stability = multi_delta_stability(
+                model=self, data=data, feature_names=feature_names,
+                deltas=tuple(deltas), logger=l,
+            )
+            self._fuzz_results['stability'] = stability
+            if export:
+                plot_bump_chart(self, stability)
+            self._print_stability_table(stability, top_n=top_n)
+
+        if bootstrap:
+            l.info(f"Running bootstrap CI analysis ({n_bootstrap} iterations)...")
+            ci = bootstrap_fuzz_ci(
+                model=self, data=data, feature_names=feature_names,
+                n_bootstrap=n_bootstrap, delta_pct=delta, logger=l,
+            )
+            self._fuzz_results['bootstrap'] = ci
+            if export:
+                plot_bootstrap_ci(self, ci)
+            self._print_bootstrap_table(ci, top_n=top_n)
+
+        if interactions:
+            l.info(f"Running pairwise interaction analysis (top {top_k_interactions})...")
+            inter = run_interaction_analysis(
+                model=self, data=data, feature_names=feature_names,
+                fuzz_results=self._fuzz_results,
+                top_k=top_k_interactions, delta_pct=delta,
+                logger=l,
+            )
+            self._fuzz_results['interactions'] = inter
+
+        return self._fuzz_results
+    
     def preprocess(self, executable=None, query=None, **kw):
         """ Preprocess an input dataset given selected features and display it with visidata for review. """
         kw['data_only'], kw['dataset'] = True, executable or self._metadata['dataset']['name']
@@ -829,4 +1001,3 @@ class DumpedModel(BaseModel):
         k = p.columns
         p = p.loc[p.round(3).drop_duplicates(subset=k[:-1]).index]
         p.to_csv(str(self.__p), sep=";", columns=k, index=False, header=True, float_format=FLOAT_FORMAT)
-

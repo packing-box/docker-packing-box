@@ -9,7 +9,7 @@ __version__     = "1.4.0"
 __contributors__ = [
     {'author': "Sébastien Martinez", 'reason': "extended ML algorithms, metrics and visualizations to unsupervised "
                                                "learning"},
-    {'author': "Nicolas Bouzin", 'reason': "added model explainability functionality"},
+    {'author': "Nicolas Bouzin", 'reason': "added model explainability and fuzzing functionalities"},
 ]
 __doc__         = """
 This utility aims to train Machine Learning models based on an input dataset. It currently supports various algorithms
@@ -18,6 +18,7 @@ This utility aims to train Machine Learning models based on an input dataset. It
 __description__ = "Train Machine Learning models"
 __examples__    = [
     "explain [model_name]",
+    "fuzz [model_name]"
     "list",
     "preprocess [model_name] my-dataset",
     "train my-dataset -A mnb",
@@ -49,6 +50,14 @@ if __name__ == '__main__':
     explain.add_argument("--sample-idx", type=int, help="sample index for waterfall/force plots")
     explain.add_argument("--max-display", type=int, default=10, help="max features to display in heatmap")
     explain.add_argument("--max-samples", type=int, help="max samples to explain (auto-set to 400 for slow models)")
+    fuzz = add_argument(sparsers.add_parser("fuzz", category="read", help="fuzz features and analyze the impact on predictions"), "mdname")
+    fuzz.add_argument("-d", "--delta", type=float, default=0.1, help="percentage to fuzz features by (default: 10%%)")
+    fuzz.add_argument("--no-export", dest="export", action="store_false", default=True, help="do not export impact plots")
+    fuzz.add_argument("--stddev", action="store_true", default=False, help="use stddev-normalized perturbation instead of percentage")
+    fuzz.add_argument("--n-sigma", type=float, default=1.0, help="number of standard deviations to perturb by (requires --stddev)")
+    fuzz.add_argument("--multi-delta", action="store_true", default=False, help="run fuzzing at multiple delta values and report rank stability")
+    fuzz.add_argument("--bootstrap", action="store_true", default=False, help="compute bootstrap confidence intervals on impact scores")
+    fuzz.add_argument("--interactions", action="store_true", default=False, help="compute pairwise feature interaction heatmap for top features")
     edit = sparsers.add_parser("edit", category="create/modify/delete", help="edit the performance log file")
     add_argument(edit, "mdname", force=True)
     listm = sparsers.add_parser("list", category="read", help="list all the models from the workspace")
