@@ -281,18 +281,18 @@ def scenario_identifier(name):
 
 
 def set_yaml(namespace):
-    """ Set the 'source' attribute of the YAML definitions attached to the given namespace. """
+    """ Set the 'config' attribute of the YAML definitions attached to the given namespace. """
     from inspect import currentframe
     glob = currentframe().f_back.f_globals
     for k, v in namespace._get_kwargs():
         if k.endswith("_set"):
             name = k[:-4].capitalize()
             if name in glob:  # e.g. Features
-                setattr(glob[name], "source", Locator(f"conf://{v}"))
+                setattr(glob[name], "config", Locator(f"conf://{v}"))
             else:
                 name = name[:-1]  # strip 's' at the end ; e.g. Algorithms => Algorithm
                 if name in glob:
-                    setattr(glob[name], "source", Locator(f"conf://{v}"))
+                    setattr(glob[name], "config", Locator(f"conf://{v}"))
                 else:
                     glob['logger'].warning(f"Could not find a class matching '{k}'")
 
