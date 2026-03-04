@@ -9,7 +9,7 @@ __version__     = "1.4.0"
 __contributors__ = [
     {'author': "Sébastien Martinez", 'reason': "extended ML algorithms, metrics and visualizations to unsupervised "
                                                "learning"},
-    {'author': "Nicolas Bouzin", 'reason': "added model explainability functionality"},
+    {'author': "Nicolas Bouzin", 'reason': "added model explainability and fuzzing functionalities"},
 ]
 __doc__         = """
 This utility aims to train Machine Learning models based on an input dataset. It currently supports various algorithms
