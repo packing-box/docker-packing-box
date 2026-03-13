@@ -18,6 +18,8 @@ FEATURE_TYPE_PATTERNS = {
     r'^number_|^count_|^nb_|_count$':   (0, None,    'int'),
 }
 
+__all__ = ["fuzz_features", "plot_fuzz_summary", "_max_abs_impact", "multi_delta_stability", "plot_bump_chart", "bootstrap_fuzz_ci", "plot_bootstrap_ci", "run_interaction_analysis"]
+
 def get_feature_constraints(name):
     for pattern, constraint in FEATURE_TYPE_PATTERNS.items():
         if re.search(pattern, name.lower()):
@@ -106,7 +108,7 @@ def plot_fuzz_impact(model, fuzz_result, feature_name, delta_pct, **kw):
         ax1.set(xlabel='Sample (sorted)', ylabel='P(packed)', ylim=(-0.05, 1.05))
         ax1.legend()
         d = up - orig
-        ax2.hist(d, bins=50, alpha=0.6, color='red', label=f'Flip: μ={np.mean(d):.4f}')
+        ax2.hist(d, bins=min(50, max(2, len(np.unique(d)))), alpha=0.6, color='red', label=f'Flip: μ={np.mean(d):.4f}')
         ax2.axvline(0, color='k', ls='--')
         ax2.set(xlabel='ΔP(packed)', ylabel='Count')
         ax2.legend()
@@ -123,7 +125,7 @@ def plot_fuzz_impact(model, fuzz_result, feature_name, delta_pct, **kw):
         ax1.set(xlabel='Sample (sorted)', ylabel='P(packed)', ylim=(-0.05, 1.05))
         ax1.legend()
         for d, c, lb in [(up - orig, 'red', f'+{ds}'), (down - orig, 'blue', f'-{ds}')]:
-            ax2.hist(d, bins=50, alpha=0.6, color=c, label=f'{lb}: μ={np.mean(d):.4f}')
+            ax2.hist(d, bins=min(50, max(2, len(np.unique(d)))), alpha=0.6, color=c, label=f'{lb}: μ={np.mean(d):.4f}')
         ax2.axvline(0, color='k', ls='--')
         ax2.set(xlabel='ΔP(packed)', ylabel='Count')
         ax2.legend()

@@ -88,7 +88,8 @@ def __init_pe():
                             self2.section = PESection(iat.section, self)
                             continue
                         elif attr == "entries":
-                            iat.entries = #TODO
+                            #iat.entries = #TODO
+                            pass
                         setattr(self2, attr, getattr(iat, attr))
             return IAT()
         

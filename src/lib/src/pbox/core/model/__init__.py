@@ -15,6 +15,7 @@ from ..dataset import *
 from ..executable import *
 from ..pipeline import *
 from ...helpers import *
+from ..items.detector import Detector
 
 lazy_load_module("joblib")
 
@@ -54,7 +55,7 @@ class BaseModel(Entity):
         return [f(v) for v, f in zip(values, headers.values())], list(headers.keys())
     
     def _prepare(self, dataset=None, preprocessor=None, multiclass=False, labels=None, data_only=False,
-                 unlabelled=False, mi_select=False, mi_kbest=None, true_class=None, **kw):
+             unlabelled=False, mi_select=False, mi_kbest=None, true_class=None, surrogate=None, **kw):
         """ Prepare the Model instance based on the given Dataset/FilelessDataset/CSV/other instance.
         NB: after preparation,
              (1) input data is prepared (NOT preprocessed yet as this is part of the pipeline), according to 4 use cases
@@ -150,6 +151,55 @@ class BaseModel(Entity):
         # this shall not occur
         else:
             raise ValueError("Unsupported input format")
+        # if training a surrogate, replace ground truth labels with detector predictions
+        if surrogate and not data_only:
+            l.info(f"Labelling with detector '{surrogate}' for surrogate training...")
+            det = None
+            for detector in Detector.registry:
+                if detector.__class__.__name__.lower() == surrogate.lower():
+                    det = detector
+                    break
+            if det is None:
+                l.error(f"Detector '{surrogate}' not found in registry")
+                return False
+            
+            surrogate_labels = []
+            skipped = 0
+            exe_list = list(ds.files.listdir(is_exe))
+            with progress_bar(silent=len(exe_list) <= 1) as p:
+                task = p.add_task("", total=len(exe_list))
+                for exe_path in exe_list:
+                    try:
+                        result = list(det.detect(Executable(str(exe_path)), multiclass=False))
+                        if result and result[0] is not None:
+                            _, label, _ = result[0]
+                            if label in [NOT_LABELLED, '?']:
+                                surrogate_labels.append(np.nan)
+                                skipped += 1
+                            elif label in [NOT_PACKED, False]:
+                                surrogate_labels.append(0)
+                            else:
+                                surrogate_labels.append(1)
+                        else:
+                            surrogate_labels.append(np.nan)
+                            skipped += 1
+                    except Exception as e:
+                        l.warning(f"Detector failed on {exe_path}: {e}")
+                        surrogate_labels.append(np.nan)
+                        skipped += 1
+                    p.update(task, advance=1.)
+            
+            self._target = pd.DataFrame({'label': surrogate_labels})
+            # Drop samples where detector couldn't decide
+            valid_mask = self._target['label'].notna()
+            self._data = self._data[valid_mask].reset_index(drop=True)
+            self._target = self._target[valid_mask].reset_index(drop=True)
+            self._target = self._target.astype('int')
+            valid = [x for x in surrogate_labels if x == x]
+            packed = sum(1 for x in valid if x == 1)
+            not_packed = sum(1 for x in valid if x == 0)
+            l.info(f"Detector labels: {packed} packed, {not_packed} not-packed, {skipped} skipped" if skipped else "")
+            self._metadata['surrogate'] = surrogate
         if len(self._data) == 0:
             l.warning("No data")
             return False
@@ -187,7 +237,7 @@ class BaseModel(Entity):
         # fill missing values
         self._data, self._target = self._data.fillna(-1), self._target.fillna(NOT_LABELLED)
         # convert to binary class
-        if not multiclass:
+        if not multiclass and not surrogate:
             self._target = (self._target['label'] == true_class).astype('int') if true_class is not None else \
                            self._target.map(lambda x: LABELS_BACK_CONV.get(x, 1)).astype('int')
         # create the pipeline if it does not exist (i.e. while training)
@@ -770,8 +820,10 @@ class Model(BaseModel):
             return
         if self.name is None:
             c = sorted(collapse_formats(*ds._metadata['formats']))
-            self.name = f"{ds.path.stem}_{'-'.join(map(lambda x: x.lower(), c)).replace('.','')}_" \
-                        f"{ds._metadata['executables']}_{algo.lower().replace('.','')}_f{len(self._features)}"
+            base = f"{ds.path.stem}_{'-'.join(map(lambda x: x.lower(), c)).replace('.','')}_" \
+                   f"{ds._metadata['executables']}_{algo.lower().replace('.','')}_f{len(self._features)}"
+            surrogate = kw.get('surrogate')
+            self.name = f"{base}_surr-{surrogate}" if surrogate else base
         if reset:
             self.path.remove(error=False)
         self._load()
