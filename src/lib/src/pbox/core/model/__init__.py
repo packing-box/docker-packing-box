@@ -535,6 +535,14 @@ class Model(BaseModel):
         from .explain import _EXPLANATIONS
         display = max_display if max_display != 10 else n_significant
         for p in (["summary"] if plots is None else list(_EXPLANATIONS.keys()) if "all" in plots else plots):
+            # when a sample index is provided, generate a single plot instead of the packed/not-packed pair
+            if sample_idx is not None and p in ("force", "waterfall"):
+                plot_func = _EXPLANATIONS.get(f"{p}_packed") 
+                if plot_func is None:
+                    self.logger.warning(f"Unknown model explanation plot type: {p}")
+                    continue
+                plot_func(self, sample_idx=sample_idx, max_display=display)
+                continue      
             for plot_type in (["force_packed", "force_not_packed"] if p == "force" else \
                               ["waterfall_packed", "waterfall_not_packed"] if p == "waterfall" else [p]):
                 if (plot_func := _EXPLANATIONS.get(plot_type)) is None:
@@ -836,7 +844,7 @@ class Model(BaseModel):
             base = f"{ds.path.stem}_{'-'.join(map(lambda x: x.lower(), c)).replace('.','')}_" \
                    f"{ds._metadata['executables']}_{algo.lower().replace('.','')}_f{len(self._features)}"
             surrogate = kw.get('surrogate')
-            surr_name = Path(surrogate).stem if Path(surrogate).is_file() else surrogate
+            surr_name = Path(surrogate).stem if surrogate and Path(surrogate).is_file() else surrogate
             self.name = f"{base}_surr-{surr_name}" if surrogate else base
         if reset:
             self.path.remove(error=False)

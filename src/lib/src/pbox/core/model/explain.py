@@ -63,9 +63,12 @@ def _get_sample_idx(exp, packed=True):
     return indices[0] if len(indices) > 0 else 0
 
 
-def _local_plot(model, packed, plot_type="waterfall", max_display=10, **kw):
+def _local_plot(model, packed, sample_idx=None, plot_type="waterfall", max_display=10, **kw):
     exp = model._explanation
-    row_explanation = exp['shap_explanation'][_get_sample_idx(exp, packed=packed)]
+    if sample_idx is not None:
+        row_explanation = exp['shap_explanation'][sample_idx]
+    else:
+        row_explanation = exp['shap_explanation'][_get_sample_idx(exp, packed=packed)]
     if plot_type == "waterfall":
         plt.figure(figsize=(14, 10))
         shap.plots.waterfall(row_explanation, max_display=max_display, show=False)
@@ -168,28 +171,31 @@ def shap_summary(model, max_display=10, **kw):
     plt.tight_layout()
     return f"{model.basename}/explained_shap-summary"
 
-
 @save_figure
-def shap_waterfall_packed(model, **kw):
-    _local_plot(model, packed=True, plot_type="waterfall", **kw)
+def shap_waterfall_packed(model, sample_idx=None, **kw):
+    _local_plot(model, packed=True, sample_idx=sample_idx, plot_type="waterfall", **kw)
+    if sample_idx is not None:
+        return f"{model.basename}/explained_shap-waterfall-sample{sample_idx}"
     return f"{model.basename}/explained_shap-waterfall-packed"
 
 
 @save_figure
-def shap_waterfall_not_packed(model, **kw):
-    _local_plot(model, packed=False, plot_type="waterfall", **kw)
+def shap_waterfall_not_packed(model, sample_idx=None, **kw):
+    _local_plot(model, packed=False, sample_idx=sample_idx, plot_type="waterfall", **kw)
     return f"{model.basename}/explained_shap-waterfall-not-packed"
 
 
 @save_figure
-def shap_force_packed(model, **kw):
-    _local_plot(model, packed=True, plot_type="force", **kw)
+def shap_force_packed(model, sample_idx=None, **kw):
+    _local_plot(model, packed=True, sample_idx=sample_idx, plot_type="force", **kw)
+    if sample_idx is not None:
+        return f"{model.basename}/explained_shap-force-sample{sample_idx}"
     return f"{model.basename}/explained_shap-force-packed"
 
 
 @save_figure
-def shap_force_not_packed(model, **kw):
-    _local_plot(model, packed=False, plot_type="force", **kw)
+def shap_force_not_packed(model, sample_idx=None, **kw):
+    _local_plot(model, packed=False, sample_idx=sample_idx, plot_type="force", **kw)
     return f"{model.basename}/explained_shap-force-not-packed"
 
 
