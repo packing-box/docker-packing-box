@@ -63,8 +63,9 @@ def _get_sample_idx(exp, packed=True):
     return indices[0] if len(indices) > 0 else 0
 
 
-def _local_plot(model, packed, plot_type="waterfall", max_display=10):
-    row_explanation = exp['shap_explanation'][_get_sample_idx(exp := model._explanation, packed=packed)]
+def _local_plot(model, packed, plot_type="waterfall", max_display=10, **kw):
+    exp = model._explanation
+    row_explanation = exp['shap_explanation'][_get_sample_idx(exp, packed=packed)]
     if plot_type == "waterfall":
         plt.figure(figsize=(14, 10))
         shap.plots.waterfall(row_explanation, max_display=max_display, show=False)
@@ -131,19 +132,23 @@ def explain_model(model_wrapper, X_data, feature_names=None, max_samples=None, s
 
 
 @save_figure
-def shap_decision(model, max_samples=50, **kw):
+def shap_decision(model, max_display=10, max_samples=50, **kw):
     exp = model._explanation
     plt.figure(figsize=(14, 10))
     n = min(max_samples, len(exp['shap_values']))
+    sv = exp['shap_values'][:n]
+    # select top features by mean absolute SHAP value, decision_plot doesn't have a max_display parameter
+    importance = np.abs(sv).mean(axis=0)
+    top_idx = np.argsort(importance)[-max_display:]
     shap.decision_plot(
         exp['expected_value'],
-        exp['shap_values'][:n],
-        exp['data'][:n],
-        feature_names=exp['feature_names'],
+        sv[:, top_idx],
+        exp['data'].iloc[:n, top_idx] if hasattr(exp['data'], 'iloc') else exp['data'],
+        feature_names=[exp['feature_names'][i] for i in top_idx],
         show=False
     )
     plt.tight_layout()
-    return f"{model.basename}_explained_shap-decision"
+    return f"{model.basename}/explained_shap-decision"
 
 
 @save_figure
@@ -152,40 +157,40 @@ def shap_heatmap(model, max_display=10, **kw):
     plt.figure(figsize=(14, 10))
     shap.plots.heatmap(exp['shap_explanation'], max_display=max_display, show=False)
     plt.tight_layout()
-    return f"{model.basename}_explained_shap-heatmap"
+    return f"{model.basename}/explained_shap-heatmap"
 
 
 @save_figure
-def shap_summary(model, **kw):
+def shap_summary(model, max_display=10, **kw):
     exp = model._explanation
     plt.figure(figsize=(14, 10))
-    shap.plots.beeswarm(exp['shap_explanation'], show=False, max_display=kw.get('max_display', 20))
+    shap.plots.beeswarm(exp['shap_explanation'], show=False, max_display=max_display)
     plt.tight_layout()
-    return f"{model.basename}_explained_shap-summary"
+    return f"{model.basename}/explained_shap-summary"
 
 
 @save_figure
 def shap_waterfall_packed(model, **kw):
-    _local_plot(model, output_path, packed=True, plot_type="waterfall", **kw)
-    return f"{model.basename}_explained_shap-waterfall-packed"
+    _local_plot(model, packed=True, plot_type="waterfall", **kw)
+    return f"{model.basename}/explained_shap-waterfall-packed"
 
 
 @save_figure
 def shap_waterfall_not_packed(model, **kw):
-    _local_plot(model, output_path, packed=False, plot_type="waterfall", **kw)
-    return f"{model.basename}_explained_shap-waterfall-not-packed"
+    _local_plot(model, packed=False, plot_type="waterfall", **kw)
+    return f"{model.basename}/explained_shap-waterfall-not-packed"
 
 
 @save_figure
 def shap_force_packed(model, **kw):
-    _local_plot(model, output_path, packed=True, plot_type="force", **kw)
-    return f"{model.basename}_explained_shap-force-packed"
+    _local_plot(model, packed=True, plot_type="force", **kw)
+    return f"{model.basename}/explained_shap-force-packed"
 
 
 @save_figure
 def shap_force_not_packed(model, **kw):
-    _local_plot(model, output_path, packed=False, plot_type="force", **kw)
-    return f"{model.basename}_explained_shap-force-not-packed"
+    _local_plot(model, packed=False, plot_type="force", **kw)
+    return f"{model.basename}/explained_shap-force-not-packed"
 
 
 _EXPLANATIONS = {

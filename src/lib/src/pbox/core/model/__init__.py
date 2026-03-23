@@ -151,55 +151,66 @@ class BaseModel(Entity):
         # this shall not occur
         else:
             raise ValueError("Unsupported input format")
-        # if training a surrogate, replace ground truth labels with detector predictions
+        # if training a surrogate, replace ground truth labels with detector predictions or provided labels
         if surrogate and not data_only:
-            l.info(f"Labelling with detector '{surrogate}' for surrogate training...")
-            det = None
-            for detector in Detector.registry:
-                if detector.__class__.__name__.lower() == surrogate.lower():
-                    det = detector
-                    break
-            if det is None:
-                l.error(f"Detector '{surrogate}' not found in registry")
-                return False
-            
-            surrogate_labels = []
-            skipped = 0
-            exe_list = list(ds.files.listdir(is_exe))
-            with progress_bar(silent=len(exe_list) <= 1) as p:
-                task = p.add_task("", total=len(exe_list))
-                for exe_path in exe_list:
-                    try:
-                        result = list(det.detect(Executable(str(exe_path)), multiclass=False))
-                        if result and result[0] is not None:
-                            _, label, _ = result[0]
-                            if label in [NOT_LABELLED, '?']:
+            if isinstance(surrogate, (str, Path)) and Path(surrogate).is_file():
+                l.info(f"Loading surrogate labels from '{surrogate}'...")
+                label_df = pd.read_csv(str(surrogate))
+                self._target = label_df[['label']].astype('int')
+                if len(self._target) != len(self._data):
+                    l.error(f"Label count ({len(self._target)}) != sample count ({len(self._data)})")
+                    return False
+                packed = (self._target['label'] == 1).sum()
+                not_packed = (self._target['label'] == 0).sum()
+                l.info(f"Loaded labels: {packed} packed, {not_packed} not-packed")
+                self._metadata['surrogate'] = Path(surrogate).stem
+            else:
+                l.info(f"Labelling with detector '{surrogate}' for surrogate training...")
+                det = None
+                for detector in Detector.registry:
+                    if detector.__class__.__name__.lower() == surrogate.lower():
+                        det = detector
+                        break
+                if det is None:
+                    l.error(f"Detector '{surrogate}' not found in registry")
+                    return False
+                
+                surrogate_labels = []
+                skipped = 0
+                exe_list = list(ds.files.listdir(is_exe))
+                with progress_bar(silent=len(exe_list) <= 1) as p:
+                    task = p.add_task("", total=len(exe_list))
+                    for exe_path in exe_list:
+                        try:
+                            result = list(det.detect(Executable(str(exe_path)), multiclass=False))
+                            if result and result[0] is not None:
+                                _, label, _ = result[0]
+                                if label in [NOT_LABELLED, '?']:
+                                    surrogate_labels.append(np.nan)
+                                    skipped += 1
+                                elif label in [NOT_PACKED, False]:
+                                    surrogate_labels.append(0)
+                                else:
+                                    surrogate_labels.append(1)
+                            else:
                                 surrogate_labels.append(np.nan)
                                 skipped += 1
-                            elif label in [NOT_PACKED, False]:
-                                surrogate_labels.append(0)
-                            else:
-                                surrogate_labels.append(1)
-                        else:
+                        except Exception as e:
+                            l.warning(f"Detector failed on {exe_path}: {e}")
                             surrogate_labels.append(np.nan)
                             skipped += 1
-                    except Exception as e:
-                        l.warning(f"Detector failed on {exe_path}: {e}")
-                        surrogate_labels.append(np.nan)
-                        skipped += 1
-                    p.update(task, advance=1.)
-            
-            self._target = pd.DataFrame({'label': surrogate_labels})
-            # Drop samples where detector couldn't decide
-            valid_mask = self._target['label'].notna()
-            self._data = self._data[valid_mask].reset_index(drop=True)
-            self._target = self._target[valid_mask].reset_index(drop=True)
-            self._target = self._target.astype('int')
-            valid = [x for x in surrogate_labels if x == x]
-            packed = sum(1 for x in valid if x == 1)
-            not_packed = sum(1 for x in valid if x == 0)
-            l.info(f"Detector labels: {packed} packed, {not_packed} not-packed, {skipped} skipped" if skipped else "")
-            self._metadata['surrogate'] = surrogate
+                        p.update(task, advance=1.)
+                
+                self._target = pd.DataFrame({'label': surrogate_labels})
+                valid_mask = self._target['label'].notna()
+                self._data = self._data[valid_mask].reset_index(drop=True)
+                self._target = self._target[valid_mask].reset_index(drop=True)
+                self._target = self._target.astype('int')
+                valid = [x for x in surrogate_labels if x == x]
+                packed = sum(1 for x in valid if x == 1)
+                not_packed = sum(1 for x in valid if x == 0)
+                l.info(f"Detector labels: {packed} packed, {not_packed} not-packed, {skipped} skipped" if skipped else "")
+                self._metadata['surrogate'] = surrogate
         if len(self._data) == 0:
             l.warning("No data")
             return False
@@ -511,28 +522,30 @@ class Model(BaseModel):
         if importance.ndim > 1:
             importance = importance.mean(axis=1)
         ranked = sorted(zip(sorted(self._features.keys()), importance), key=lambda x: -x[1])
-        l.info("Feature importance (SHAP):")
-        for name, imp in ranked[:10]:
+        importances = np.array([imp for _, imp in ranked])
+        threshold = importances.mean() + importances.std()
+        significant = [(name, imp) for name, imp in ranked if imp >= threshold]
+        n_significant = len(significant)
+        l.info(f"Feature importance (SHAP) [threshold={threshold:.4f}, "
+               f"{len(significant)}/{len(ranked)} features above]:")
+        for name, imp in significant:
             l.info(f"  {name}: {imp:.4f}")
-        if not export and plot is None:
+        if not export and plots is None:
             return self._explanation
         from .explain import _EXPLANATIONS
+        display = max_display if max_display != 10 else n_significant
         for p in (["summary"] if plots is None else list(_EXPLANATIONS.keys()) if "all" in plots else plots):
             for plot_type in (["force_packed", "force_not_packed"] if p == "force" else \
                               ["waterfall_packed", "waterfall_not_packed"] if p == "waterfall" else [p]):
                 if (plot_func := _EXPLANATIONS.get(plot_type)) is None:
                     self.logger.warning(f"Unknown model explanation plot type: {plot_type}")
                     continue
-                if plot_type in ["waterfall_packed", "waterfall_not_packed", "force_packed", "force_not_packed"]:
-                    plot_func(self, max_display=max_display)
-                elif plot_type in ["heatmap", "bar"]:
-                    plot_func(self, max_display=max_display)
-                elif plot_type == "dependence":
+                if plot_type == "dependence":
                     top_feature = ranked[0][0]
                     feature_idx = sorted(self._features.keys()).index(top_feature)
                     plot_func(self, feature_idx=feature_idx)
                 else:
-                    plot_func(self)
+                    plot_func(self, max_display=display)
         return self._explanation
     
     RESET  = "\033[0m"
@@ -823,7 +836,8 @@ class Model(BaseModel):
             base = f"{ds.path.stem}_{'-'.join(map(lambda x: x.lower(), c)).replace('.','')}_" \
                    f"{ds._metadata['executables']}_{algo.lower().replace('.','')}_f{len(self._features)}"
             surrogate = kw.get('surrogate')
-            self.name = f"{base}_surr-{surrogate}" if surrogate else base
+            surr_name = Path(surrogate).stem if Path(surrogate).is_file() else surrogate
+            self.name = f"{base}_surr-{surr_name}" if surrogate else base
         if reset:
             self.path.remove(error=False)
         self._load()
