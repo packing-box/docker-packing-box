@@ -35,7 +35,7 @@ class LLMBackend:
         Resolved path to the local GGUF model file.
     """
 
-    def __init__(self, model_file: str, model_repo: str, n_ctx: int = 2048, n_threads: int = 4):
+    def __init__(self, model_file, model_repo, n_ctx=2048, n_threads=4):
         self.model_file = model_file
         self.model_repo = model_repo
         self.n_ctx = n_ctx
@@ -57,7 +57,7 @@ class LLMBackend:
         from llama_cpp import Llama
         self._llm = Llama(model_path=str(self.model_path_), n_ctx=self.n_ctx, n_threads=self.n_threads, verbose=False)
 
-    def generate(self, prompt: str, max_tokens: int = 64, temperature: float = 0.0) -> str:
+    def generate(self, prompt, max_tokens=64, temperature=0.0):
         """Run inference and return the raw generated text.
 
         Parameters
@@ -85,20 +85,18 @@ class LLMBackend:
     # Model management
     # ------------------------------------------------------------------
 
-    def _ensure_model(self) -> Path:
+    def _ensure_model(self):
         """Return the path to the local model file, downloading it first if needed."""
         _MODEL_CACHE_DIR.mkdir(parents=True, exist_ok=True)
         dest = _MODEL_CACHE_DIR / self.model_file
-        
         if dest.exists():
             return dest
         print(f"[pboxllm] Model '{self.model_file}' not found in cache. Downloading from '{self.model_repo}'...")
-        
         try:
             from huggingface_hub import hf_hub_download
-            downloaded = hf_hub_download(repo_id=self.model_repo, filename=self.model_file, local_dir=str(_MODEL_CACHE_DIR))
+            downloaded = hf_hub_download(repo_id=self.model_repo, filename=self.model_file,
+                                         local_dir=str(_MODEL_CACHE_DIR))
             return Path(downloaded)
-        
         except Exception as exc:
             raise RuntimeError(
                 f"[pboxllm] Failed to download model '{self.model_file}' from '{self.model_repo}': {exc}\n"
