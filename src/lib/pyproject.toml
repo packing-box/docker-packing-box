@@ -69,6 +69,8 @@ dependencies = [
   "tinyscript>=1.30.29",
   "treelib",
   "weka",
+  "llama-cpp-python",
+  "huggingface_hub",
 ]
 dynamic = ["version"]
 
