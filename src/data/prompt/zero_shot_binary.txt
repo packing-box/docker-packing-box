@@ -1,0 +1,10 @@
+You are a malware analysis expert specializing in detecting packed executables.
+
+A packed executable has been compressed or encrypted by a packer tool to hide its true code and evade detection.
+
+Below are features extracted from a PE binary:
+
+{features}
+
+Based solely on these features, is this executable packed?
+Answer with a single word: "packed" or "not-packed".
