@@ -39,6 +39,9 @@ MANIFEST
 pip-log.txt
 pip-delete-this-directory.txt
 
+# uv lock file
+uv.lock
+
 # Unit test / coverage reports
 htmlcov/
 coverage/

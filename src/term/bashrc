@@ -303,10 +303,18 @@ fi
 
 # enable loading additional modules at Python interpreter startup
 export PYTHONSTARTUP="$HOME/.pythonrc.py"
+# permanently set the virtual environment for Python
+export VIRTUAL_ENV="$HOME/.opt/venv"
+grep -qF 'VIRTUAL_ENV=' /etc/environment || echo 'VIRTUAL_ENV=' | sudo tee -a /etc/environment > /dev/null
+escaped=$(printf '%s\n' "$VIRTUAL_ENV" | sed 's/[&|]/\\&/g')
+sudo sed -i "s|^VIRTUAL_ENV=.*|VIRTUAL_ENV=\"$escaped\"|" /etc/environment
 # set Ruby Gems home folder
 export GEM_HOME="$HOME/.gem"
 
 # add relevant folders to PATH
-for FOLDER in .dotnet/tools go/bin .cargo/bin .gem/bin .local/bin .opt/tools .opt/utils .opt/bin; do
+for FOLDER in .dotnet/tools go/bin .cargo/bin .gem/bin .local/bin .opt/tools .opt/utils .opt/bin .opt/venv/bin; do
   pathprepend $HOME/$FOLDER
 done
+
+# prevent some commands from being recorded in the history
+export HISTIGNORE="ls:ll:la:l:lsusb:pwd:cd:cd ..:cd -:exit:exit *:logout:history:history *:clear:reset:bg:fg:jobs:date"
