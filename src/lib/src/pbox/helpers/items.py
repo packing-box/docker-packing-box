@@ -434,7 +434,7 @@ class MetaBase(type):
                 with (dst if split_on is None else dst.joinpath(f"{name or cname}.yml")).open('wt') as f:
                     f.write(cfg)
     
-    def test(self, files=None, keep=False, **kw):
+    def test(self, *files, keep=False, **kw):
         """ Tests on some executable files. """
         from tinyscript.helpers import execute_and_log as run
         from ..core.executable import Executable
@@ -445,7 +445,7 @@ class MetaBase(type):
             if fmt not in self.registry.keys():
                 self.logger.warning(f"no {self.__name__.lower().rstrip('s')} defined yet for '{fmt}'")
                 continue
-            l = [f for f in files if Executable(f).format in self._formats_exp] if files else TEST_FILES.get(fmt, [])
+            l = [f for f in (files or TEST_FILES.get(fmt, [])) if Executable(f).format in expand_formats("All")]
             if len(l) == 0:
                 continue
             self.logger.info(fmt)
@@ -456,7 +456,7 @@ class MetaBase(type):
                 run(f"cp {exe} {tmp}")
                 n = tmp.filename
                 try:
-                    self(Executable(tmp))
+                    self(Executable(tmp), **kw)
                     self.logger.success(n)
                 except Exception as e:
                     if isinstance(e, KeyError) and exe.format is None:
