@@ -59,7 +59,7 @@ class Features(dict, metaclass=MetaBase):
     boolean_only = False
     names_map    = {}
     
-    def __init__(self, exe=None, benchmark=False, benchmark_threshold=0.):
+    def __init__(self, exe=None, feature_names=None, benchmark=False, benchmark_threshold=0.):
         benchmark = benchmark or benchmark_threshold > 0.
         ft, l = Features, self.__class__.logger
         ft._load()
@@ -72,7 +72,8 @@ class Features(dict, metaclass=MetaBase):
             # compute features based on the extracted values first
             for name, feature in reg.items():
                 # compute only if it has the keep=True flag ; otherwise, it will be lazily computed on need
-                if (not ft.boolean_only or ft.boolean_only and feature.boolean) and feature.keep:
+                if (not ft.boolean_only or ft.boolean_only and feature.boolean) and \
+                   (feature.keep and feature_names is None or feature.name in feature_names):
                     try:
                         v = feature(self._rawdata, True, benchmark=benchmark, benchmark_threshold=benchmark_threshold)
                         self[name] = bool(v) if feature.boolean else v
@@ -223,6 +224,17 @@ class Features(dict, metaclass=MetaBase):
             l.debug(f"{len(Features.names)} features loaded")
         elif warn:
             l.warning(f"Features already loaded")
+    
+    @classproperty
+    def descriptions(cls):
+        if d := getattr(cls, "_descriptions", {}):
+            return d
+        for _, feat in cls.registry.items():
+            for name, data in feat.items():
+                if name not in d:
+                    d[name] = data['description']
+        cls._descriptions = d = {k: v for k, v in sorted(d.items())}
+        return d
     
     @classmethod
     def show(cls, **kw):
