@@ -99,8 +99,16 @@ class AbstractParsedExecutable(ABC, CustomReprMixin, GetItemMixin):
                 for s in self}
     
     @cached_result
+    def bigrams_after_entrypoint(self, n):
+        return [((data := self.bytes_after_entrypoint(2*n))[i] << 8) | data[i + 1] for i in range(0, 2*n, 2)]
+    
+    @cached_result
     def bytes_after_entrypoint(self, n):
         return zeropad(n)([_ for _ in _rb(self.entrypoint_section.content[:n])])
+    
+    @cached_result
+    def trigrams_after_entrypoint(self, n):
+        return [((d := self.bytes_after_entrypoint(2*n))[i] << 16) | (d[i+1] << 8) | d[i+2] for i in range(0, 3*n, 3)]
     
     def entropy_sections(self, sections):
         if sections is not None and not isinstance(sections, list):

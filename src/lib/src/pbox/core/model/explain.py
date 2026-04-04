@@ -50,7 +50,7 @@ def _get_explainer(model_wrapper, X_background, **kw):
 
 
 def _get_sample_idx(exp, packed=True):
-    target = 1 if packed else 0
+    target = int(packed)
     y_test = exp.get('y_test')
     index_map = exp.get('_index_map')
     # subset mode
@@ -63,7 +63,7 @@ def _get_sample_idx(exp, packed=True):
     return indices[0] if len(indices) > 0 else 0
 
 
-def _local_plot(model, packed, plot_type="waterfall", max_display=10):
+def _local_plot(model, packed, plot_type, max_display=10):
     row_explanation = exp['shap_explanation'][_get_sample_idx(exp := model._explanation, packed=packed)]
     if plot_type == "waterfall":
         plt.figure(figsize=(14, 10))
@@ -132,8 +132,8 @@ def explain_model(model_wrapper, X_data, feature_names=None, max_samples=None, s
 
 @save_figure
 def shap_decision(model, max_samples=50, **kw):
-    exp = model._explanation
     plt.figure(figsize=(14, 10))
+    exp = model._explanation
     n = min(max_samples, len(exp['shap_values']))
     shap.decision_plot(
         exp['expected_value'],
@@ -148,43 +148,41 @@ def shap_decision(model, max_samples=50, **kw):
 
 @save_figure
 def shap_heatmap(model, max_display=10, **kw):
-    exp = model._explanation
     plt.figure(figsize=(14, 10))
-    shap.plots.heatmap(exp['shap_explanation'], max_display=max_display, show=False)
+    shap.plots.heatmap(model._explanation['shap_explanation'], max_display=max_display, show=False)
     plt.tight_layout()
     return f"{model.basename}_explained_shap-heatmap"
 
 
 @save_figure
 def shap_summary(model, **kw):
-    exp = model._explanation
     plt.figure(figsize=(14, 10))
-    shap.plots.beeswarm(exp['shap_explanation'], show=False, max_display=kw.get('max_display', 20))
+    shap.plots.beeswarm(model._explanation['shap_explanation'], show=False, max_display=kw.get('max_display', 20))
     plt.tight_layout()
     return f"{model.basename}_explained_shap-summary"
 
 
 @save_figure
 def shap_waterfall_packed(model, **kw):
-    _local_plot(model, output_path, packed=True, plot_type="waterfall", **kw)
+    _local_plot(model, True, "waterfall", **kw)
     return f"{model.basename}_explained_shap-waterfall-packed"
 
 
 @save_figure
 def shap_waterfall_not_packed(model, **kw):
-    _local_plot(model, output_path, packed=False, plot_type="waterfall", **kw)
+    _local_plot(model, False, "waterfall", **kw)
     return f"{model.basename}_explained_shap-waterfall-not-packed"
 
 
 @save_figure
 def shap_force_packed(model, **kw):
-    _local_plot(model, output_path, packed=True, plot_type="force", **kw)
+    _local_plot(model, True, "force", **kw)
     return f"{model.basename}_explained_shap-force-packed"
 
 
 @save_figure
 def shap_force_not_packed(model, **kw):
-    _local_plot(model, output_path, packed=False, plot_type="force", **kw)
+    _local_plot(model, False, "force", **kw)
     return f"{model.basename}_explained_shap-force-not-packed"
 
 

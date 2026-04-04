@@ -1,22 +1,26 @@
 # -*- coding: UTF-8 -*-
-import numpy as np
-import pandas as pd
 import matplotlib
-matplotlib.use('Agg')
-import matplotlib.pyplot as plt
 import matplotlib.cm as cm
-from pathlib import Path
+import matplotlib.pyplot as plt
 import re
+
 from ...helpers import *
 
+matplotlib.use("Agg")
+
+
+__all__ = []
+
+_DIR_COMBOS = [(+1, +1), (+1, -1), (-1, +1), (-1, -1)]
 FEATURE_TYPE_PATTERNS = {
-    r'^is_|^has_':                      (None, None, 'bool'),
-    r'entropy':                         (0.0, 8.0,  'float'),
-    r'^size_':                          (0, None,    'int'),
-    r'^byte_\d+':                       (0, 255,     'int'),
-    r'^ratio_':                         (0.0, None,  'float'),
-    r'^number_|^count_|^nb_|_count$':   (0, None,    'int'),
+    r'^is_|^has_':                    (None, None, 'bool'),
+    r'entropy':                       (.0, 8.,     'float'),
+    r'^size_':                        (0, None,    'int'),
+    r'^byte_\d+':                     (0, 255,     'int'),
+    r'^ratio_':                       (.0, None,   'float'),
+    r'^number_|^count_|^nb_|_count$': (0, None,    'int'),
 }
+
 
 def get_feature_constraints(name):
     for pattern, constraint in FEATURE_TYPE_PATTERNS.items():
@@ -24,13 +28,21 @@ def get_feature_constraints(name):
             return constraint
     return (None, None, None)
 
+
 def is_boolean_feature(name):
     return get_feature_constraints(name)[2] == 'bool'
+
 
 def _make_predict_proba_func(model):
     def func(data):
         return model.pipeline.predict_proba(data)[:, 1]
     return func
+
+
+def _max_abs_impact(entry):
+    p, np = entry['packed'], entry['not_packed']
+    return max(abs(p['mean_up']), abs(p['mean_down']), abs(np['mean_up']), abs(np['mean_down']))
+
 
 def _perturb_column(data, name, backup, delta_pct=None, n_sigma=None, sigma=None, sign=1):
     min_val, max_val, dtype = get_feature_constraints(name)
@@ -53,6 +65,73 @@ def _perturb_column(data, name, backup, delta_pct=None, n_sigma=None, sigma=None
     if dtype == 'int':
         new = np.round(new).astype(int)
     data[name] = new
+
+
+def bootstrap_fuzz_ci(model, data, feature_names, n_bootstrap=100, delta_pct=0.1,
+                      confidence=0.95, seed=42, logger=None):
+    rng = np.random.RandomState(seed)
+    n = len(data)
+    impacts = np.zeros((n_bootstrap, len(feature_names)))
+    for b in range(n_bootstrap):
+        if logger and (b+1) % 10 == 0: logger.info(f"  Bootstrap {b+1}/{n_bootstrap}...")
+        idx = rng.choice(n, size=n, replace=True)
+        boot = data.iloc[idx].reset_index(drop=True)
+        res = fuzz_features(model, boot, feature_names, delta_pct=delta_pct,
+                            top_n=len(feature_names), export=False)
+        by_name = {e['name']: _max_abs_impact(e) for e in res['details']}
+        for j, name in enumerate(feature_names):
+            impacts[b, j] = by_name.get(name, 0.0)
+
+    alpha = (1 - confidence) / 2
+    ci_df = pd.DataFrame({
+        'feature': feature_names,
+        'mean_impact': impacts.mean(axis=0),
+        'ci_lower': np.percentile(impacts, alpha*100, axis=0),
+        'ci_upper': np.percentile(impacts, (1-alpha)*100, axis=0),
+    })
+    ci_df = ci_df.sort_values('mean_impact', ascending=False).reset_index(drop=True)
+    return {'ci_df': ci_df, 'bootstrap_impacts': impacts}
+
+
+def compute_impact_per_class(fuzz_result):
+    orig = fuzz_result['orig']
+    breakdown = {}
+    for label, mask in [('packed', orig >= 0.5), ('not_packed', orig < 0.5)]:
+        n = int(mask.sum())
+        if n == 0:
+            breakdown[label] = {'n': 0, 'mean_up': 0.0, 'mean_down': 0.0}
+            continue
+        d_up = float(np.mean(fuzz_result['up'][mask] - orig[mask]))
+        d_down = 0.0 if fuzz_result['is_boolean'] else float(np.mean(fuzz_result['down'][mask] - orig[mask]))
+        breakdown[label] = {'n': n, 'mean_up': d_up, 'mean_down': d_down}
+    return breakdown
+
+
+def fuzz_features(model, data, feature_names, delta_pct=0.1, top_n=20, export=True, output_dir="fuzz_plots",
+                  use_stddev=False, n_sigma=1.0, logger=None):
+    data = data[feature_names].apply(pd.to_numeric, errors='coerce').fillna(0).copy()
+    predict_fn = _make_predict_proba_func(model)
+    if export:
+        from pathlib import Path
+        out = Path(output_dir); out.mkdir(parents=True, exist_ok=True)
+    if logger:
+        logger.info(f"Fuzzing {len(feature_names)} features with {'σ='+str(n_sigma) if use_stddev else 'δ='+str(int(delta_pct*100))+'%'}...")
+    scores = []
+    all_results = {}
+    for i, name in enumerate(feature_names):
+        if logger: logger.debug(f"  {i+1}/{len(feature_names)}: {name}")
+        ns = n_sigma if use_stddev else None
+        result = fuzz_single_feature(data, predict_fn, name, delta_pct=delta_pct, n_sigma=ns)
+        all_results[name] = result
+        bd = compute_impact_per_class(result)
+        scores.append({'name': name, 'packed': bd['packed'], 'not_packed': bd['not_packed']})
+    scores.sort(key=_max_abs_impact, reverse=True)
+    if export:
+        top_names = {e['name'] for e in scores[:top_n]}
+        for name in top_names:
+            plot_fuzz_impact(model, all_results[name], name, delta_pct)
+    return {'details': scores, 'results': all_results, 'delta_pct': delta_pct}
+
 
 def fuzz_single_feature(data, predict_fn, name, delta_pct=0.1, n_sigma=None):
     orig = predict_fn(data)
@@ -77,22 +156,67 @@ def fuzz_single_feature(data, predict_fn, name, delta_pct=0.1, n_sigma=None):
     data[name] = backup
     return results
 
-def compute_impact_per_class(fuzz_result):
-    orig = fuzz_result['orig']
-    breakdown = {}
-    for label, mask in [('packed', orig >= 0.5), ('not_packed', orig < 0.5)]:
-        n = int(mask.sum())
-        if n == 0:
-            breakdown[label] = {'n': 0, 'mean_up': 0.0, 'mean_down': 0.0}
-            continue
-        d_up = float(np.mean(fuzz_result['up'][mask] - orig[mask]))
-        d_down = 0.0 if fuzz_result['is_boolean'] else float(np.mean(fuzz_result['down'][mask] - orig[mask]))
-        breakdown[label] = {'n': n, 'mean_up': d_up, 'mean_down': d_down}
-    return breakdown
 
-def _max_abs_impact(entry):
-    p, np = entry['packed'], entry['not_packed']
-    return max(abs(p['mean_up']), abs(p['mean_down']), abs(np['mean_up']), abs(np['mean_down']))
+def multi_delta_stability(model, data, feature_names, deltas=(0.10, 0.25, 0.50, 1.00), logger=None):
+    all_results = {}
+    rankings = {}
+    for d in deltas:
+        if logger: logger.info(f"Running fuzzing at δ={d*100:.0f}%...")
+        res = fuzz_features(model, data, feature_names, delta_pct=d, top_n=len(feature_names), export=False, logger=logger)
+        all_results[d] = res
+        rankings[d] = {e['name']: rank for rank, e in enumerate(res['details'], 1)}
+
+    rank_df = pd.DataFrame(rankings)
+    rank_df.columns = [f"δ={d*100:.0f}%" for d in deltas]
+    stability = pd.DataFrame({
+        'mean_rank': rank_df.mean(axis=1), 'rank_std': rank_df.std(axis=1),
+        'min_rank': rank_df.min(axis=1), 'max_rank': rank_df.max(axis=1),
+    })
+    stability = stability.sort_values('mean_rank')
+    return {'rankings': rank_df, 'stability': stability, 'all_results': all_results, 'deltas': deltas}
+
+
+@save_figure
+def plot_bootstrap_ci(model, ci_result, **kw):
+    top_n = config['fuzz-top-n']
+    df = ci_result['ci_df'].head(top_n)
+    fig, ax = plt.subplots(figsize=(10, max(6, top_n * 0.35)))
+    y = np.arange(len(df))
+    err = [np.clip(df['mean_impact'].values - df['ci_lower'].values, 0, None),
+           np.clip(df['ci_upper'].values - df['mean_impact'].values, 0, None)]
+    ax.barh(y, df['mean_impact'], xerr=err, alpha=0.7, capsize=3, ecolor='gray')
+    ax.set_yticks(y)
+    ax.set_yticklabels(df['feature'])
+    ax.invert_yaxis()
+    ax.set_xlabel('Max Abs Impact')
+    ax.axvline(0, color='k', lw=0.5)
+    ax.set_title(f'Feature Importance with 95% CI (Top {top_n})', fontsize=14, fontweight='bold')
+    plt.tight_layout()
+    return f"{model.basename}_fuzz-bootstrap-ci"
+
+
+@save_figure
+def plot_bump_chart(model, stability_result, **kw):
+    top_n = min(config['fuzz-top-n'], 15)
+    rank_df, stability = stability_result['rankings'], stability_result['stability']
+    top = stability.head(top_n).index.tolist()
+    df = rank_df.loc[top]
+    fig, ax = plt.subplots(figsize=(10, max(6, top_n * 0.4)))
+    colors = cm.tab20(np.linspace(0, 1, len(top)))
+    x = np.arange(len(df.columns))
+    for i, (feat, row) in enumerate(df.iterrows()):
+        ax.plot(x, row.values, marker='o', ms=6, color=colors[i], ls='-', lw=2, alpha=1, label=feat)
+    ax.set_xticks(x)
+    ax.set_xticklabels(df.columns, fontsize=11)
+    ax.set_ylabel('Rank')
+    ax.set_xlabel('Perturbation magnitude')
+    ax.set_title(f'Rank Stability (Top {top_n})', fontsize=14, fontweight='bold')
+    ax.invert_yaxis()
+    ax.set_ylim(top_n + 1, 0)
+    ax.legend(bbox_to_anchor=(1.02, 1), loc='upper left', fontsize=8)
+    plt.tight_layout()
+    return f"{model.basename}_fuzz-bump-chart"
+
 
 @save_figure
 def plot_fuzz_impact(model, fuzz_result, feature_name, delta_pct, **kw):
@@ -137,6 +261,7 @@ def plot_fuzz_impact(model, fuzz_result, feature_name, delta_pct, **kw):
     plt.tight_layout()
     return f"{model.basename}_fuzz-impact_{feature_name}"
 
+
 @save_figure
 def plot_fuzz_summary(model, fuzz_results, **kw):
     top_n = config['fuzz-top-n']
@@ -159,153 +284,6 @@ def plot_fuzz_summary(model, fuzz_results, **kw):
     plt.tight_layout()
     return f"{model.basename}_fuzz-summary"
 
-def fuzz_features(model, data, feature_names, delta_pct=0.1, top_n=20, export=True,
-                  output_dir="fuzz_plots", use_stddev=False, n_sigma=1.0, logger=None):
-    data = data[feature_names].apply(pd.to_numeric, errors='coerce').fillna(0).copy()
-    predict_fn = _make_predict_proba_func(model)
-    if export:
-        out = Path(output_dir); out.mkdir(parents=True, exist_ok=True)
-    if logger:
-        logger.info(f"Fuzzing {len(feature_names)} features with {'σ='+str(n_sigma) if use_stddev else 'δ='+str(int(delta_pct*100))+'%'}...")
-
-    scores = []
-    all_results = {}
-    for i, name in enumerate(feature_names):
-        if logger: logger.debug(f"  {i+1}/{len(feature_names)}: {name}")
-        ns = n_sigma if use_stddev else None
-        result = fuzz_single_feature(data, predict_fn, name, delta_pct=delta_pct, n_sigma=ns)
-        all_results[name] = result
-        bd = compute_impact_per_class(result)
-        scores.append({'name': name, 'packed': bd['packed'], 'not_packed': bd['not_packed']})
-
-    scores.sort(key=_max_abs_impact, reverse=True)
-    if export:
-        top_names = {e['name'] for e in scores[:top_n]}
-        for name in top_names:
-            plot_fuzz_impact(model, all_results[name], name, delta_pct)
-    return {'details': scores, 'results': all_results, 'delta_pct': delta_pct}
-
-def multi_delta_stability(model, data, feature_names, deltas=(0.10, 0.25, 0.50, 1.00), logger=None):
-    all_results = {}
-    rankings = {}
-    for d in deltas:
-        if logger: logger.info(f"Running fuzzing at δ={d*100:.0f}%...")
-        res = fuzz_features(model, data, feature_names, delta_pct=d, top_n=len(feature_names), export=False, logger=logger)
-        all_results[d] = res
-        rankings[d] = {e['name']: rank for rank, e in enumerate(res['details'], 1)}
-
-    rank_df = pd.DataFrame(rankings)
-    rank_df.columns = [f"δ={d*100:.0f}%" for d in deltas]
-    stability = pd.DataFrame({
-        'mean_rank': rank_df.mean(axis=1), 'rank_std': rank_df.std(axis=1),
-        'min_rank': rank_df.min(axis=1), 'max_rank': rank_df.max(axis=1),
-    })
-    stability = stability.sort_values('mean_rank')
-    return {'rankings': rank_df, 'stability': stability, 'all_results': all_results, 'deltas': deltas}
-
-@save_figure
-def plot_bump_chart(model, stability_result, **kw):
-    top_n = min(config['fuzz-top-n'], 15)
-    rank_df, stability = stability_result['rankings'], stability_result['stability']
-    top = stability.head(top_n).index.tolist()
-    df = rank_df.loc[top]
-    fig, ax = plt.subplots(figsize=(10, max(6, top_n * 0.4)))
-    colors = cm.tab20(np.linspace(0, 1, len(top)))
-    x = np.arange(len(df.columns))
-    for i, (feat, row) in enumerate(df.iterrows()):
-        ax.plot(x, row.values, marker='o', ms=6, color=colors[i], ls='-', lw=2, alpha=1, label=feat)
-    ax.set_xticks(x)
-    ax.set_xticklabels(df.columns, fontsize=11)
-    ax.set_ylabel('Rank')
-    ax.set_xlabel('Perturbation magnitude')
-    ax.set_title(f'Rank Stability (Top {top_n})', fontsize=14, fontweight='bold')
-    ax.invert_yaxis()
-    ax.set_ylim(top_n + 1, 0)
-    ax.legend(bbox_to_anchor=(1.02, 1), loc='upper left', fontsize=8)
-    plt.tight_layout()
-    return f"{model.basename}_fuzz-bump-chart"
-
-def bootstrap_fuzz_ci(model, data, feature_names, n_bootstrap=100, delta_pct=0.1,
-                      confidence=0.95, seed=42, logger=None):
-    rng = np.random.RandomState(seed)
-    n = len(data)
-    impacts = np.zeros((n_bootstrap, len(feature_names)))
-    for b in range(n_bootstrap):
-        if logger and (b+1) % 10 == 0: logger.info(f"  Bootstrap {b+1}/{n_bootstrap}...")
-        idx = rng.choice(n, size=n, replace=True)
-        boot = data.iloc[idx].reset_index(drop=True)
-        res = fuzz_features(model, boot, feature_names, delta_pct=delta_pct,
-                            top_n=len(feature_names), export=False)
-        by_name = {e['name']: _max_abs_impact(e) for e in res['details']}
-        for j, name in enumerate(feature_names):
-            impacts[b, j] = by_name.get(name, 0.0)
-
-    alpha = (1 - confidence) / 2
-    ci_df = pd.DataFrame({
-        'feature': feature_names,
-        'mean_impact': impacts.mean(axis=0),
-        'ci_lower': np.percentile(impacts, alpha*100, axis=0),
-        'ci_upper': np.percentile(impacts, (1-alpha)*100, axis=0),
-    })
-    ci_df = ci_df.sort_values('mean_impact', ascending=False).reset_index(drop=True)
-    return {'ci_df': ci_df, 'bootstrap_impacts': impacts}
-
-@save_figure
-def plot_bootstrap_ci(model, ci_result, **kw):
-    top_n = config['fuzz-top-n']
-    df = ci_result['ci_df'].head(top_n)
-    fig, ax = plt.subplots(figsize=(10, max(6, top_n * 0.35)))
-    y = np.arange(len(df))
-    err = [np.clip(df['mean_impact'].values - df['ci_lower'].values, 0, None),
-           np.clip(df['ci_upper'].values - df['mean_impact'].values, 0, None)]
-    ax.barh(y, df['mean_impact'], xerr=err, alpha=0.7, capsize=3, ecolor='gray')
-    ax.set_yticks(y)
-    ax.set_yticklabels(df['feature'])
-    ax.invert_yaxis()
-    ax.set_xlabel('Max Abs Impact')
-    ax.axvline(0, color='k', lw=0.5)
-    ax.set_title(f'Feature Importance with 95% CI (Top {top_n})', fontsize=14, fontweight='bold')
-    plt.tight_layout()
-    return f"{model.basename}_fuzz-bootstrap-ci"
-
-_DIR_COMBOS = [(+1, +1), (+1, -1), (-1, +1), (-1, -1)]
-
-def run_interaction_analysis(model, data, feature_names, fuzz_results,
-                             top_k=10, delta_pct=0.1, logger=None):
-    top_names = [e['name'] for e in fuzz_results['details'][:top_k] if e['name'] in feature_names]
-    k = len(top_names)
-    data = data[feature_names].apply(pd.to_numeric, errors='coerce').fillna(0).copy()
-    predict_fn = _make_predict_proba_func(model)
-    orig = predict_fn(data)
-
-    if logger: logger.info(f"Computing pairwise interactions for top {k} features...")
-
-    # Individual impacts (diagonal)
-    indiv = {}
-    for i, name in enumerate(top_names):
-        for sign in (+1, -1):
-            bak = data[name].copy()
-            _perturb_column(data, name, bak, delta_pct=delta_pct, sign=sign)
-            indiv[(i, sign)] = np.mean(np.abs(predict_fn(data) - orig))
-            data[name] = bak
-    diag = np.array([max(indiv[(i, +1)], indiv[(i, -1)]) for i in range(k)])
-
-    # Pairwise impact 
-    matrix = np.zeros((k, k))
-    for i in range(k):
-        for j in range(i+1, k):
-            bak_i, bak_j = data[top_names[i]].copy(), data[top_names[j]].copy()
-            best = 0.0
-            for si, sj in _DIR_COMBOS:
-                _perturb_column(data, top_names[i], bak_i, delta_pct=delta_pct, sign=si)
-                _perturb_column(data, top_names[j], bak_j, delta_pct=delta_pct, sign=sj)
-                joint = np.mean(np.abs(predict_fn(data) - orig))
-                best = max(best, abs(joint - indiv[(i, si)] - indiv[(j, sj)]))
-                data[top_names[i]] = bak_i; data[top_names[j]] = bak_j
-            matrix[i, j] = matrix[j, i] = best
-
-    plot_interaction_heatmap(model, matrix, top_names, diag)
-    return {'matrix': matrix, 'labels': top_names, 'individual_impacts': diag}
 
 @save_figure
 def plot_interaction_heatmap(model, matrix, labels, diag, **kw):
@@ -332,3 +310,39 @@ def plot_interaction_heatmap(model, matrix, labels, diag, **kw):
     ax.set_title('Pairwise Feature Interactions\n(diagonal = individual)', fontsize=14, fontweight='bold')
     plt.tight_layout()
     return f"{model.basename}_fuzz-interactions"
+
+
+def run_interaction_analysis(model, data, feature_names, fuzz_results, top_k=10, delta_pct=0.1, logger=None):
+    top_names = [e['name'] for e in fuzz_results['details'][:top_k] if e['name'] in feature_names]
+    k = len(top_names)
+    data = data[feature_names].apply(pd.to_numeric, errors='coerce').fillna(0).copy()
+    predict_fn = _make_predict_proba_func(model)
+    orig = predict_fn(data)
+    if logger:
+        logger.info(f"Computing pairwise interactions for top {k} features...")
+    # Individual impacts (diagonal)
+    indiv = {}
+    for i, name in enumerate(top_names):
+        for sign in (+1, -1):
+            bak = data[name].copy()
+            _perturb_column(data, name, bak, delta_pct=delta_pct, sign=sign)
+            indiv[(i, sign)] = np.mean(np.abs(predict_fn(data) - orig))
+            data[name] = bak
+    diag = np.array([max(indiv[(i, +1)], indiv[(i, -1)]) for i in range(k)])
+    # Pairwise impact 
+    matrix = np.zeros((k, k))
+    for i in range(k):
+        for j in range(i+1, k):
+            bak_i, bak_j = data[top_names[i]].copy(), data[top_names[j]].copy()
+            best = 0.0
+            for si, sj in _DIR_COMBOS:
+                _perturb_column(data, top_names[i], bak_i, delta_pct=delta_pct, sign=si)
+                _perturb_column(data, top_names[j], bak_j, delta_pct=delta_pct, sign=sj)
+                joint = np.mean(np.abs(predict_fn(data) - orig))
+                best = max(best, abs(joint - indiv[(i, si)] - indiv[(j, sj)]))
+                data[top_names[i]] = bak_i; data[top_names[j]] = bak_j
+            matrix[i, j] = matrix[j, i] = best
+
+    plot_interaction_heatmap(model, matrix, top_names, diag)
+    return {'matrix': matrix, 'labels': top_names, 'individual_impacts': diag}
+

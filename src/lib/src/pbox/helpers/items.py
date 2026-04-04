@@ -896,7 +896,7 @@ def load_yaml_config(cfg, no_defaults=(), parse_defaults=True, auto_tag=True):
                     if default in no_defaults:
                         raise ValueError(f"default value for parameter '{default}' is not allowed")
                     if isinstance(value, dict):
-                        # example advanced defaults configuration:
+                        # example advanced defaults configuration for features:
                         #   defaults:
                         #     keep:
                         #       match:
@@ -992,8 +992,7 @@ def tag_from_references(data):
         tags = data.get('tags', [])
         for i, ref in enumerate(lst := data['references']):
             try:
-                key = re.match(r"<(.*)?>$", ref).group(1)
-                lst[i] = References().get(key, ref)
+                lst[i] = References().get(key := re.match(r"<(.*)?>$", ref).group(1), ref)
                 tags.extend(lst[i].get('tags', []))
             except (AttributeError, TypeError):
                 pass
