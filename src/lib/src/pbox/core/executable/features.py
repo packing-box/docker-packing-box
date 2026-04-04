@@ -240,6 +240,7 @@ class Features(dict, metaclass=MetaBase):
     def show(cls, **kw):
         """ Show an overview of the features. """
         from ...helpers.utils import pd
+        Features()
         keys, ud = {'category': "category", 'ptime': "processing time", 'tcomplexity': "time complexity"}, "<undefined>"
         for k in keys.keys():
             descr = keys[k]

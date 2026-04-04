@@ -215,6 +215,7 @@ class Alterations(list, metaclass=MetaBase):
         """ Show an overview of the alterations. """
         from ...helpers.utils import pd
         cls.logger.debug(f"computing alterations overview...")
+        Alterations()
         formats = list(Alterations.registry.keys())
         # collect counts
         counts = {}

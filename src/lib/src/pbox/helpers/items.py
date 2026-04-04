@@ -13,7 +13,7 @@ from .utils import benchmark, entropy, pd
 set_exception("NotInstantiable", "TypeError")
 
 
-__all__ = ["dict2", "load_yaml_config", "tag_from_references", "Item", "MetaBase", "MetaItem", "References"]
+__all__ = ["dict2", "load_yaml_config", "tag_from_references", "Item", "MetaBase", "MetaItem"]
 
 _EMPTY_DICT = {}
 _EVAL_NAMESPACE = {k: getattr(builtins, k) for k in ["abs", "all", "any", "bool", "divmod", "float", "hash", "hex",
@@ -504,37 +504,6 @@ class MetaBase(type):
         return self.__dict__.get('_registry') if self.__dict__.get('_has_registry', True) else self()
 
 
-class References(dict, metaclass=MetaBase):
-    _has_registry = False
-    
-    def __init__(self):
-        try:
-            self.__initialized
-        except AttributeError:
-            for name, params in load_yaml_config(self.__class__.config):
-                self[name] = params
-            self.__initialized = True
-    
-    def items(self):
-        for name, data in super().items():
-            d = {'name': name}
-            for k, v in data.items():
-                d[k] = v
-            yield name, d
-    
-    def values(self):
-        for _, data in self.items():
-            yield data
-    
-    @classmethod
-    def show(cls, **kw):
-        """ Show an overview of the references. """
-        from ...helpers.utils import pd
-        cls.logger.debug(f"computing references overview...")
-        #TODO
-        #render(Section(f"Counts"), Table([list(counts.values())], column_headers=formats))
-
-
 def _apply(f):
     """ Simple decorator for applying an operation to the result of the decorated function. """
     def _wrapper(op):
@@ -945,7 +914,7 @@ def load_yaml_config(cfg, no_defaults=(), parse_defaults=True, auto_tag=True):
                                         # in the advanced example here above, entropy-based and boolean features will
                                         #  not be kept but all others will be
                                         config[name2].setdefault(default, v if re.search(pattern, name2) else not v)
-                                        # this means that, if we want to keep additional features, we can still force
+                                        # this means that, if we want to keep additional items, we can still force
                                         #  keep=true per feature declaration
                                     elif re.search(pattern, name2):
                                         config[name2].setdefault(default, v)
@@ -1009,7 +978,7 @@ def load_yaml_config(cfg, no_defaults=(), parse_defaults=True, auto_tag=True):
                 d = _set(yaml.load(f, Loader=yaml.Loader) or {})
         except FileNotFoundError:
             raise OSError(f"Did you forget to prepend \"./\" to force a relative path ?")
-    # collect properties that are applicable for all the other features
+    # collect properties that are applicable for all the other items
     for name, params in d.items():
         # handle the references attributes by checking if the "<...>" pattern is present and replace "..." with the
         #  related reference dictionary from References()
