@@ -13,7 +13,7 @@ from .utils import benchmark, entropy, pd
 set_exception("NotInstantiable", "TypeError")
 
 
-__all__ = ["dict2", "load_yaml_config", "tag_from_references", "Item", "MetaBase", "MetaItem"]
+__all__ = ["dict2", "load_yaml_config", "tag_from_references", "Item", "MetaBase", "MetaItem", "References"]
 
 _EMPTY_DICT = {}
 _EVAL_NAMESPACE = {k: getattr(builtins, k) for k in ["abs", "all", "any", "bool", "divmod", "float", "hash", "hex",
@@ -392,6 +392,8 @@ class MetaBase(type):
             output = f"{self.__name__.lower()}-export.{output}"
         kw = {}
         df, _ = self._filter(format=format, query=query, fields=fields, index=index, merge_deps=True, **kw)
+        if df is None:
+            return
         if (ext := Path(output).extension[1:]) != "pickle":
             kw['index'] = False
         elif ext in ["json", "yml"]:
@@ -502,6 +504,79 @@ class MetaBase(type):
     @property
     def registry(self):
         return self.__dict__.get('_registry') if self.__dict__.get('_has_registry', True) else self()
+
+
+class References(dict, metaclass=MetaBase):
+    _has_registry = False
+    
+    def __init__(self):
+        try:
+            self.__initialized
+        except AttributeError:
+            for name, params in load_yaml_config(self.__class__.config):
+                self[name] = params
+            self.__initialized = True
+    
+    def items(self):
+        for name, data in super().items():
+            d = {'name': name}
+            for k, v in data.items():
+                d[k] = v
+            yield name, d
+    
+    def values(self):
+        for _, data in self.items():
+            yield data
+    
+    @classmethod
+    def show(cls, **kw):
+        """ Show an overview of the references. """
+        _MAX_COLS_DEFAULT = 12
+        _MAX_COLS_PER_FIELD = {'publisher': 10, 'year': 20}
+        _PUBLISHERS = {
+            'api.semanticscholar.org': "SemanticScholar",
+            'arxiv.org': "arXiv",
+            'dl.acm.org': "ACM",
+            'ieeexplore.ieee.org': "IEEE",
+            'link.springer.com': "Springer",
+            'www.elsevier.com': "Elsevier",
+            'www.mdpi.com': "MDPI",
+            'www.mecs-press.org': "MECS Press",
+            'www.sciencedirect.com': "ScienceDirect",
+        }
+        cls.logger.debug(f"computing references overview...")
+        counts = {'author': {}, 'publisher': {}, 'tag': {}, 'year': {}}
+        for data in cls().values():
+            for author in data.get('authors'):
+                author = author.replace(", ", ",\n")
+                counts['author'].setdefault(author, 0)
+                counts['author'][author] += 1
+            publisher = _PUBLISHERS.get(data.get('url', "").split("://", 1)[-1].split("/", 1)[0], "others")
+            counts['publisher'].setdefault(publisher, 0)
+            counts['publisher'][publisher] += 1
+            for tag in data.get('tags'):
+                counts['tag'].setdefault(tag, 0)
+                counts['tag'][tag] += 1
+            try:
+                year = re.search(r"(\d{4})", data.get('date', "")).group()
+                counts['year'].setdefault(year, 0)
+                counts['year'][year] += 1
+            except AttributeError:
+                pass
+        if len(counts):
+            from tinyscript.report import Section, Table
+            from .rendering import render
+            for k, data in counts.items():
+                if len(data := sorted(data.items(), key=lambda x: -x[1])):
+                    others, data = dict(data).pop('others', 0), [p for p in data if p[0] != "others"]
+                    n = _MAX_COLS_PER_FIELD.get(k, _MAX_COLS_DEFAULT)
+                    if len(data) > n:
+                        data, others = data[:n-1], others + sum(x[1] for x in data[n-1:])
+                    h, d = zip(*sorted(data, key=lambda x: x[0].lower()))
+                    if others:
+                        h += ("others", )
+                        d += (others, )
+                    render(Section(f"Counts per {k}"), Table([d], column_headers=h))
 
 
 def _apply(f):

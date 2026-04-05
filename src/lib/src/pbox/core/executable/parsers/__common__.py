@@ -425,7 +425,7 @@ def get_part_class(clsname, **mapping):
         
         @property
         def real_name(self):
-            return getattr(self.binary, "real_section_names", {}).get(n := ensure_str(s.name), n).split("\0")[0]
+            return getattr(self.binary, "real_section_names", {}).get(n := ensure_str(self.name), n).split("\0")[0]
         
         @property
         def slack_space(self):
