@@ -8,15 +8,6 @@ system-update() {
   sudo apt-get autoclean
 }
 
-# pip-update
-pip-upgrade() {
-  python3 -m pip -q install --user --no-warn-script-location --break-system-packages --upgrade pip
-  pip freeze - local \
-    | grep -v "^\-e" \
-    | cut -d = -f 1 \
-    | xargs -n1 pip -q install --user --no-warn-script-location --break-system-packages --upgrade
-}
-
 # packing-box update command (development)
 pbox-update() {
   wget -q --timeout=5 --spider -T 1 https://www.google.com
@@ -29,6 +20,7 @@ pbox-update() {
     source $HOME/.bashrc
   }
   __files_update() {
+    local pyver=$(python3 -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')
     printf "${CYA}Copying files from packing-box...${RST}\n"
     rm -rf $OPT/data/ && cp -rf /mnt/share/src/data $PBWS/
     cp -f /mnt/share/src/files/tools/* $OPT/tools/
@@ -40,15 +32,15 @@ pbox-update() {
     source $HOME/.bashrc
     find /mnt/share/src/files/detectors/ -type f \( ! -iname \"*\.*\" \) -exec cp -f {} $OPT/bin/ \;
     mv -f $OPT/bin/userdb*.txt $OPT/detectors/
-    rm -f $OPT/detectors/.userdb_txt.json ~/.local/lib/python3.11/site-packages/peid/db/.userdb_txt.json
+    rm -f $OPT/detectors/.userdb_txt.json ~/.local/lib/python$pyver/site-packages/peid/db/.userdb_txt.json
   }
   __package_update() {
     if [ ! "$*" = "-n" ] && [ ! "$*" = "--no-internet" ] && [ $ret -eq 0 ]; then
       printf "${CYA}Upgrading pbox library...${RST}\n"
-      pip -qq install --user --no-warn-script-location --break-system-packages --upgrade /mnt/share/src/lib/
+      uv pip -qq install --upgrade /mnt/share/src/lib/
     else
       printf "${CYA}Upgrading pbox library (ignore package index)...${RST}\n"
-      pip -qq install --user --no-warn-script-location --break-system-packages --no-index --no-build-isolation --no-deps --upgrade /mnt/share/src/lib/
+      uv pip -qq install --no-index --no-build-isolation --no-deps --upgrade /mnt/share/src/lib/
     fi
   }
   if [ "$*" = "-h" ] || [ "$*" = "--help" ]; then
@@ -63,7 +55,7 @@ pbox-update() {
     __files_update
     if [ ! "$*" = "-n" ] && [ ! "$*" = "--no-internet" ] && [ $ret -eq 0 ]; then
       printf "${CYA}Upgrading Pip...${RST}\n"
-      pip -qq install --user --no-warn-script-location --break-system-packages --upgrade pip
+      uv pip -qq install --upgrade pip
     fi
     __package_update
     __completion_update

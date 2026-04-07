@@ -41,14 +41,14 @@ bi.GUI_SCRIPT = """#!/bin/bash
 source ~/.bash_xvfb
 {{preamble}}
 SRC="$1"
-NAME="$(basename "$1" | sed 's/\(.*\)\..*/\1/')"
+NAME="$(basename "$1" | sed 's/\\(.*\\)\\..*/\1/')"
 DST="$HOME/.wine%(arch)s/drive_c/users/user/Temp/${1##*/}"
 FILE="c:\\\\users\\\\user\\\\Temp\\\\${1##*/}"
 cp -f "$SRC" "$DST"
 WINEPREFIX=\"$HOME/.wine%(arch)s\" WINEARCH=win%(arch)s wine "$EXE" &
 sleep .5
 {{actions}}
-ps -eaf | grep -v grep | grep -E -e "/bin/bash.+bin/$NAME" -e ".+/$NAME\.exe\$" \
+ps -eaf | grep -v grep | grep -E -e "/bin/bash.+bin/$NAME" -e ".+/$NAME\\.exe\\$" \
                                  -e 'bin/wineserver$' -e 'winedbg --auto' \
                                  -e 'windows\\system32\\services.exe$' \
                                  -e 'windows\\system32\\conhost.exe --unix' \
@@ -133,15 +133,15 @@ bi.IMPORT_SUFFIXES = {
     'PE': ('', 'A', 'W', 'Ex', 'ExA', 'ExW'),
 }
 bi.SIGNATURES = {
-    '^Mach-O 32-bit ':                         "Mach-O32",
-    '^Mach-O 64-bit ':                         "Mach-O64",
-    '^Mach-O universal binary ':               "Mach-Ou",
-    '^MS-DOS executable\s*':                   "MSDOS",
-    '^PE32\+? executable (.+?)\.Net assembly': ".NET",
-    '^PE32 executable ':                       "PE32",
-    '^PE32\+ executable ':                     "PE64",
-    '^(set[gu]id )?ELF 32-bit ':               "ELF32",
-    '^(set[gu]id )?ELF 64-bit ':               "ELF64",
+    r'^Mach-O 32-bit ':                         "Mach-O32",
+    r'^Mach-O 64-bit ':                         "Mach-O64",
+    r'^Mach-O universal binary ':               "Mach-Ou",
+    r'^MS-DOS executable\s*':                   "MSDOS",
+    r'^PE32\+? executable (.+?)\.Net assembly': ".NET",
+    r'^PE32 executable ':                       "PE32",
+    r'^PE32\+ executable ':                     "PE64",
+    r'^(set[gu]id )?ELF 32-bit ':               "ELF32",
+    r'^(set[gu]id )?ELF 64-bit ':               "ELF64",
 }
 bi.TEST_FILES = {
     'ELF32': [

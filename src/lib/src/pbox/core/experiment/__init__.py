@@ -23,11 +23,13 @@ def __init():
           +-- datasets      datasets specific to the experiment
           +-- models        models specific to the experiment
           +-- (figures)     figures generated with visualization tools
+          +-- (prompts)     prompts of pboxllm
           +-- (scripts)     additional scripts
           +-- commands.rc   commands for replaying experiment
           +-- README.md     notes for explaining the experiment
         """
-        STRUCTURE = ["conf", "datasets", "models", "commands.rc*", "README.md", "data*", "figures*", "scripts*"]
+        STRUCTURE = ["conf", "datasets", "models", "commands.rc*", "README.md", "data*", "figures*", "prompts*",
+                     "scripts*"]
         
         def __new__(cls, name="experiment", **kw):
             self = super(Experiment, cls).__new__(cls, name, **kw)
@@ -254,6 +256,7 @@ def __init():
             if len(cfg) > 0:
                 render(Section(f"Configurations ({len(cfg)})"), Table(cfg, column_headers=["Name", "Entries"]))
             _tree("data")
+            _tree("prompts")
             Dataset.list()
             Model.list()
             _tree("scripts")

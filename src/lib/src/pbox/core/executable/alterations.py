@@ -135,7 +135,6 @@ class Alterations(list, metaclass=MetaBase):
             a.namespaces, a._registry, dsbcnt = {}, {}, 0
             # collect properties that are applicable for all the alterations
             for name, params in load_yaml_config(src):
-                tag_from_references(params)
                 r = params.pop('result', {})
                 # consider most specific alterations first, then those for intermediate format classes and finally the
                 #  collapsed class "All"
@@ -215,6 +214,7 @@ class Alterations(list, metaclass=MetaBase):
         """ Show an overview of the alterations. """
         from ...helpers.utils import pd
         cls.logger.debug(f"computing alterations overview...")
+        Alterations()
         formats = list(Alterations.registry.keys())
         # collect counts
         counts = {}
