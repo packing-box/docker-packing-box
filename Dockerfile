@@ -159,9 +159,13 @@ RUN sudo mkdir -p /mnt/share \
              /tmp/analyzers /tmp/detectors /tmp/packers /tmp/unpackers
 # copy executable format related data
 COPY --chown=$USER src/data $PBWS/data
+# install LLM-related dependencies before pbox so they benefit from a separate cache layer
+RUN pip3 install --user --no-warn-script-location --break-system-packages \
+    llama-cpp-python huggingface_hub
 # copy and install pbox (main library for tools) and pboxtools (lightweight library for items)
 COPY --chown=$USER src/lib /tmp/lib
-RUN pip3 install --user --no-warn-script-location --break-system-packages /tmp/lib/ \
+RUN chmod -R u+w /tmp/lib \
+ && pip3 install --user --no-warn-script-location --break-system-packages /tmp/lib/ \
  && rm -rf /tmp/lib
 COPY --chown=$USER $FILES/tools/packing-box $PBOX
 # install analyzers

@@ -1,12 +1,14 @@
 # -*- coding: UTF-8 -*-
 import os
 import re
+import shutil
 from pathlib import Path
 
 
 __all__ = ["PromptStrategy"]
 
-_PROMPT_DIR = Path(os.path.expanduser("~/.packing-box/data/prompt"))
+_PROMPT_CACHE_DIR = Path(os.path.expanduser("~/.packing-box/cache/prompt"))
+_DEFAULT_PROMPT_DIR = Path(__file__).resolve().parent / "prompts"
 
 _YES = re.compile(r"\b(packed|yes|true|1)\b", re.IGNORECASE)
 _NO  = re.compile(r"\b(not.packed|unpacked|no|false|0)\b", re.IGNORECASE)
@@ -19,7 +21,8 @@ class PromptStrategy:
     replaced at inference time with the formatted feature text block produced by
     :class:`~pboxllm.formatter.FeatureFormatter`.
 
-    Prompt templates live in ``~/.packing-box/data/prompt/``.
+    Prompt templates are copied to and loaded from ``~/.packing-box/cache/prompt/``.
+    Defaults are bundled in ``pboxllm/prompts/`` and bootstrapped on first use.
 
     Parameters
     ----------
@@ -28,7 +31,7 @@ class PromptStrategy:
 
     prompt_dir : Path, optional
         Directory containing prompt templates. Defaults to
-        ``~/.packing-box/data/prompt/``. Override in tests to avoid
+        ``~/.packing-box/cache/prompt/``. Override in tests to avoid
         filesystem dependencies.
 
     Attributes
@@ -37,9 +40,10 @@ class PromptStrategy:
         Contents of the loaded prompt file (populated on first use).
     """
 
-    def __init__(self, prompt_file, prompt_dir=_PROMPT_DIR):
+    def __init__(self, prompt_file, prompt_dir=_PROMPT_CACHE_DIR, default_prompt_dir=_DEFAULT_PROMPT_DIR):
         self.prompt_file = prompt_file
         self.prompt_dir = prompt_dir
+        self.default_prompt_dir = default_prompt_dir
         self._template = None
 
     # ------------------------------------------------------------------
@@ -91,6 +95,7 @@ class PromptStrategy:
     def _load_template(self):
         if self._template is not None:
             return self._template
+        self._bootstrap_default_prompt()
         path = self.prompt_dir / self.prompt_file
         if not path.exists():
             raise FileNotFoundError(
@@ -99,3 +104,12 @@ class PromptStrategy:
             )
         self._template = path.read_text(encoding="utf-8")
         return self._template
+
+    def _bootstrap_default_prompt(self):
+        self.prompt_dir.mkdir(parents=True, exist_ok=True)
+        target = self.prompt_dir / self.prompt_file
+        if target.exists():
+            return
+        source = self.default_prompt_dir / self.prompt_file
+        if source.exists():
+            shutil.copyfile(source, target)

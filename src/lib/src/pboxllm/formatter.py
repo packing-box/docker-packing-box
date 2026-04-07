@@ -1,38 +1,16 @@
 # -*- coding: UTF-8 -*-
-import os
-from pathlib import Path
-
-import yaml
 
 
 __all__ = ["FeatureFormatter"]
 
-_DEFAULT_FEATURES_CONF = Path(os.path.expanduser("~/.packing-box/conf/features.yml"))
 
+def _load_descriptions():
+    """Load feature name -> description mapping from Features registry."""
+    from pbox.core.executable import Features
 
-def _load_descriptions(conf_path):
-    """Load feature name → description mapping from features.yml file.
-
-    Parameters
-    ----------
-    conf_path : Path
-        Path to the features YAML configuration file.
-
-    Returns
-    -------
-    dict
-        Mapping of feature name to its human-readable description string.
-        Empty dict when the file does not exist.
-    """
-    if not conf_path.exists():
-        return {}
-    with conf_path.open() as fh:
-        data = yaml.safe_load(fh)
-    return {
-        name: meta["description"]
-        for name, meta in (data or {}).items()
-        if isinstance(meta, dict) and "description" in meta
-    }
+    # Important: instantiate once so Features lazily computes its registry.
+    Features()
+    return dict(getattr(Features, "descriptions", {}) or {})
 
 
 class FeatureFormatter:
@@ -52,20 +30,14 @@ class FeatureFormatter:
         Ordered list of feature names to include in the text block. These must match
         column names in the feature DataFrame produced by pbox.
 
-    features_conf : Path, optional
-        Path to the ``features.yml`` configuration file. Defaults to
-        ``~/.packing-box/conf/features.yml``. Override in tests to avoid
-        filesystem dependencies.
-
     Attributes
     ----------
     _descriptions : dict
         Loaded mapping of feature name → description (populated on first ``format`` call).
     """
 
-    def __init__(self, feature_names, features_conf=_DEFAULT_FEATURES_CONF):
+    def __init__(self, feature_names):
         self.feature_names = feature_names
-        self.features_conf = features_conf
         self._descriptions = {}
         self._descriptions_loaded = False
 
@@ -83,7 +55,7 @@ class FeatureFormatter:
             Multi-line text block, one feature per line.
         """
         if not self._descriptions_loaded:
-            self._descriptions = _load_descriptions(self.features_conf)
+            self._descriptions = _load_descriptions()
             self._descriptions_loaded = True
 
         lines = []

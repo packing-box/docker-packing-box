@@ -94,8 +94,7 @@ class LLMBackend:
         print(f"[pboxllm] Model '{self.model_file}' not found in cache. Downloading from '{self.model_repo}'...")
         try:
             from huggingface_hub import hf_hub_download
-            downloaded = hf_hub_download(repo_id=self.model_repo, filename=self.model_file,
-                                         local_dir=str(_MODEL_CACHE_DIR))
+            downloaded = hf_hub_download(repo_id=self.model_repo, filename=self.model_file, local_dir=str(_MODEL_CACHE_DIR))
             return Path(downloaded)
         except Exception as exc:
             raise RuntimeError(
