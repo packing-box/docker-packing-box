@@ -63,8 +63,12 @@ def _get_sample_idx(exp, packed=True):
     return indices[0] if len(indices) > 0 else 0
 
 
-def _local_plot(model, packed, plot_type, max_display=10):
-    row_explanation = exp['shap_explanation'][_get_sample_idx(exp := model._explanation, packed=packed)]
+def _local_plot(model, packed, sample_idx=None, plot_type="waterfall", max_display=10, **kw):
+    exp = model._explanation
+    if sample_idx is not None:
+        row_explanation = exp['shap_explanation'][sample_idx]
+    else:
+        row_explanation = exp['shap_explanation'][_get_sample_idx(exp, packed=packed)]
     if plot_type == "waterfall":
         plt.figure(figsize=(14, 10))
         shap.plots.waterfall(row_explanation, max_display=max_display, show=False)
@@ -135,15 +139,19 @@ def shap_decision(model, max_samples=50, **kw):
     plt.figure(figsize=(14, 10))
     exp = model._explanation
     n = min(max_samples, len(exp['shap_values']))
+    sv = exp['shap_values'][:n]
+    # select top features by mean absolute SHAP value, decision_plot doesn't have a max_display parameter
+    importance = np.abs(sv).mean(axis=0)
+    top_idx = np.argsort(importance)[-max_display:]
     shap.decision_plot(
         exp['expected_value'],
-        exp['shap_values'][:n],
-        exp['data'][:n],
-        feature_names=exp['feature_names'],
+        sv[:, top_idx],
+        exp['data'].iloc[:n, top_idx] if hasattr(exp['data'], 'iloc') else exp['data'],
+        feature_names=[exp['feature_names'][i] for i in top_idx],
         show=False
     )
     plt.tight_layout()
-    return f"{model.basename}_explained_shap-decision"
+    return f"{model.basename}/explained_shap-decision"
 
 
 @save_figure
@@ -151,39 +159,43 @@ def shap_heatmap(model, max_display=10, **kw):
     plt.figure(figsize=(14, 10))
     shap.plots.heatmap(model._explanation['shap_explanation'], max_display=max_display, show=False)
     plt.tight_layout()
-    return f"{model.basename}_explained_shap-heatmap"
+    return f"{model.basename}/explained_shap-heatmap"
 
 
 @save_figure
-def shap_summary(model, **kw):
+def shap_summary(model, max_display=10, **kw):
+    exp = model._explanation
     plt.figure(figsize=(14, 10))
-    shap.plots.beeswarm(model._explanation['shap_explanation'], show=False, max_display=kw.get('max_display', 20))
+    shap.plots.beeswarm(exp['shap_explanation'], show=False, max_display=max_display)
     plt.tight_layout()
-    return f"{model.basename}_explained_shap-summary"
+    return f"{model.basename}/explained_shap-summary"
+
+@save_figure
+def shap_waterfall_packed(model, sample_idx=None, **kw):
+    _local_plot(model, packed=True, sample_idx=sample_idx, plot_type="waterfall", **kw)
+    if sample_idx is not None:
+        return f"{model.basename}/explained_shap-waterfall-sample{sample_idx}"
+    return f"{model.basename}/explained_shap-waterfall-packed"
 
 
 @save_figure
-def shap_waterfall_packed(model, **kw):
-    _local_plot(model, True, "waterfall", **kw)
-    return f"{model.basename}_explained_shap-waterfall-packed"
+def shap_waterfall_not_packed(model, sample_idx=None, **kw):
+    _local_plot(model, packed=False, sample_idx=sample_idx, plot_type="waterfall", **kw)
+    return f"{model.basename}/explained_shap-waterfall-not-packed"
 
 
 @save_figure
-def shap_waterfall_not_packed(model, **kw):
-    _local_plot(model, False, "waterfall", **kw)
-    return f"{model.basename}_explained_shap-waterfall-not-packed"
+def shap_force_packed(model, sample_idx=None, **kw):
+    _local_plot(model, packed=True, sample_idx=sample_idx, plot_type="force", **kw)
+    if sample_idx is not None:
+        return f"{model.basename}/explained_shap-force-sample{sample_idx}"
+    return f"{model.basename}/explained_shap-force-packed"
 
 
 @save_figure
-def shap_force_packed(model, **kw):
-    _local_plot(model, True, "force", **kw)
-    return f"{model.basename}_explained_shap-force-packed"
-
-
-@save_figure
-def shap_force_not_packed(model, **kw):
-    _local_plot(model, False, "force", **kw)
-    return f"{model.basename}_explained_shap-force-not-packed"
+def shap_force_not_packed(model, sample_idx=None, **kw):
+    _local_plot(model, packed=False, sample_idx=sample_idx, plot_type="force", **kw)
+    return f"{model.basename}/explained_shap-force-not-packed"
 
 
 _EXPLANATIONS = {

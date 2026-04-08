@@ -21,6 +21,7 @@ FEATURE_TYPE_PATTERNS = {
     r'^number_|^count_|^nb_|_count$': (0, None,    'int'),
 }
 
+__all__ = ["fuzz_features", "plot_fuzz_summary", "_max_abs_impact", "multi_delta_stability", "plot_bump_chart", "bootstrap_fuzz_ci", "plot_bootstrap_ci", "run_interaction_analysis"]
 
 def get_feature_constraints(name):
     for pattern, constraint in FEATURE_TYPE_PATTERNS.items():
@@ -156,6 +157,28 @@ def fuzz_single_feature(data, predict_fn, name, delta_pct=0.1, n_sigma=None):
     data[name] = backup
     return results
 
+def compute_impact_per_class(fuzz_result):
+    orig = fuzz_result['orig']
+    breakdown = {}
+    for label, mask in [('packed', orig >= 0.5), ('not_packed', orig < 0.5)]:
+        n = int(mask.sum())
+        if n == 0:
+            breakdown[label] = {'n': 0, 'mean_up': 0.0, 'mean_down': 0.0}
+            continue
+        if fuzz_result['is_boolean']:
+            feat_orig = fuzz_result['feat_orig'][mask]
+            delta = fuzz_result['up'][mask] - orig[mask]
+            was_zero = feat_orig == 0
+            was_one = feat_orig == 1
+            # mean_up = impact of 0→1, mean_down = impact of 1→0
+            d_up = float(np.mean(delta[was_zero])) if was_zero.any() else 0.0
+            d_down = float(np.mean(delta[was_one])) if was_one.any() else 0.0
+            breakdown[label] = {'n': n, 'mean_up': d_up, 'mean_down': d_down}
+        else:
+            d_up = float(np.mean(fuzz_result['up'][mask] - orig[mask]))
+            d_down = float(np.mean(fuzz_result['down'][mask] - orig[mask]))
+            breakdown[label] = {'n': n, 'mean_up': d_up, 'mean_down': d_down}
+    return breakdown
 
 def multi_delta_stability(model, data, feature_names, deltas=(0.10, 0.25, 0.50, 1.00), logger=None):
     all_results = {}
@@ -224,16 +247,25 @@ def plot_fuzz_impact(model, fuzz_result, feature_name, delta_pct, **kw):
     feat_orig, feat_up, feat_down = fuzz_result['feat_orig'], fuzz_result['feat_up'], fuzz_result['feat_down']
     sort_idx = np.argsort(orig)
     if fuzz_result['is_boolean']:
-        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(10, 5))
-        ax1.plot(orig[sort_idx], 'k-', lw=1.5, label='Original')
-        ax1.plot(up[sort_idx], 'r-', alpha=0.7, label='Flipped')
-        ax1.set(xlabel='Sample (sorted)', ylabel='P(packed)', ylim=(-0.05, 1.05))
+        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 5))
+        feat_orig = fuzz_result['feat_orig']
+        was_zero = feat_orig == 0
+        was_one = feat_orig == 1
+        d_zero = up[was_zero] - orig[was_zero]
+        d_one = up[was_one] - orig[was_one]
+        if was_zero.any():
+            ax1.hist(d_zero, bins=min(50, max(2, len(np.unique(d_zero)))), alpha=0.6,
+                     color='red', label=f'0→1: μ={np.mean(d_zero):.4f}')
+        if was_one.any():
+            ax1.hist(d_one, bins=min(50, max(2, len(np.unique(d_one)))), alpha=0.6,
+                     color='blue', label=f'1→0: μ={np.mean(d_one):.4f}')
+        ax1.axvline(0, color='k', ls='--')
+        ax1.set(xlabel='ΔP(packed)', ylabel='Count')
         ax1.legend()
-        d = up - orig
-        ax2.hist(d, bins=50, alpha=0.6, color='red', label=f'Flip: μ={np.mean(d):.4f}')
-        ax2.axvline(0, color='k', ls='--')
-        ax2.set(xlabel='ΔP(packed)', ylabel='Count')
-        ax2.legend()
+        counts = [int(was_zero.sum()), int(was_one.sum())]
+        ax2.bar(['Was 0', 'Was 1'], counts, color=['red', 'blue'], alpha=0.7)
+        ax2.set(ylabel='Count')
+        ax2.set_title('Value distribution')
         plt.suptitle(f'Fuzzing: {feature_name} (boolean flip)', fontsize=14, fontweight='bold')
     else:
         fig, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize=(15, 5))
@@ -247,7 +279,7 @@ def plot_fuzz_impact(model, fuzz_result, feature_name, delta_pct, **kw):
         ax1.set(xlabel='Sample (sorted)', ylabel='P(packed)', ylim=(-0.05, 1.05))
         ax1.legend()
         for d, c, lb in [(up - orig, 'red', f'+{ds}'), (down - orig, 'blue', f'-{ds}')]:
-            ax2.hist(d, bins=50, alpha=0.6, color=c, label=f'{lb}: μ={np.mean(d):.4f}')
+            ax2.hist(d, bins=min(50, max(2, len(np.unique(d)))), alpha=0.6, color=c, label=f'{lb}: μ={np.mean(d):.4f}')
         ax2.axvline(0, color='k', ls='--')
         ax2.set(xlabel='ΔP(packed)', ylabel='Count')
         ax2.legend()
