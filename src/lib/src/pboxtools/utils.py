@@ -109,7 +109,7 @@ for item in ["analyzers", "detectors", "packers", "unpackers"]:
 def list_all_algorithms(cfg):
     """ Main function for listing all analyzers available in the current workspace """
     l = []
-    for section in ["Semi-Supervised", "Supervised", "Unsupervised"]:
+    for section in ["LLM", "Semi-Supervised", "Supervised", "Unsupervised"]:
         l.extend(list(cfg.get(section, {}).keys()))
     return sorted(list(set(_fmt_name(x) for x in l if x != "defaults")))
 

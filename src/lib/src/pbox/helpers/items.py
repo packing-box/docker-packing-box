@@ -385,6 +385,31 @@ class MetaBase(type):
             #  field (e.g. defaults['category'] => "header")
             yield cfg, defaults.get(split_on)
     
+    def browse(self, query=None, **kw):
+        """ Browse items as a table. """
+        from .data import filter_data
+        from .files import data_to_temp_file, edit_file, Locator
+        self()  # trigger registry's lazy initialization
+        data = []
+        if getattr(self, "_has_registry", True):
+            fmts = expand_formats(kw.get('format', "All"))
+            for fmt in fmts:
+                if fmt not in self.registry:
+                    continue
+                for name in sorted(self.registry[fmt].keys()):
+                    record = self.registry[fmt][name]
+                    if len(fmts) > 1:
+                        new_record = {'format': fmt}
+                        new_record.update(record)
+                        record = new_record
+                    data.append(record)
+        else:
+            for record in self.registry.values():
+                data.append(record)
+        df, l = pd.json_normalize(data), self.logger
+        with data_to_temp_file(filter_data(df, query, logger=l), prefix=f"{self.__name__.lower()}-data-") as tmp:
+            edit_file(tmp, logger=l)
+    
     def export(self, output="output.csv", format="All", query=None, fields=None, index="name", **kw):
         """ Export items from the registry based on the given executable format, filtered with the given query, with
              only the selected fields, to the given output format. """
@@ -392,6 +417,8 @@ class MetaBase(type):
             output = f"{self.__name__.lower()}-export.{output}"
         kw = {}
         df, _ = self._filter(format=format, query=query, fields=fields, index=index, merge_deps=True, **kw)
+        if df is None:
+            return
         if (ext := Path(output).extension[1:]) != "pickle":
             kw['index'] = False
         elif ext in ["json", "yml"]:
@@ -434,7 +461,7 @@ class MetaBase(type):
                 with (dst if split_on is None else dst.joinpath(f"{name or cname}.yml")).open('wt') as f:
                     f.write(cfg)
     
-    def test(self, files=None, keep=False, **kw):
+    def test(self, *files, keep=False, **kw):
         """ Tests on some executable files. """
         from tinyscript.helpers import execute_and_log as run
         from ..core.executable import Executable
@@ -445,7 +472,7 @@ class MetaBase(type):
             if fmt not in self.registry.keys():
                 self.logger.warning(f"no {self.__name__.lower().rstrip('s')} defined yet for '{fmt}'")
                 continue
-            l = [f for f in files if Executable(f).format in self._formats_exp] if files else TEST_FILES.get(fmt, [])
+            l = [f for f in (files or TEST_FILES.get(fmt, [])) if Executable(f).format in expand_formats("All")]
             if len(l) == 0:
                 continue
             self.logger.info(fmt)
@@ -456,7 +483,7 @@ class MetaBase(type):
                 run(f"cp {exe} {tmp}")
                 n = tmp.filename
                 try:
-                    self(Executable(tmp))
+                    self(Executable(tmp), **kw)
                     self.logger.success(n)
                 except Exception as e:
                     if isinstance(e, KeyError) and exe.format is None:
@@ -529,10 +556,52 @@ class References(dict, metaclass=MetaBase):
     @classmethod
     def show(cls, **kw):
         """ Show an overview of the references. """
-        from ...helpers.utils import pd
+        _MAX_COLS_DEFAULT = 12
+        _MAX_COLS_PER_FIELD = {'publisher': 10, 'year': 20}
+        _PUBLISHERS = {
+            'api.semanticscholar.org': "SemanticScholar",
+            'arxiv.org': "arXiv",
+            'dl.acm.org': "ACM",
+            'ieeexplore.ieee.org': "IEEE",
+            'link.springer.com': "Springer",
+            'www.elsevier.com': "Elsevier",
+            'www.mdpi.com': "MDPI",
+            'www.mecs-press.org': "MECS Press",
+            'www.sciencedirect.com': "ScienceDirect",
+        }
         cls.logger.debug(f"computing references overview...")
-        #TODO
-        #render(Section(f"Counts"), Table([list(counts.values())], column_headers=formats))
+        counts = {'author': {}, 'publisher': {}, 'tag': {}, 'year': {}}
+        for data in cls().values():
+            for author in data.get('authors'):
+                author = author.replace(", ", ",\n")
+                counts['author'].setdefault(author, 0)
+                counts['author'][author] += 1
+            publisher = _PUBLISHERS.get(data.get('url', "").split("://", 1)[-1].split("/", 1)[0], "others")
+            counts['publisher'].setdefault(publisher, 0)
+            counts['publisher'][publisher] += 1
+            for tag in data.get('tags'):
+                counts['tag'].setdefault(tag, 0)
+                counts['tag'][tag] += 1
+            try:
+                year = re.search(r"(\d{4})", data.get('date', "")).group()
+                counts['year'].setdefault(year, 0)
+                counts['year'][year] += 1
+            except AttributeError:
+                pass
+        if len(counts):
+            from tinyscript.report import Section, Table
+            from .rendering import render
+            for k, data in counts.items():
+                if len(data := sorted(data.items(), key=lambda x: -x[1])):
+                    others, data = dict(data).pop('others', 0), [p for p in data if p[0] != "others"]
+                    n = _MAX_COLS_PER_FIELD.get(k, _MAX_COLS_DEFAULT)
+                    if len(data) > n:
+                        data, others = data[:n-1], others + sum(x[1] for x in data[n-1:])
+                    h, d = zip(*sorted(data, key=lambda x: x[0].lower()))
+                    if others:
+                        h += ("others", )
+                        d += (others, )
+                    render(Section(f"Counts per {k}"), Table([d], column_headers=h))
 
 
 def _apply(f):
@@ -927,7 +996,7 @@ def load_yaml_config(cfg, no_defaults=(), parse_defaults=True, auto_tag=True):
                     if default in no_defaults:
                         raise ValueError(f"default value for parameter '{default}' is not allowed")
                     if isinstance(value, dict):
-                        # example advanced defaults configuration:
+                        # example advanced defaults configuration for features:
                         #   defaults:
                         #     keep:
                         #       match:
@@ -945,7 +1014,7 @@ def load_yaml_config(cfg, no_defaults=(), parse_defaults=True, auto_tag=True):
                                         # in the advanced example here above, entropy-based and boolean features will
                                         #  not be kept but all others will be
                                         config[name2].setdefault(default, v if re.search(pattern, name2) else not v)
-                                        # this means that, if we want to keep additional features, we can still force
+                                        # this means that, if we want to keep additional items, we can still force
                                         #  keep=true per feature declaration
                                     elif re.search(pattern, name2):
                                         config[name2].setdefault(default, v)
@@ -1009,7 +1078,7 @@ def load_yaml_config(cfg, no_defaults=(), parse_defaults=True, auto_tag=True):
                 d = _set(yaml.load(f, Loader=yaml.Loader) or {})
         except FileNotFoundError:
             raise OSError(f"Did you forget to prepend \"./\" to force a relative path ?")
-    # collect properties that are applicable for all the other features
+    # collect properties that are applicable for all the other items
     for name, params in d.items():
         # handle the references attributes by checking if the "<...>" pattern is present and replace "..." with the
         #  related reference dictionary from References()
@@ -1023,8 +1092,7 @@ def tag_from_references(data):
         tags = data.get('tags', [])
         for i, ref in enumerate(lst := data['references']):
             try:
-                key = re.match(r"<(.*)?>$", ref).group(1)
-                lst[i] = References().get(key, ref)
+                lst[i] = References().get(key := re.match(r"<(.*)?>$", ref).group(1), ref)
                 tags.extend(lst[i].get('tags', []))
             except (AttributeError, TypeError):
                 pass

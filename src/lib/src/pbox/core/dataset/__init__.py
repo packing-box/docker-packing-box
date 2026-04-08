@@ -169,18 +169,18 @@ class Dataset(Entity):
         """ Convenience function for computing the self._data pandas.DataFrame containing the feature values. """
         if self._files:
             self.logger.info("Computing features...")
-            with progress_bar(target=self.basename) as p:
-                for exe in p.track(self):
-                    self[exe] = (self._compute_features(exe), True)
-            #from multiprocessing import Pool
-            #with Pool(processes=n_jobs or config['number_jobs']) as pool, progress_bar(target=self.basename) as p:
-            #    task = p.add_task("", total=len(self))
-            #    for basename, features in pool.imap_unordered(self._compute_features_worker, [e for e in self]):
-            #        if features is None:
-            #            self.logger.warning(f"Failed to process {basename}")
-            #            continue
-            #        self[basename] = (features, True)  # True: force updating the row
-            #        p.update(task, advance=1.)
+            #with progress_bar(target=self.basename) as p:
+            #    for exe in p.track(self):
+            #        self[exe] = (self._compute_features(exe), True)
+            from multiprocessing import Pool
+            with Pool(processes=n_jobs or config['number_jobs']) as pool, progress_bar(target=self.basename) as p:
+                task = p.add_task("", total=len(self))
+                for basename, features in pool.imap_unordered(self._compute_features_worker, [e for e in self]):
+                    if features is None:
+                        self.logger.warning(f"Failed to process {basename}")
+                        continue
+                    self[basename] = (features, True)  # True: force updating the row
+                    p.update(task, advance=1.)
     
     def _compute_features(self, exe):
         """ Compute the features for a single Executable instance. """
@@ -199,11 +199,11 @@ class Dataset(Entity):
             self._features.update(exe.features)
         return d
     
-    #def _compute_features_worker(self, exe):
-    #    try:
-    #        return exe.basename, self._compute_features(exe)
-    #    except:
-    #        return exe.basename, None
+    def _compute_features_worker(self, exe):
+        try:
+            return exe.basename, self._compute_features(exe)
+        except:
+            return exe.basename, None
     
     def _load(self):
         """ Load dataset's associated files or create them. """
@@ -506,11 +506,7 @@ class Dataset(Entity):
         self._data = self._data.drop_duplicates()
         if self._files:
             for exe in self.files.listdir(is_exe):
-                h = exe.basename
-                #FIXME: possibly dead code ; see the definition of "is_exe"
-                if Executable(exe).format is None:  # unsupported or bad format (e.g. Bash script)
-                    del self[h]
-                elif h not in self._data.hash.values:
+                if (h := exe.basename) not in self._data.hash.values:
                     del self[h]
         for exe in self:
             h = exe.hash
@@ -645,7 +641,7 @@ class Dataset(Entity):
             yield Executable(dataset=self, hash=e.hash)
     
     def import_(self, archive, name=None, **kw):
-        """ Import a dataset in the workspace from a given archive. """
+        """ Import a dataset in the workspace from a given archive or alternate dataset format. """
         l = self.logger
         if not is_archive(archive):
             l.error(f"Unknown archive type ({archive})")

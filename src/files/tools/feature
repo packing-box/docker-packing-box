@@ -1,11 +1,11 @@
-#!/usr/bin/python3
+#!/usr/bin/env python3
 # -*- coding: UTF-8 -*-
 from pbox import *
 from tinyscript import *
 
 
 __script__       = "Feature manipulation tool"
-__version__      = "1.0.1"
+__version__      = "1.0.2"
 __contributors__ = [
     {'author': "Alex Van Mechelen", 'reason': "largely contributed to advanced feature engineering and proposed the "
                                               "creation of this tool"},
@@ -15,6 +15,7 @@ This tool aims to manipulate a feature set in many ways including its creation, 
 """
 __description__ = "Manipulate feature sets for use with Machine Learning"
 __examples__    = [
+    "browse -f my-features.yml --format PE",
     "compute test.exe",
     "export --features-set my-cumstom-features.yml --format ELF --output csv",
     "select --format PE -q 'significant == \"True\"' --output significant-features.yml",
@@ -30,15 +31,17 @@ conf_does_not_exist.__name__ = "non-existing configuration file"
 if __name__ == '__main__':
     sparsers = parser.add_subparsers(dest="command", metavar="CMD", title="positional argument",
                                      help="command to be executed")
+    add_argument(sparsers.add_parser("browse", help="browse features set's metadata"), "features-set", "exeformat",
+                 "query")
     add_argument(sparsers.add_parser("compute", help="compute target executable's features"),
                  "executable", "features-set", single=True)
     export = sparsers.add_parser("export", help="export feature definitions to a given format")
-    add_argument(export, "expformat", "exeformat", "features-set", "query")
+    add_argument(export, "expformat", "features-set", "exeformat", "query")
     add_argument(sparsers.add_parser("list", help="list feature names"), "features-set")
     # plot
     # remove
     select = sparsers.add_parser("select", help="select features from a target set")
-    add_argument(select, "exeformat", "features-set")
+    add_argument(select, "features-set", "exeformat")
     select.add_argument("-o", "--output", type=conf_does_not_exist, help="output YAML file with the selected features")
     add_argument(select, "query")
     select.add_argument("-s", "--split-on", choices=["category", "ptime", "tcomplexity"],

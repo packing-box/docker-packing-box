@@ -636,39 +636,26 @@ class Model(BaseModel):
             print("".join(f"  {r[i]:<{col_widths[i]}}" if i == 0 else f"{r[i]:>{col_widths[i]}}" for i in range(n_cols)))
         print()
 
-    def fuzz(self, executable=None, delta=0.1, export=True, output_dir=None, stddev=False, n_sigma=1.0, multi_delta=False, bootstrap=False, interactions=False, **kw):
-        """ Fuzz the features of the model and analyze their impact on predictions."""
-        top_n = config['fuzz-top-n']
-        deltas = config['fuzz-deltas']
-        n_bootstrap = config['fuzz-n-bootstrap']
-        top_k_interactions = config['fuzz-top-k-interactions']
-
+    def fuzz(self, executable=None, delta=0.1, export=True, output_dir=None, stddev=False, n_sigma=1.0,
+             multi_delta=False, bootstrap=False, interactions=False, **kw):
+        """ Fuzz the features of the model and analyze their impact on predictions. """
+        top_n, deltas = config['fuzz-top-n'], config['fuzz-deltas']
+        n_bootstrap, top_k_interactions = config['fuzz-n-bootstrap'], config['fuzz-top-k-interactions']
         if self.name is None and self.path is not None:
             self._name = self.path.stem
-
         l, ds = self.logger, executable or self._metadata['dataset']['name']
-
         if len(self.pipeline.steps) == 0:
             l.warning("Model must be trained before fuzzing")
             return
-
-        if not hasattr(self.pipeline, 'predict_proba'):
+        if not hasattr(self.pipeline, "predict_proba"):
             l.error("Fuzzing requires predict_proba function. This model does not provide probability outputs.")
             return
-
         kw['data_only'], kw['dataset'] = True, ds
         if not self._prepare(ds_type="Fuzzing", **kw):
             return
-
         l.info(f"Starting fuzzing on {self.name}...")
-
         data = self._data
-
-        if output_dir is None:
-            output_dir = Path("fuzz_plots") / self.name
-        else:
-            output_dir = Path(output_dir)
-
+        output_dir = Path("fuzz_plots") / self.name if output_dir is None else Path(output_dir)
         feature_names = sorted(self._features.keys())
         data = data[feature_names]
         self._fuzz_results = fuzz_features(
@@ -677,21 +664,16 @@ class Model(BaseModel):
             output_dir=str(output_dir),
             use_stddev=stddev, n_sigma=n_sigma, logger=l,
         )
-
         if export:
             plot_fuzz_summary(self, self._fuzz_results)
             l.info(f"Fuzzing plots saved to: {output_dir}")
-
         details = self._fuzz_results['details']
         no_impact = sum(1 for e in details if _max_abs_impact(e) < 0.01)
         l.info(f"{no_impact} features ({no_impact/len(details):.1%}) had <1% impact on predictions.")
-
         self._print_fuzz_table(details, top_n, title=f"Fuzzing Analysis: {self.name}")
-
         enhanced_dir = output_dir / "enhanced"
         if multi_delta or bootstrap or interactions:
             enhanced_dir.mkdir(parents=True, exist_ok=True)
-
         if multi_delta:
             l.info("Running multi-delta analysis...")
             stability = multi_delta_stability(
@@ -702,7 +684,6 @@ class Model(BaseModel):
             if export:
                 plot_bump_chart(self, stability)
             self._print_stability_table(stability, top_n=top_n)
-
         if bootstrap:
             l.info(f"Running bootstrap CI analysis ({n_bootstrap} iterations)...")
             ci = bootstrap_fuzz_ci(
@@ -713,7 +694,6 @@ class Model(BaseModel):
             if export:
                 plot_bootstrap_ci(self, ci)
             self._print_bootstrap_table(ci, top_n=top_n)
-
         if interactions:
             l.info(f"Running pairwise interaction analysis (top {top_k_interactions})...")
             inter = run_interaction_analysis(
@@ -723,7 +703,6 @@ class Model(BaseModel):
                 logger=l,
             )
             self._fuzz_results['interactions'] = inter
-
         return self._fuzz_results
     
     def preprocess(self, executable=None, query=None, **kw):

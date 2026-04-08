@@ -8,9 +8,10 @@ ARG UOPT=$HOME/.opt
 ARG UBIN=$HOME/.local/bin \
     PBWS=$HOME/.packing-box \
     PBOX=$UOPT/tools/packing-box \
-    FILES=src/files
+    FILES=src/files \
+    VENV=$UOPT/venv
 # start creating the box
-FROM ubuntu:24.04 AS base
+FROM ubuntu:latest AS base
 LABEL org.opencontainers.image.authors="alexandre.dhondt@gmail.com"  \
       org.opencontainers.image.created="Feb 5, 2021" \
       org.opencontainers.image.licenses="GPL-3.0" \
@@ -18,7 +19,7 @@ LABEL org.opencontainers.image.authors="alexandre.dhondt@gmail.com"  \
       org.opencontainers.image.title="Packing-Box: Experimental toolkit for static detection of executable packing" \
       org.opencontainers.image.url="https://github.com/packing-box/docker-packing-box" \
       org.opencontainers.image.version="2.1.0"
-ARG USER HOME UBIN
+ARG USER HOME VENV
 ENV DEBCONF_NOWARNINGS=yes \
     DEBIAN_FRONTEND=noninteractive \
     TERM=xterm-256color \
@@ -37,7 +38,7 @@ RUN echo "debconf debconf/frontend select Noninteractive" | debconf-set-selectio
 # add a non-privileged account
 RUN usermod -l $USER ubuntu \
  && groupmod -n $USER ubuntu \
- && usermod -d /home/$USER -m $USER \
+ && usermod -d $HOME -m $USER \
  && apt-get install -y sudo \
  && echo $USER ALL=\(root\) NOPASSWD:ALL > /etc/sudoers.d/$USER \
  && chmod 0440 /etc/sudoers.d/$USER
@@ -54,21 +55,23 @@ RUN apt-get -y install apt-transport-https apt-utils \
 RUN apt-get update \
  && apt-get -y install colordiff colortail cython3 dos2unix dosbox git golang kmod less ltrace meson nasm tree strace \
  && apt-get -y install gcab genisoimage iproute2 jlha-utils jq nftables nodejs npm rubygems ssdeep swig unar yarnpkg \
- && apt-get -y install python3-pip python3-pygraphviz python3-setuptools vim visidata \
+ && apt-get -y install python3-pip python3-pygraphviz python3-setuptools python3-venv vim visidata yq \
  && apt-get -y install bc curl ffmpeg imagemagick pev psmisc tesseract-ocr unrar unzip wget wimtools x11-apps zstd \
  && apt-get -y install bats binutils-dev binwalk dwarfdump ent foremost rpm2cpio tmate tmux weka xdotool xterm xvfb \
  && wget -qO /tmp/b.deb https://github.com/sharkdp/bat/releases/download/v0.25.0/bat_0.25.0_amd64.deb \
  && dpkg -i /tmp/b.deb \
  && rm -f /tmp/b.deb
 # install .NET runtime (necessary for ilspycmd)
-RUN apt-get -y install dotnet-sdk-8.0
+RUN apt-get -y install dotnet-sdk-10.0 dotnet-runtime-10.0
 # install wine (for running Windows software on Linux)
 RUN dpkg --add-architecture i386 \
+ && . /etc/os-release \
  && wget -O /etc/apt/keyrings/winehq-archive.key https://dl.winehq.org/wine-builds/winehq.key \
- && wget -NP /etc/apt/sources.list.d/ https://dl.winehq.org/wine-builds/ubuntu/dists/noble/winehq-noble.sources \
+ && wget -NP /etc/apt/sources.list.d/ \
+        https://dl.winehq.org/wine-builds/ubuntu/dists/$VERSION_CODENAME/winehq-$VERSION_CODENAME.sources \
  && apt-get update \
  && apt-get -y install --install-recommends winehq-stable wine32 winetricks \
- && mkdir /opt/wine-stable/share/wine/gecko \
+ && mkdir -p /opt/wine-stable/share/wine/gecko \
  && wget -O /opt/wine-stable/share/wine/gecko/wine-gecko-2.47.1-x86.msi \
          https://dl.winehq.org/wine/wine-gecko/2.47.1/wine-gecko-2.47.1-x86.msi \
  && wget -O /opt/wine-stable/share/wine/gecko/wine-gecko-2.47.1-x86_64.msi \
@@ -104,24 +107,21 @@ RUN apt-get -y install --install-recommends clang mingw-w64 \
 # && make install \
 # && make lkm \
 # && make lkm_install
-# install .NET core
+# ensure $HOME is completely owned by user
+RUN chown -R user:user $HOME
 USER $USER
-RUN wget -qO /tmp/dotnet-install.sh https://dot.net/v1/dotnet-install.sh \
- && chmod +x /tmp/dotnet-install.sh \
- && /tmp/dotnet-install.sh -c Current \
- && rm -f /tmp/dotnet-install.sh \
- && chmod +x $HOME/.dotnet/dotnet \
- && mkdir -p $UBIN \
- && ln -s $HOME/.dotnet/dotnet $UBIN/dotnet
+# install uv, the fast Python package and project manager written in Rust
+RUN curl -LsSf https://astral.sh/uv/install.sh | sh
+ENV PATH="$VENV/bin:$HOME/.local/bin:$PATH"
+# setup a virtual environment for the Python packages
+RUN uv venv $VENV
+ENV VIRTUAL_ENV=$VENV
 # install/update Python packages (install dl8.5 with root separately to avoid wheel's build failure)
-RUN python3 -m pip install --user --upgrade --break-system-packages pip
-RUN pip3 install --user --no-warn-script-location --ignore-installed --break-system-packages \
-        capstone jinja2 meson poetry pythonnet pwntools thefuck tinyscript tldr vt-py \
- && pip3 install --user --no-warn-script-location --ignore-installed --break-system-packages \
-        angr capa lightgbm lmstudio pandas pydl8.5 scikit-learn scikit-learn-extra weka
+RUN uv pip install capstone jinja2 meson poetry pythonnet pwntools thefuck tinyscript tldr vt-py \
+ && uv pip install angr capa lightgbm lmstudio pandas pydl8.5 scikit-learn scikit-learn-extra weka
 # install ILSpyCmd
 RUN dotnet tool install --global ilspycmd
-# install Rust (user-level
+# install Rust (user-level)
 RUN curl https://sh.rustup.rs -sSf | bash -s -- -y
 # initialize Go
 RUN go mod init pbox &
@@ -131,8 +131,10 @@ RUN go install github.com/antonmedv/fx@latest
 # |                                     CUSTOMIZE THE BOX (refine the terminal)                                        |
 # +--------------------------------------------------------------------------------------------------------------------+
 FROM base AS customized
-ARG USER UOPT
-ENV TERM=xterm-256color
+ARG USER VENV
+ENV TERM=xterm-256color \
+    VIRTUAL_ENV=$VENV \
+    PATH="$VENV/bin:$PATH"
 # copy customized files for root
 USER root
 COPY src/term/[^profile]* /tmp/term/
@@ -148,9 +150,11 @@ RUN for f in `ls /tmp/term/`; do cp "/tmp/term/$f" "/home/$USER/.${f##*/}"; done
 # |                                              ADD FRAMEWORK ITEMS                                                   |
 # +--------------------------------------------------------------------------------------------------------------------+
 FROM customized AS framework
-ARG USER HOME UOPT PBWS PBOX FILES
+ARG USER HOME UOPT PBWS PBOX FILES VENV
 USER $USER
-ENV TERM=xterm-256color
+ENV TERM=xterm-256color \
+    VIRTUAL_ENV=$VENV \
+    PATH="$VENV/bin:$PATH"
 # set the base files and folders for further setup (explicitly create ~/.cache/pip to avoid it not being owned by user)
 COPY --chown=$USER src/conf/*.yml $PBWS/conf/
 RUN sudo mkdir -p /mnt/share \
@@ -161,7 +165,7 @@ RUN sudo mkdir -p /mnt/share \
 COPY --chown=$USER src/data $PBWS/data
 # copy and install pbox (main library for tools) and pboxtools (lightweight library for items)
 COPY --chown=$USER src/lib /tmp/lib
-RUN pip3 install --user --no-warn-script-location --break-system-packages /tmp/lib/ \
+RUN uv pip install /tmp/lib/ \
  && rm -rf /tmp/lib
 COPY --chown=$USER $FILES/tools/packing-box $PBOX
 # install analyzers
@@ -192,8 +196,8 @@ COPY --chown=$USER $FILES/utils/pbox-completions.json $UOPT/utils/
 RUN $UOPT/utils/_pbox-compgen $UOPT/utils/pbox-completions.json -f $HOME/.bash_completion
 # dirty fix to a version issue with 'unicorn'
 RUN rm -rf $HOME/.local/lib/python3.*/site-packages/unicorn* \
- && pip3 uninstall -y --break-system-packages unicorn \
- && pip3 install --user --no-warn-script-location --ignore-installed --break-system-packages unicorn
+ && uv pip uninstall unicorn \
+ && uv pip install unicorn
 # ----------------------------------------------------------------------------------------------------------------------
 RUN find $UOPT/bin -type f -exec chmod +x {} \;
 ENV UOPT=$UOPT

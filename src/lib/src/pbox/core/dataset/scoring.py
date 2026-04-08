@@ -13,10 +13,10 @@ _WEIGHTS = {
     'uniqueness':    .5,
     'similarity':    .65,
     'label_balance': .2,
-    'portability':   0.2,
-    'file_balance':  0.9,
+    'portability':   .2,
+    'file_balance':  .9,
     'consistency':   .5,
-    'outliers':      0.9,
+    'outliers':      .9,
 }
 
 
@@ -140,20 +140,18 @@ class Scores:
         """ (Specific) Score based on files with suspicious size or modified dates. """
         if self._ds._files:
             l = len(self._ds)
-            suspicious_size  = 1. - (((s := self._ds._data.get("size")) < 1024).sum() + (s > 100 * 1024 * 1024).sum()) / l
-            suspicious_mtime = 1. - (pd.to_datetime(self._ds._data.mtime, errors="coerce").dt.year < 2000).sum() / l
-            return np.average([suspicious_size, suspicious_mtime])
+            susp_size  = 1. - (((s := self._ds._data.get("size")) < 1024).sum() + (s > 100 * 1024 * 1024).sum()) / l
+            susp_mtime = 1. - (pd.to_datetime(self._ds._data.mtime, errors="coerce").dt.year < 2000).sum() / l
+            return np.average([susp_size, susp_mtime])
         else:
             # https://github.com/packing-box/experiments-quality-datasets/blob/main/Final/dbscan_pca.py
-            #Return a number of outliers :
-            #score = max(0, 1 - ((8 * len(outliers)) / len(self._ds))) 
-            #Each outliers weight more as it is a rare occurence and leaving it at one won't really have any impact
-            warn_once(self._log, "Need dbscan to be used") 
-            return 1 #Value from external script
+            # each outlier weights more as it is a rare occurence and leaving it at 1. won't really have any impact
+            warn_once(self._log, "need to use DBSCAN, hence requiring files")
+            return 1.
     
     @cached_property
     def portability(self):
-        """ (Specific) Score based on the presence of .reloc sections and other portability-related PE fields. """
+        """ (Specific) Score based on the format-specific portability score computation. """
         portabilities = []
         if self._ds._files:
             for exe in self._ds:
@@ -215,3 +213,4 @@ class Scores:
             else:
                 seen_metadata.add(metadata_row)
         return 1 - duplicate_metadata / len(hashes) if hashes else 0
+

@@ -50,7 +50,7 @@ def _get_explainer(model_wrapper, X_background, **kw):
 
 
 def _get_sample_idx(exp, packed=True):
-    target = 1 if packed else 0
+    target = int(packed)
     y_test = exp.get('y_test')
     index_map = exp.get('_index_map')
     # subset mode
@@ -135,9 +135,9 @@ def explain_model(model_wrapper, X_data, feature_names=None, max_samples=None, s
 
 
 @save_figure
-def shap_decision(model, max_display=10, max_samples=50, **kw):
-    exp = model._explanation
+def shap_decision(model, max_samples=50, **kw):
     plt.figure(figsize=(14, 10))
+    exp = model._explanation
     n = min(max_samples, len(exp['shap_values']))
     sv = exp['shap_values'][:n]
     # select top features by mean absolute SHAP value, decision_plot doesn't have a max_display parameter
@@ -156,9 +156,8 @@ def shap_decision(model, max_display=10, max_samples=50, **kw):
 
 @save_figure
 def shap_heatmap(model, max_display=10, **kw):
-    exp = model._explanation
     plt.figure(figsize=(14, 10))
-    shap.plots.heatmap(exp['shap_explanation'], max_display=max_display, show=False)
+    shap.plots.heatmap(model._explanation['shap_explanation'], max_display=max_display, show=False)
     plt.tight_layout()
     return f"{model.basename}/explained_shap-heatmap"
 
