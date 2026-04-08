@@ -156,10 +156,9 @@ The *TRAIN* and *PREDICT* phases of the pipeline are achieved with the [`model`]
 **`test`** ![](https://raw.githubusercontent.com/packing-box/docker-packing-box/main/docs/pages/imgs/model-operations-test.png) | Test a model on a given dataset | `# model test model --name dataset`
 **`train`** ![](https://raw.githubusercontent.com/packing-box/docker-packing-box/main/docs/pages/imgs/model-operations-train.png) | Train a model given an algorithm and input dataset | `# model train dataset --algorithm dt`
 
-### llm Classifier
+### LLM-Based Classification
 
-Use `LLM` or `Mistral-LLM` from `algorithms.yml` to run the llm-based classifier.
-To persist prompt tuning and model downloads, mount both the Packing-Box home and llm cache volumes.
+LLM classification can be defined in the `LLM` section of the `algorithms.yml`. To persist prompt tuning and model downloads, mount both the Packing-Box home and LLM cache volumes as shown hereafter.
 
 **Windows**
 
