@@ -192,24 +192,6 @@ LLM:
     metrics: classification
     preprocessors:
       - MM
-  LLM:
-    base:        !!python/name:pbox.core.model.algorithm.llm.LLMClassifier
-    description: LLM-based packing classifier (llama-cpp-python)
-    multiclass:  false
-    parameters:
-      static:
-        model_file:   mistral-7b-instruct-v0.2.Q4_K_M.gguf
-        model_repo:   TheBloke/Mistral-7B-Instruct-v0.2-GGUF
-        prompt_file:  zero_shot_binary.txt
-        feature_names:
-          - entropy
-          - entropy_code_section
-          - entropy_section_with_ep
-        n_ctx:        2048
-        n_threads:    4
-        max_tokens:   64
-      cv:
-        prompt_file: ['zero_shot_binary.txt', 'few_shot_binary.txt']
   Mistral-LLM:
     base:        !!python/name:pbox.core.model.algorithm.llm.LLMClassifier
     description: LLM-based packing classifier (llama-cpp-python)
