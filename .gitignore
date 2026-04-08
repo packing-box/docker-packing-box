@@ -22,7 +22,6 @@ eggs/
 lib64/
 parts/
 sdist/
-.packing-box/
 
 var/
 *.egg-info/
