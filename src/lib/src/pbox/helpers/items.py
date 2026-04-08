@@ -385,6 +385,31 @@ class MetaBase(type):
             #  field (e.g. defaults['category'] => "header")
             yield cfg, defaults.get(split_on)
     
+    def browse(self, query=None, **kw):
+        """ Browse items as a table. """
+        from .data import filter_data
+        from .files import data_to_temp_file, edit_file, Locator
+        self()  # trigger registry's lazy initialization
+        data = []
+        if getattr(self, "_has_registry", True):
+            fmts = expand_formats(kw.get('format', "All"))
+            for fmt in fmts:
+                if fmt not in self.registry:
+                    continue
+                for name in sorted(self.registry[fmt].keys()):
+                    record = self.registry[fmt][name]
+                    if len(fmts) > 1:
+                        new_record = {'format': fmt}
+                        new_record.update(record)
+                        record = new_record
+                    data.append(record)
+        else:
+            for record in self.registry.values():
+                data.append(record)
+        df, l = pd.json_normalize(data), self.logger
+        with data_to_temp_file(filter_data(df, query, logger=l), prefix=f"{self.__name__.lower()}-data-") as tmp:
+            edit_file(tmp, logger=l)
+    
     def export(self, output="output.csv", format="All", query=None, fields=None, index="name", **kw):
         """ Export items from the registry based on the given executable format, filtered with the given query, with
              only the selected fields, to the given output format. """
