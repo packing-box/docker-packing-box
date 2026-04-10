@@ -156,6 +156,33 @@ The *TRAIN* and *PREDICT* phases of the pipeline are achieved with the [`model`]
 **`test`** ![](https://raw.githubusercontent.com/packing-box/docker-packing-box/main/docs/pages/imgs/model-operations-test.png) | Test a model on a given dataset | `# model test model --name dataset`
 **`train`** ![](https://raw.githubusercontent.com/packing-box/docker-packing-box/main/docs/pages/imgs/model-operations-train.png) | Train a model given an algorithm and input dataset | `# model train dataset --algorithm dt`
 
+### LLM-Based Classification
+
+LLM classification can be defined in the `LLM` section of the `algorithms.yml`. To persist prompt tuning and model downloads, mount both the Packing-Box home and LLM cache volumes as shown hereafter.
+
+**Windows**
+
+```powershell
+PS C:\> docker run -it -h packing-box `
+  -v ${pwd}:/mnt/share `
+  -v ${pwd}\.packing-box:/home/user/.packing-box `
+  -v ${pwd}\.cache\pboxllm:/home/user/.cache/pboxllm `
+  dhondta/packing-box
+```
+
+**Linux**
+
+```bash
+# docker run -it -h packing-box \
+  -v `pwd`:/mnt/share \
+  -v `pwd`/.packing-box:/home/user/.packing-box \
+  -v `pwd`/.cache/pboxllm:/home/user/.cache/pboxllm \
+  dhondta/packing-box
+```
+
+On first use, default prompts are copied from `pboxllm/prompts/` to `~/.packing-box/cache/prompt/`.
+Edit/adapt files in `~/.packing-box/cache/prompt/` (cache), not packaged defaults.
+
 
 ## :star: Related Projects
 

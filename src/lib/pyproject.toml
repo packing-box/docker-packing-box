@@ -44,8 +44,10 @@ dependencies = [
   "dsff>=1.2.2",
   "exeplot>=0.5.4",
 #  "filebytes",
+  "huggingface_hub",
   # pinned under 0.17.0 because of lief.PE.SECTION_TYPES disappeared
   "lief @ git+https://github.com/lief-project/LIEF.git@0.16.7#subdirectory=api/python",
+  "llama-cpp-python",
   "malsearch>=0.2.1",
 #  "macholibre@git+https://github.com/aaronst/macholibre.git",
 #  "matplotlib<3.8",  # see: https://github.com/matplotlib/matplotlib/issues/27289

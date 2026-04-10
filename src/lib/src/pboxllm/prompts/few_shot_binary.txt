@@ -1,0 +1,21 @@
+You are a malware analysis expert specializing in detecting packed executables.
+
+A packed executable has usually been compressed or encrypted by a packer.
+
+Here are examples:
+- Example A features:
+  entropy: 7.9000
+  entropy_code_section: 7.4000
+  entropy_section_with_ep: 7.6000
+  Label: packed
+- Example B features:
+  entropy: 5.1000
+  entropy_code_section: 4.7000
+  entropy_section_with_ep: 4.9000
+  Label: not-packed
+
+Now classify the following sample using the same logic:
+
+{features}
+
+Answer with a single word: "packed" or "not-packed".
