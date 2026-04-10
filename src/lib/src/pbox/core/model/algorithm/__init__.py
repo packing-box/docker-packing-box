@@ -43,7 +43,7 @@ def __init_metaalgo():
             cls.registry = []
             # start parsing items of cls
             _labellings = {'supervised': "full", 'semi-supervised': "partial", 'unsupervised': "none", \
-                           'heuristics': "full", 'llm': "full"}
+                           'heuristics': "full", 'llm': "none"}
             algos = {k: v for k, v in load_yaml_config(p, ["base"])}
             # backward compatibility with former algorithms.yml format
             if all(k.lower() in _labellings for k in algos.keys()):
