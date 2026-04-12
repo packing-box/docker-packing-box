@@ -3,6 +3,9 @@ import matplotlib
 import matplotlib.cm as cm
 import matplotlib.pyplot as plt
 import re
+import numpy as np
+import pandas as pd
+from pathlib import Path
 
 from ...helpers import *
 
@@ -215,7 +218,7 @@ def plot_bootstrap_ci(model, ci_result, **kw):
     ax.axvline(0, color='k', lw=0.5)
     ax.set_title(f'Feature Importance with 95% CI (Top {top_n})', fontsize=14, fontweight='bold')
     plt.tight_layout()
-    return f"{model.basename}_fuzz-bootstrap-ci"
+    return f"{model.basename}/fuzz-bootstrap-ci"
 
 
 @save_figure
@@ -238,7 +241,7 @@ def plot_bump_chart(model, stability_result, **kw):
     ax.set_ylim(top_n + 1, 0)
     ax.legend(bbox_to_anchor=(1.02, 1), loc='upper left', fontsize=8)
     plt.tight_layout()
-    return f"{model.basename}_fuzz-bump-chart"
+    return f"{model.basename}/fuzz-bump-chart"
 
 
 @save_figure
@@ -291,7 +294,7 @@ def plot_fuzz_impact(model, fuzz_result, feature_name, delta_pct, **kw):
         ax3.legend()
         plt.suptitle(f'Fuzzing: {feature_name} (δ={ds})', fontsize=14, fontweight='bold')
     plt.tight_layout()
-    return f"{model.basename}_fuzz-impact_{feature_name}"
+    return f"{model.basename}/fuzz-impact_{feature_name}"
 
 
 @save_figure
@@ -314,7 +317,7 @@ def plot_fuzz_summary(model, fuzz_results, **kw):
     ax1.invert_yaxis()
     plt.suptitle(f'Feature Sensitivity (Top {top_n})', fontsize=14, fontweight='bold')
     plt.tight_layout()
-    return f"{model.basename}_fuzz-summary"
+    return f"{model.basename}/fuzz-summary"
 
 
 @save_figure
@@ -341,7 +344,7 @@ def plot_interaction_heatmap(model, matrix, labels, diag, **kw):
     plt.colorbar(im, ax=ax, shrink=0.8, label='Interaction strength')
     ax.set_title('Pairwise Feature Interactions\n(diagonal = individual)', fontsize=14, fontweight='bold')
     plt.tight_layout()
-    return f"{model.basename}_fuzz-interactions"
+    return f"{model.basename}/fuzz-interactions"
 
 
 def run_interaction_analysis(model, data, feature_names, fuzz_results, top_k=10, delta_pct=0.1, logger=None):
