@@ -68,5 +68,6 @@ teardown_file(){
       experiment open `basename "$EXP_DIR"`
     fi
   fi
+  echo >&3
 }
 

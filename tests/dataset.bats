@@ -8,7 +8,9 @@ load ./.init.sh
 # ✗ preprocess
 
 # TODO:
+# ✗ assess
 # ✗ export
+# ✗ import
 # ✗ ingest
 # ✗ update
 
@@ -138,7 +140,7 @@ load ./.init.sh
 #  - DS02: fileless
 #  - DS03: fileless
 
-# ✗ alter
+# ✓ alter
 @test "alter $TEST_DS1" {
   skip  #TODO
   run dataset alter "$TEST_DS1"

@@ -10,6 +10,8 @@ load ./.init.sh
 
 # TODO:
 # ✗ compare
+# ✗ explain
+# ✗ fuzz
 # ✗ visualize
 
 @test "run tool's help" {
