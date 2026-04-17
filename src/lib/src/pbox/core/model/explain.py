@@ -23,11 +23,16 @@ def _get_explainer(model_wrapper, X_background, **kw):
                    "AdaBoostClassifier"}
     linear_models = {"LogisticRegression", "SGDClassifier", "RidgeClassifier", "Perceptron"}
     if (clf_name := inner_clf.__class__.__name__) in tree_models:
-        l.debug(f"Using TreeExplainer for {clf_name}")
+        l.info(f"Using TreeExplainer for {clf_name}")
         return shap.TreeExplainer(inner_clf)
     if clf_name in linear_models:
-        l.debug(f"Using LinearExplainer for {clf_name}")
-        return shap.LinearExplainer(inner_clf, X_background)
+        l.info(f"Using LinearExplainer for {clf_name}")
+        if hasattr(predictor, 'steps') and len(predictor.steps) > 1:
+            X_scaled = X_background.copy()
+            for name, step in predictor.steps[:-1]:
+                X_scaled = step.transform(X_scaled)
+            return shap.LinearExplainer(inner_clf, X_scaled), predictor.steps[:-1]
+        return shap.LinearExplainer(inner_clf, X_background), None
     # for everything else (SVC, MLP, ...), use Kernel -> slower
     l.warning(f"Using KernelExplainer for {clf_name}")
     # reduce background for Kernel speed
@@ -100,20 +105,30 @@ def explain_model(model_wrapper, X_data, feature_names=None, max_samples=None, s
             X_subset = X_data.iloc[indices] if hasattr(X_data, 'iloc') else X_data[indices]
         else:
             X_subset = X_data
-    explainer = _get_explainer(model_wrapper, X_data, logger=l)
+    result = _get_explainer(model_wrapper, X_data, logger=l)
+    if isinstance(result, tuple):
+        explainer, preprocess_steps = result
+    else:
+        explainer, preprocess_steps = result, None
+    X_explain = X_subset
+    if preprocess_steps is not None:
+        X_explain = X_subset.copy()
+        for name, step in preprocess_steps:
+            X_explain = step.transform(X_explain)
     # compute SHAP values ONLY on the subset
     if isinstance(explainer, shap.KernelExplainer):
         nsamples = kw.get('nsamples', config['shap-values-number-samples']) # rule of thumb = 2*n_features + 2048
         l.info(f"Computing KernelSHAP on {len(X_subset)} samples with nsamples={nsamples}")
-        shap_values = explainer.shap_values(X_subset, nsamples=nsamples)
+        shap_values = explainer.shap_values(X_explain, nsamples=nsamples)
     else:
-        shap_values = explainer.shap_values(X_subset)
-    # for tree explainer, shape_value = [array_classe_0, array_classe_1] so we just take value for class 1
+        shap_values = explainer.shap_values(X_explain)
+    # for tree explainer, shap_value = [array_classe_0, array_classe_1] so we just take value for class 1
     if isinstance(shap_values, list):
         shap_values = shap_values[1]
     # for kernel explainer, shape_value = (n_samples, n_features) 
     elif hasattr(shap_values, 'shape') and shap_values.ndim == 3:
         shap_values = shap_values[:, :, 1]
+    shap_values = np.array(shap_values, dtype=np.float64)
     expected = explainer.expected_value
     if isinstance(expected, (list, np.ndarray)) and len(expected) == 2:
         expected = expected[1]
@@ -135,7 +150,7 @@ def explain_model(model_wrapper, X_data, feature_names=None, max_samples=None, s
 
 
 @save_figure
-def shap_decision(model, max_samples=50, **kw):
+def shap_decision(model, max_display=10, max_samples=50, **kw):
     plt.figure(figsize=(14, 10))
     exp = model._explanation
     n = min(max_samples, len(exp['shap_values']))
@@ -156,8 +171,9 @@ def shap_decision(model, max_samples=50, **kw):
 
 @save_figure
 def shap_heatmap(model, max_display=10, **kw):
+    exp = model._explanation
     plt.figure(figsize=(14, 10))
-    shap.plots.heatmap(model._explanation['shap_explanation'], max_display=max_display, show=False)
+    shap.plots.heatmap(exp['shap_explanation'], max_display=max_display, show=False)
     plt.tight_layout()
     return f"{model.basename}/explained_shap-heatmap"
 
@@ -197,6 +213,36 @@ def shap_force_not_packed(model, sample_idx=None, **kw):
     _local_plot(model, packed=False, sample_idx=sample_idx, plot_type="force", **kw)
     return f"{model.basename}/explained_shap-force-not-packed"
 
+@save_figure
+def shap_taxonomy_donut(model, **kw):
+    exp = model._explanation
+    profile = exp.get('category_profile', {})
+    if not profile:
+        return None
+    
+    cats = list(profile.keys())
+    vals = list(profile.values())
+    
+    filtered = [(c, v) for c, v in zip(cats, vals) if v >= 0.02]
+    other = sum(v for _, v in zip(cats, vals) if v < 0.02)
+    if other > 0:
+        filtered.append(('Other', other))
+    cats_f, vals_f = zip(*filtered)
+    
+    colors = ['#264653', '#2a9d8f', '#e9c46a', '#f4a261',
+              '#e76f51', '#606c38', '#dda15e', '#bc6c25', '#023047']
+    
+    fig, ax = plt.subplots(figsize=(8, 8))
+    wedges, texts, autotexts = ax.pie(
+        vals_f, labels=cats_f, autopct='%1.0f%%',
+        colors=colors[:len(vals_f)], pctdistance=0.8,
+        wedgeprops=dict(width=0.4, edgecolor='white', linewidth=2))
+    for t in autotexts:
+        t.set_fontsize(9)
+        t.set_fontweight('bold')
+    ax.set_title(f'Model taxonomy of {model.basename}', size=13, fontweight='bold')
+    plt.tight_layout()
+    return f"{model.basename}/explained_shap-taxonomy"
 
 _EXPLANATIONS = {
     'decision':             shap_decision,
@@ -204,6 +250,7 @@ _EXPLANATIONS = {
     'force_packed':         shap_force_packed,
     'heatmap':              shap_heatmap,
     'summary':              shap_summary,
+    'taxonomy':             shap_taxonomy_donut,
     'waterfall_not_packed': shap_waterfall_not_packed,
     'waterfall_packed':     shap_waterfall_packed,
 }
