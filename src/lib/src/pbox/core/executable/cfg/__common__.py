@@ -21,7 +21,7 @@ _sha1 = lambda x: hashlib.sha1(x.encode()).digest()
 
 
 def __init_angr():
-    angr_loggers = ["angr.*", "cle\..*", "pyvex.*"]
+    angr_loggers = [r"angr.*", r"cle\..*", r"pyvex.*"]
     configure_logging(reset=True, exceptions=angr_loggers)
     from ....helpers.config import _LOG_CONFIG
     for l in logging.root.manager.loggerDict:
@@ -92,10 +92,10 @@ class CFG(GetItemMixin, ResetCachedPropertiesMixin):
             for node in self.model.graph.nodes():
                 if node.size:
                     try:
-                        node.byte_string = (tuple(insn.mnemonic for insn in node.block.disassembly.insns) \
-                                            if config['opcode_mnemonics'] else bytes(insn.bytes[0] \
-                                            for insn in node.block.disassembly.insns)) if config['only_opcodes'] \
-                                           else node.block.bytes
+                        node._byte_string = (tuple(insn.mnemonic for insn in node.block.disassembly.insns) \
+                                             if config['opcode_mnemonics'] else bytes(insn.bytes[0] \
+                                             for insn in node.block.disassembly.insns)) if config['only_opcodes'] \
+                                            else node.block.bytes
                     except KeyError:
                         pass
             self.model.graph.root_node = self.root_node = self.model.get_any_node(self.model.project.entry) or \

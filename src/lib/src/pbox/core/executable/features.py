@@ -73,7 +73,7 @@ class Features(dict, metaclass=MetaBase):
             for name, feature in reg.items():
                 # compute only if it has the keep=True flag ; otherwise, it will be lazily computed on need
                 if (not ft.boolean_only or ft.boolean_only and feature.boolean) and \
-                   (feature.keep and feature_names is None or feature.name in feature_names):
+                   (feature.keep and (feature_names is None or feature.name in feature_names)):
                     try:
                         v = feature(self._rawdata, True, benchmark=benchmark, benchmark_threshold=benchmark_threshold)
                         self[name] = bool(v) if feature.boolean else v

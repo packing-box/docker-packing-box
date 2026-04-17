@@ -96,7 +96,7 @@ def execute(name, **kwargs):
             spec += " " + a.option_strings[0] + " " + str(v)
     cmd = DETECTORS[name].get('command', f"{expuser('~/.local/bin')}/{name.lower()} {{path}}")
     exe, opt = cmd.replace("$OPT", expuser("~/.opt/detectors")).replace("$BIN", expuser("~/.opt/bin")).split(" ", 1)
-    cmd = re.sub("'?\{path\}'?", "'{path}'", f"{exe}{spec} {opt}")  # this allows to handle input path with whitespaces
+    cmd = re.sub(r"'?\{path\}'?", "'{path}'", f"{exe}{spec} {opt}")  # this allows to handle input path with whitespaces
     kwargs['logger'].debug("Command format: " + cmd)
     if kwargs.get('version', False):
         if kwargs.get('exit', True):
