@@ -53,7 +53,7 @@ RUN apt-get -y install apt-transport-https apt-utils \
                        libtiff5-dev libudev-dev libxcursor-dev libxkbfile-dev libxml2-dev libxrandr-dev libfuzzy-dev
 # install useful tools
 RUN apt-get update \
- && apt-get -y install colordiff colortail cython3 dos2unix dosbox git golang kmod less ltrace meson nasm tree strace \
+ && apt-get -y install colordiff colortail cython3 dos2unix dosbox git kmod less ltrace meson nasm tree strace \
  && apt-get -y install gcab genisoimage iproute2 jlha-utils jq nftables nodejs npm rubygems ssdeep swig unar yarnpkg \
  && apt-get -y install python3-pip python3-pygraphviz python3-setuptools python3-venv vim visidata yq \
  && apt-get -y install bc curl ffmpeg imagemagick pev psmisc tesseract-ocr unrar unzip wget wimtools x11-apps zstd \
@@ -123,8 +123,13 @@ RUN uv pip install capstone jinja2 meson poetry pythonnet pwntools thefuck tinys
 RUN dotnet tool install --global ilspycmd
 # install Rust (user-level)
 RUN curl https://sh.rustup.rs -sSf | bash -s -- -y
-# initialize Go
-RUN go mod init pbox &
+# Install Go
+RUN LATEST=$(wget -qO- https://go.dev/VERSION?m=text | head -n 1) \
+ && wget -qO /tmp/go.tar.gz https://go.dev/dl/${LATEST}.linux-amd64.tar.gz \
+ && rm -rf /usr/local/go \
+ && tar -C /usr/local -xzf /tmp/go.tar.gz \
+ && rm /tmp/go.tar.gz
+ && go mod init pbox &
 # install user-level tools
 RUN go install github.com/antonmedv/fx@latest
 # +--------------------------------------------------------------------------------------------------------------------+
@@ -164,12 +169,10 @@ RUN sudo mkdir -p /mnt/share \
 # copy executable format related data
 COPY --chown=$USER src/data $PBWS/data
 # install LLM-related dependencies before pbox so they benefit from a separate cache layer
-RUN pip3 install --user --no-warn-script-location --break-system-packages \
-    llama-cpp-python huggingface_hub
+RUN uv pip install llama-cpp-python huggingface_hub
 # copy and install pbox (main library for tools) and pboxtools (lightweight library for items)
 COPY --chown=$USER src/lib /tmp/lib
-RUN chmod -R u+w /tmp/lib \
- && pip3 install --user --no-warn-script-location --break-system-packages /tmp/lib/ \
+RUN uv pip install /tmp/lib/ \
  && rm -rf /tmp/lib
 COPY --chown=$USER $FILES/tools/packing-box $PBOX
 # install analyzers
