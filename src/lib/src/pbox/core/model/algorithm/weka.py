@@ -11,10 +11,7 @@ __all__ = ["WekaClassifier"]
 
 def to_arff(name="undefined"):
     def _fmt_num(v):
-        try:
-            inf = np.isinf(v)
-        except TypeError:
-            inf = False
+        inf = isinstance(v, (int, float, np.integer, np.floating)) and np.isinf(v)
         return "?" if pd.isna(v) or inf else str(v)
     
     def _fmt_nom(v):
