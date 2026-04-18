@@ -36,7 +36,8 @@ if __name__ == '__main__':
     add_argument(feat, "executable", "features-set", single=True)
     graph = sparsers.add_parser("graph", help="extract and export the target executable's CFG/FCG")
     add_argument(graph, "executable", single=True)
-    graph.add_argument("-f", "--format", choices=["dot", "graphml"], default="dot", help="output graph format")
+    graph.add_argument("-f", "--format", dest="graph_format", choices=["dot", "graphml"], default="dot",
+                       help="output graph format")
     graph.add_argument("-o", "--output", help="output graph file")
     graph.add_argument("-t", "--graph-type", choices=["cfg", "fcg"], default="cfg",
                        help="graph type to be extracted")

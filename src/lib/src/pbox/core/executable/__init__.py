@@ -245,7 +245,7 @@ class Executable(Path):
     def graph(self, graph_type="cfg", graph_format=None, output=None, **kwargs):
         import networkx as nx
         graph_type = graph_type.lower()
-        graph_format = (graph_format or kwargs.pop("format", None) or "dot").lower()
+        graph_format = (graph_format or "dot").lower()
         if graph_type not in ["cfg", "fcg"]:
             raise ValueError(f"Unsupported graph type '{graph_type}'")
         if graph_format not in ["dot", "graphml"]:
@@ -253,7 +253,7 @@ class Executable(Path):
         graph = self.cfg.graph if graph_type == "cfg" else self.fcg
         if graph is None:
             raise ValueError(f"Could not compute {graph_type.upper()} for '{self}'")
-        output = Path(output or f"{Path(self.realpath).stem}.{graph_format}", expand=True)
+        output = Path(str(output or f"{Path(self.realpath).stem}.{graph_format}")).expanduser()
         if graph_format == "dot":
             from networkx.drawing.nx_pydot import write_dot
             write_dot(graph, str(output))
