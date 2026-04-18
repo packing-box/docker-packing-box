@@ -10,6 +10,15 @@ __all__ = ["WekaClassifier"]
 
 
 def to_arff(name="undefined"):
+    def _fmt_num(v):
+        inf = isinstance(v, (int, float, np.integer, np.floating)) and np.isinf(v)
+        return "?" if pd.isna(v) or inf else str(v)
+    
+    def _fmt_nom(v):
+        if pd.isna(v):
+            return "?"
+        return "'{}'".format(str(v).replace("\\", "\\\\").replace("'", "\\'").replace("\r", "\\r").replace("\n", "\\n"))
+    
     def _wrapper(f):
         @functools.wraps(f)
         def _subwrapper(self, *args, **kwargs):
@@ -30,19 +39,20 @@ def to_arff(name="undefined"):
                 X, y = args[0], None
             if y is not None:
                 self.labels = sorted(set(map(str, y)))
-                d = [row[0] + [tgt] for row, tgt in zip(X.iterrows(), y)] \
-                    if isinstance(X, pd.DataFrame) else [list(row) + [tgt] for row, tgt in zip(X, y)]
+                d = [[_fmt_num(v) for v in row[1].tolist()] + [_fmt_nom(tgt)] for row, tgt in zip(X.iterrows(), y)] \
+                    if isinstance(X, pd.DataFrame) else [[_fmt_num(v) for v in row] + [_fmt_nom(tgt)] for row, tgt in zip(X, y)]
             else:
-                d = [row[0] + ["?"] for row in X.iterrows()] if isinstance(X, pd.DataFrame) else \
-                    [list(row) + ["?"] for row in X]
-            d = "\n".join(",".join(map(str, row)) for row in d)
+                d = [[_fmt_num(v) for v in row[1].tolist()] + ["?"] for row in X.iterrows()] if isinstance(X, pd.DataFrame) else \
+                    [[_fmt_num(v) for v in row] + ["?"] for row in X]
+            d = "\n".join(",".join(row) for row in d)
             # create the destination ARFF file
             p = Path(dest)
             kwargs['arff'] = str(p)
             Path(p.dirname, create=True)
             with p.open('w') as arff:
                 arff.write(("@RELATION \"{rel}\"\n\n{attr}\n@ATTRIBUTE {c: <%d} {cls}\n\n@DATA\n{data}" % mlen)
-                           .format(rel=name, attr="\n".join(a), data=d, c="class", cls=f"{{{','.join(self.labels)}}}"))
+                           .format(rel=name, attr="\n".join(a), data=d, c="class",
+                                   cls=f"{{{','.join(map(_fmt_nom, self.labels))}}}"))
             r = f(self, *args, **kwargs)
             if destination is None:
                 p.remove()
@@ -113,4 +123,3 @@ class BFTree(WekaClassifier):
 class Decorate(WekaClassifier):
     """ This implements the DECORATE algorithm from Weka. """
     _weka_base = "weka.classifiers.meta.Decorate"
-
