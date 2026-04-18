@@ -242,6 +242,26 @@ class Executable(Path):
         return exeplot.utils.ngrams_distribution(self, n=n, n_most_common=n_most_common, n_exclude_top=n_exclude_top,
                                                  exclude=exclude)
     
+    def graph(self, graph_type="cfg", graph_format=None, output=None, **kwargs):
+        import networkx as nx
+        graph_type = graph_type.lower()
+        graph_format = (graph_format or "dot").lower()
+        if graph_type not in ["cfg", "fcg"]:
+            raise ValueError(f"Unsupported graph type '{graph_type}'")
+        if graph_format not in ["dot", "graphml"]:
+            raise ValueError(f"Unsupported graph format '{graph_format}'")
+        graph = self.cfg.graph if graph_type == "cfg" else self.fcg
+        if graph is None:
+            raise ValueError(f"Could not compute {graph_type.upper()} for '{self}'")
+        output = Path(str(output or f"{Path(self.realpath).stem}.{graph_format}")).expanduser()
+        if graph_format == "dot":
+            from networkx.drawing.nx_pydot import write_dot
+            write_dot(graph, str(output))
+        else:
+            nx.write_graphml(graph, str(output))
+        self._logger(**kwargs).info(f"{graph_type.upper()} exported to {output}")
+        return output
+    
     def objdump(self, n=0, executable_only=False):
         from subprocess import check_output
         output, result, l = check_output(["objdump", ["-D", "-d"][executable_only], str(self)]), bytearray(b""), 0
@@ -464,6 +484,18 @@ class Executable(Path):
         return bintropy.entropy(self.read_bytes())
     
     @cached_property
+    def fcg(self):
+        try:
+            # triggering CFG extraction first is required for Angr to populate the call graph in the knowledge base
+            cfg_graph = self.cfg.graph
+        except AttributeError:
+            return
+        if cfg_graph is None:
+            return
+        if self.cfg.model and self.cfg.model.project:
+            return self.cfg.model.project.kb.functions.callgraph
+    
+    @cached_property
     def features(self):
         try:
             return self._dataset._features
@@ -538,4 +570,3 @@ class Executable(Path):
     @cached_property
     def size(self):
         return super(Executable, self).size
-
