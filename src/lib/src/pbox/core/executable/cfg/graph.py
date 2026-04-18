@@ -86,6 +86,7 @@ def num_neighbors(self, node=None):
     except AttributeError:
         if hasattr(node, "addr"):
             raise
+        # Fallback for key-based graph storage used by some CFG backends.
         succ = getattr(self, "_succ", getattr(self, "_adj", {}))
         pred = getattr(self, "_pred", getattr(self, "_adj", {}))
         ns, np = len(succ.get(node, {})), len(pred.get(node, {}))
