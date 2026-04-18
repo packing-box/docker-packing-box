@@ -487,8 +487,10 @@ class Executable(Path):
     def fcg(self):
         try:
             # triggering CFG extraction first is required for Angr to populate the call graph in the knowledge base
-            _ = self.cfg.graph
+            cfg_graph = self.cfg.graph
         except AttributeError:
+            return
+        if cfg_graph is None:
             return
         if self.cfg.model and self.cfg.model.project:
             return self.cfg.model.project.kb.functions.callgraph
