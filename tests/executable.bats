@@ -31,3 +31,9 @@ load ./.init.sh
   assert_output --partial 'entropy'
 }
 
+# ✓ graph
+@test "extract FCG of /bin/ls as DOT" {
+  local FCG_FILE="/tmp/fcg-`openssl rand -hex 16`.dot"
+  run executable graph /bin/ls --graph-type fcg --output "$FCG_FILE"
+  assert_file_exist "$FCG_FILE"
+}
