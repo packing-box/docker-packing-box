@@ -83,8 +83,8 @@ def num_neighbors(self, node=None):
     """ Get the number of successors and predecessors of a targeted node. """
     try:
         ns, np = len(list(self.successors(node))), len(list(self.predecessors(node)))
-    except AttributeError as e:
-        if not isinstance(node, str) or "'str' object has no attribute 'addr'" not in str(e):
+    except AttributeError:
+        if hasattr(node, "addr"):
             raise
         succ = getattr(self, "_succ", getattr(self, "_adj", {}))
         pred = getattr(self, "_pred", getattr(self, "_adj", {}))
