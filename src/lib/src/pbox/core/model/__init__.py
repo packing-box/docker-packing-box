@@ -531,6 +531,7 @@ class Model(BaseModel):
                f"{len(significant)}/{len(ranked)} features above]:")
         for name, imp in significant:
             l.info(f"  {name}: {imp:.4f}")
+        Features._load()
         registry = Features.registry.get('PE32', Features.registry.get('PE', {}))
         category_map = {}
         for feature_name, feature in registry.items():
