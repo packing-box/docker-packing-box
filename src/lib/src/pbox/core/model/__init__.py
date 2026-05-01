@@ -16,6 +16,7 @@ from ..executable import *
 from ..pipeline import *
 from ...helpers import *
 from ..items.detector import Detector
+from collections import defaultdict
 
 lazy_load_module("joblib")
 
@@ -530,11 +531,25 @@ class Model(BaseModel):
                f"{len(significant)}/{len(ranked)} features above]:")
         for name, imp in significant:
             l.info(f"  {name}: {imp:.4f}")
+        Features._load()
+        registry = Features.registry.get('PE32', Features.registry.get('PE', {}))
+        category_map = {}
+        for feature_name, feature in registry.items():
+            category_map[feature_name] = feature.get('category', 'unknown')
+        category_shap = defaultdict(float)
+        for name, imp in significant:
+            category_shap[category_map.get(name, 'unknown')] += imp
+        total = sum(category_shap.values()) or 1.0
+        category_profile = {category: value / total for category, value in sorted(category_shap.items(), key=lambda x: -x[1])}
+        l.info(f"Category profile (normalized):")
+        for category, percentage in category_profile.items():
+            l.info(f"  {category}: {percentage:.1%}")
+        self._explanation['category_profile'] = category_profile
         if not export and plots is None:
             return self._explanation
         from .explain import _EXPLANATIONS
         display = max_display if max_display != 10 else n_significant
-        for p in (["summary"] if plots is None else list(_EXPLANATIONS.keys()) if "all" in plots else plots):
+        for p in (["summary", "taxonomy"] if plots is None else list(_EXPLANATIONS.keys()) if "all" in plots else plots):
             # when a sample index is provided, generate a single plot instead of the packed/not-packed pair
             if sample_idx is not None and p in ("force", "waterfall"):
                 plot_func = _EXPLANATIONS.get(f"{p}_packed") 
@@ -554,6 +569,19 @@ class Model(BaseModel):
                     plot_func(self, feature_idx=feature_idx)
                 else:
                     plot_func(self, max_display=display)
+        if self._explanation.get('category_profile'):
+            try:
+                profile_path = config['experiment'].joinpath("taxonomy", f"{self.name}_taxonomy-profile.json")
+                profile_path.dirname.mkdir(exist_ok=True, parents=True)
+            except KeyError:
+                profile_path = Path(f"{self.name}_taxonomy-profile.json")
+            with open(str(profile_path), 'w') as f:
+                json.dump({
+                    'model': self.name,
+                    'surrogate': self._metadata.get('surrogate'),
+                    'profile': self._explanation['category_profile']
+                }, f, indent=2)
+            l.info(f"Saved taxonomy profile to {profile_path}")
         return self._explanation
     
     RESET  = "\033[0m"

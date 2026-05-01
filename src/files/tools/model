@@ -54,6 +54,7 @@ if __name__ == '__main__':
     explain.add_argument("--sample-idx", type=int, help="sample index for waterfall/force plots")
     explain.add_argument("--max-display", type=int, default=10, help="max features to display in heatmap")
     explain.add_argument("--max-samples", type=int, help="max samples to explain (auto-set to 400 for slow models)")
+    explain.add_argument("executable", nargs="?", default=None, help="dataset or executable to explain on")
     fuzz = add_argument(sparsers.add_parser("fuzz", category="read",
                                             help="fuzz features and analyze the impact on predictions"), "mdname")
     fuzz.add_argument("-d", "--delta", type=float, default=.1, help="percentage to fuzz features by (default: 10%%)")
