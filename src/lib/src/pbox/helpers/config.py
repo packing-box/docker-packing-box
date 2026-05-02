@@ -32,7 +32,7 @@ class Config:
                       description as value ; see hereafter)
     :param envars:   list of environment variables to be retrieved from ~/.[name]/[envvar].env
     :param hidden:   dictionary of hidden (not user-configurable) options (same option format as for 'defaults')
-    :param naming:   convention for option names (by default, hypen- or underscore-separated alphanumeric)
+    :param naming:   convention for option names (by default, hyphen- or underscore-separated alphanumeric)
     
     Option description formats (apply to 'defaults' and 'hidden'):
       - 4-tuple: (default, metavar, description, transform_function)
@@ -43,7 +43,7 @@ class Config:
         # keep a config object for holding changed options, to be saved to the destination path ;
         #  all other options are taken from defaults, environments variables or hidden options
         self.__config = configparser.ConfigParser()
-        self._defaults, self._envars, self._hidden, self._naming = defaults or {}, envars or [], hidden or {}, naming
+        self._defaults, self._envars, self._hidden, self._naming = defaults or {}, envars or {}, hidden or {}, naming
         self._path = ConfigPath(name, file=True)
         if not self._path.exists():
             self._path.touch()
@@ -99,6 +99,27 @@ class Config:
                 return
         raise KeyError(option)
     
+    def add(self, section, option, default, func, metavar=None, description="", overrides=None,
+            join_default_to_override=None, envar=False, hidden=False):
+        """ Add a new option. """
+        for o in self.iteroptions():
+            if option == o[0]:
+                raise ValueError(f"option '{option}' already exists")
+        self.check(section), self.check(option)
+        self._defaults.setdefault(section, {})
+        self.__config.add_section(section)
+        if hidden:
+            self._hidden[option] = (str(default), metavar, description, func)
+        else:
+            self._defaults[section][option] = (str(default), metavar, description, func)
+            if join_default_to_override is not None and overrides is not None:
+                self._defaults[section][option] += (overrides, join_default_to_override)
+            elif overrides is not None:
+                self._defaults[section][option] += (overrides, )
+            if envar:
+                self._envars[option] = (metavar, description, func)
+        self.__config[section][option] = str(default)
+    
     def check(self, name, raise_error=True):
         """ Check option name against the naming convention. """
         if name in [x for y in self._defaults.values() for x in y.keys()] or name in SPECIAL_INPUTS or \
@@ -113,9 +134,8 @@ class Config:
         """ Get the default value for an option. """
         for s in self.sections():
             if option in self._defaults[s].keys():
-                o = self._defaults[s][option]
                 # dummy option value, return as is
-                if not isinstance(o, (list, tuple)):
+                if not isinstance(o := self._defaults[s][option], (list, tuple)):
                     return o
                 # 3-tuple format: (default, metavar, description)
                 default_value, metavar, description = o[:3]
@@ -130,8 +150,7 @@ class Config:
         """ Get the type function for an option. """
         for s in self.sections():
             if option in self._defaults[s].keys():
-                o = self._defaults[s][option]
-                return o[3] if len(o) >= 4 else lambda s, v, *a: str(v)
+                return o[3] if len(o := self._defaults[s][option]) >= 4 else lambda s, v, *a: str(v)
         raise KeyError(option)
     
     def get(self, option, default=None, sections=None, error=False):
@@ -142,27 +161,22 @@ class Config:
             if s not in self.sections():
                 raise ValueError(f"Bad section name '{s}'")
         # first, check for a hidden option (that cannot be set by the user)
-        h = self._hidden
-        if option in h:
-            o = h[option]
-            return o[3](self, o[0]) if isinstance(o, tuple) else o
+        if option in (h := self._hidden):
+            return o[3](self, o[0]) if isinstance(o := h[option], tuple) else o
         # second, check for an existing environment variable
-        ev = self._envars
-        if option in ev:
+        if option in (ev := self._envars):
             envf = PBOX_HOME.joinpath(option + ".env")
             if envf.exists():
                 with envf.open() as f:
                     v = f.read().strip()
                 if v != "":
-                    o = ev[option]
-                    return o[2](self, v) if isinstance(o, tuple) else o
+                    return o[2](self, v) if isinstance(o := ev[option], tuple) else o
         # now, look at options from the bound ConfigParser or the registered defaults, given the input sections list to
         #  be considered
         for s in sections:
             if option not in self._defaults[s]:
                 continue
-            o = self._defaults[s][option]
-            func = o[3] if len(o) >= 4 else lambda s, v, *a: str(v)
+            func = o[3] if len(o := self._defaults[s][option]) >= 4 else lambda s, v, *a: str(v)
             # then, check for modified values (loaded from ~/.packing-box.conf) saved into self.__config
             if self.__config.has_section(s) and option in self.__config[s]:
                 try:
@@ -228,13 +242,13 @@ class Config:
     
     def overview(self):
         """ Get a renderable overview of the configuration. """
-        from tinyscript.report import List, Section
+        from tinyscript.report import List, Section, Rule
         from .rendering import render
         r = []
         for s in self.itersections():
+            r.append(Rule())
             r.append(Section(s.name.upper() if s.name in ACRONYMS else s.name.capitalize()))
-            mlen = max(map(len, s.keys()))
-            r.append(List(list(map(lambda opt: f"{opt.ljust(mlen)} = {self[opt]}", s.keys()))))
+            r.append(List(list(map(lambda opt: f"{opt.ljust(max(map(len, s.keys())))} = {self[opt]}", s.keys()))))
         render(*r)
     
     def save(self):
