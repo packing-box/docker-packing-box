@@ -4,6 +4,11 @@ from collections import deque
 from tinyscript import ast, itertools, logging, re
 from tinyscript.helpers import is_generator as is_gen, Path
 from tinyscript.report import *
+import yaml
+from sklearn.feature_selection import mutual_info_classif, RFECV
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.model_selection import StratifiedKFold
+from sklearn.feature_selection import mutual_info_regression
 
 from ...helpers import *
 
@@ -14,6 +19,104 @@ __all__ = ["Features"]
 _NAME_REGEX = re.compile(r"[a-zA-Z0-9][a-zA-Z0-9<>%]*(?:_[a-zA-Z0-9][a-zA-Z0-9<>%]*)*")
 _SPLIT_REGEX = re.compile(r"[\s\.\,\-\+\[\]\(\)]")
 
+class _FlowList(list):
+    """List that YAML will render in flow style: [1, 3, 7, 9]"""
+    pass
+
+def _flow_list_representer(dumper, data):
+    return dumper.represent_sequence('tag:yaml.org,2002:seq', data, flow_style=True)
+
+yaml.add_representer(_FlowList, _flow_list_representer)
+
+def _mrmr_filter(X, y, names, top_k, l):
+    n_features = X.shape[1]
+    
+    # Relevance: MI(feature, target)
+    relevance = mutual_info_classif(X, y, random_state=42)
+    l.info("    Computing pairwise MI matrix...")
+    mi_matrix = np.zeros((n_features, n_features))
+    for i in range(n_features):
+        mi_row = mutual_info_regression(X, X[:, i].ravel(), random_state=42)
+        mi_matrix[:, i] = mi_row
+
+    selected_idx = [int(np.argmax(relevance))]
+    candidates = set(range(n_features)) - set(selected_idx)
+    
+    for _ in range(min(top_k - 1, len(candidates))):
+        best_score, best_idx = -np.inf, None
+        
+        for c in candidates:
+            redundancy = np.mean([mi_matrix[c, s] for s in selected_idx])
+            score = relevance[c] - redundancy
+            
+            if score > best_score:
+                best_score, best_idx = score, c
+        
+        if best_idx is None:
+            break
+        selected_idx.append(best_idx)
+        candidates.remove(best_idx)
+    
+    selected_names = [names[i] for i in selected_idx]
+    l.info(f"  {len(selected_names)} features after mRMR redundancy filter")
+    return selected_idx, selected_names
+
+def _filter_yaml(input_path, selected_names, output_path):
+    with open(str(input_path), 'r') as f:
+        content = yaml.load(f, Loader=yaml.Loader)
+    
+    selected_set = set(selected_names)
+    filtered = {}
+    
+    defaults = content.pop('defaults', None)
+    if defaults is not None:
+        filtered['defaults'] = defaults
+    
+    for key, definition in content.items():
+        if definition is None:
+            continue
+        
+        # Simple feature (no '%' in key)
+        if '%' not in key:
+            if key in selected_set:
+                filtered[key] = definition
+            continue
+        
+        # Template feature (key contains '%')
+        raw_values = definition.get('values', [])
+        kept_values = []
+        
+        for raw_val in raw_values:
+            is_expandable = hasattr(raw_val, '__iter__') and \
+                            not isinstance(raw_val, (list, tuple, str, bytes))
+            
+            if is_expandable:
+                try:
+                    candidates = list(raw_val)
+                except TypeError:
+                    candidates = [raw_val]
+            else:
+                candidates = [raw_val]
+            
+            for val in candidates:
+                try:
+                    if isinstance(val, (list, tuple)):
+                        name = key % tuple(val)
+                    else:
+                        name = key % val
+                except TypeError:
+                    continue
+                
+                if name in selected_set:
+                    kept_values.append(val)
+        
+        if kept_values:
+            new_def = definition.copy()
+            new_def['values'] = _FlowList(kept_values)
+            filtered[key] = new_def
+    
+    with open(str(output_path), 'w') as f:
+        yaml.dump(filtered, f, default_flow_style=False, allow_unicode=True, sort_keys=False)
 
 class Feature(dict2):
     def __init__(self, *args, **kwargs):
@@ -272,4 +375,112 @@ class Features(dict, metaclass=MetaBase):
                     counts[val].append(len(reg if val == ud else reg.query(f"{k} == '{val}'")))
             render(Section(f"Counts per {descr}"), Table([[c] + v for c, v in counts.items()],
                                                          column_headers=[descr.title()] + formats))
+    
+    @classmethod
+    def filter(cls, dataset=None, output=None, var_threshold=0.0,
+           mi_top_k=100, scoring='matthews_corrcoef', cv=5, min_features=1, **kw):
+        #Import here to avoid circular import problem
+        from ...core.dataset import Dataset
+        l = cls.logger
+        cls._load()
+        
+        if isinstance(dataset, str):
+            dataset = Dataset(dataset)
+
+        if dataset is None:
+            raise ValueError("Dataset must be provided")
+        
+        fmt_names = {}
+        for fmt, reg in cls.registry.items():
+            for name, feat in reg.items():
+                if feat.keep:
+                    fmt_names[name] = feat
+        names = sorted(fmt_names.keys())
+        l.info(f"Feature set: {len(names)} features")
+        
+        X, y, skipped = [], [], 0
+        for exe in dataset:
+            try:
+                data = exe.data  
+                row = []
+                for n in names:
+                    v = data.get(n)
+                    if isinstance(v, bool):
+                        v = int(v)
+                    elif v is None:
+                        v = -1.0 # Handle missing values as -1
+                    row.append(v)
+                X.append(row)
+                lbl = str(getattr(exe, 'label', NOT_PACKED))
+                y.append(0 if lbl in [NOT_LABELLED, NOT_PACKED, 'nan'] else 1)
+            except Exception as e:
+                skipped += 1
+                l.warning(f"Skipping {exe}: {e}")
+        
+        X = np.array(X, dtype=float)
+        y = np.array(y)
+        l.info(f"Computed: {len(X)} samples ({sum(y==0)} not-packed, {sum(y==1)} packed)"
+                + (f", {skipped} skipped" if skipped else ""))
+        
+        if len(X) == 0:
+            l.error("No samples could be processed")
+            return []
+        
+        l.info(f"[1/4] Variance filter (threshold={var_threshold})")
+        variances = np.var(X, axis=0)
+        mask = variances > var_threshold
+        X, names = X[:, mask], [n for n, m in zip(names, mask) if m]
+        l.info(f"  {len(names)} features retained (removed {sum(~mask)})")
+        
+        if len(names) == 0:
+            l.error("All features removed by variance filter")
+            return []
+        
+        l.info(f"[2/4] Mutual Information filter (top {mi_top_k})")
+        mi_scores = mutual_info_classif(X, y, random_state=42)
+        ranking = sorted(zip(names, mi_scores, range(len(names))), key=lambda x: -x[1])
+        k = min(mi_top_k, len(ranking))
+        top = ranking[:k]
+        
+        for name, mi, _ in top[:10]:
+            l.debug(f"    {name:50s} MI={mi:.4f}")
+        
+        indices = [x[2] for x in top]
+        X, names = X[:, indices], [x[0] for x in top]
+        l.info(f"  {len(names)} features retained")
+        
+        l.info("[3/4] mRMR redundancy filter")
+        mrmr_indices, names = _mrmr_filter(X, y, names, top_k=mi_top_k, l=l)
+        X = X[:, mrmr_indices]
+    
+        l.info(f"[4/4] RFECV (scoring={scoring}, cv={cv})")
+        
+        rf = RandomForestClassifier(
+            n_estimators=100, max_depth=10, random_state=42, n_jobs=-1
+        )
+        rfecv = RFECV(
+            estimator=rf, step=1, cv=StratifiedKFold(n_splits=cv, shuffle=True, random_state=42), 
+            scoring=scoring,
+            min_features_to_select=min_features, n_jobs=-1
+        )
+        rfecv.fit(X, y)
+        mask = rfecv.support_
+        selected = [n for n, m in zip(names, mask) if m]
+        l.info(f"  Best CV score (MCC): {rfecv.cv_results_['mean_test_score'][rfecv.n_features_ - 1]:.4f}")
+        
+        rf_final = RandomForestClassifier(n_estimators=100, random_state=42, n_jobs=-1)
+        rf_final.fit(X[:, mask], y)
+        importances = rf_final.feature_importances_
+        ranked = sorted(zip(selected, importances), key=lambda x: -x[1])
+        selected_names = [x[0] for x in ranked]
+        
+        l.info(f"  {len(selected_names)} features selected:")
+        for i, (name, imp) in enumerate(ranked, 1):
+            l.info(f"    {i:2d}. {name:50s} importance={imp:.4f}")
+        
+        if output:
+            _filter_yaml(cls.config, selected_names, output)
+            l.info(f"Saved filtered feature set to {output}")
+        
+        return selected_names
 
