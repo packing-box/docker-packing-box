@@ -68,6 +68,7 @@ if __name__ == '__main__':
                       help="compute bootstrap confidence intervals on impact scores")
     fuzz.add_argument("--interactions", action="store_true",
                       help="compute pairwise feature interaction heatmap for top features")
+    fuzz.add_argument("executable", nargs="?", default=None, help="dataset or executable to fuzz")
     edit = sparsers.add_parser("edit", category="create/modify/delete", help="edit the performance log file")
     add_argument(edit, "mdname", force=True)
     listm = sparsers.add_parser("list", category="read", help="list all the models from the workspace")

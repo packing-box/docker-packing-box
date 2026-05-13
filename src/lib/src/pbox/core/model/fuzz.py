@@ -110,6 +110,10 @@ def compute_impact_per_class(fuzz_result):
 
 def fuzz_features(model, data, feature_names, delta_pct=0.1, top_n=20, export=True, output_dir="fuzz_plots",
                   use_stddev=False, n_sigma=1.0, logger=None):
+    if use_stddev and len(data) < 2:
+        if logger:
+            logger.warning("Std-based fuzzing requires multiple samples. Falling back to delta-based.")
+        use_stddev = False
     data = data[feature_names].apply(pd.to_numeric, errors='coerce').fillna(0).copy()
     predict_fn = _make_predict_proba_func(model)
     if export:
