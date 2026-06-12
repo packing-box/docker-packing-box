@@ -48,6 +48,14 @@ if __name__ == '__main__':
                         help="split the selected features according to the specified attribute",
                         note="if --output is not defined, it sets it to 'features.yml' by default")
     add_argument(sparsers.add_parser("show", help="show statistics about the target features set"), "features-set")
+    filt = sparsers.add_parser("filter", help="filter features set using variance, MI and RFECV")
+    filt.add_argument("dataset", help="dataset name or path")
+    filt.add_argument("-f", "--features-set", required=True, help="feature YAML file")
+    filt.add_argument("-o", "--output", type=conf_does_not_exist, help="output YAML file with the filtered features")
+    filt.add_argument("--var-threshold", type=float, default=0.0, help="variance threshold for stage 1 filtering", note="default: %(default)s")
+    filt.add_argument("--mi-top-k", type=int, default=100, help="number of top features to keep after MI ranking", note="default: %(default)s")
+    filt.add_argument("--cv", type=int, default=5, help="number of cross-validation folds", note="default: %(default)s")
+    filt.add_argument("--min-features", type=int, default=20, help="minimum number of features to keep in RFECV", note="default: %(default)s")
     # update
     initialize(noargs_action="usage")
     configure_logging(args.verbose)
