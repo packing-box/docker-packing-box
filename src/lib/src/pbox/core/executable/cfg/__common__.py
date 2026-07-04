@@ -8,6 +8,7 @@ from ....helpers.mixins import *
 
 __all__ = ["CFG"]
 
+
 def __init_common_api_imports():
     return {grp: set(functools.reduce(lambda l1, l2: l1 + l2, get_data(grp).get('COMMON_DLL_IMPORTS', {}).values() \
             or [()])) for grp in FORMATS.keys() if grp != "All"}
@@ -70,7 +71,7 @@ class CFG(GetItemMixin, ResetCachedPropertiesMixin):
     def __filter(self, d):
         return d.get(self.__target.format, {}) or d.get(self.__target.group, {})
     
-    def compute(self, algorithm=None, timeout=None, **kw):
+    def _compute(self, algorithm=None, timeout=None, **kw):
         l = self.__class__.logger
         if self.__project is None:
             l.error(f"{self.__target}: CFG project not created")
@@ -178,7 +179,7 @@ class CFG(GetItemMixin, ResetCachedPropertiesMixin):
         try:
             next(_ for _ in self.model.graph.nodes())
         except (AttributeError, StopIteration):
-            self.compute()
+            self._compute()
         return self.model.graph
     
     @property
@@ -201,13 +202,20 @@ class CFG(GetItemMixin, ResetCachedPropertiesMixin):
         return self.__class__.to_acyclic(self.graph)
     
     @cached_property
+    def callgraph(self):
+        """ Compte and return the Function Call Graph (FCG). """
+        if not self.model:
+            self._compute()
+        return return self.__project.kb.functions.callgraph
+    
+    @cached_property
     def common_imports(self):
         return self.imported_apis & self.__filter(_COMMON_API_IMPORTS)
     
     @cached_property
     def imported_apis(self):
         if not self.model:
-            self.compute()
+            self._compute()
         return set(self.model.project.loader.main_object.imports.keys())
     
     @cached_property
@@ -276,4 +284,3 @@ class CFG(GetItemMixin, ResetCachedPropertiesMixin):
     @cached_property
     def used_apis(self):
         return {n.name for n in self.nodes if n.name is not None and n.name != "PathTerminator"}
-
