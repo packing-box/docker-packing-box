@@ -6,7 +6,7 @@ from pboxtools import *
 
 def execute(name, **kwargs):
     try:
-        return json.loads(scan_file(kwargs['path'], ScanFlags.RESULT_AS_JSON, str(database_path / "db"))), ""
+        return json.loads(scan_file(kwargs['path'], ScanFlags.RESULT_AS_JSON, str(database_path))), ""
     except Exception as e:
         return "", str(e)
 

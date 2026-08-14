@@ -45,6 +45,13 @@ class Dataset(Entity):
         self.sources = source_dir
         return self
     
+    def __contains__(self, executable):
+        """ Check if the given executable is present in the dataset. """
+        for e in self:
+            if e.hash == Executable(executable).hash:
+                return True
+        return False
+    
     def __delitem__(self, executable):
         """ Remove an executable (by its real name or hash) from the dataset. """
         self.__change, df = True, self._data

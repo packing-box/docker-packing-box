@@ -195,6 +195,10 @@ class Executable(Path):
                 pass
         # return None to indicate that the copy failed (i.e. when the current instance is already the destination path)
     
+    def detect(self, **kwargs):
+        from ..dataset import Detector
+        self.label = list(Detector.detect(self, label=self.label, **kwargs))[0][1]
+    
     def diff(self, file2, legend1=None, legend2=None, n=0, **kwargs):
         """ Generates a text-based difference between two PE files. 
         
@@ -221,6 +225,11 @@ class Executable(Path):
     
     def is_valid(self):
         return self.format is not None
+    
+    def labellize(self, dataset):
+        from ..dataset import Dataset
+        if self in (ds := Dataset(dataset)):
+            self.label = ds[self.hash][-1]
     
     def modify(self, modifier, *args, **kwargs):
         if isinstance(modifier, str):
@@ -434,6 +443,7 @@ class Executable(Path):
                 if pruning_heuristic == "ordered_smallest" else \
                sorted(profile)[:pruning_size] if pruning_heuristic == "smallest" else \
                profile[:round(pruning_size / 2 + .5)] + profile[-round(pruning_size / 2):]
+    
     @property
     def bin_label(self):
         return READABLE_LABELS(self.label, True)
@@ -462,6 +472,10 @@ class Executable(Path):
     @cached_property
     def entropy(self):
         return bintropy.entropy(self.read_bytes())
+    
+    @cached_property
+    def fcg(self):
+        return self.cfg.callgraph
     
     @cached_property
     def features(self):
@@ -506,6 +520,10 @@ class Executable(Path):
     @cached_property
     def mtime(self):
         return datetime.fromtimestamp(self.stat().st_mtime)
+    
+    @property
+    def num_label(self):
+        return LABELS_BACK_CONV.get(self.label, 1)
     
     @cached_property
     def parsed(self):

@@ -27,8 +27,7 @@ def progress_bar(unit="samples", target=None, silent=False, **kwargs):
 def render(*elements, **kw):
     """ Helper function for rendering Tinyscript report objects to the terminal based on a selected backend. """
     from tinyscript.report import Report, Section, Table
-    backend = kw.get('backend', DEFAULT_BACKEND)
-    if backend == "rich":
+    if (backend := kw.get('backend', DEFAULT_BACKEND)) == "rich":
         from rich.box import SIMPLE_HEAD
         from rich.console import Console
         from rich.markdown import Heading, Markdown
@@ -83,11 +82,14 @@ def render(*elements, **kw):
                     for t in _split_table_by_width(console := Console(markup=False), e):
                         console.print(t)
                 elif isinstance(e, Section):
+                    Console().print()
                     Console().print(Markdown(e.md()), style=Style(bold=True, color="bright_cyan", italic=False))
                 else:
                     Console().print(Markdown(e.md()))
             elif e is not None:
                 Console().print(Markdown(e))
+            if (sp := kw.get('spacing', 0)) > 0:
+                Console().print("\n" * sp)
     elif backend == "mdv":
         try:  # from Python3.9
             import mdv3 as mdv
