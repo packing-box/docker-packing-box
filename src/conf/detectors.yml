@@ -198,7 +198,7 @@ PyPackerDetect:
     - MSDOS
     - PE
   install:
-    - pip: pypackerdetect>=1.1.2
+    - pip: pypackerdetect>=1.2.0
   source: https://github.com/packing-box/pypackerdetect
   status: ok
   vote:   true

@@ -32,6 +32,7 @@ pbox-update() {
     source $HOME/.bashrc
     find /mnt/share/src/files/detectors/ -type f \( ! -iname \"*\.*\" \) -exec cp -f {} $OPT/bin/ \;
     mv -f $OPT/bin/userdb*.txt $OPT/detectors/
+    mv -f $OPT/bin/pypackerdetect-*.json $OPT/detectors/
     rm -f $OPT/detectors/.userdb_txt.json ~/.local/lib/python$pyver/site-packages/peid/db/.userdb_txt.json
   }
   __package_update() {

@@ -182,7 +182,7 @@ RUN find /tmp/analyzers -type f -executable -exec mv {} $UOPT/bin/ \; \
 # install detectors (including wrapper scripts)
 COPY --chown=$USER $FILES/detectors/* /tmp/detectors/
 RUN find /tmp/detectors -type f -executable -exec mv {} $UOPT/bin/ \; \
- && find /tmp/detectors -type f -iname '*.txt' -exec mv {} $UOPT/detectors/ \; \
+ && find /tmp/detectors -type f -regextype posix-extended -regex ".*\.(json|txt)$" -exec mv {} $UOPT/detectors/ \; \
  && $PBOX setup detector
 # install packers
 COPY --chown=$USER $FILES/packers/* /tmp/packers/

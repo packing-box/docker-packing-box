@@ -5,12 +5,22 @@ from pypackerdetect import PyPackerDetect
 from pypackerdetect.__info__ import __author__, __credits__, __license__, __source__, __version__
 
 
+ARGS = [
+    [("-d", "--db"), {'default': "~/.opt/detectors/userdb.txt", 'help': "PEiD signatures database"}],
+    [("-p", "--packers"), {'default': "~/.opt/detectors/pypackerdetect-packers.json",
+                           'help': "JSON with common packer section names"}],
+    [("-s", "--sections"), {'default': "~/.opt/detectors/pypackerdetect-sections.json",
+                            'help': "JSON with known section names"}],
+]
+
+
 @version("PyPackerDetect %s <%s> originally by %s, refactored by %s\nLicensed under %s" % \
          (__version__, __source__, __author__, __credits__, __license__))
 @catch_exception
 def execute(name, **kwargs):
     # important note: this tool uses the same signature DB format as PEiD but it also uses heuristics
-    return PyPackerDetect(logger=kwargs['logger']).detect(kwargs['path'])
+    return PyPackerDetect(peid_db_path=kwargs['orig_args']['db'], packers_json=kwargs['orig_args']['packers'],
+                          sections_json=kwargs['orig_args']['sections'], logger=kwargs['logger']).detect(kwargs['path'])
 
 
 def parse(output, **kwargs):
@@ -19,5 +29,5 @@ def parse(output, **kwargs):
 
 if __name__ == "__main__":
     run("PyPackerDetect", exec_func=execute, parse_func=parse, exe_type="pe", exe_help="path to the PE file",
-        weak_assumptions=True)
+        weak_assumptions=True, parser_args=ARGS)
 
