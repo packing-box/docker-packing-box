@@ -5,7 +5,7 @@ from pathlib import Path
 
 __all__ = ["LLMBackend"]
 
-_MODEL_CACHE_DIR = Path(os.path.expanduser("~/.cache/pboxllm/models"))
+_MODEL_CACHE_DIR = Path(os.path.expanduser("~/.packing-box/cache/llm-models"))
 
 
 class LLMBackend:
@@ -57,7 +57,7 @@ class LLMBackend:
         from llama_cpp import Llama
         self._llm = Llama(model_path=str(self.model_path_), n_ctx=self.n_ctx, n_threads=self.n_threads, verbose=False)
 
-    def generate(self, prompt, max_tokens=64, temperature=0.0):
+    def generate(self, prompt, max_tokens=64, temperature=0.0, top_p=1.0):
         """Run inference and return the raw generated text.
 
         Parameters
@@ -78,8 +78,66 @@ class LLMBackend:
         """
         if self._llm is None:
             self.load()
-        result = self._llm(prompt, max_tokens=max_tokens, temperature=temperature, echo=False)
+        result = self._llm(
+            prompt,
+            max_tokens=max_tokens,
+            temperature=temperature,
+            top_p=top_p,
+            echo=False,
+        )
         return result["choices"][0]["text"].strip()
+
+    def generate_with_logprobs(self, prompt, max_tokens=64, temperature=0.0, top_p=1.0, logprobs=10):
+        """Run inference and return generated text plus first-token logprobs when available.
+
+        Returns a dictionary with:
+        - ``text``: generated text (str)
+        - ``top_logprobs``: mapping token->logprob for the first generated token, or ``None``
+        """
+        if self._llm is None:
+            self.load()
+        try:
+            result = self._llm(
+                prompt,
+                max_tokens=max_tokens,
+                temperature=temperature,
+                top_p=top_p,
+                echo=False,
+                logprobs=logprobs,
+            )
+        except (TypeError, ValueError) as exc:
+            # Some llama.cpp builds/models do not support logprobs unless
+            # logits_all was enabled at model creation time.
+            if isinstance(exc, ValueError) and "logprobs is not supported" not in str(exc):
+                raise
+            result = self._llm(
+                prompt,
+                max_tokens=max_tokens,
+                temperature=temperature,
+                top_p=top_p,
+                echo=False,
+            )
+        choice = result["choices"][0]
+        top_logprobs = None
+        logprobs_data = choice.get("logprobs")
+        if isinstance(logprobs_data, dict):
+            top = logprobs_data.get("top_logprobs")
+            if isinstance(top, list) and len(top) > 0 and isinstance(top[0], dict):
+                top_logprobs = top[0]
+        return {"text": choice["text"].strip(), "top_logprobs": top_logprobs}
+
+    # ------------------------------------------------------------------
+    # Pickle support
+    # ------------------------------------------------------------------
+
+    def __getstate__(self):
+        state = self.__dict__.copy()
+        state["_llm"] = None
+        return state
+
+    def __setstate__(self, state):
+        self.__dict__.update(state)
+        self._llm = None
 
     # ------------------------------------------------------------------
     # Model management
