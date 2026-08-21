@@ -81,14 +81,24 @@ ncg.Graph.iter_nodes = iter_nodes
 
 def num_neighbors(self, node=None):
     """ Get the number of successors and predecessors of a targeted node. """
-    ns, np = len(list(self.successors(node))), len(list(self.predecessors(node)))
-    if config['include_cut_edges'] and node.irsb:
-        if node.irsb[1]:
-            ns += len(node.irsb[1])
-        if node.irsb[0]:
-            np += node.irsb[0]
+    try:
+        ns, np = len(list(self.successors(node))), len(list(self.predecessors(node)))
+    except AttributeError:
+        if hasattr(node, "addr"):
+            raise
+        # Fallback for key-based graph storage used by some CFG backends.
+        succ = getattr(self, "_succ", getattr(self, "_adj", {}))
+        pred = getattr(self, "_pred", getattr(self, "_adj", {}))
+        ns, np = len(succ.get(node, {})), len(pred.get(node, {}))
+    irsb = getattr(node, "irsb", None)
+    if config['include_cut_edges'] and irsb:
+        if irsb[1]:
+            ns += len(irsb[1])
+        if irsb[0]:
+            np += irsb[0]
     return ns, np
 ncg.Graph.num_neighbors = num_neighbors
+ncg.Graph.number_of_neighbors = num_neighbors
 
 
 @cached_result
@@ -236,4 +246,3 @@ def valid_sub_root_node(graph, sub_root_node, already_checked_nodes):
         return True, already_checked_nodes
     else:
         return False, []
-
