@@ -16,6 +16,7 @@ This tool aims to manipulate a single executable.
 __description__ = "Manipulate a single executable"
 __examples__ = [
     "alter rename_sections program.exe",
+    "graph --graph-type fcg --format graphml --output sample.graphml program.exe",
     "plot --dpi 300 --format jpg program.exe",
     "show program.exe",
 ]
@@ -33,6 +34,13 @@ if __name__ == '__main__':
     dif.add_argument("executable2", help="another executable file")
     feat = sparsers.add_parser("features", help="compute features of the target executable")
     add_argument(feat, "executable", "features-set", single=True)
+    graph = sparsers.add_parser("graph", help="extract and export the target executable's CFG/FCG")
+    add_argument(graph, "executable", single=True)
+    graph.add_argument("-f", "--format", dest="graph_format", choices=["dot", "graphml"], default="dot",
+                       help="output graph format")
+    graph.add_argument("-o", "--output", help="output graph file")
+    graph.add_argument("-t", "--graph-type", choices=["cfg", "fcg"], default="cfg",
+                       help="graph type to be extracted")
     plot = sparsers.add_parser("plot", help="plot the target executable(s)")
     plots = plot.add_subparsers(dest="type", help="plot type")
     for plot in sorted(_plots):
@@ -60,4 +68,3 @@ if __name__ == '__main__':
     else:
         getattr(Executable(args.executable), args.command)(**vars(args))
     sys.exit(0)
-
