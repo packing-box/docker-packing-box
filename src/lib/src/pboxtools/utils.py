@@ -4,8 +4,8 @@ import configparser
 import re
 import sys
 import yaml
-from os import listdir
-from os.path import exists, expanduser, isdir, isfile, join, splitext
+from os import listdir, walk
+from os.path import dirname, exists, expanduser, isdir, isfile, join, relpath, splitext
 
 
 CONFIG   = None
@@ -13,7 +13,8 @@ CONFIGS  = ["algorithms.yml", "alterations.yml", "analyzers.yml", "detectors.yml
             "scenarios.yml", "unpackers.yml"]
 DEFAULTS = {
     'workspace':   expanduser("~/.packing-box"),
-    'experiments': "/mnt/share/experiments"
+    'experiments': "/mnt/share/experiments",
+    'llm_cache':   expanduser("~/.cache/pbox-llm"),
 }
 DSFILES  = ["data.csv", "metadata.json"]
 EXPFILES = ["commands.rc", "README.md", "conf", "data", "datasets", "figures", "models", "scripts"]
@@ -38,12 +39,14 @@ def __parse_config():
     if CONFIG is None:
         cfg, CONFIG = configparser.ConfigParser(), {'experiment': None}
         try:
-            cfg.read_file(expanduser("~/.packing-box.conf"))
+            cfg.read(expanduser("~/.packing-box.conf"))
             CONFIG['workspace'] = cfg['main'].get('workspace', DEFAULTS['workspace'])
             CONFIG['experiments'] = cfg['main'].get('experiments', DEFAULTS['experiments'])
         except (configparser.MissingSectionHeaderError, KeyError):
             CONFIG['workspace'] = DEFAULTS['workspace']
             CONFIG['experiments'] = DEFAULTS['experiments']
+        CONFIG['llm_cache'] = expanduser(cfg['llm'].get('llm_cache', DEFAULTS['llm_cache']) if cfg.has_section('llm') \
+                                         else DEFAULTS['llm_cache'])
         exp_env = expanduser("~/.packing-box/experiment.env")
         if exists(exp_env):
             with open(exp_env) as f:
@@ -74,7 +77,7 @@ def _configfile(cfgfile):
 def _workspace(folder):
     def _wrapper(f):
         def _subwrapper(return_list=False, sort=True):
-            """ Decorator for listing something from the current workspace """
+            """ Decorator for listing something from the current workspace. """
             cfg = __parse_config()
             root, l = join(cfg['experiment'] or cfg['workspace'], folder), []
             if not exists(root):
@@ -107,11 +110,19 @@ for item in ["analyzers", "detectors", "packers", "unpackers"]:
 
 @_configfile("algorithms")
 def list_all_algorithms(cfg):
-    """ Main function for listing all analyzers available in the current workspace """
+    """ Main function for listing all algorithms available in the current workspace. """
     l = []
     for section in ["LLM", "Semi-Supervised", "Supervised", "Unsupervised"]:
         l.extend(list(cfg.get(section, {}).keys()))
     return sorted(list(set(_fmt_name(x) for x in l if x != "defaults")))
+
+
+def list_cached_llms(return_list=False, sort=True):
+    """ Main function for listing the LLMs (GGUF files) available in the cache, as references relative to it. """
+    root, l = __parse_config()['llm_cache'], []
+    for dp, _, fns in walk(root):
+        l.extend(relpath(join(dp, fn), root) for fn in fns if splitext(fn)[1] == ".gguf")
+    return __output(l, return_list, sort)
 
 
 def list_config_keys(return_list=False, sort=True):
@@ -139,7 +150,7 @@ def list_configfile_keys(cfgfile, return_list=False, sort=True, list_all=False):
 
 @_workspace("datasets")
 def list_datasets(ds):
-    """ Condition for listing datasets from the current workspace """
+    """ Condition for listing datasets from the current workspace. """
     return isdir(ds) and all(isfile(join(ds, fn)) for fn in DSFILES) and \
            (isdir(join(ds, "files")) or isfile(join(ds, "features.json"))) and \
            not any(fn not in DSFILES + ["alterations.json", "files", "features.json"] for fn in listdir(ds))
@@ -147,19 +158,13 @@ def list_datasets(ds):
 
 @_workspace("datasets")
 def list_datasets_with_files(ds):
-    """ Condition for listing datasets from the current workspace """
+    """ Condition for listing datasets from the current workspace. """
     return isdir(ds) and all(isfile(join(ds, fn)) for fn in DSFILES) and isdir(join(ds, "files")) and \
            not any(fn not in DSFILES + ["alterations.json", "files"] for fn in listdir(ds))
 
 
-@_workspace("models")
-def list_models(md):
-    """ Condition for listing models from the current workspace """
-    return isdir(md) and all(isfile(join(md, fn)) for fn in MDFILES)
-
-
 def list_experiment_configs(return_list=False, sort=True):
-    """ Main function for listing available config file in an experiment """
+    """ Main function for listing available config file in an experiment. """
     parser = argparse.ArgumentParser()
     parser.add_argument("experiment")
     args = parser.parse_args()
@@ -172,7 +177,7 @@ def list_experiment_configs(return_list=False, sort=True):
 
 
 def list_experiments(return_list=False, sort=True):
-    """ Main function for listing experiments from the current workspace """
+    """ Main function for listing experiments from the current workspace. """
     root, l = __parse_config()['experiments'], []
     for f in listdir(root):
         xp = join(root, f)
@@ -181,6 +186,31 @@ def list_experiments(return_list=False, sort=True):
            not any(fn not in CONFIGS for fn in listdir(join(xp, "conf"))):
             l.append(f)
     return __output(l, return_list, sort)
+
+
+@_configfile("algorithms")
+def list_llms(cfg):
+    """ Main function for listing LLM-based algorithms available in the current workspace. """
+    return sorted(_fmt_name(x) for x in cfg.get('LLM', {}).keys() if x != "defaults")
+
+
+@_workspace("models")
+def list_models(md):
+    """ Condition for listing models from the current workspace. """
+    return isdir(md) and all(isfile(join(md, fn)) for fn in MDFILES)
+
+
+def list_prompts(return_list=False, sort=True):
+    """ Main function for listing prompt templates from the current workspace and bundled with the LLM classifier. """
+    from importlib.util import find_spec
+    cfg, l = __parse_config(), set()
+    roots = [join(cfg['experiment'] or cfg['workspace'], "prompts")]
+    if (spec := find_spec("pbox")) and spec.origin:
+        roots.append(join(dirname(spec.origin), "core", "model", "algorithm", "llm", "prompts"))
+    for root in roots:
+        if isdir(root):
+            l.update(splitext(fn)[0] for fn in listdir(root) if splitext(fn)[1] == ".j2")
+    return __output(list(l), return_list, sort)
 
 
 def list_tools(return_list=False, sort=True):

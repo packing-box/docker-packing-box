@@ -180,14 +180,25 @@ class Dataset(Entity):
             #    for exe in p.track(self):
             #        self[exe] = (self._compute_features(exe), True)
             from multiprocessing import Pool
+            results = []
+            if not hasattr(self, "_features"):
+                self._features = {}
             with Pool(processes=n_jobs or config['number_jobs']) as pool, progress_bar(target=self.basename) as p:
                 task = p.add_task("", total=len(self))
-                for basename, features in pool.imap_unordered(self._compute_features_worker, [e for e in self]):
+                for basename, features, exe_features in pool.imap_unordered(self._compute_features_worker,
+                                                                              [e for e in self]):
                     if features is None:
                         self.logger.warning(f"Failed to process {basename}")
                         continue
-                    self[basename] = (features, True)  # True: force updating the row
+                    results.append((basename, features))
+                    if exe_features:
+                        self._features.update(exe_features)
                     p.update(task, advance=1.)
+            # apply results only after the pool is fully drained: mutating self._data (which
+            #  self._compute_features_worker needs to pickle for every outstanding task) concurrently with the pool's
+            #  task-submission thread corrupts the DataFrame's internal BlockManager and causes multiprocessing to hang
+            for basename, features in results:
+                self[basename] = (features, True)  # True: force updating the row
     
     def _compute_features(self, exe):
         """ Compute the features for a single Executable instance. """
@@ -207,10 +218,13 @@ class Dataset(Entity):
         return d
     
     def _compute_features_worker(self, exe):
+        # NB: exe.features is computed here (in the worker process) and returned explicitly rather than set as a
+        #      self._features side effect, because self is an independent, pickled copy in this process: mutating it
+        #      here would be invisible to the parent process's Dataset instance once the task result is sent back
         try:
-            return exe.basename, self._compute_features(exe)
+            return exe.basename, self._compute_features(exe), exe.features
         except:
-            return exe.basename, None
+            return exe.basename, None, None
     
     def _load(self):
         """ Load dataset's associated files or create them. """
@@ -1310,16 +1324,17 @@ class Dataset(Entity):
             for dset in Path(config['datasets']).listdir(check_func or Dataset.check):
                 with dset.joinpath("metadata.json").open() as meta:
                     metadata[dset.basename] = d = json.load(meta)
+                    d['labelling'] = 100 * sum(get_counts(d, False).values()) / d['executables']
                     d['size'] = human_readable_size(dset.size)
                     d['files'] = dset.joinpath("files").exists()
                     if 'altered' in d:
                         altered = True
-            datasets, headers = [], ["Name", "#Executables"] + [[], ["Altered"]][altered] + ["Size"] + \
+            datasets, headers = [], ["Name", "#Executables", "Labelled"] + [[], ["Altered"]][altered] + ["Size"] + \
                                     [["Files"], []][hide_files] + ["Formats", "Packers"]
             for name, meta in metadata.items():
                 alt_perc = [[], [[f"-", f"{100*meta.get('altered', 0):.02f}%"]['altered' in meta]]][altered]
                 try:
-                    row = [name, str(meta['executables'])] + alt_perc + [meta['size']] + \
+                    row = [name, str(meta['executables']), f"{meta['labelling']}%"] + alt_perc + [meta['size']] + \
                         [[["no", "yes"][meta['files']]], []][hide_files] + [
                         ",".join(sorted(meta['formats'])),
                         shorten_str(",".join(f"{n}{{{c}}}" for n, c in sorted(get_counts(meta).items(),

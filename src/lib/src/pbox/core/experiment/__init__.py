@@ -23,7 +23,7 @@ def __init():
           +-- datasets      datasets specific to the experiment
           +-- models        models specific to the experiment
           +-- (figures)     figures generated with visualization tools
-          +-- (prompts)     prompts of pboxllm
+          +-- (prompts)     prompts for LLM's
           +-- (scripts)     additional scripts
           +-- commands.rc   commands for replaying experiment
           +-- README.md     notes for explaining the experiment

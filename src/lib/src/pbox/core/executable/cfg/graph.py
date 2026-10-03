@@ -63,11 +63,11 @@ ncg.Graph.find_root = find_root
 
 def iter_nodes(self, exclude=_DEFAULT_EXCLUDE):
     """ Iterate over nodes downwards from the provided root_node """
-    queue, visited = [self], set()
+    queue, visited = [getattr(self, "root_node", self)], set()
     while queue:
         node = queue.pop(0)
-        sig = node.signature
-        if sig in exclude or sig in visited:
+        print(node)
+        if (sig := node.signature) in exclude or sig in visited:
             continue
         yield node
         visited.add(sig)
@@ -79,7 +79,7 @@ def iter_nodes(self, exclude=_DEFAULT_EXCLUDE):
 ncg.Graph.iter_nodes = iter_nodes
 
 
-def num_neighbors(self, node=None):
+def number_of_neighbors(self, node=None):
     """ Get the number of successors and predecessors of a targeted node. """
     ns, np = len(list(self.successors(node))), len(list(self.predecessors(node)))
     if config['include_cut_edges'] and node.irsb:
@@ -88,13 +88,12 @@ def num_neighbors(self, node=None):
         if node.irsb[0]:
             np += node.irsb[0]
     return ns, np
-ncg.Graph.num_neighbors = num_neighbors
+ncg.Graph.number_of_neighbors = number_of_neighbors
 
 
 @cached_result
 def ngrams(self, n, length=None, across_nodes=True):
     """ Gets a list of ngrams. """
-    #FIXME: in some cases, not enough ngrams to reach 'length' => shall pad with '-1'
     ngrams = []
     _extend = lambda bs: ngrams.extend([bs[i:i+n] for i in range(len(bs) - n + 1)])
     _fmt = lambda bs, pb: (type(bs)() if pb is None else pb) + bs
@@ -133,7 +132,9 @@ def ngrams(self, n, length=None, across_nodes=True):
                 if successor not in visited:
                     visited.add(successor)
                     queue.append(successor)
-    return ngrams[:length] if length else ngrams
+    if length and (l := len(ngrams)) < length:
+        ngrams += [-1] * (length - l)
+    return ngrams
 ncg.Graph.ngrams = ngrams
 
 
@@ -164,7 +165,7 @@ def signature(self, length, exact=True):
             visited.add(node)
             # 'approximate' signature
             # Reference: https://ieeexplore.ieee.org/document/8170793
-            ns, np = self.num_neighbors(node)
+            ns, np = self.number_of_neighbors(node)
             signature.append((ns << 6) | min(np, 63))
             for successor in sorted(self.successors(node), key=lambda n: -n.soot_block['depth']):
                 if successor not in visited:
@@ -183,7 +184,7 @@ def set_depth(graph):
         if niter <= 0 or limit <= 50:
             return 0
         if not node.size:
-            node.size = 0
+            node._size = 0
         max_successor_depth = 0
         for successor in graph.successors(node):
             max_successor_depth = max(max_successor_depth, _set_depth(successor, limit-1))

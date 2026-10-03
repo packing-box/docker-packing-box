@@ -76,7 +76,7 @@ _fmt.__name__ = "image format"
 
 
 def _mg(s, v):
-    if not .0 <= (v := positive_float(v)) <= .5:
+    if (v := positive_float(v)) > .5:
         raise ValueError(f"invalid margin '{v}' ; shall belong to [.0,.5]")
     return v
 
@@ -103,6 +103,12 @@ def _sty(s, v):
         raise ValueError(f"invalid pyplot style '{v}' ; shall be one of: {'|'.join(l)}")
     return v
 _sty.__name__ = "pyplot style"
+
+
+def _tp(s, t):
+    if (t := positive_float(t)) > 2.:
+        raise ValueError("bad temperature ; shall belong to [.0,2.]")
+    return t
 
 
 def _vh(s, v):
@@ -142,9 +148,11 @@ bi.config = Config("packing-box",
             'experiments':   ("/mnt/share/experiments", "PATH", "path to the experiments folder", _np),
             'backup_copies': ("3", "COPIES", "keep N backups of datasets ; for commands that trigger backups", _it),
             'exec_timeout':  ("20", "SECONDS", "execution timeout of items (detectors, packers, ...)", _it),
-            'number_jobs':   ("6", "JOBS", "number of jobs to be run in parallel", _nj),
+            'number_jobs':   ("6", "JOBS", "number of jobs to be run in parallel for model training", _nj),
         },
         'api-keys': {
+            'huggingface_token':  ("", "TOKEN", "Hugging Face Hub's access token (avoids rate limiting when "
+                                   "downloading LLMs ; if empty, HF_TOKEN or the token from 'hf auth login' is used)"),
             'virustotal_api_key': ("", "API_KEY", "VirusTotal's RESTful API key"),
         },
         'cfg': {
@@ -169,7 +177,7 @@ bi.config = Config("packing-box",
         },
         'dataset-fuzzing': {
             'fuzz-top-n':              ("20", "N", "number of features to display in results", _it),
-            'fuzz-deltas':             ("0.10,0.25,0.50,1.00", "DELTAS", "delta percentages for multi-delta analysis", _dl),
+            'fuzz-deltas':             (".1,.25,.5,1.", "DELTAS", "delta percentages for multi-delta analysis", _dl),
             'fuzz-n-bootstrap':        ("50", "N", "number of bootstrap iterations for confidence intervals", _it),
             'fuzz-top-k-interactions': ("10", "K", "number of pairwise interactions", _it),
         },
@@ -182,6 +190,16 @@ bi.config = Config("packing-box",
         'definitions': {k: opt_tuple(k) for k in \
              ['algorithms', 'alterations', 'analyzers', 'detectors', 'features', 'packers', 'references', 'scenarios',
               'unpackers']},
+        'llm': {
+            'float_precision':    ("5", "DECIMALS", "number of decimals for float feature values", _it),
+            'llm_cache':          ("~/.cache/pbox-llm", "PATH", "cache folder for downloaded LLMs", _np),
+            'max_output_tokens':  ("64", "TOKENS", "maximum number of tokens to generate", _it),
+            'nbr_context_tokens': ("2048", "TOKENS", "number of tokens in the context for generation", _it),
+            'nbr_threads':        ("6", "THREADS", "number of CPU threads for inference", _nj),
+            'prompts':            ("prompts", "PATH", "path to prompts, relative to the workspace", _np,
+                                   ["workspace", PBOX_HOME], True),
+            'temperature':        ("0.", "TEMPERATURE", "randomness and creativity metric for generation", _tp),
+        },
         'logging': {
             'lief_logging': ("false", "BOOL", "display LIEF logging messages", _bl),
             'wine_errors':  ("false", "BOOL", "display Wine errors", _bl),

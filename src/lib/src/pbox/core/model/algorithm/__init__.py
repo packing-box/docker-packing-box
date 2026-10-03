@@ -61,10 +61,19 @@ def __init_metaalgo():
             for algo, data in algos.items():
                 if data.get('category') not in _labellings.keys():
                     raise ValueError(f"bad learning algorithm category ({data.get('category')})")
+                data['labelling'] = _labellings[data['category']]
                 data.setdefault('boolean', False)
                 data.setdefault('multiclass', True)
-                data.setdefault('parameters', {})
-                data['labelling'] = _labellings[data['category']]
+                data.setdefault('parameters', {'cv': {}, 'static' : {}})
+                if any(k in (kl := data['parameters'].keys()) for k in ["cv", "static"]) and \
+                   any(k not in ["cv", "static"] for k in kl):
+                    raise ValueError("'cv' and/or 'static' keys shall be used without any other key")
+                # if not formatted with 'cv' and/or 'static' keys, refactor parameters dictionary
+                if not any(k in data['parameters'] for k in ["cv", "static"]):
+                    p = {'cv': {}, 'static': {}}
+                    for k, v in data['parameters'].items():
+                        p['cv' if isinstance(v, list) and data['labelling'] != "none" else 'static'][k] = v
+                    data['parameters'] = p
                 # put the related algorithm in module's globals()
                 d = dict(cls.__dict__)
                 for a in ["get", "iteritems", "mro", "registry"]:

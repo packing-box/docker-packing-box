@@ -136,6 +136,8 @@ class AbstractParsedExecutable(ABC, CustomReprMixin, GetItemMixin):
         self.build()
     
     def section(self, section, original=False, null=False):
+        if section is None:
+            return NullSection()
         if isinstance(section, (bytes, str)):
             name = ensure_str(section)
             if original:
@@ -149,7 +151,7 @@ class AbstractParsedExecutable(ABC, CustomReprMixin, GetItemMixin):
             if null:
                 return NullSection()
             raise ValueError(f"no section named '{name}'")
-        elif isinstance(section, GetItemMixin):
+        if isinstance(section, GetItemMixin):
             if original:
                 try:
                     return section._original
@@ -366,11 +368,13 @@ def get_part_class(clsname, **mapping):
             return i
         
         def __init__(self, name, binary=None):
+            if name is None:
+                name = NullSection()
             for attr in self.__slots__:
                 if attr == "binary":
                     self.binary = binary
-                    self._original = self.binary.section(name, original=True) if _section else \
-                                     self.binary.segment(name)
+                    self._original = None if binary is None else \
+                                     self.binary.section(name, original=True) if _section else self.binary.segment(name)
                     continue
                 value = mapping.get(attr, attr)
                 if isinstance(value, (type(lambda: 0), cached_property)):
@@ -395,7 +399,7 @@ def get_part_class(clsname, **mapping):
         
         @property
         def bytes(self):
-            return _rb(self.content)
+            return _rb(self.content or b"")
         
         @cached_property
         def bytes_histogram(self):
@@ -414,7 +418,7 @@ def get_part_class(clsname, **mapping):
         
         @cached_property
         def entropy(self):
-            return entropy(self.bytes)
+            return entropy(self.bytes or b" ")
         
         @property
         def is_standard(self):

@@ -179,9 +179,11 @@ def expand_parameters(*strings, **kw):
     for s in strings:
         for p in s.split(sep):
             k, v = p.split("=", 1)
+            # values that are not Python literals (e.g. 'few-shots-with-schema', 'owner/repo/file.gguf') are kept as
+            #  strings ; note that some of them raise SyntaxError instead of ValueError
             try:
                 v = literal_eval(v)
-            except ValueError:
+            except (SyntaxError, ValueError):
                 pass
             d[k] = v
     return d

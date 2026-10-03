@@ -1,5 +1,7 @@
 Supervised:
   defaults:
+    ignore_features:
+      - llm
     metrics: classification
     preprocessors:
       - MM
@@ -189,51 +191,26 @@ Supervised:
 
 LLM:
   defaults:
+    # no preprocessor, as feature values are given as-is to the LLM (scaling them would alter their meaning)
     metrics: classification
-    preprocessors:
-      - MM
   Mistral-LLM:
-    base:        !!python/name:pbox.core.model.algorithm.llm.LLMClassifier
-    description: LLM-based packing classifier (llama-cpp-python, zero-shot)
+    base:        !!python/name:pbox.core.model.algorithm.llm.LLMBinaryClassifier
+    description: LLM-based packing classifier (llama-cpp-python)
     multiclass:  false
     parameters:
-      static:
-        model_file:   mistral-7b-instruct-v0.2.Q4_K_M.gguf
-        model_repo:   TheBloke/Mistral-7B-Instruct-v0.2-GGUF
-        feature_names:
-          - entropy
-          - entropy_code_section
-          - entropy_section_with_ep
-        n_ctx:        2048
-        n_threads:    4
-        max_tokens:   64
-        temperature:  0.0
-        prompt_file:  zero_shot_binary.txt
-        trace_outputs: false
-        trace_dir:    ~/.packing-box/cache/llm-traces
-  Mistral-LLM-FewShot:
-    base:        !!python/name:pbox.core.model.algorithm.llm.LLMClassifier
-    description: Few-shot LLM packing classifier
-    multiclass:  false
-    parameters:
-      static:
-        model_file:   mistral-7b-instruct-v0.2.Q4_K_M.gguf
-        model_repo:   TheBloke/Mistral-7B-Instruct-v0.2-GGUF
-        feature_names:
-          - entropy
-          - entropy_code_section
-          - entropy_section_with_ep
-        n_ctx:        4096
-        n_threads:    4
-        max_tokens:   64
-        temperature:  0.0
-        prompt_file:  few_shot_binary.txt
-        few_shot_count: 2
-        trace_outputs: false
-        trace_dir:    ~/.packing-box/cache/llm-traces
+      context_manager: kv_cache
+      feature_names:
+        - entropy
+        - entropy_code_section
+        - entropy_section_with_ep
+      max_tokens:      8
+      model:           TheBloke/Mistral-7B-Instruct-v0.2-GGUF/mistral-7b-instruct-v0.2.Q4_K_M.gguf
+      prompt_template: zero-shot-with-schema
 
 Unsupervised:
   defaults:
+    ignore_features:
+      - llm
     metrics:
       - classification
       - clustering

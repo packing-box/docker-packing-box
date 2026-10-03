@@ -1,9 +1,0 @@
-You are a malware analysis expert specializing in detecting packed executables.
-
-A packed executable has usually been compressed or encrypted by a packer.
-{few_shot_examples}
-Now classify the following sample:
-
-{features}
-
-Answer with a single word: "packed" or "not-packed".

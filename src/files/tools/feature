@@ -2,13 +2,15 @@
 # -*- coding: UTF-8 -*-
 from pbox import *
 from tinyscript import *
+from tinyscript.helpers.data.types import *
 
 
 __script__       = "Feature manipulation tool"
-__version__      = "1.0.2"
+__version__      = "1.1.0"
 __contributors__ = [
     {'author': "Alex Van Mechelen", 'reason': "largely contributed to advanced feature engineering and proposed the "
                                               "creation of this tool"},
+    {'author': "Nicolas Bouzin", 'reason': "added features filtering"},
 ]
 __doc__         = """
 This tool aims to manipulate a feature set in many ways including its creation, update, selection, merging or export.
@@ -18,6 +20,7 @@ __examples__    = [
     "browse -f my-features.yml --format PE",
     "compute test.exe",
     "export --features-set my-cumstom-features.yml --format ELF --output csv",
+    "filter my-dataset ",
     "select --format PE -q 'significant == \"True\"' --output significant-features.yml",
     "select --features-set my-cumstom-features.yml --query 'tags == \"some-tag\"'",
     "show custom-features.yml",
@@ -36,6 +39,14 @@ if __name__ == '__main__':
     add_argument(sparsers.add_parser("compute", help="compute target executable's features"),
                  "executable", "features-set", single=True)
     export = sparsers.add_parser("export", help="export feature definitions to a given format")
+    filt = sparsers.add_parser("filter", help="filter features set using variance, MI, mRMR and RFECV")
+    add_argument(filt, "dsname", argname="dataset")
+    filt.add_argument("--cv", type=pos_int, default=5, help="number of cross-validation folds")
+    add_argument(filt, "features-set")
+    filt.add_argument("--mi-top-k", type=pos_int, default=100, help="number of top features to keep after MI ranking")
+    filt.add_argument("--min-features", type=pos_int, default=20, help="minimum number of features to keep in RFECV")
+    filt.add_argument("-o", "--output", type=conf_does_not_exist, help="output YAML file with the filtered features")
+    filt.add_argument("--var-threshold", type=pos_float, default=.0, help="variance threshold for stage 1 filtering")
     add_argument(export, "expformat", "features-set", "exeformat", "query")
     add_argument(sparsers.add_parser("list", help="list feature names"), "features-set")
     # plot
@@ -48,14 +59,6 @@ if __name__ == '__main__':
                         help="split the selected features according to the specified attribute",
                         note="if --output is not defined, it sets it to 'features.yml' by default")
     add_argument(sparsers.add_parser("show", help="show statistics about the target features set"), "features-set")
-    filt = sparsers.add_parser("filter", help="filter features set using variance, MI and RFECV")
-    filt.add_argument("dataset", help="dataset name or path")
-    filt.add_argument("-f", "--features-set", required=True, help="feature YAML file")
-    filt.add_argument("-o", "--output", type=conf_does_not_exist, help="output YAML file with the filtered features")
-    filt.add_argument("--var-threshold", type=float, default=0.0, help="variance threshold for stage 1 filtering", note="default: %(default)s")
-    filt.add_argument("--mi-top-k", type=int, default=100, help="number of top features to keep after MI ranking", note="default: %(default)s")
-    filt.add_argument("--cv", type=int, default=5, help="number of cross-validation folds", note="default: %(default)s")
-    filt.add_argument("--min-features", type=int, default=20, help="minimum number of features to keep in RFECV", note="default: %(default)s")
     # update
     initialize(noargs_action="usage")
     configure_logging(args.verbose)

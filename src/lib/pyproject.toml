@@ -2,7 +2,7 @@
 requires = [
     "build",
     "pathspec",
-    "setuptools>=80.0",
+    "setuptools>=83.0",
     "scikit-build-core",
     "tomli",
     "wheel",
@@ -16,7 +16,7 @@ version = {attr = "pbox.__info__.__version__"}
 where = ["src"]
 
 [tool.setuptools.package-data]
-"*" = ["*.txt", "*.so"]
+"*" = ["*.j2", "*.txt", "*.so"]
 
 [tool.system-requirements]
 ubuntu = ["libfuzzy-dev"]
@@ -29,7 +29,7 @@ authors = [
 description = "Docker image gathering packers and tools for making datasets of packed executables"
 license = {file = "LICENSE"}
 keywords = ["python", "programming", "packing-detection", "pe", "elf", "mach-o"]
-requires-python = ">=3.7,<4"
+requires-python = ">=3.9,<4"
 classifiers = [
   "Development Status :: 5 - Production/Stable",
   "Environment :: Console",
@@ -68,7 +68,7 @@ dependencies = [
   "seaborn",
   "shap",
   "tabulate",
-  "tinyscript>=1.30.29",
+  "tinyscript>=1.31.3",
   "treelib",
   "weka",
 ]
@@ -87,6 +87,7 @@ list-all-features = "pboxtools.utils:list_all_features"
 list-all-packers = "pboxtools.utils:list_all_packers"
 list-all-scenarios = "pboxtools.utils:list_all_scenarios"
 list-all-unpackers = "pboxtools.utils:list_all_unpackers"
+list-cached-llms = "pboxtools.utils:list_cached_llms"
 list-config-keys = "pboxtools.utils:list_config_keys"
 list-datasets = "pboxtools.utils:list_datasets"
 list-datasets-with-files = "pboxtools.utils:list_datasets_with_files"
@@ -94,7 +95,9 @@ list-enabled-alterations = "pboxtools.utils:list_enabled_alterations"
 list-enabled-features = "pboxtools.utils:list_enabled_features"
 list-experiments = "pboxtools.utils:list_experiments"
 list-experiment-configs = "pboxtools.utils:list_experiment_configs"
+list-llms = "pboxtools.utils:list_llms"
 list-models = "pboxtools.utils:list_models"
+list-prompts = "pboxtools.utils:list_prompts"
 list-tools = "pboxtools.utils:list_tools"
 list-working-analyzers = "pboxtools.utils:list_working_analyzers"
 list-working-detectors = "pboxtools.utils:list_working_detectors"

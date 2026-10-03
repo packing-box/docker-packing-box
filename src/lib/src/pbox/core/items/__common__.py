@@ -97,9 +97,9 @@ def _init_base():
             for action in self.gui:
                 c, delay, repeat = cmd.match(action).groups()
                 for i in range(int(repeat or 1)):
-                    if re.match("(behave|click|get(_|mouselocation)|key(down|up)?|mouse(down|move(_relative)?|up)|"
-                                "search|set_|type|(get|select)?window)", c):
-                        m = re.match("click (\d{1,5}) (\d{1,5})$", c)
+                    if re.match(r"(behave|click|get(_|mouselocation)|key(down|up)?|mouse(down|move(_relative)?|up)|"
+                                r"search|set_|type|(get|select)?window)", c):
+                        m = re.match(r"click (\d{1,5}) (\d{1,5})$", c)
                         if m is not None:
                             x, y = m.groups()
                             c = f"mousemove {x} {y} click"
@@ -449,8 +449,7 @@ def _init_base():
                         opt += "-r "
                     if arg1 != arg2:
                         opt += f"{arg2} "
-                    run(f"pip3 -qq install --user --no-warn-script-location --ignore-installed --break-system-packages "
-                        f"{opt}{result if cmd == 'pipr' else arg1}", **kw)
+                    run(f"uv pip install -q {opt}{result if cmd == 'pipr' else arg1}", **kw)
                 # prepend a line (e.g. a missing shebang) to the targe file
                 elif cmd == "prepend":
                     result = (result or tmp).joinpath(arg1)

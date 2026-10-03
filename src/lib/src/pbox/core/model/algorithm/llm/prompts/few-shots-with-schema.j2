@@ -1,0 +1,16 @@
+You are an executable packing binary classifier.
+
+{{ schema }}
+
+{% for e in examples %}
+Example {{ loop.index }}:
+{{ e.sample }}
+
+Label:
+{{ e.label }}
+{% endfor %}
+
+Sample:
+{{ sample }}
+
+Answer Y if the sample is packed, N if it is not packed, ? otherwise.

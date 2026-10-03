@@ -133,7 +133,7 @@ class BaseModel(Entity):
         elif isinstance(ds, Dataset):
             __parse(ds.files.listdir(is_exe), False)
             self._target = ds._data.loc[:, ds._data.columns == "label"]
-        # case 3: CSV file
+        # case 3: CSV file (assumed to contain the computed features)
         elif ds.extension == ".csv":
             l.info("Loading features...")
             try:
@@ -154,17 +154,16 @@ class BaseModel(Entity):
             raise ValueError("Unsupported input format")
         # if training a surrogate, replace ground truth labels with detector predictions or provided labels
         if surrogate and not data_only:
-            if isinstance(surrogate, (str, Path)) and Path(surrogate).is_file():
+            if isinstance(surrogate, (str, Path)) and (p := Path(surrogate)).is_file():
                 l.info(f"Loading surrogate labels from '{surrogate}'...")
-                label_df = pd.read_csv(str(surrogate))
+                label_df = pd.read_csv(str(p))
                 self._target = label_df[['label']].astype('int')
                 if len(self._target) != len(self._data):
                     l.error(f"Label count ({len(self._target)}) != sample count ({len(self._data)})")
                     return False
-                packed = (self._target['label'] == 1).sum()
-                not_packed = (self._target['label'] == 0).sum()
-                l.info(f"Loaded labels: {packed} packed, {not_packed} not-packed")
-                self._metadata['surrogate'] = Path(surrogate).stem
+                packed, npacked = (self._target['label'] == 1).sum(), (self._target['label'] == 0).sum()
+                l.info(f"Loaded labels: {packed} packed, {npacked} not-packed")
+                self._metadata['surrogate'] = p.stem
             else:
                 l.info(f"Labelling with detector '{surrogate}' for surrogate training...")
                 det = None
@@ -175,10 +174,7 @@ class BaseModel(Entity):
                 if det is None:
                     l.error(f"Detector '{surrogate}' not found in registry")
                     return False
-                
-                surrogate_labels = []
-                skipped = 0
-                exe_list = list(ds.files.listdir(is_exe))
+                surrogate_labels, skipped, exe_list = [], 0, list(ds.files.listdir(is_exe))
                 with progress_bar(silent=len(exe_list) <= 1) as p:
                     task = p.add_task("", total=len(exe_list))
                     for exe_path in exe_list:
@@ -201,25 +197,24 @@ class BaseModel(Entity):
                             surrogate_labels.append(np.nan)
                             skipped += 1
                         p.update(task, advance=1.)
-                
                 self._target = pd.DataFrame({'label': surrogate_labels})
                 valid_mask = self._target['label'].notna()
                 self._data = self._data[valid_mask].reset_index(drop=True)
                 self._target = self._target[valid_mask].reset_index(drop=True)
                 self._target = self._target.astype('int')
                 valid = [x for x in surrogate_labels if x == x]
-                packed = sum(1 for x in valid if x == 1)
-                not_packed = sum(1 for x in valid if x == 0)
-                l.info(f"Detector labels: {packed} packed, {not_packed} not-packed, {skipped} skipped" if skipped else "")
+                packed, npacked = sum(1 for x in valid if x == 1), sum(1 for x in valid if x == 0)
+                l.info(f"Detector labels: {packed} packed, {npacked} not-packed, {skipped} skipped" if skipped else "")
                 self._metadata['surrogate'] = surrogate
         if len(self._data) == 0:
             l.warning("No data")
             return False
         if len(self._features) == 0:
-            l.warning("No selectable feature ; this may be due to a model unrelated to the input")
+            l.warning("No selectable feature ; this may be due to the input model relying on no feature from the "
+                      "current registry")
             return False
         # ensure features are sorted and data has its columns sorted too
-        self._features = {k: v for k, v in sorted(self._features.items(), key=lambda x: x[0]) if v != ""}
+        self._features = {k: v for k, v in sorted(self._features.items()) if v != ""}
         try:
             self._data = self._data[sorted(self._features.keys())]
         except KeyError as e:
@@ -227,22 +222,17 @@ class BaseModel(Entity):
             for col in missing_cols:
                 self._features[col] = np.nan
             self._data = self._data.reindex(columns=sorted(self._features.keys()))
-        # if the associated algorithm imposes feature names, filter out unneeded features
         cls = self.algorithm
         params = cls.parameters.get('static', cls.parameters if cls.labelling == "none" else {})
+        # need to initiate the classifier at this point, just before checking for the '_feature_names' attribute, as
+        #  some classifiers have dynamic feature names (e.g. BintropyClassifier)
         classifier = cls.base(**params)
-        if hasattr(classifier, "_feature_names"):
-            try:
-                self._data = self._data[classifier._feature_names]
-            except KeyError:
-                missing = []
-                for name in sorted(classifier._feature_names):
-                    try:
-                        self._data[name]
-                    except KeyError:
-                        missing.append(name)
+        # if the associated algorithm imposes feature names, filter out unneeded features
+        if has_fnames := hasattr(classifier, "_feature_names"):
+            if len(missing := [f for f in classifier._feature_names if f not in self._data.columns]) > 0:
                 l.error(f"Missing features in the input dataset:\n- {'\n- '.join(missing)}")
                 return False
+            self._data = self._data[classifier._feature_names]
         # if data has to be unlabelled, force values for column 'label'
         if unlabelled:
             self._target['label'] = NOT_LABELLED
@@ -259,48 +249,59 @@ class BaseModel(Entity):
         # if only data is to be processed (i.e. while testing), stop here, the rest is for training the model
         else:
             return True
-        # apply variance threshold of 0.0 to remove useless features and rectify the list of features
+        # feature selection (1) based on variance ; apply variance threshold of 0.0 to remove useless features
         from sklearn.feature_selection import VarianceThreshold
-        l.debug("> remove 0-variance features")
+        l.debug("> feature selection: remove 0-variance features")
         selector = VarianceThreshold()
         selector.fit(self._data)
-        kept_features = self._data.columns[selector.get_support(indices=True)]
-        no_variance = [f for f in self._features.keys() if f not in kept_features]
-        # if the list of features is imposed by the algorithm, just display a warning for zero-variance features
-        if hasattr(classifier, "_feature_names"):
-            if len(no_variance) > 0:
-                self.logger.warning("> features with no variance:\n- %s" % "\n- ".join(sorted(no_variance)))
-        else:
-            self._data = self._data[kept_features]
-            self._features = {k: v for k, v in self._features.items() if k in self._data.columns}
-            if len(no_variance) > 0:
-                self.logger.debug("> features removed:\n- %s" % "\n- ".join(sorted(no_variance)))
-                self._metadata['dataset'].setdefault('dropped-features', [])
-                self._metadata['dataset']['dropped-features'].extend(no_variance)
+        kept_features = set(self._data.columns[selector.get_support(indices=True)])
+        no_variance = sorted([f for f in self._features.keys() if f not in kept_features])
+        if len(no_variance) > 0:
+            if has_fnames:
+                self.logger.warning("> features with no variance:\n- %s" % "\n- ".join(no_variance))
+            else:
+                self.logger.debug("> features removed (zero-variance):\n- %s" % "\n- ".join(no_variance))
+                self._data = self._data[kept_features]
+                self._features = {k: v for k, v in self._features.items() if k in self._data.columns}
+                self._metadata['dataset'].setdefault('dropped-features', {})
+                self._metadata['dataset']['dropped-features']['zero-variance'] = no_variance
+        # feature selection (2) based on mutual information ; keep only the k best features
         if mi_select:
             from sklearn.feature_selection import SelectKBest, mutual_info_classif
-            l.debug("> apply mutual information feature selection")
+            l.debug("> feature selection: keep k best features using mutual information")
             if mi_kbest >= 1:
                 k = int(mi_kbest)
-            elif mi_kbest > 0 and mi_kbest < 1:
-                k = int(len(self._data.columns) * mi_kbest)
+            elif mi_kbest > 0. and mi_kbest < 1.:
+                k = int(len(self._data.columns) * mi_kbest + .5)
+            else:
+                raise ValueError("mi_kbest shall either be a float in ]0.,1.[ or an integer greater or equal to 1")
             selector = SelectKBest(score_func=mutual_info_classif, k=k)
             selector.fit(self._data, self._target)
-            selected_features = self._data.columns[selector.get_support(indices=True)]
-            removed = [f for f in self._features.keys() if f not in selected_features]
-            self._data = self._data[selected_features]
-            self._features = {k: v for k, v in self._features.items() if k in selected_features}
+            kept_features = self._data.columns[selector.get_support(indices=True)]
+            removed = sorted([f for f in self._features.keys() if f not in kept_features])
+            self._features = {k: v for k, v in self._features.items() if k in kept_features}
             if len(removed) > 0:
-                self.logger.debug("> features removed:\n- %s" % "\n- ".join(sorted(removed)))
-                self._metadata['dataset'].setdefault('dropped-features', [])
-                self._metadata['dataset']['dropped-features'].extend(removed)
+                if has_fnames:
+                    self.logger.warning("> redundant features:\n- %s" % "\n- ".join(removed))
+                else:
+                    self.logger.debug("> features removed (mutual-information):\n- %s" % "\n- ".join(removed))
+                    self._data = self._data[kept_features]
+                    self._features = {k: v for k, v in self._features.items() if k in self._data.columns}
+                    self._metadata['dataset'].setdefault('dropped-features', {})
+                    self._metadata['dataset']['dropped-features']['mutual-information'] = removed
+        if len(self._features) == 0:
+            l.warning("No feature left after selection")
+            return False
+        # finally compute train and test subsets
         class Dummy: pass
         self._train, self._test = Dummy(), Dummy()
         ds.logger.debug("> split data and target vectors to train and test subsets")
+        # if unsupervised learning, the split is not applicable and the test subset can be empty
         if self.algorithm.labelling == "none":
             self._train.data, self._train.target = self._data, self._target
             self._test.data, self._test.target = pd.DataFrame(), pd.DataFrame()
-        else:  # use a default split of 80% training and 20% testing
+        # when supervised or semi-supervised, use a default split of 80% training and 20% testing
+        else:
             from sklearn.model_selection import train_test_split
             tsize = kw.get('split_size', .2)
             self._train.data, self._test.data, self._train.target, self._test.target = \
@@ -490,9 +491,8 @@ class Model(BaseModel):
                       f"{[dataset[0],'Datasets'][len(dataset) > 1]} not found for the given model")
             return
         # display performance data
-        h = list(perf.columns)
-        data = sorted(perf.values.tolist(), key=lambda row: (row[0], row[1]))
-        render(Table(highlight_best(data, h, [0, 1, -1]), column_headers=h))
+        render(Table(highlight_best(sorted(perf.values.tolist()), h := list(perf.columns), [0, 1, -1]),
+                     column_headers=h))
     
     def edit(self, **kw):
         """ Edit the performance log file. """
@@ -793,7 +793,7 @@ class Model(BaseModel):
             fi_str = [f"**Features**:      {len(self._features)}\n\n\t- {'\n\n\t- '.join(feat)}\n\n"]
         params = a['parameters'].keys()
         l = max(map(len, params))
-        params = [("{: <%s} = {}" % l).format(*p) for p in sorted(a['parameters'].items(), key=lambda x: x[0])]
+        params = [("{: <%s} = {}" % l).format(*p) for p in sorted(a['parameters'].items())]
         l = [f"**Path**:          {self.path}",
              f"**Size**:          {human_readable_size(self.path.joinpath('dump.joblib').size)}",
              f"**Algorithm**:     {a['description']} ({a['name']})",
@@ -835,7 +835,7 @@ class Model(BaseModel):
         self._metadata['algorithm']['preprocessors'] = kw['preprocessor']
         # check that, if the algorithm is supervised, it has full labels
         if cls.labelling == "full" and ds.labelling < 1.:
-            l.error(f"'algo' won't work with a dataset that is not fully labelled")
+            l.error(f"'{algo}' won't work with a dataset that is not fully labelled")
             return
         # check that, if the algorithm is semi-supervised, it is not labelled at all ; if so, stop here (should be
         #  unsupervised, that is, cls.labelling == "none")
@@ -864,11 +864,13 @@ class Model(BaseModel):
             l.error(f"'{algo}' does not support multiclass")
             return
         # get classifer and parameters
-        params = cls.parameters.get('static', cls.parameters if cls.labelling == "none" else {})
+        params = dict(cls.parameters['static'])  # copy, not to alter the algorithm's definition
         if cls.is_weka():
-            #params['model'] = self
             params['feature_names'] = sorted(self._features.keys())
-        param_grid = {k: list(v) if isinstance(v, range) else v for k, v in cls.parameters.get('cv', {}).items()}
+        # the LLM classifier needs the names of the features in the order of the input columns to build its prompts
+        elif cls.category == "llm" and params.get('feature_names') is None:
+            params['feature_names'] = list(self._train.data.columns)
+        param_grid = {k: list(v) if isinstance(v, range) else v for k, v in cls.parameters['cv'].items()}
         if cls.labelling == "none" and len(param_grid) > 0:
             l.error(f"'{algo}' does not support grid search (while CV parameters are specified)")
             return

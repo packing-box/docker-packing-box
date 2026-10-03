@@ -74,6 +74,37 @@ _size     = lambda exe, ratio=.1, blocksize=512: round(int(exe['size'] * ratio) 
 _val      = lambda o: getattr(o, "value", o)
 
 
+def _extract_parameters(pattern, values):
+    # match printf-style format specifiers.
+    formatter = re.compile(r"%(?:[-+#0 ]*\d*(?:\.\d+)?[hlL]?[diouxXeEfFgGcrsa%])")
+    # escape the literal parts while replacing formatters with capture groups.
+    parts, pos = [], 0
+    for m in formatter.finditer(pattern):
+        if m.group() == "%%":
+            parts.append(re.escape(pattern[pos:m.start()]))
+            parts.append("%")
+        else:
+            parts.append(re.escape(pattern[pos:m.start()]))
+            parts.append("(.*?)")
+        pos = m.end()
+    parts.append(re.escape(pattern[pos:]))
+    regex, r = re.compile("^" + "".join(parts) + "$"), []
+    for value in values:
+        if (m := regex.match(value)):
+            grps = []
+            for grp in m.groups():
+                try:
+                    grp = int(grp)
+                except ValueError:
+                    try:
+                        grp = float(grp)
+                    except ValueError:
+                        pass
+                grps.append(grp)
+            r.append(grps)
+    return r
+
+
 def _fail_safe(f):
     # useful e.g. when using a function like 'avg' or 'max' and the input is an empty list
     @functools.wraps(f)
@@ -304,17 +335,84 @@ class MetaBase(type):
             df = pd.concat([df, pd.DataFrame.from_dict(d)], ignore_index=True)
         return df, deps
     
-    def _select(self, format="All", query=None, fields=None, index="name", text=False, split_on=None, **kw):
+    def _select(self, format="All", names=None, query=None, fields=None, index="name", text=False, split_on=None, **kw):
         """ Select a subset based on a Pandas query and return it as a dictionary. """
-        df, all_deps = self._filter(format=format, query=query, fields=fields, index=index, **kw)
-        if df is None:
+        df, all_deps = self._filter(format=format, names=names, query=query, fields=fields, index=index, **kw)
+        if names is not None:
+            df = df[df['name'].isin(names)]
+        if len(df) == 0:
             return
         deps_list = sorted(set(x for l in all_deps.values() for x in l))
         # only keep the interesting parts of the configuration file based on the filtered DataFrame's list of names
         nmap = getattr(self, "names_map", {})
-        values = set(nmap.get(k, k) for k in df[index].values)
-        d = {k: v for k, v in load_yaml_config(self._config, auto_tag=False) if k in values}
-        d2 = {k: v for k, v in load_yaml_config(self._config, auto_tag=False) if k in deps_list and k not in d.keys()}
+        values, cfg = set(nmap.get(k, k) for k in df[index].values), self._config
+        d = {k: v for k, v in load_yaml_config(cfg, auto_tag=False) if k in values}
+        d2 = {k: v for k, v in load_yaml_config(cfg, auto_tag=False) if k in deps_list and k not in d.keys()}
+        for v in d2.values():
+            v['keep'] = False
+        # apply the selection logic from the 'select' attribute ;
+        #   'all' means we keep the dynamic feature as is
+        #   'important' means we take only the ones appearing from the 'names' list (if not None)
+        #   'best' means we only keep the first feature appearing in the 'names' list (if not None)
+        if names is not None and len(nmap) > 0:
+            def _repl(p, v):
+                try:
+                    return p % v
+                except TypeError:
+                    return p
+            new_d, used_names = {}, []
+            for name in names:
+                if name in d.keys():
+                    new_d[name] = d[name]
+                elif name in nmap and (dyn_name := nmap[name]) in d.keys():
+                    if dyn_name in used_names:
+                        continue
+                    used_names.append(dyn_name)
+                    params = d[dyn_name]
+                    if 'values' not in params or (s := params.get('select', "all")) == "all":
+                        new_d[dyn_name] = params
+                        used_names.append(dyn_name)
+                    elif s in ["best", "important"]:
+                        p, p_val = {k: v for k, v in params.items() if k not in ["result", "values"]}, []
+                        for values in _extract_parameters(dyn_name, names):
+                            ok = True
+                            for v, l in zip(values, [params['values']] if len(values) == 1 else params['values']):
+                                if isinstance(l, str):
+                                    from .data import get_data
+                                    l = [s.lower() for s in dict2({'result': l})({'get_data': get_data})]
+                                    v = v.lower()
+                                if v not in l:
+                                    ok = False
+                                    break
+                            if not ok:
+                                continue
+                            if (n := _repl(name, values)) in used_names:
+                                continue
+                            used_names.append(n)  # this ensures that, if a name was already used before but taken
+                                                  #  within the range of values for this dynamic features, it does not
+                                                  #  appear again
+                            if s == "best":
+                                p_val = [values]
+                                break
+                            else:
+                                p_val.append(values)
+                        if len(p_val) == 1:
+                            values = p_val[0]
+                            if isinstance(params['result'], str):
+                                p['result'] = _repl(params['result'], values)
+                            else:
+                                p['result'] = {k: _repl(v, values) for k, v in params['result'].items()}
+                            for k in ["comment", "description"]:
+                                if k in params:
+                                    p[k] = _repl(p[k], v)
+                            new_d[n] = p
+                        else:
+                            p['result'] = params['result']
+                            p['values'] = list(map(list, zip(*p_val)))
+                            new_d[dyn_name] = p
+                else:
+                    self.logger.error(f"feature '{name}' does not exist in the loaded YAML configuration ({cfg})")
+            d = new_d
         # if split_on is defined (e.g. split_on="category" to make a "[...].yml" folder with one "[value].yml" file per
         #  'catgegory' value), collect possible values
         if split_on is not None:
@@ -388,7 +486,7 @@ class MetaBase(type):
     def browse(self, query=None, **kw):
         """ Browse items as a table. """
         from .data import filter_data
-        from .files import data_to_temp_file, edit_file, Locator
+        from .files import data_to_temp_file, edit_file
         self()  # trigger registry's lazy initialization
         data = []
         if getattr(self, "_has_registry", True):

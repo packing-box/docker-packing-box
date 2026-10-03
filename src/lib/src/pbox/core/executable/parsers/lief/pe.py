@@ -98,7 +98,7 @@ def __init_pe():
         
         @property
         def imported_dlls(self):
-            return {dll.name for dll in self._parsed.imports}
+            return {dll.name.lower() for dll in self._parsed.imports}
         
         @property
         def imports(self):
