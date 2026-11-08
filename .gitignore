@@ -86,9 +86,13 @@ experiments*/
 /*.arff
 /*.orc
 /*.parquet
+/*.pdf
 
 # config files
 #src/conf/*.yml
+
+# dev Makefile
+Makefile.local
 
 # tests
 tests/.bats/bats*
