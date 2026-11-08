@@ -903,6 +903,8 @@ PE-Toy:
   source: https://github.com/r0ngwe1/petoy
 
 PECompact:
+  aliases:
+    - (?i)PE ?Compact
   categories:
     - compressor
   description: PECompact v2 is a next generation win32 portable executable compressor. Runewritten from the ground up, PECompact v2 is designed to be the ultimate solution to executable compression.

@@ -94,8 +94,16 @@ def execute(name, **kwargs):
                 spec += " " + a.option_strings[0] + " " + str(x)
         elif v is not None:
             spec += " " + a.option_strings[0] + " " + str(v)
-    cmd = DETECTORS[name].get('command', f"{expuser('~/.local/bin')}/{name.lower()} {{path}}")
-    exe, opt = cmd.replace("$OPT", expuser("~/.opt/detectors")).replace("$BIN", expuser("~/.opt/bin")).split(" ", 1)
+    default = f"{expuser('~/.local/bin')}/{name.lower()} {{path}}"
+    if not exists(default):
+        default = f"{expuser('~/.opt/venv/bin')}/{name.lower()} {{path}}"
+    cmd = DETECTORS[name].get('command', default)
+    exe, opt = cmd.replace("$TMP", "/tmp/detectors") \
+                  .replace("$OPT", expuser("~/.opt/detectors")) \
+                  .replace("$BIN", expuser("~/.opt/bin")) \
+                  .replace("$LOC", expuser("~/.local")) \
+                  .replace("$HOME", expuser("~")) \
+                  .split(" ", 1)
     cmd = re.sub(r"'?\{path\}'?", "'{path}'", f"{exe}{spec} {opt}")  # this allows to handle input path with whitespaces
     kwargs['logger'].debug("Command format: " + cmd)
     if kwargs.get('version', False):
@@ -272,7 +280,7 @@ def run(name, exec_func=execute, parse_func=lambda x, **kw: x, stderr_func=lambd
                     out += err
                 #  - file path ; e.g. ~/.opt/detectors/detector_name/version.txt
                 else:
-                    v = v.replace("$OPT", expuser(f"~/.opt/detectors")).replace("$BIN", expuser("~/.opt/bin"))
+                    out = v = v.replace("$OPT", expuser(f"~/.opt/detectors")).replace("$BIN", expuser("~/.opt/bin"))
                     if isfile(v):
                         with open(v) as f:
                             out = f.read().strip()

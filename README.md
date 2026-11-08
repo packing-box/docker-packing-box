@@ -206,11 +206,5 @@ You may also like these:
 - Medium Blog Post - [Unpacking the Potential of "Packing Box"](https://medium.com/@elniak/unpacking-the-potential-of-packing-box-dfd765609233)
 
 
-## :clap:  Supporters
-
-[![Stargazers repo roster for @packing-box/docker-packing-box](https://reporoster.com/stars/dark/packing-box/docker-packing-box)](https://github.com/packing-box/docker-packing-box/stargazers)
-
-[![Forkers repo roster for @packing-box/docker-packing-box](https://reporoster.com/forks/dark/packing-box/docker-packing-box)](https://github.com/packing-box/docker-packing-box/network/members)
-
 <p align="center"><a href="#top"><img src="https://img.shields.io/badge/Back%20to%20top--lightgrey?style=social" alt="Back to top" height="20"/></a></p>
 

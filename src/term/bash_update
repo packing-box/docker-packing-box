@@ -14,23 +14,23 @@ pbox-update() {
   local ret=$? OPT=$HOME/.opt PBWS=$HOME/.packing-box
   __completion_update() {
     printf "${CYA}Regenerating Bash completions...${RST}\n"
-    cp -f /mnt/share/src/files/utils/_pbox-compgen $OPT/utils/_pbox-compgen
-    cp -f /mnt/share/src/files/utils/pbox-completions.json $OPT/utils/pbox-completions.json
+    cp -f /mnt/packing-box/src/files/utils/_pbox-compgen $OPT/utils/_pbox-compgen
+    cp -f /mnt/packing-box/src/files/utils/pbox-completions.json $OPT/utils/pbox-completions.json
     _pbox-compgen $OPT/utils/pbox-completions.json -f ~/.bash_completion
     source $HOME/.bashrc
   }
   __files_update() {
     local pyver=$(python3 -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')
     printf "${CYA}Copying files from packing-box...${RST}\n"
-    rm -rf $OPT/data/ && cp -rf /mnt/share/src/data $PBWS/
-    cp -f /mnt/share/src/files/tools/* $OPT/tools/
+    rm -rf $OPT/data/ && cp -rf /mnt/packing-box/src/data $PBWS/
+    cp -f /mnt/packing-box/src/files/tools/* $OPT/tools/
     mv -f $OPT/tools/help $OPT/tools/?
-    cp -f /mnt/share/src/conf/*.yml $PBWS/conf/
-    for F in /mnt/share/src/term/*; do
+    cp -f /mnt/packing-box/src/conf/*.yml $PBWS/conf/
+    for F in /mnt/packing-box/src/term/*; do
       cp -f "$F" "$HOME/.${F##*/}"
     done
     source $HOME/.bashrc
-    find /mnt/share/src/files/detectors/ -type f \( ! -iname \"*\.*\" \) -exec cp -f {} $OPT/bin/ \;
+    find /mnt/packing-box/src/files/detectors/ -type f \( ! -iname \"*\.*\" \) -exec cp -f {} $OPT/bin/ \;
     mv -f $OPT/bin/userdb*.txt $OPT/detectors/
     mv -f $OPT/bin/pypackerdetect-*.json $OPT/detectors/
     rm -f $OPT/detectors/.userdb_txt.json ~/.local/lib/python$pyver/site-packages/peid/db/.userdb_txt.json
@@ -38,10 +38,10 @@ pbox-update() {
   __package_update() {
     if [ ! "$*" = "-n" ] && [ ! "$*" = "--no-internet" ] && [ $ret -eq 0 ]; then
       printf "${CYA}Upgrading pbox library...${RST}\n"
-      uv pip -qq install --upgrade /mnt/share/src/lib/
+      uv pip -qq install --upgrade /mnt/packing-box/src/lib/
     else
       printf "${CYA}Upgrading pbox library (ignore package index)...${RST}\n"
-      uv pip -qq install --no-index --no-build-isolation --no-deps --upgrade /mnt/share/src/lib/
+      uv pip -qq install --no-index --no-build-isolation --no-deps --upgrade /mnt/packing-box/src/lib/
     fi
   }
   if [ "$*" = "-h" ] || [ "$*" = "--help" ]; then

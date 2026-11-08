@@ -13,7 +13,7 @@ CONFIGS  = ["algorithms.yml", "alterations.yml", "analyzers.yml", "detectors.yml
             "scenarios.yml", "unpackers.yml"]
 DEFAULTS = {
     'workspace':   expanduser("~/.packing-box"),
-    'experiments': "/mnt/share/experiments",
+    'experiments': "/mnt/packing-box/experiments",
     'llm_cache':   expanduser("~/.cache/pbox-llm"),
 }
 DSFILES  = ["data.csv", "metadata.json"]
