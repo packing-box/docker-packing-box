@@ -26,10 +26,12 @@ def parse(output, **kwargs):
     else:
         sections, sec = ["Yara Plugins", "Packer", "Sections Suspicious"], None
         for l in output.splitlines():
-            if l in sections:
-                sec = l
+            # section headers are formatted as "----- [title] -----"
+            if l.startswith(3 * "-"):
+                sec = l.strip("- ")
+                sec = sec if sec in sections else None
                 continue
-            if sec is None or 40 * "-" in l:
+            if sec is None:
                 continue
             if l == "":
                 sec = None

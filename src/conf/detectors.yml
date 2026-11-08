@@ -23,6 +23,7 @@ ASL:
   status: useless
 
 BinaryObjectScanner:
+  author: Matt Nadareski
   command: $OPT/binaryobjectscanner/PackerScan -na -ni -no {path}
   description: C# protection, packer, and archive scanning library.
   formats:
@@ -30,7 +31,22 @@ BinaryObjectScanner:
   install:
     - unzip: $OPT/binaryobjectscanner
     - ln: $OPT/binaryobjectscanner/PackerScan
+  license: mit
   source: https://github.com/SabreTools/BinaryObjectScanner
+  status: ok
+  version: 3.3.4
+
+BinStat:
+  description: BinStat is the Python implementation of the packing detection heuristic from the paper "BinStat Tool for Recognition of Packed Executables" of Jin et al.
+  formats:
+    - ELF
+    - PE
+  install:
+    - pip: binstat
+  multiclass: false
+  references:
+    - http://www.ijofcs.org/abstract-v06n1-pp03.html
+  source: https://github.com/packing-box/binstat
   status: ok
 
 Bintropy:
@@ -72,11 +88,15 @@ DIE:
   formats:
     - All
   install:
-    - pip: die-python
+    - git:  https://github.com/elastic/die-python.git
+    - pip:  aqtinstall
+    - cd:   $TMP/die-python
+    - exec: python -m aqt install-qt -O ./build linux desktop 6.7.3 linux_gcc_64
+    - pip:  $TMP/die-python
   license: mit
   source:  https://github.com/horsicq/Detect-It-Easy
   status:  ok
-  version: $OPT/die_lin64_portable/release_version.txt
+  version: die:die_version
   vote:    true
 
 ExeScan:
@@ -104,7 +124,7 @@ Manalyze:
     - MSDOS
     - PE
   install:
-    - git:  https://github.com/JusticeRage/Manalyze
+    - git:  <<source>>.git
     - exec: mv $TMP/manalyze $OPT/manalyze
     - cd:   $OPT/manalyze
     - exec:
@@ -147,19 +167,23 @@ PackerID:
 
 PeFrame:
   author: Gianni Amato
-  comment: TO BE FIXED
+  command: $HOME/.python3.12/bin/peframe {path}
   description: Open source tool to perform static analysis on Portable Executable malware and malicious MS Office documents.
   formats:
     - MSDOS
     - PE
   install:
-    - pip: git+https://github.com/digitalsleuth/peframe
+    - git: https://github.com/digitalsleuth/peframe
+    - cd:  $TMP/peframe
+    - exec:
+      - sed -i '/readline/s/^/#/' pyproject.toml
+      - env -u SETUPTOOLS_USE_DISTUTILS uv pip -q install $TMP/peframe --python $HOME/.python3.12/bin/python
   license: gpl
   silent:
     - "RuntimeWarning: too many matches for string"
     - "for match in rules"
   source:  https://github.com/guelfoweb/peframe
-  status:  broken
+  status:  ok
   version: <output>
   weak:    true
 
@@ -187,8 +211,16 @@ PePack:
     - MSDOS
     - PE
   install:
-    - apt: pev
-  source: https://github.com/merces/pev
+    - git:  <<source>>.git
+    - cd:   $TMP/readpe
+    - apt:  libssl-dev
+    - exec:
+      - make
+      - sudo make install
+      - sudo cp src/build/pepack /usr/bin/pepack
+      - sudo sh -c 'echo "/usr/local/lib" > /etc/ld.so.conf.d/libpe.conf'
+      - sudo ldconfig
+  source: https://github.com/mentebinaria/readpe
   status: ok
 
 PyPackerDetect:
@@ -206,7 +238,7 @@ PyPackerDetect:
 
 PyPeid:
   author: Koh M. Nakagawa
-  comment: May replace PEiD thanks to its support for Yara rules. TO BE CHECKED
+  command: $HOME/.python3.12/bin/python -m pypeid {path}
   description: Yet another implementation of PEiD with yara-python.
   formats:
     - MSDOS
@@ -216,12 +248,13 @@ PyPeid:
     - cd:   $TMP/pypeid
     - exec:
       - poetry build -q
-      - find dist -iname *.whl -exec uv pip -q install {} \;
+      - env -u SETUPTOOLS_USE_DISTUTILS VIRTUAL_ENV=$HOME/.python3.12 find dist -iname *.whl -exec uv pip -q install {} \;
+    - copy: peid_packers_only.yar $HOME/.python3.12/lib/python3.12/site-packages/pypeid/rules/Packers/peid.yar
   license: apache-2.0
   maintained: false
   source:  https://github.com/FFRI/pypeid
   status:  ok
-  version: pypeid:__version__
+  version: 0.1.3
 
 RDG:
   description: RDG Packer Detector is a detector for packers, Cryptors, Compilers, Packers Scrambler, Joiners, Installers.

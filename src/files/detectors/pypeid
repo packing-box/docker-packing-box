@@ -1,16 +1,19 @@
 #!/usr/bin/env python3
 # -*- coding: UTF-8 -*-
 from pboxtools import *
-from pypeid import PEiDScanner
 
 
-@catch_exception
-def execute(name, **kwargs):
-    r = PEiDScanner(kwargs['logger']).scan_file(kwargs['path'])
-    kwargs['logger'].debug("\n" + pformat(r, indent=4))
-    return r['PEiD'] + [[], ["unknown"]][r['Packed'] == "yes"]
+def parse(output, **kwargs):
+    r = []
+    for l in output.splitlines():
+        t = l.strip().split(" : ")
+        if t in [["Anti-Debug", "yes"], ["Packed", "yes"]]:
+            r.append("unknown")
+        elif t[0] in ["AntiDebug", "PEiD"]:
+            r.extend([x.strip("\"") for x in t[1].strip("[]").split()])
+    return r
 
 
 if __name__ == "__main__":
-    run("PyPeid", exec_func=execute, exe_type="pe", exe_help="path to the PE file")
+    run("PyPeid", parse_func=parse, exe_type="pe", exe_help="path to the PE file")
 
