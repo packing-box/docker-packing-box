@@ -16,6 +16,7 @@ nav:
     - 'Dataset Manipulation': usage/datasets.md
     - 'Data Visualization': usage/analysis.md
     - 'Model Training': usage/training.md
+    - 'Model Export': usage/export.md
   - Internals:
     - internals/index.md
     - Entities:

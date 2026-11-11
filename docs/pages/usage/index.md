@@ -10,3 +10,4 @@ It adresses:
 - How to perform [static detection](detectors.html) with the integrated tools, including superdetection
 - How to [manipulate datasets](datasets.html) in different ways
 - How to train [machine learning models](training.html) and exploit results
+- How to [export a trained model](export.html) as a standalone tool

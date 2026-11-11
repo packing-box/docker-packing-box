@@ -81,6 +81,15 @@ A setting can be adapted by stating its name as an option with the `config` comm
 $ packing-box config --vt-api-key [YOUR-API-KEY-HERE]
 ```
 
+### Parsers
+
+The executables are parsed with [LIEF](https://lief.re) (`lief`) by default. For PE files, the `portable` parser is an alternative: it only depends on the Python standard library, and is the parser that the standalone tools built from trained models embed. It follows LIEF's parsing (including on malformed executables), so that it gives the same feature values; it cannot modify executables, so it cannot be used for alterations. With this parser, the PE features coming from [`pefeats`](https://github.com/packing-box/pefeats) are computed by its Python port instead of the `pefeats` tool, so that no native code is involved.
+
+```console
+┌──[user@packing-box]──[/mnt/share]────────
+$ packing-box config --pe-parser portable
+```
+
 ## Files
 
 The status of the current workspace can be inspected with the `workspace view`.

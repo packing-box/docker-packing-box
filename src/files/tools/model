@@ -19,6 +19,7 @@ __description__ = "Train Machine Learning models"
 __examples__    = [
     "compare [model_name] -m [model_name2] -d my-dataset",
     "explain [model_name]",
+    "export [model_name] -o ./my-tool",
     "fuzz [model_name]"
     "list",
     "preprocess [model_name] my-dataset",
@@ -55,6 +56,17 @@ if __name__ == '__main__':
     explain.add_argument("--max-display", type=int, default=10, help="max features to display in heatmap")
     explain.add_argument("--max-samples", type=int, help="max samples to explain (auto-set to 400 for slow models)")
     explain.add_argument("executable", nargs="?", default=None, help="dataset or executable to explain on")
+    export = add_argument(sparsers.add_parser("export", category="create/modify/delete",
+                                              help="export the model as a standalone tool (no dependency)"), "mdname")
+    export.add_argument("-o", "--output", help="folder of the tool's repository (default: ./<tool name>)")
+    export.add_argument("-n", "--tool-name", help="name of the tool (default: derived from the model's name)")
+    export.add_argument("-s", "--samples", nargs="*", action="extend",
+                        help="executables or folders to check the feature extraction on (default: files of the "
+                             "model's dataset, if any)")
+    export.add_argument("-m", "--max-samples", type=int, default=30,
+                        help="maximum number of executables to check the feature extraction on")
+    export.add_argument("-f", "--force", action="store_true",
+                        help="write into an existing folder and keep the tool even if the checks fail")
     fuzz = add_argument(sparsers.add_parser("fuzz", category="read",
                                             help="fuzz features and analyze the impact on predictions"), "mdname")
     fuzz.add_argument("-d", "--delta", type=float, default=.1, help="percentage to fuzz features by (default: 10%%)")

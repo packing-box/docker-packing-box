@@ -233,6 +233,7 @@ class BaseModel(Entity):
                 l.error(f"Missing features in the input dataset:\n- {'\n- '.join(missing)}")
                 return False
             self._data = self._data[classifier._feature_names]
+            self._features = {k: v for k, v in self._features.items() if k in classifier._feature_names}
         # if data has to be unlabelled, force values for column 'label'
         if unlabelled:
             self._target['label'] = NOT_LABELLED
@@ -278,9 +279,7 @@ class BaseModel(Entity):
             selector = SelectKBest(score_func=mutual_info_classif, k=k)
             selector.fit(self._data, self._target)
             kept_features = self._data.columns[selector.get_support(indices=True)]
-            removed = sorted([f for f in self._features.keys() if f not in kept_features])
-            self._features = {k: v for k, v in self._features.items() if k in kept_features}
-            if len(removed) > 0:
+            if len(removed := sorted([f for f in self._features.keys() if f not in kept_features])) > 0:
                 if has_fnames:
                     self.logger.warning("> redundant features:\n- %s" % "\n- ".join(removed))
                 else:
@@ -663,6 +662,27 @@ class Model(BaseModel):
         for r in rows:
             print("".join(f"  {r[i]:<{col_widths[i]}}" if i == 0 else f"{r[i]:>{col_widths[i]}}" for i in range(n_cols)))
         print()
+
+    def export(self, output=None, tool_name=None, samples=None, max_samples=30, force=False, **kw):
+        """ Export the model as a standalone tool: a repository with the strictly necessary code for computing the
+             features the model uses and for running the model, in pure Python (see pbox.core.model.export). """
+        from .export import export_tool, UnsupportedModelError
+        l = self.logger
+        if len(self.pipeline.steps) == 0:
+            l.warning("Model shall be trained before exporting")
+            return
+        try:
+            out, report = export_tool(self.path, output, tool_name, samples, max_samples, force=force, logger=l)
+        except (UnsupportedModelError, FileExistsError) as e:
+            l.error(str(e))
+            return
+        m, f = report['model'], report['files']
+        l.info(f"Model checked on {m['rows']} rows of the dataset ({m['mismatches']} mismatch) ; feature extraction "
+               f"checked on {f['checked']} executables ({f['mismatches']} mismatch)")
+        for p in report['problems']:
+            l.warning(p)
+        l.info(f"Tool exported to {out}")
+        return out
 
     def fuzz(self, executable=None, delta=0.1, export=True, output_dir=None, stddev=False, n_sigma=1.0,
              multi_delta=False, bootstrap=False, interactions=False, **kw):
