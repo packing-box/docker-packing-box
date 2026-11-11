@@ -5,6 +5,7 @@ This section is for researchers who want to learn how to use the [*Packing Box*]
 It adresses:
 
 - Management of [framework settings](management.html)
+- Management of the workspace with the [terminal interface](tui.html)
 - How to use [executable (mass-)packing](packers.html)
 - How to perform [static detection](detectors.html) with the integrated tools, including superdetection
 - How to [manipulate datasets](datasets.html) in different ways
